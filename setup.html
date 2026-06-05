@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HormoneSync — Setup</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #faf8f5;
+            color: #2c2820;
+        }
+
+        .screen {
+            max-width: 420px;
+            margin: 0 auto;
+            min-height: 100vh;
+            padding-bottom: 100px;
+        }
+
+        .top-bar {
+            background: #f5f0e8;
+            padding: 24px 20px 20px;
+            border-bottom: 1px solid #ede8e0;
+            text-align: center;
+        }
+
+        .logo {
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: #2c2820;
+            margin-bottom: 16px;
+        }
+
+        .top-bar h1 {
+            font-size: 22px;
+            font-weight: 500;
+            color: #2c2820;
+            margin-bottom: 8px;
+            font-family: Georgia, serif;
+            font-style: italic;
+        }
+
+        .top-bar p {
+            font-size: 13px;
+            color: #7a7268;
+            line-height: 1.6;
+            margin: 0;
+        }
+
+        .path-section {
+            padding: 20px 16px 0;
+        }
+
+        .path-label {
+            font-size: 13px;
+            font-weight: 500;
+            color: #2c2820;
+            margin-bottom: 4px;
+        }
+
+        .path-sub {
+            font-size: 12px;
+            color: #7a7268;
+            margin-bottom: 14px;
+            line-height: 1.5;
+        }
+
+        .path-option {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            padding: 14px;
+            border-radius: 12px;
+            border: 1px solid #ede8e0;
+            margin-bottom: 10px;
+            background: #ffffff;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .path-option:hover {
+            border-color: #c8b89a;
+            background: #fdf9f4;
+        }
+
+        .path-option.selected {
+            background: #f5f0e8;
+            border-color: #c8b89a;
+        }
+
+        .path-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: #f0ece6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-size: 18px;
+            color: #8a7a6a;
+        }
+
+        .path-icon.p2 {
+            background: #e8f0e8;
+            color: #4a7a4a;
+        }
+
+        .path-icon.p3 {
+            background: #e8e8f5;
+            color: #4a4a8a;
+        }
+
+        .path-icon.p4 {
+            background: #f5e8f0;
+            color: #8a4a6a;
+        }
+
+        .path-right {
+            flex: 1;
+        }
+
+        .path-name {
+            font-size: 14px;
+            font-weight: 500;
+            color: #2c2820;
+            margin-bottom: 3px;
+        }
+
+        .path-desc {
+            font-size: 12px;
+            color: #7a7268;
+            line-height: 1.5;
+        }
+
+        .form-panel {
+            display: none;
+            padding: 20px 16px 0;
+        }
+
+        .form-panel.visible {
+            display: block;
+        }
+
+        .info-box {
+            padding: 14px 16px;
+            border-radius: 12px;
+            border: 1px solid #ede8e0;
+            margin-bottom: 16px;
+        }
+
+        .info-box.warm {
+            background: #f5f0e8;
+            border-color: #e0d8c8;
+        }
+
+        .info-box.green {
+            background: #eef5ee;
+            border-color: #c8e0c8;
+        }
+
+        .info-box.blue {
+            background: #eeeef8;
+            border-color: #c8c8e8;
+        }
+
+        .info-box.pink {
+            background: #f8eef4;
+            border-color: #e8c8dc;
+        }
+
+        .info-box-label {
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+
+        .warm .info-box-label {
+            color: #8a7a6a;
+        }
+
+        .green .info-box-label {
+            color: #4a7a4a;
+        }
+
+        .blue .info-box-label {
+            color: #4a4a8a;
+        }
+
+        .pink .info-box-label {
+            color: #8a4a6a;
+        }
+
+        .info-box-text {
+            font-size: 12px;
+            color: #5a5550;
+            line-height: 1.7;
+        }
+
+        .field {
+            margin-bottom: 20px;
+        }
+
+        .field-label {
+            font-size: 13px;
+            font-weight: 500;
+            color: #2c2820;
+            margin-bottom: 4px;
+            display: block;
+        }
+
+        .field-why {
+            font-size: 12px;
+            color: #7a7268;
+            line-height: 1.5;
+            margin-bottom: 10px;
+        }
+
+        .field input[type="date"],
+        .field input[type="number"] {
+            width: 100%;
+            padding: 12px 14px;
+            border-radius: 10px;
+            border: 1px solid #ede8e0;
+            background: #ffffff;
+            font-size: 15px;
+            color: #2c2820;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+
+        .field input:focus {
+            border-color: #c8b89a;
+        }
+
+        .cycle-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .cycle-row input {
+            flex: 1;
+            padding: 12px 14px;
+            border-radius: 10px;
+            border: 1px solid #ede8e0;
+            background: #ffffff;
+            font-size: 15px;
+            color: #2c2820;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+
+        .cycle-row input:focus {
+            border-color: #c8b89a;
+        }
+
+        .cycle-row span {
+            font-size: 13px;
+            color: #7a7268;
+            white-space: nowrap;
+        }
+
+        .preset-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .preset-btn {
+            padding: 7px 14px;
+            border-radius: 99px;
+            border: 1px solid #ede8e0;
+            background: #ffffff;
+            font-size: 12px;
+            color: #5a5550;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .preset-btn:hover {
+            border-color: #c8b89a;
+            background: #fdf9f4;
+        }
+
+        .preset-btn.selected {
+            background: #e8dfd0;
+            color: #5a4a3a;
+            border-color: #c8b89a;
+        }
+
+        .preview-box {
+            padding: 14px 16px;
+            background: #f5f0e8;
+            border-radius: 12px;
+            border: 1px solid #ede8e0;
+            margin-bottom: 16px;
+            display: none;
+        }
+
+        .preview-box.visible {
+            display: block;
+        }
+
+        .preview-label {
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #8a7a6a;
+            margin-bottom: 10px;
+        }
+
+        .preview-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .preview-item {
+            background: #ffffff;
+            border-radius: 10px;
+            padding: 10px 12px;
+            border: 1px solid #ede8e0;
+        }
+
+        .preview-item-label {
+            font-size: 10px;
+            color: #9a9590;
+            margin-bottom: 3px;
+        }
+
+        .preview-item-value {
+            font-size: 14px;
+            font-weight: 500;
+            color: #2c2820;
+        }
+
+        .preview-phase {
+            grid-column: 1 / -1;
+            background: #2c2820;
+            border-radius: 10px;
+            padding: 12px 14px;
+            border: none;
+        }
+
+        .preview-phase .preview-item-label {
+            color: #8a8078;
+        }
+
+        .preview-phase .preview-item-value {
+            color: #e8e0d4;
+            font-size: 16px;
+        }
+
+        .check-item {
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+            padding: 10px 0;
+            border-bottom: 1px solid #ede8e0;
+        }
+
+        .check-item:last-child {
+            border-bottom: none;
+        }
+
+        .check-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: #e8dfd0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-size: 14px;
+            color: #6a5a4a;
+            margin-top: 1px;
+        }
+
+        .check-text {
+            font-size: 12px;
+            color: #5a5550;
+            line-height: 1.6;
+        }
+
+        .check-text strong {
+            color: #2c2820;
+            font-weight: 500;
+        }
+
+        .next-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #ffffff;
+            border-top: 1px solid #ede8e0;
+            padding: 14px 16px;
+            max-width: 420px;
+            margin: 0 auto;
+        }
+
+        .next-btn {
+            display: block;
+            width: 100%;
+            background: #2c2820;
+            color: #f5f0e8;
+            border: none;
+            border-radius: 10px;
+            padding: 14px;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            text-align: center;
+            transition: background 0.15s;
+        }
+
+        .next-btn:hover {
+            background: #3d3830;
+        }
+
+        .next-btn:disabled {
+            background: #c8c0b8;
+            cursor: not-allowed;
+        }
+
+        .spinner {
+            width: 32px; height: 32px;
+            border: 3px solid #ede8e0; border-top-color: #c8b89a;
+            border-radius: 50%; animation: spin 0.8s linear infinite;
+            margin: 80px auto 0;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        #setupSpinner { text-align: center; padding: 0 20px; }
+    </style>
+</head>
+
+<body>
+    <div id="setupSpinner"><div class="spinner"></div></div>
+    <div class="screen" id="setupContent" style="display:none">
+        <div class="top-bar">
+            <div class="logo">HormoneSync</div>
+            <h1>Let's find your phase.</h1>
+            <p>Every body is different. Tell us where you are and we will build your plan from there.</p>
+        </div>
+
+        <div class="path-section">
+            <div class="path-label">Which best describes you right now?</div>
+            <div class="path-sub">This helps us set up the right tracking mode for your body. You can always change this
+                later.</div>
+
+            <div class="path-option" onclick="selectPath(1, event)">
+                <div class="path-icon"><i class="ti ti-calendar"></i></div>
+                <div class="path-right">
+                    <div class="path-name">I know my last period date</div>
+                    <div class="path-desc">My cycle is regular enough that I can track it by date</div>
+                </div>
+            </div>
+
+            <div class="path-option" onclick="selectPath(2, event)">
+                <div class="path-icon p2"><i class="ti ti-pill"></i></div>
+                <div class="path-right">
+                    <div class="path-name">I just came off birth control</div>
+                    <div class="path-desc">I recently stopped hormonal contraception and my cycle is returning or not
+                        yet back</div>
+                </div>
+            </div>
+
+            <div class="path-option" onclick="selectPath(3, event)">
+                <div class="path-icon p3"><i class="ti ti-wave-sine"></i></div>
+                <div class="path-right">
+                    <div class="path-name">My cycles are irregular or I am not sure</div>
+                    <div class="path-desc">My period is unpredictable or I have never tracked before</div>
+                </div>
+            </div>
+
+            <div class="path-option" onclick="selectPath(4, event)">
+                <div class="path-icon p4"><i class="ti ti-heart"></i></div>
+                <div class="path-right">
+                    <div class="path-name">I am in perimenopause or menopause</div>
+                    <div class="path-desc">My cycles are changing significantly or have stopped</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Path 1 -->
+        <div class="form-panel" id="panel1">
+            <div class="field">
+                <label class="field-label" for="lastPeriod">When did your last period start?</label>
+                <p class="field-why">This is day 1 of your cycle. We use this to calculate what day you are on today and
+                    which phase you are in right now.</p>
+                <input type="date" id="lastPeriod" onchange="calculate()" />
+            </div>
+            <div class="field">
+                <label class="field-label" for="cycleLength">How long is your average cycle?</label>
+                <p class="field-why">Count from the first day of one period to the first day of the next. If you are not
+                    sure, 28 days is a good starting point.</p>
+                <div class="cycle-row">
+                    <input type="number" id="cycleLength" min="21" max="45" value="28" onchange="calculate()"
+                        oninput="calculate()" />
+                    <span>days</span>
+                </div>
+                <div class="preset-row" style="margin-top:8px">
+                    <div class="preset-btn" onclick="setLength(24, this)">24</div>
+                    <div class="preset-btn selected" onclick="setLength(28, this)">28</div>
+                    <div class="preset-btn" onclick="setLength(30, this)">30</div>
+                    <div class="preset-btn" onclick="setLength(32, this)">32</div>
+                    <div class="preset-btn" onclick="setLength(35, this)">35</div>
+                </div>
+            </div>
+            <div class="preview-box" id="previewBox">
+                <div class="preview-label">Your cycle right now</div>
+                <div class="preview-grid">
+                    <div class="preview-item">
+                        <div class="preview-item-label">Cycle day</div>
+                        <div class="preview-item-value" id="previewDay"></div>
+                    </div>
+                    <div class="preview-item">
+                        <div class="preview-item-label">Days until period</div>
+                        <div class="preview-item-value" id="previewDaysLeft"></div>
+                    </div>
+                    <div class="preview-phase preview-item">
+                        <div class="preview-item-label">You are in your</div>
+                        <div class="preview-item-value" id="previewPhase"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Path 2 -->
+        <div class="form-panel" id="panel2">
+            <div class="info-box green">
+                <div class="info-box-label">You are not alone in this</div>
+                <div class="info-box-text">Coming off hormonal birth control is one of the most common reasons women
+                    start tracking their cycle. Every method clears your system differently. Tell us which one you were
+                    on and we will set the right expectations for your recovery.</div>
+            </div>
+            <div class="field">
+                <label class="field-label">Which method were you on?</label>
+                <p class="field-why">Different methods affect your hormone recovery timeline very differently.</p>
+                <div id="bcTypeRow" style="display:flex;flex-direction:column;gap:8px">
+                    <div class="preset-btn" style="text-align:left;border-radius:10px;padding:11px 14px"
+                        onclick="selectBC(this, 'pill')">Combined pill (estrogen and progestin)</div>
+                    <div class="preset-btn" style="text-align:left;border-radius:10px;padding:11px 14px"
+                        onclick="selectBC(this, 'minipill')">Mini pill (progestin only)</div>
+                    <div class="preset-btn" style="text-align:left;border-radius:10px;padding:11px 14px"
+                        onclick="selectBC(this, 'patch')">Patch</div>
+                    <div class="preset-btn" style="text-align:left;border-radius:10px;padding:11px 14px"
+                        onclick="selectBC(this, 'ring')">Vaginal ring</div>
+                    <div class="preset-btn" style="text-align:left;border-radius:10px;padding:11px 14px"
+                        onclick="selectBC(this, 'hormonal-iud')">Hormonal IUD (Mirena, Kyleena)</div>
+                    <div class="preset-btn" style="text-align:left;border-radius:10px;padding:11px 14px"
+                        onclick="selectBC(this, 'copper-iud')">Copper IUD (non-hormonal)</div>
+                    <div class="preset-btn" style="text-align:left;border-radius:10px;padding:11px 14px"
+                        onclick="selectBC(this, 'implant')">Implant (Nexplanon)</div>
+                    <div class="preset-btn" style="text-align:left;border-radius:10px;padding:11px 14px"
+                        onclick="selectBC(this, 'depo')">Depo-Provera injection</div>
+                    <div class="preset-btn" style="text-align:left;border-radius:10px;padding:11px 14px"
+                        onclick="selectBC(this, 'unsure')">Not sure</div>
+                </div>
+            </div>
+            <div id="bcGuidance" style="display:none;margin-bottom:16px"></div>
+            <div class="field">
+                <label class="field-label">Have you had any bleeding since stopping?</label>
+                <p class="field-why">Even spotting counts as a sign your cycle is returning.</p>
+                <div class="preset-row">
+                    <div class="preset-btn" onclick="selectPreset(this, 'hadPeriod', 'yes')">Yes a full period</div>
+                    <div class="preset-btn" onclick="selectPreset(this, 'hadPeriod', 'spotting')">Some spotting</div>
+                    <div class="preset-btn" onclick="selectPreset(this, 'hadPeriod', 'no')">Nothing yet</div>
+                </div>
+            </div>
+            <div class="info-box warm">
+                <div class="info-box-label">How HormoneSync helps you right now</div>
+                <div class="info-box-text">We will put you in observation mode. Daily logging of your discharge,
+                    temperature, energy, and mood gives the algorithm the signals it needs to detect when your natural
+                    cycle returns.</div>
+            </div>
+            <div style="padding:4px 0 16px">
+                <div class="check-item">
+                    <div class="check-icon"><i class="ti ti-eye"></i></div>
+                    <div class="check-text"><strong>Watch for discharge changes.</strong> Cervical mucus is usually the
+                        first sign your cycle is waking up.</div>
+                </div>
+                <div class="check-item">
+                    <div class="check-icon"><i class="ti ti-heart-rate-monitor"></i></div>
+                    <div class="check-text"><strong>Wear your Oura Ring or wearable every night.</strong> Temperature
+                        shifts are the earliest detectable sign that ovulation is returning.</div>
+                </div>
+                <div class="check-item">
+                    <div class="check-icon"><i class="ti ti-mood-smile"></i></div>
+                    <div class="check-text"><strong>Track your mood and energy daily.</strong> Hormonal shifts show up
+                        here before they show up anywhere else.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Path 3 -->
+        <div class="form-panel" id="panel3">
+            <div class="info-box blue">
+                <div class="info-box-label">Irregular cycles are more common than you think</div>
+                <div class="info-box-text">Stress, weight changes, thyroid issues, PCOS, and many other factors can make
+                    cycles unpredictable. HormoneSync reads your body's real-time signals to find your phase even when
+                    the dates are unreliable.</div>
+            </div>
+            <div class="field">
+                <label class="field-label" for="lastPeriodIrreg">Roughly when was your last period?</label>
+                <p class="field-why">Even a rough estimate helps. You can update this at any time.</p>
+                <input type="date" id="lastPeriodIrreg" />
+            </div>
+            <div class="field">
+                <label class="field-label">How would you describe your cycle?</label>
+                <div style="display:flex;flex-direction:column;gap:8px">
+                    <div class="preset-btn" style="text-align:left;border-radius:10px;padding:10px 14px"
+                        onclick="selectPreset(this, 'irregType', 'slightly')">Slightly irregular, varies by a week or
+                        so</div>
+                    <div class="preset-btn" style="text-align:left;border-radius:10px;padding:10px 14px"
+                        onclick="selectPreset(this, 'irregType', 'very')">Very irregular, hard to predict at all</div>
+                    <div class="preset-btn" style="text-align:left;border-radius:10px;padding:10px 14px"
+                        onclick="selectPreset(this, 'irregType', 'never')">I have never tracked before</div>
+                </div>
+            </div>
+            <div class="info-box warm">
+                <div class="info-box-label">How this works for you</div>
+                <div class="info-box-text">We will start with your best guess and build accuracy over time. Most users
+                    see reliable phase predictions after 2 to 3 cycles.</div>
+            </div>
+        </div>
+
+        <!-- Path 4 -->
+        <div class="form-panel" id="panel4">
+            <div class="info-box pink">
+                <div class="info-box-label">Your body, your plan</div>
+                <div class="info-box-text">Perimenopause and menopause bring a different hormonal landscape. HormoneSync
+                    adapts its recommendations to this phase of life. Workouts, nutrition, and tracking all shift to
+                    match where you are.</div>
+            </div>
+            <div class="field">
+                <label class="field-label">Where are you in this transition?</label>
+                <div style="display:flex;flex-direction:column;gap:8px">
+                    <div class="preset-btn" style="text-align:left;border-radius:10px;padding:10px 14px"
+                        onclick="selectPreset(this, 'menopauseStage', 'peri-early')">Early perimenopause, cycles still
+                        happening but changing</div>
+                    <div class="preset-btn" style="text-align:left;border-radius:10px;padding:10px 14px"
+                        onclick="selectPreset(this, 'menopauseStage', 'peri-late')">Late perimenopause, cycles very
+                        irregular or mostly gone</div>
+                    <div class="preset-btn" style="text-align:left;border-radius:10px;padding:10px 14px"
+                        onclick="selectPreset(this, 'menopauseStage', 'menopause')">Menopause, no period for 12 or more
+                        months</div>
+                </div>
+            </div>
+            <div style="padding:4px 0 16px">
+                <div class="check-item">
+                    <div class="check-icon"><i class="ti ti-activity"></i></div>
+                    <div class="check-text"><strong>Exercise recommendations adapt.</strong> Lower estrogen affects
+                        muscle recovery, bone density, and how your body uses fuel.</div>
+                </div>
+                <div class="check-item">
+                    <div class="check-icon"><i class="ti ti-moon"></i></div>
+                    <div class="check-text"><strong>Sleep and mood tracking matter more here.</strong> Hot flashes,
+                        night sweats, and anxiety are hormonal signals worth logging.</div>
+                </div>
+                <div class="check-item">
+                    <div class="check-icon"><i class="ti ti-test-pipe"></i></div>
+                    <div class="check-text"><strong>Hormone+ is especially valuable.</strong> Salivary cortisol and
+                        testosterone testing gives real data on what your body is actually producing.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    </div><!-- /setupContent -->
+
+    <div class="next-bar" id="setupNextBar" style="display:none">
+        <button class="next-btn" id="nextBtn" disabled>Select an option above to continue</button>
+    </div>
+
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
+        import { getPhase as _getPhase } from './hormoneSync.js'
+
+        const SUPABASE_URL = 'https://imgujppjvffbubnsscge.supabase.co'
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImltZ3VqcHBqdmZmYnVibnNzY2dlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2MDQzNzIsImV4cCI6MjA5NjE4MDM3Mn0.TpjycdiHLl5iI1G8u07mVmStKZWU2fzEsuw1dUi6diU'
+        const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+        // P16: Auth guard
+        const { data: { session: _setupSession } } = await supabase.auth.getSession()
+        if (!_setupSession) { window.location.href = 'login.html' }
+        supabase.auth.onAuthStateChange((event, session) => {
+            if (!session) { window.location.href = 'login.html'; return }
+        })
+
+        // Guard: redirect if already set up; show content once confirmed new user
+        ;(async () => {
+            try {
+                const { data: { user } } = await supabase.auth.getUser()
+                if (!user) { window.location.href = 'login.html'; return }
+                const { data: profile } = await supabase.from('profiles').select('user_path, onboarding_complete').eq('id', user.id).single()
+                if (profile?.user_path && profile?.onboarding_complete) { window.location.href = 'dashboard.html'; return }
+            } catch (e) {
+                console.error('Setup guard error:', e)
+            }
+            document.getElementById('setupSpinner').style.display = 'none'
+            document.getElementById('setupContent').style.display = 'block'
+            document.getElementById('setupNextBar').style.display = 'block'
+        })()
+
+        let currentPath = null
+        const selections = {}
+
+        window.selectPath = function (n, event) {
+            currentPath = n
+            document.querySelectorAll('.path-option').forEach(o => o.classList.remove('selected'))
+            document.querySelectorAll('.form-panel').forEach(p => p.classList.remove('visible'))
+            event.currentTarget.classList.add('selected')
+            document.getElementById('panel' + n).classList.add('visible')
+            const btn = document.getElementById('nextBtn')
+            if (n === 1) {
+                btn.disabled = true
+                btn.textContent = 'Enter your last period date to continue'
+            } else {
+                btn.disabled = false
+                btn.textContent = getButtonText(n)
+            }
+        }
+
+        function getButtonText(n) {
+            if (n === 2) return 'Start in observation mode'
+            if (n === 3) return 'Start with symptom tracking'
+            if (n === 4) return 'Start in menopause mode'
+            return 'Continue'
+        }
+
+        window.setLength = function (n, el) {
+            document.getElementById('cycleLength').value = n
+            document.querySelectorAll('.preset-row .preset-btn').forEach(b => b.classList.remove('selected'))
+            el.classList.add('selected')
+            calculate()
+        }
+
+        window.selectPreset = function (el, key, val) {
+            const row = el.parentElement
+            row.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('selected'))
+            el.classList.add('selected')
+            selections[key] = val
+        }
+
+        window.calculate = function () {
+            const dateVal = document.getElementById('lastPeriod').value
+            const cycleLen = parseInt(document.getElementById('cycleLength').value) || 28
+            const btn = document.getElementById('nextBtn')
+            if (!dateVal) return
+            const lastPeriod = new Date(dateVal)
+            const today = new Date()
+            today.setHours(0, 0, 0, 0)
+            lastPeriod.setHours(0, 0, 0, 0)
+            const diffDays = Math.floor((today - lastPeriod) / (1000 * 60 * 60 * 24))
+            const cycleDay = diffDays + 1
+            if (cycleDay < 1 || cycleDay > cycleLen + 10) {
+                document.getElementById('previewBox').classList.remove('visible')
+                btn.disabled = true
+                btn.textContent = 'Please enter a valid date'
+                return
+            }
+            const daysLeft = Math.max(0, cycleLen - cycleDay + 1)
+            const phase = getPhase(cycleDay, cycleLen)
+            document.getElementById('previewDay').textContent = 'Day ' + cycleDay + ' of ' + cycleLen
+            document.getElementById('previewDaysLeft').textContent = daysLeft + ' days'
+            document.getElementById('previewPhase').textContent = phase
+            document.getElementById('previewBox').classList.add('visible')
+            btn.disabled = false
+            btn.textContent = 'Save and go to dashboard'
+        }
+
+        // Thin adapter — logic lives in hormoneSync.js
+        function getPhase(day, cycleLen) { return _getPhase(day, cycleLen) + ' phase' }
+
+        const bcGuidance = {
+            pill: { title: 'Combined pill', time: 'Cycle typically returns within 1 to 3 months', text: 'The hormones from the combined pill clear your system within 24 to 48 hours. Your first cycle after stopping may be longer than usual as your body recalibrates.', color: 'green' },
+            minipill: { title: 'Mini pill', time: 'Cycle typically returns within 1 to 2 months', text: 'The progestin-only pill clears very quickly. You may ovulate as soon as your next natural cycle begins.', color: 'green' },
+            patch: { title: 'Patch', time: 'Cycle typically returns within 2 to 4 months', text: 'The patch hormones clear within 48 hours of removal. Most women see their first natural period within 2 to 3 months.', color: 'green' },
+            ring: { title: 'Vaginal ring', time: 'Cycle typically returns within 1 to 3 months', text: 'Ring hormones clear quickly after removal. Your first cycle may be a little longer than normal.', color: 'green' },
+            'hormonal-iud': { title: 'Hormonal IUD', time: 'Cycle typically returns within 1 to 2 months', text: 'Once removed, hormones clear within a week and ovulation returns quickly.', color: 'green' },
+            'copper-iud': { title: 'Copper IUD', time: 'Fertility returns immediately', text: 'The copper IUD contains no hormones so removing it has no effect on your hormone levels at all.', color: 'green' },
+            implant: { title: 'Implant', time: 'Cycle typically returns within 1 to 3 months', text: 'Implant hormones clear within 2 to 3 days of removal. Ovulation can return within weeks for some women.', color: 'green' },
+            depo: { title: 'Depo-Provera injection', time: 'Cycle may take 9 to 18 months to return', text: 'Depo is the most different from other methods. The hormone is stored in your fat tissue and releases slowly over time. It is completely normal not to have a period for many months after your last injection.', color: 'warm' },
+            unsure: { title: 'Not sure', time: 'We will figure it out together', text: 'We will use your daily logs to detect when your cycle starts returning regardless of what method you were on.', color: 'green' }
+        }
+
+        window.selectBC = function (el, type) {
+            document.querySelectorAll('#bcTypeRow .preset-btn').forEach(b => b.classList.remove('selected'))
+            el.classList.add('selected')
+            const g = bcGuidance[type]
+            if (!g) return
+            const box = document.getElementById('bcGuidance')
+            box.innerHTML = `<div class="info-box ${g.color}"><div class="info-box-label">${g.title}: ${g.time}</div><div class="info-box-text">${g.text}</div></div>`
+            box.style.display = 'block'
+            selections.bcType = type
+        }
+
+        document.getElementById('nextBtn').addEventListener('click', async function () {
+            if (this.disabled) return
+
+            const { data: { user } } = await supabase.auth.getUser()
+            if (!user) {
+                window.location.href = 'login.html'
+                return
+            }
+
+            const cycleLen = parseInt(document.getElementById('cycleLength')?.value) || 28
+            const lastPeriodDate = document.getElementById('lastPeriod')?.value || null
+            const lastPeriodIrreg = document.getElementById('lastPeriodIrreg')?.value || null
+
+            await supabase.from('profiles').update({
+                user_path: String(currentPath),
+                bc_type: selections.bcType || null,
+                cycle_length: cycleLen,
+                onboarding_complete: true
+            }).eq('id', user.id)
+
+            if (lastPeriodDate || lastPeriodIrreg) {
+                await supabase.from('cycle_data').insert({
+                    user_id: user.id,
+                    last_period_date: lastPeriodDate || lastPeriodIrreg,
+                    cycle_length: cycleLen
+                })
+            }
+
+            window.location.href = 'dashboard.html'
+        })
+    </script>
+</body>
+
+</html>

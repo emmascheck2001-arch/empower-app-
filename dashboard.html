@@ -1,0 +1,1462 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HormoneSync</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css" />
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #faf8f5;
+      color: #2c2820;
+      padding-bottom: 80px;
+      max-width: 420px;
+      margin: 0 auto;
+    }
+
+    .top-bar {
+      background: #f5f0e8;
+      padding: 20px 20px 16px;
+      border-bottom: 1px solid #ede8e0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .logo {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #2c2820;
+    }
+
+    .greeting {
+      font-size: 13px;
+      color: #7a7268;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 60px 20px;
+      color: #9a9590;
+      font-size: 14px;
+    }
+
+    .spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid #ede8e0;
+      border-top-color: #c8b89a;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 12px;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    /* Hero phase card */
+    .hero {
+      margin: 16px;
+      border-radius: 16px;
+      padding: 28px 24px;
+      color: #e8e0d4;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-menstrual {
+      background: linear-gradient(135deg, #3d2830 0%, #2c1f25 100%);
+    }
+
+    .hero-follicular {
+      background: linear-gradient(135deg, #2c3828 0%, #1f2c20 100%);
+    }
+
+    .hero-ovulatory {
+      background: linear-gradient(135deg, #2c3035 0%, #1f252c 100%);
+    }
+
+    .hero-luteal {
+      background: linear-gradient(135deg, #352c20 0%, #2c2415 100%);
+    }
+
+    .hero-observation {
+      background: linear-gradient(135deg, #2c2820 0%, #1f1e18 100%);
+    }
+
+    .hero-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #8a8078;
+      margin-bottom: 8px;
+    }
+
+    .hero-phase {
+      font-family: Georgia, serif;
+      font-size: 26px;
+      font-weight: 400;
+      font-style: italic;
+      color: #e8e0d4;
+      margin-bottom: 6px;
+    }
+
+    .hero-day {
+      font-size: 12px;
+      color: #8a8078;
+      margin-bottom: 14px;
+    }
+
+    .hero-desc {
+      font-size: 13px;
+      color: #a0988e;
+      line-height: 1.7;
+      margin-bottom: 6px;
+    }
+
+    .confidence-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    .confidence-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #c8b89a;
+    }
+
+    .confidence-text {
+      font-size: 11px;
+      color: #7a7268;
+    }
+
+    .hero-btn {
+      display: inline-block;
+      background: #c8b89a;
+      color: #2c2820;
+      padding: 10px 22px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      border: none;
+    }
+
+    .science-disclaimer {
+      font-size: 10px;
+      color: #6a6058;
+      margin-top: 12px;
+      line-height: 1.5;
+      padding-top: 12px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    /* Already logged banner */
+    .logged-banner {
+      margin: 0 16px 12px;
+      padding: 10px 14px;
+      background: #eef5ee;
+      border: 1px solid #c8e0c8;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 12px;
+      color: #2a5a2a;
+    }
+
+    .logged-banner i {
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    /* Anomaly alerts */
+    .anomaly-card {
+      margin: 0 16px 12px;
+      padding: 12px 14px;
+      background: #fdf4e8;
+      border: 1px solid #e8d0a0;
+      border-radius: 12px;
+    }
+
+    .anomaly-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #8a6a2a;
+      margin-bottom: 4px;
+    }
+
+    .anomaly-text {
+      font-size: 12px;
+      color: #5a4020;
+      line-height: 1.6;
+    }
+
+    /* Log button */
+    .log-btn {
+      display: block;
+      margin: 0 16px 12px;
+      background: #2c2820;
+      color: #f5f0e8;
+      border: none;
+      border-radius: 12px;
+      padding: 16px;
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+      text-align: center;
+      text-decoration: none;
+      transition: background 0.15s;
+    }
+
+    .log-btn:hover {
+      background: #3d3830;
+    }
+
+    .log-btn.logged {
+      background: #4a6a4a;
+    }
+
+    /* Nutrition card */
+    .nutrition-card {
+      margin: 0 16px 16px;
+      background: #ffffff;
+      border: 1px solid #ede8e0;
+      border-radius: 14px;
+      padding: 14px 16px;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+
+    .nutrition-card:hover {
+      border-color: #c8b89a;
+    }
+
+    .nutrition-card-top {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .nutrition-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: #f5ead8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      color: #9a6a3a;
+      flex-shrink: 0;
+    }
+
+    .nutrition-content {
+      flex: 1;
+    }
+
+    .nutrition-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #2c2820;
+      margin-bottom: 2px;
+    }
+
+    .nutrition-sub {
+      font-size: 11px;
+      color: #9a9590;
+    }
+
+    .nutrition-body {
+      display: none;
+      font-size: 13px;
+      color: #7a7268;
+      line-height: 1.7;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid #ede8e0;
+    }
+
+    .nutrition-foods {
+      margin-top: 8px;
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .food-tag {
+      font-size: 11px;
+      padding: 3px 10px;
+      border-radius: 99px;
+      background: #f5f0e8;
+      color: #6a5a4a;
+    }
+
+    .nutrition-avoid {
+      margin-top: 8px;
+      font-size: 11px;
+      color: #8a4a2a;
+      padding: 6px 10px;
+      background: #fce8e0;
+      border-radius: 8px;
+    }
+
+    /* Section label */
+    .section-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #9a9590;
+      padding: 0 16px;
+      margin: 20px 0 12px;
+    }
+
+    /* Quick stats row */
+    .stats-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+      padding: 0 16px;
+      margin-bottom: 20px;
+    }
+
+    .stat-card {
+      background: #ffffff;
+      border: 1px solid #ede8e0;
+      border-radius: 12px;
+      padding: 12px;
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 18px;
+      font-weight: 600;
+      color: #2c2820;
+      margin-bottom: 2px;
+    }
+
+    .stat-label {
+      font-size: 10px;
+      color: #9a9590;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    /* Phase cards */
+    .cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      padding: 0 16px;
+      margin-bottom: 20px;
+    }
+
+    .card {
+      background: #ffffff;
+      border-radius: 14px;
+      padding: 16px;
+      border: 1px solid #ede8e0;
+      text-decoration: none;
+      display: block;
+      transition: border-color 0.15s;
+    }
+
+    .card:hover {
+      border-color: #c8b89a;
+    }
+
+    .card.active {
+      border-color: #2c2820;
+      background: #f5f0e8;
+    }
+
+    .card-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      margin-bottom: 10px;
+    }
+
+    .ci-tan {
+      background: #f5ead8;
+      color: #9a6a3a;
+    }
+
+    .ci-green {
+      background: #e8f5e0;
+      color: #2a6a3a;
+    }
+
+    .ci-blue {
+      background: #ddeef5;
+      color: #2a6a8a;
+    }
+
+    .ci-blush {
+      background: #fae8ee;
+      color: #8a3a5a;
+    }
+
+    .card-title {
+      font-size: 13px;
+      font-weight: 500;
+      color: #2c2820;
+      margin-bottom: 3px;
+    }
+
+    .card-sub {
+      font-size: 11px;
+      color: #9a9590;
+      line-height: 1.4;
+    }
+
+    /* Hormone interpretation card */
+    .hormone-card {
+      margin: 0 16px 16px;
+      background: #ffffff;
+      border: 1px solid #ede8e0;
+      border-radius: 14px;
+      padding: 14px 16px;
+    }
+    .hormone-card-label {
+      font-size: 10px; font-weight: 600; letter-spacing: 0.1em;
+      text-transform: uppercase; color: #8a7a6a; margin-bottom: 8px;
+    }
+    .hormone-row {
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .hormone-item {
+      padding: 10px 12px; border-radius: 10px; font-size: 12px;
+      color: #2c2820; line-height: 1.5;
+    }
+    .hormone-item.confirmed { background: #eef5ee; border: 1px solid #c8e0c8; }
+    .hormone-item.surge { background: #fdf4e8; border: 1px solid #e8d0a0; }
+    .hormone-item.elevated { background: #fce8e8; border: 1px solid #e8b8b8; }
+    .hormone-item.normal { background: #f5f0e8; border: 1px solid #ede8e0; }
+    .hormone-item strong { display: block; margin-bottom: 2px; }
+
+    /* Community pulse */
+    .pulse-card {
+      margin: 0 16px 20px;
+      background: #ffffff;
+      border: 1px solid #ede8e0;
+      border-radius: 14px;
+      padding: 14px 16px;
+    }
+    .pulse-label {
+      font-size: 10px; font-weight: 600; letter-spacing: 0.1em;
+      text-transform: uppercase; color: #9a9590; margin-bottom: 10px;
+    }
+    .pulse-bars { display: flex; flex-direction: column; gap: 6px; }
+    .pulse-bar-row { display: flex; align-items: center; gap: 8px; }
+    .pulse-bar-name { font-size: 12px; color: #5a5550; width: 60px; flex-shrink: 0; }
+    .pulse-bar-track {
+      flex: 1; height: 8px; background: #f0ece6; border-radius: 4px; overflow: hidden;
+    }
+    .pulse-bar-fill { height: 100%; background: #c8b89a; border-radius: 4px; transition: width 0.6s ease; }
+    .pulse-bar-pct { font-size: 11px; color: #9a9590; width: 30px; text-align: right; flex-shrink: 0; }
+    .pulse-note { font-size: 10px; color: #9a9590; margin-top: 8px; font-style: italic; }
+
+    /* Bottom nav */
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #ffffff;
+      border-top: 1px solid #ede8e0;
+      display: flex;
+      padding: 10px 0;
+      max-width: 420px;
+      margin: 0 auto;
+    }
+
+    .nav-item {
+      flex: 1;
+      text-align: center;
+      cursor: pointer;
+      padding: 4px 0;
+      text-decoration: none;
+    }
+
+    .nav-item i {
+      font-size: 20px;
+      color: #9a9590;
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    .nav-item span {
+      font-size: 10px;
+      color: #9a9590;
+    }
+
+    .nav-item.active i,
+    .nav-item.active span {
+      color: #2c2820;
+    }
+
+    /* Phase card — tappable */
+    .card {
+      cursor: pointer;
+    }
+    .card.active {
+      border-width: 2px;
+    }
+
+    /* Slide-up sheet */
+    .sheet-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(44,40,32,0.5);
+      z-index: 200;
+    }
+    .sheet-overlay.open { display: block; }
+
+    .phase-sheet {
+      position: fixed; bottom: 0; left: 50%;
+      transform: translate(-50%, 100%);
+      width: 100%; max-width: 420px;
+      height: 70vh;
+      background: #faf8f5;
+      border-radius: 20px 20px 0 0;
+      z-index: 201;
+      transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+      display: flex; flex-direction: column;
+      box-shadow: 0 -4px 24px rgba(44,40,32,0.12);
+    }
+    .phase-sheet.open { transform: translate(-50%, 0); }
+
+    .sheet-top-bar {
+      display: flex; align-items: center; justify-content: center;
+      padding: 12px 16px 0;
+      position: relative; flex-shrink: 0;
+    }
+    .sheet-handle {
+      width: 36px; height: 4px;
+      background: #c8b89a; border-radius: 2px;
+    }
+    .sheet-close {
+      position: absolute; right: 12px; top: 8px;
+      background: #f0ece6; border: none;
+      width: 28px; height: 28px;
+      border-radius: 50%; font-size: 14px;
+      color: #7a7268; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .sheet-close:hover { background: #e8e0d4; }
+
+    .sheet-scroll {
+      flex: 1; overflow-y: auto; padding: 16px 16px 32px;
+    }
+
+    .sheet-phase-header {
+      margin-bottom: 16px;
+    }
+    .sheet-you-are-here {
+      display: inline-block;
+      background: #2c2820; color: #c8b89a;
+      font-size: 10px; font-weight: 700;
+      letter-spacing: 0.12em; text-transform: uppercase;
+      padding: 3px 10px; border-radius: 99px;
+      margin-bottom: 8px;
+    }
+    .sheet-phase-name {
+      font-family: Georgia, serif;
+      font-size: 24px; font-style: italic;
+      color: #2c2820; margin-bottom: 4px;
+    }
+    .sheet-phase-tagline {
+      font-size: 12px; color: #7a7268; line-height: 1.5;
+    }
+
+    .sheet-section {
+      margin-bottom: 18px;
+    }
+    .sheet-section-title {
+      font-size: 10px; font-weight: 700;
+      letter-spacing: 0.12em; text-transform: uppercase;
+      color: #9a9590; margin-bottom: 8px;
+    }
+    .sheet-block {
+      background: #fff; border: 1px solid #ede8e0;
+      border-radius: 12px; padding: 12px 14px;
+      font-size: 13px; color: #2c2820; line-height: 1.6;
+    }
+    .sheet-block + .sheet-block { margin-top: 8px; }
+    .sheet-block-label {
+      font-size: 10px; font-weight: 600; letter-spacing: 0.08em;
+      text-transform: uppercase; color: #9a9590; margin-bottom: 4px;
+    }
+    .sheet-block-val { color: #2c2820; }
+    .sheet-block-sub { font-size: 12px; color: #7a7268; margin-top: 4px; line-height: 1.5; }
+
+    .sheet-food-row {
+      display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px;
+    }
+    .sheet-food-tag {
+      font-size: 11px; padding: 3px 10px;
+      border-radius: 99px; background: #f5f0e8; color: #6a5a4a;
+    }
+    .sheet-avoid {
+      margin-top: 8px; font-size: 12px; color: #8a4a2a;
+      padding: 8px 10px; background: #fce8e0; border-radius: 8px;
+    }
+
+    .sheet-personal-empty {
+      font-size: 12px; color: #9a9590; font-style: italic;
+      padding: 12px 14px; background: #f5f0e8; border-radius: 10px;
+    }
+    .sheet-personal-stat {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 8px 0; border-bottom: 1px solid #ede8e0;
+      font-size: 13px;
+    }
+    .sheet-personal-stat:last-child { border-bottom: none; }
+    .sheet-personal-label { color: #7a7268; }
+    .sheet-personal-val { font-weight: 500; color: #2c2820; }
+    .sheet-symptom-row {
+      display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px;
+    }
+    .sheet-symptom-tag {
+      font-size: 11px; padding: 2px 8px;
+      border-radius: 99px; background: #fce8e0; color: #8a4a2a;
+    }
+
+    .sheet-science-note {
+      font-size: 10px; color: #9a9590; font-style: italic;
+      line-height: 1.6; padding: 10px 14px;
+      background: #f5f0e8; border-radius: 10px; margin-top: 4px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="top-bar">
+    <div class="logo">HormoneSync</div>
+    <div class="greeting" id="greeting">Good morning</div>
+  </div>
+
+  <div id="loadingState" class="loading">
+    <div class="spinner"></div>
+    Loading your dashboard...
+  </div>
+
+  <div id="dashContent" style="display:none">
+
+    <div class="hero hero-observation" id="heroCard">
+      <div class="hero-label">Today</div>
+      <div class="hero-phase" id="currentPhase">Loading...</div>
+      <div class="hero-day" id="currentDay"></div>
+      <div class="hero-desc" id="phaseDesc"></div>
+      <div class="confidence-row">
+        <div class="confidence-dot" id="confidenceDot"></div>
+        <div class="confidence-text" id="confidenceText"></div>
+      </div>
+      <button class="hero-btn" onclick="window.location.href='workout.html'">Plan my workout</button>
+      <div class="science-disclaimer" id="scienceDisclaimer"></div>
+    </div>
+
+    <div id="anomalyContainer"></div>
+    <div id="hormoneCard" style="display:none" class="hormone-card">
+      <div class="hormone-card-label">Today's hormone results</div>
+      <div class="hormone-row" id="hormoneRow"></div>
+    </div>
+    <div id="alreadyLoggedBanner" style="display:none" class="logged-banner">
+      <i class="ti ti-circle-check"></i>
+      <span>You have logged today. Tap to update your log.</span>
+    </div>
+
+    <a href="log.html" class="log-btn" id="logBtn">Log today's data</a>
+
+    <div class="nutrition-card" onclick="toggleNutrition()" id="nutritionCard">
+      <div class="nutrition-card-top">
+        <div class="nutrition-icon"><i class="ti ti-apple"></i></div>
+        <div class="nutrition-content">
+          <div class="nutrition-title" id="nutritionTitle">Loading nutrition guidance...</div>
+          <div class="nutrition-sub" id="nutritionSub"></div>
+        </div>
+        <i class="ti ti-chevron-down" id="nutritionChevron"
+          style="font-size:16px;color:#9a9590;flex-shrink:0;transition:transform 0.2s"></i>
+      </div>
+      <div class="nutrition-body" id="nutritionBody"></div>
+    </div>
+
+    <div class="stats-row" id="statsRow" style="display:none">
+      <div class="stat-card">
+        <div class="stat-value" id="statCycleDay">--</div>
+        <div class="stat-label">Cycle day</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="statDaysLeft">--</div>
+        <div class="stat-label">Days left</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="statStreak">0</div>
+        <div class="stat-label">Day streak</div>
+      </div>
+    </div>
+
+    <div id="pulseCard" style="display:none" class="pulse-card">
+      <div class="pulse-label">Community pulse: women in your phase today</div>
+      <div class="pulse-bars" id="pulseBars"></div>
+      <div class="pulse-note" id="pulseNote"></div>
+    </div>
+
+    <div class="section-label">Your cycle phases</div>
+    <div class="cards">
+      <div class="card" id="cardFollicular" onclick="openPhaseSheet('Follicular')">
+        <div class="card-icon ci-tan"><i class="ti ti-bolt"></i></div>
+        <div class="card-title">Follicular</div>
+        <div class="card-sub">Build strength and push hard</div>
+      </div>
+      <div class="card" id="cardOvulatory" onclick="openPhaseSheet('Ovulatory')">
+        <div class="card-icon ci-green"><i class="ti ti-trophy"></i></div>
+        <div class="card-title">Ovulatory</div>
+        <div class="card-sub">Peak power and coordination</div>
+      </div>
+      <div class="card" id="cardLuteal" onclick="openPhaseSheet('Luteal')">
+        <div class="card-icon ci-blue"><i class="ti ti-heart-rate-monitor"></i></div>
+        <div class="card-title">Luteal</div>
+        <div class="card-sub">Recover smart and protect muscle</div>
+      </div>
+      <div class="card" id="cardMenstrual" onclick="openPhaseSheet('Menstrual')">
+        <div class="card-icon ci-blush"><i class="ti ti-moon"></i></div>
+        <div class="card-title">Menstrual</div>
+        <div class="card-sub">Rest, restore and replenish iron</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div style="text-align:center;padding:12px 0;margin-bottom:8px">
+    <a href="feedback.html" style="font-size:12px;color:#9a9590;text-decoration:none;display:inline-flex;align-items:center;gap:6px">
+      <i class="ti ti-message-circle" style="font-size:14px"></i>
+      Share feedback
+    </a>
+  </div>
+
+  <div class="bottom-nav">
+    <a href="dashboard.html" class="nav-item active">
+      <i class="ti ti-home"></i><span>Home</span>
+    </a>
+    <a href="workout.html" class="nav-item">
+      <i class="ti ti-barbell"></i><span>Workout</span>
+    </a>
+    <a href="log.html" class="nav-item">
+      <i class="ti ti-pencil"></i><span>Log</span>
+    </a>
+    <a href="mucus.html" class="nav-item">
+      <i class="ti ti-droplet"></i><span>Cycle</span>
+    </a>
+    <a href="#" class="nav-item" onclick="handleSignOut(event)">
+      <i class="ti ti-logout"></i><span>Sign out</span>
+    </a>
+  </div>
+
+  <!-- Phase detail sheet -->
+  <div class="sheet-overlay" id="sheetOverlay" onclick="closePhaseSheet()"></div>
+  <div class="phase-sheet" id="phaseSheet">
+    <div class="sheet-top-bar">
+      <div class="sheet-handle"></div>
+      <button class="sheet-close" onclick="closePhaseSheet()">✕</button>
+    </div>
+    <div class="sheet-scroll" id="sheetScroll"></div>
+  </div>
+
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
+    import { getTodayStatus, getPhase } from './hormoneSync.js'
+
+    const SUPABASE_URL = 'https://imgujppjvffbubnsscge.supabase.co'
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImltZ3VqcHBqdmZmYnVibnNzY2dlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2MDQzNzIsImV4cCI6MjA5NjE4MDM3Mn0.TpjycdiHLl5iI1G8u07mVmStKZWU2fzEsuw1dUi6diU'
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+    // P16: Auth guard
+    const { data: { session: _dashSession } } = await supabase.auth.getSession()
+    if (!_dashSession) { window.location.href = 'login.html'; }
+    supabase.auth.onAuthStateChange((event, session) => {
+      if (!session) { window.location.href = 'login.html'; return }
+    })
+
+    // ── Phase data ──────────────────────────────────────────────────────────
+    const PHASE_DATA = {
+      'Menstrual': {
+        heroClass: 'hero-menstrual',
+        desc: 'Hormones are at their lowest and prostaglandins are elevated. Research shows gentle movement reduces cramping severity. Keep intensity low and prioritise iron-rich nutrition today.',
+        disclaimer: 'Research note: Colenso-Semple et al. 2023 found no consistent difference in strength outcomes by phase. These recommendations reflect how effort feels and how recovery works, not your absolute capability.',
+        cardId: 'cardMenstrual',
+        intensityLabel: '70% of normal intensity'
+      },
+      'Follicular': {
+        heroClass: 'hero-follicular',
+        desc: 'Estrogen is rising and your muscles may respond better to progressive overload in this phase. Research suggests this may be your strongest training window (Kissow et al. 2022, Sports Medicine). Push harder and attempt load increases, though individual response varies.',
+        disclaimer: 'Research note: Kissow et al. 2022 suggest follicular phase resistance training may be superior for strength gains. Individual response varies, so listen to your body.',
+        cardId: 'cardFollicular',
+        intensityLabel: '100% of normal intensity'
+      },
+      'Ovulatory': {
+        heroClass: 'hero-ovulatory',
+        desc: 'Peak estrogen and a brief testosterone rise together. Research suggests neuromuscular coordination and power output may peak around ovulation, though individual response varies (Colenso-Semple et al. 2023). Attempt personal bests today and warm up thoroughly.',
+        disclaimer: 'Research note: Roth et al. 2025 found neuromuscular coordination peaks in the ovulatory phase. Peak estrogen also increases ligament laxity, so always warm up thoroughly before heavy work.',
+        cardId: 'cardOvulatory',
+        intensityLabel: '105% of normal intensity'
+      },
+      'Luteal': {
+        heroClass: 'hero-luteal',
+        desc: 'Progesterone is elevated and your core temperature is slightly higher. The same workout genuinely feels harder. This is progesterone, not weakness. Reduce loads 10 to 15% and shift to higher reps.',
+        disclaimer: 'Research note: ISSN 2023 recommends the upper end of the protein range in the luteal phase due to progesterone-driven catabolism. De Martin Topranin 2023 confirms RHR rises approximately 1.7 bpm in mid-luteal.',
+        cardId: 'cardLuteal',
+        intensityLabel: '85% of normal intensity'
+      },
+      'observation': {
+        heroClass: 'hero-observation',
+        desc: 'We are building your personal baseline. Every day you log adds data to the algorithm. Keep logging daily and we will detect your cycle patterns as they emerge.',
+        disclaimer: null,
+        cardId: null,
+        intensityLabel: '90% of normal intensity'
+      }
+    }
+
+    // ── Nutrition data ──────────────────────────────────────────────────────
+    // Source: ISSN 2023, Näättänen 2023 nutrition review
+    const NUTRITION_DATA = {
+      'Menstrual': {
+        title: 'Iron day. Your body needs replenishing.',
+        desc: 'You are losing iron through bleeding. Iron carries oxygen to your muscles, and low iron means fatigue and slower recovery. Progesterone and estrogen are both low and appetite may be variable.',
+        foods: ['Red meat', 'Spinach', 'Lentils', 'Pumpkin seeds', 'Citrus (for iron absorption)'],
+        avoid: 'Limit caffeine above 200mg as it may worsen prostaglandin-driven cramps. Avoid alcohol.',
+        source: 'Source: Angeli et al. 2016, European Journal of Sport Science. Iron loss during menstruation impacts performance.'
+      },
+      'Follicular': {
+        title: 'Your body is ready to build. Feed it.',
+        desc: 'Estrogen may enhance insulin sensitivity and carbohydrate metabolism (ISSN 2023). This phase is often the best window to fuel harder training. Prioritise carbohydrates around your sessions as your muscles tend to use them more efficiently here.',
+        foods: ['Eggs', 'Chicken', 'Oats', 'Whole grains', 'Leafy greens', 'Pumpkin seeds'],
+        avoid: null,
+        source: 'Source: ISSN 2023. Estrogen improves carbohydrate metabolism. Eat within 45 minutes of training.'
+      },
+      'Ovulatory': {
+        title: 'Peak output needs peak fuel.',
+        desc: 'Keep carbohydrates high today for maximum fuel and maximum effort. Zinc supports the LH surge happening right now. Antioxidants from berries and leafy greens support follicle health.',
+        foods: ['Beef', 'Chickpeas', 'Berries', 'Dark leafy greens', 'Avocado', 'Salmon'],
+        avoid: null,
+        source: 'Source: Larivière et al. 2006. Zinc supports the LH surge. Antioxidants from berries support follicle health.'
+      },
+      'Luteal': {
+        title: 'Your body needs more today. That is biology.',
+        desc: 'Progesterone increases protein catabolism and raises resting metabolic rate by 150 to 300 kcal (ISSN 2023). Your protein needs are genuinely higher this week. Carbohydrate cravings are physiological.',
+        foods: ['Sweet potato', 'Oats', 'Dark chocolate', 'Salmon', 'Eggs', 'Pumpkin seeds'],
+        avoid: 'Avoid alcohol and high-sugar processed foods which worsen luteal phase inflammation.',
+        source: 'Source: ISSN 2023 position stand. Luteal phase protein 1.8 to 2.2g per kg due to progesterone catabolism. Add 200 to 300 kcal above follicular phase intake.'
+      },
+      'observation': {
+        title: 'Consistent nutrition builds your baseline.',
+        desc: 'Regular meals, quality protein, and adequate carbohydrates give the algorithm the best environment to detect your returning cycle. Avoid fasting and under-eating as these disrupt hormonal signals.',
+        foods: ['Protein source each meal', 'Complex carbohydrates', 'Healthy fats', 'Leafy greens'],
+        avoid: null,
+        source: null
+      }
+    }
+
+    // ── Phase sheet data ────────────────────────────────────────────────────
+
+    const PHASE_HORMONE_INFO = {
+      Menstrual: {
+        summary: 'Estrogen and progesterone have both dropped to their lowest levels of your cycle, triggering shedding of the uterine lining. Prostaglandins are elevated and these drive cramping. FSH begins rising again toward the end of this phase to recruit the next follicle.',
+        estrogen: 'Low, in the early follicular range of 77 to 330 pmol/L (Münster et al. 2021). Likely at the lower end of this range as both hormones are at their lowest point.',
+        progesterone: 'Below 3 nmol/L, which is the follicular baseline. Withdrawal from luteal progesterone levels triggered menstruation (LifeLabs/EORLA).',
+        lh: 'Between 2 and 13.2 IU/L, which is the follicular baseline. LH is quiet and FSH is beginning to rise to stimulate follicle development (Münster et al. 2021).'
+      },
+      Follicular: {
+        summary: 'Estrogen rises steadily as the dominant follicle develops. Rising estrogen improves insulin sensitivity, accelerates muscle protein synthesis, and enhances neuromuscular coordination. Progesterone remains low, keeping core temperature and resting heart rate at baseline.',
+        estrogen: 'Rising from 77 to 330 pmol/L early in the phase toward the pre-ovulatory peak of 222 to 1959 pmol/L (Münster et al. 2021). Higher estrogen supports faster muscle recovery and better protein synthesis.',
+        progesterone: 'Below 3 nmol/L, which is the typical follicular baseline (LifeLabs/EORLA). Low progesterone means no core temperature elevation and no RHR rise.',
+        lh: 'Between 2 and 13.2 IU/L, steady in the follicular range and building toward the ovulatory surge (Münster et al. 2021).'
+      },
+      Ovulatory: {
+        summary: 'Estrogen reaches its cycle peak, triggering a sharp LH surge that causes follicle rupture and egg release. A brief testosterone rise accompanies this window, contributing to peak neuromuscular performance. This is the shortest phase, typically 1 to 3 days.',
+        estrogen: 'At its cycle peak, between 222 and 1959 pmol/L (Münster et al. 2021). This concentration triggers the LH surge. Peak estrogen also increases ligament laxity, so warm up thoroughly before heavy loading.',
+        progesterone: 'Beginning to rise above 3 nmol/L as the corpus luteum forms after ovulation. Still below the confirmed luteal range at the start of ovulation (LifeLabs/EORLA).',
+        lh: 'In surge, above 8 IU/L and peaking up to 90 IU/L. This spike triggers ovulation within 24 to 36 hours of the surge beginning (Münster et al. 2021, n=97 women, 2105 cycles).'
+      },
+      Luteal: {
+        summary: 'The corpus luteum secretes progesterone, which rises to its cycle peak of 10 to 50 nmol/L in mid-luteal. Progesterone raises core temperature, increases protein catabolism, and causes a characteristic RHR rise of approximately 1.7 bpm. Estrogen has a secondary peak then falls. Both decline in late luteal if fertilisation has not occurred, triggering the next menstrual phase.',
+        estrogen: 'A secondary peak then declining, in the luteal range of 95 to 854 pmol/L (Münster et al. 2021). The late-luteal estrogen drop is associated with mood and sleep changes.',
+        progesterone: 'Between 10 and 50 nmol/L in mid-luteal, with a median of 28.8 nmol/L (Münster et al. 2021). Values above 10 nmol/L confirm that ovulation occurred. Progesterone competes with cortisol for glucocorticoid receptors, making high-intensity exercise more stressful this week (Hackney 2006).',
+        lh: 'Returns to the follicular baseline of 2 to 13.2 IU/L after the ovulatory surge. Falling LH signals corpus luteum regression in late luteal (Münster et al. 2021).'
+      }
+    }
+
+    const PHASE_TRAINING_INFO = {
+      Menstrual: {
+        modifier: '70% of normal training load',
+        activities: 'Walking, yoga, pilates, light resistance training, swimming',
+        expect: 'Estrogen and progesterone are at their lowest. You may feel less coordinated and your muscles may feel heavier than usual. Prostaglandins are associated with fatigue and cramping. Every session you complete helps maintain your training pattern for the follicular phase (Colenso-Semple et al. 2023).',
+        tip: 'Reduce load by 30%. Focus on movement quality and mobility. Swimming is particularly well suited as the horizontal position reduces pelvic pressure and the low-impact nature preserves movement without high cortisol cost.'
+      },
+      Follicular: {
+        modifier: 'Full to slightly above normal training load',
+        activities: 'Heavy resistance training, HIIT, running, cycling and strength sport at full intensity',
+        expect: 'Rising estrogen improves muscle protein synthesis and accelerates recovery between sessions. You may notice weights feeling lighter and coordination improving across the phase. Research suggests follicular phase resistance training may produce superior strength gains (Kissow et al. 2022, Sports Medicine).',
+        tip: 'Push for progressive overload. Attempt load increases on your main lifts. Recovery between sessions is faster here than at any other phase, so you can train harder and more frequently.'
+      },
+      Ovulatory: {
+        modifier: '5% above normal training load',
+        activities: 'Peak strength training, power work, HIIT, competitive events',
+        expect: 'Peak estrogen and a brief testosterone rise create conditions for optimal neuromuscular coordination and power output. Research suggests this may be your strongest training window, though individual response varies (Colenso-Semple et al. 2023). Peak estrogen also increases ligament laxity, so a thorough warmup is non-negotiable before loading.',
+        tip: 'Attempt personal bests on your main lifts. Complete every warmup exercise before adding load. Ligament laxity is at its highest this week and warmup reduces injury risk significantly.'
+      },
+      Luteal: {
+        modifier: 'Early luteal 92%, Mid luteal 82%, Late luteal 72% of normal training load',
+        activities: 'Early luteal: moderate strength training. Mid luteal: lower intensity, tempo cardio and yoga. Late luteal: yoga, pilates and walking. These are pharmacologically optimal, not a consolation.',
+        expect: 'Progesterone raises your core temperature and resting heart rate by approximately 1.7 bpm (De Martin Topranin et al. 2023). The same workout genuinely feels harder. This is real physiology, not lack of effort. Progesterone also competes with cortisol for glucocorticoid receptors, making high-intensity training significantly more stressful than the calorie burn suggests (Hackney 2006).',
+        tip: 'Reduce loads by 8 to 28% depending on your sub-phase. Avoid HIIT in mid and late luteal. Progesterone in the luteal phase enhances the calming effect of breathwork and slow movement through GABA-A receptor interaction, making yoga genuinely most effective right now.'
+      }
+    }
+
+    const PHASE_SCIENCE_NOTES = {
+      Menstrual: 'Sources: Colenso-Semple et al. 2023 (Frontiers in Physiology) found no consistent evidence strength outcomes differ by phase. Angeli et al. 2016 (European Journal of Sport Science) documented that iron loss during menstruation impacts exercise performance. Charkoudian and Stachenfeld 2014 described progesterone thermoregulation effects.',
+      Follicular: 'Sources: Kissow et al. 2022 (Sports Medicine) found follicular phase resistance training may produce superior strength gains. Colenso-Semple et al. 2023 noted no consistent evidence strength outcomes differ by phase. Münster et al. 2021 established the hormone reference values used here.',
+      Ovulatory: 'Sources: Münster et al. 2021 (n=97 women, 2105 cycles) established the LH surge threshold above 8 IU/L and ovulatory estradiol range of 222 to 1959 pmol/L. Bigelow et al. 2004 (Human Reproduction) reported egg white mucus has 80% sensitivity for the fertile window. Sarwar et al. 1996 found muscle strength peaks near ovulation.',
+      Luteal: 'Sources: De Martin Topranin et al. 2023 (IJSPP) found RHR is 1.7 bpm higher in mid-luteal and sleep quality is impaired. Hackney 2006 described progesterone and cortisol competition for glucocorticoid receptors. ISSN 2023 recommends luteal phase protein of 1.8 to 2.2g per kg due to progesterone catabolism. Münster et al. 2021 established mid-luteal progesterone at 10 to 50 nmol/L with a median of 28.8.'
+    }
+
+    // ── Module-level state accessible to sheet functions ────────────────────
+    let dashState = {
+      phase: 'observation', cycleDay: null, cycleLen: 28,
+      bodyWeight: 65, userId: null, lastPeriodDate: null
+    }
+
+    // getPhase imported from hormoneSync.js — no local duplicate
+
+    function getProteinTarget(phase, bw) {
+      const multipliers = {
+        'Menstrual': 1.5, 'Follicular': 1.7,
+        'Ovulatory': 1.8, 'Luteal': 2.0, 'observation': 1.6
+      }
+      return Math.round((bw || 65) * (multipliers[phase] || 1.6))
+    }
+
+    window.toggleNutrition = function () {
+      const body = document.getElementById('nutritionBody')
+      const chevron = document.getElementById('nutritionChevron')
+      const open = body.style.display !== 'none' && body.style.display !== ''
+      body.style.display = open ? 'none' : 'block'
+      chevron.style.transform = open ? 'rotate(0deg)' : 'rotate(180deg)'
+    }
+
+    function renderNutritionCard(phase, bodyWeight) {
+      const data = NUTRITION_DATA[phase] || NUTRITION_DATA['observation']
+      const protein = getProteinTarget(phase, bodyWeight)
+      document.getElementById('nutritionTitle').textContent = data.title
+      document.getElementById('nutritionSub').textContent = 'Aim for ' + protein + 'g protein today'
+
+      let bodyHTML = '<p>' + data.desc + '</p>'
+      if (data.foods?.length) {
+        bodyHTML += '<div class="nutrition-foods">' +
+          data.foods.map(f => `<span class="food-tag">${f}</span>`).join('') +
+          '</div>'
+      }
+      if (data.avoid) {
+        bodyHTML += `<div class="nutrition-avoid"><strong>Avoid:</strong> ${data.avoid}</div>`
+      }
+      if (data.source) {
+        bodyHTML += `<p style="font-size:10px;color:#9a9590;margin-top:8px;font-style:italic">${data.source}</p>`
+      }
+      document.getElementById('nutritionBody').innerHTML = bodyHTML
+    }
+
+    async function checkAlreadyLogged(userId) {
+      const today = new Date().toISOString().split('T')[0]
+      const { data } = await supabase
+        .from('daily_logs').select('id')
+        .eq('user_id', userId).eq('log_date', today).single()
+      return !!data
+    }
+
+    async function getLogStreak(userId) {
+      const { data: logs } = await supabase
+        .from('daily_logs').select('log_date')
+        .eq('user_id', userId).order('log_date', { ascending: false }).limit(30)
+      if (!logs || logs.length === 0) return 0
+      let streak = 0
+      let checkDate = new Date()
+      checkDate.setHours(0, 0, 0, 0)
+      for (const log of logs) {
+        const logDate = new Date(log.log_date + 'T00:00:00')
+        const diff = Math.floor((checkDate - logDate) / 86400000)
+        if (diff === streak) { streak++; checkDate = logDate }
+        else break
+      }
+      return streak
+    }
+
+    // P11: Hormone interpretation
+    // Source: LifeLabs/EORLA Canadian reference ranges; Münster et al. 2021
+    const HORMONE_REFS = {
+      progesterone: { midLutealLow: 10.0, midLutealHigh: 50.0, ovulationConfirmed: 10.0 },
+      lh: { surgeLow: 8.0 },
+      cortisol: { morningHigh: 30.0, suppressed: 5.0 }
+    }
+
+    function renderHormoneCard(log) {
+      if (!log) return
+      const { hormone_estradiol: e2, hormone_progesterone: prog, hormone_lh: lh, hormone_cortisol: cort } = log
+      const items = []
+
+      if (prog != null) {
+        if (prog >= HORMONE_REFS.progesterone.ovulationConfirmed) {
+          items.push({ cls: 'confirmed', title: 'Ovulation confirmed', text: 'Your progesterone of ' + prog.toFixed(1) + ' nmol/L is in the mid-luteal reference range (10 to 50 nmol/L, per LifeLabs/EORLA). This confirms ovulation occurred this cycle.' })
+        } else if (prog < 3) {
+          items.push({ cls: 'normal', title: 'Progesterone: follicular range', text: prog.toFixed(1) + ' nmol/L is within the expected follicular range (under 3 nmol/L, per LifeLabs/EORLA).' })
+        } else {
+          items.push({ cls: 'normal', title: 'Progesterone: early luteal range', text: prog.toFixed(1) + ' nmol/L is consistent with early luteal phase (LifeLabs/EORLA).' })
+        }
+      }
+
+      if (lh != null && lh >= HORMONE_REFS.lh.surgeLow) {
+        items.push({ cls: 'surge', title: 'LH surge detected', text: 'LH of ' + lh.toFixed(1) + ' IU/L exceeds the 8 IU/L surge threshold. Ovulation is likely within 24 to 36 hours (Münster et al. 2021).' })
+      }
+
+      if (cort != null && cort > HORMONE_REFS.cortisol.morningHigh) {
+        items.push({ cls: 'elevated', title: 'Cortisol elevated', text: 'Cortisol of ' + cort.toFixed(1) + ' nmol/L is above the normal morning range (10 to 30 nmol/L, per LifeLabs/EORLA). Consider reducing training intensity today. High cortisol competes with progesterone and increases protein catabolism.' })
+      } else if (cort != null) {
+        items.push({ cls: 'normal', title: 'Cortisol: normal range', text: cort.toFixed(1) + ' nmol/L is within the normal morning cortisol range (LifeLabs/EORLA).' })
+      }
+
+      if (items.length === 0) return
+
+      const card = document.getElementById('hormoneCard')
+      card.style.display = 'block'
+      document.getElementById('hormoneRow').innerHTML = items.map(it =>
+        `<div class="hormone-item ${it.cls}"><strong>${it.title}</strong>${it.text}</div>`
+      ).join('')
+    }
+
+    // P20: Community pulse with real Supabase data
+    // Falls back to De Martin Topranin 2023 population values if < 10 users logged
+    async function renderCommunityPulse(userId, phase) {
+      if (phase === 'observation') return
+      const today3 = new Date().toISOString().split('T')[0]
+
+      try {
+        const { data: phaseLogs } = await supabase
+          .from('daily_logs')
+          .select('energy, user_id')
+          .eq('log_date', today3)
+          .neq('user_id', userId) // never include current user
+          .not('energy', 'is', null)
+
+        const RESEARCH_FALLBACK = {
+          Menstrual:  { 'Very low': 38, Low: 35, Good: 20, High: 7, source: 'Research baseline from De Martin Topranin 2023' },
+          Follicular: { 'Very low': 8,  Low: 18, Good: 46, High: 28, source: 'Research baseline from De Martin Topranin 2023' },
+          Ovulatory:  { 'Very low': 5,  Low: 12, Good: 48, High: 35, source: 'Research baseline from De Martin Topranin 2023' },
+          Luteal:     { 'Very low': 22, Low: 38, Good: 30, High: 10, source: 'Research baseline from De Martin Topranin 2023' }
+        }
+
+        let counts = { 'Very low': 0, Low: 0, Good: 0, High: 0 }
+        let note = ''
+        let useLive = false
+
+        if (phaseLogs && phaseLogs.length >= 10) {
+          phaseLogs.forEach(l => { if (counts[l.energy] !== undefined) counts[l.energy]++ })
+          useLive = true
+          note = phaseLogs.length + ' women in your phase have logged today'
+        } else {
+          const fb = RESEARCH_FALLBACK[phase]
+          if (!fb) return
+          counts = { 'Very low': fb['Very low'], Low: fb.Low, Good: fb.Good, High: fb.High }
+          note = 'Not enough users have logged today yet. Showing research-based estimates. ' + fb.source + '.'
+        }
+
+        const total = Object.values(counts).reduce((a, b) => a + b, 0)
+        if (total === 0) return
+
+        const card = document.getElementById('pulseCard')
+        card.style.display = 'block'
+        document.getElementById('pulseNote').textContent = note
+
+        const barsEl = document.getElementById('pulseBars')
+        barsEl.innerHTML = ['High', 'Good', 'Low', 'Very low'].map(label => {
+          const pct = Math.round((counts[label] / total) * 100)
+          return `<div class="pulse-bar-row">
+            <div class="pulse-bar-name">${label}</div>
+            <div class="pulse-bar-track"><div class="pulse-bar-fill" style="width:${pct}%"></div></div>
+            <div class="pulse-bar-pct">${pct}%</div>
+          </div>`
+        }).join('')
+      } catch (e) { console.error('Pulse error', e) }
+    }
+
+    function getPhaseRange(phase, cycleLen) {
+      const ov = Math.round(cycleLen / 2)
+      if (phase === 'Menstrual')  return { start: 1, end: 5 }
+      if (phase === 'Follicular') return { start: 6, end: ov - 2 }
+      if (phase === 'Ovulatory')  return { start: ov - 1, end: ov + 1 }
+      return { start: ov + 2, end: cycleLen }
+    }
+
+    function computeCycleDay(logDate, lastPeriodDateStr, cycleLen) {
+      const last = new Date(lastPeriodDateStr + 'T00:00:00')
+      const log  = new Date(logDate + 'T00:00:00')
+      const diff = Math.floor((log - last) / 86400000)
+      return ((diff % cycleLen) + cycleLen) % cycleLen + 1
+    }
+
+    async function loadPersonalPhaseData(phase) {
+      if (!dashState.userId || !dashState.lastPeriodDate) return null
+      try {
+        const { data: logs } = await supabase
+          .from('daily_logs')
+          .select('log_date, energy, sleep_quality, resting_hr, symptoms')
+          .eq('user_id', dashState.userId)
+          .order('log_date', { ascending: false })
+          .limit(200)
+
+        if (!logs || logs.length === 0) return null
+
+        const range = getPhaseRange(phase, dashState.cycleLen)
+        const phaseLogs = logs.filter(l => {
+          const cd = computeCycleDay(l.log_date, dashState.lastPeriodDate, dashState.cycleLen)
+          return cd >= range.start && cd <= range.end
+        })
+
+        if (phaseLogs.length < 3) return { tooFew: true }
+
+        const energyMap = { 'Very low': 1, Low: 2, Good: 3, High: 4 }
+        const energyLabelMap = { 1: 'Very low', 2: 'Low', 3: 'Good', 4: 'High' }
+        const energyVals = phaseLogs.map(l => energyMap[l.energy]).filter(Boolean)
+        const avgEnergy = energyVals.length > 0
+          ? energyLabelMap[Math.round(energyVals.reduce((a,b)=>a+b,0)/energyVals.length)]
+          : null
+
+        const sleepMap = { Poor: 1, Fair: 2, Good: 3, Great: 4 }
+        const sleepLabelMap = { 1: 'Poor', 2: 'Fair', 3: 'Good', 4: 'Great' }
+        const sleepVals = phaseLogs.map(l => sleepMap[l.sleep_quality]).filter(Boolean)
+        const avgSleep = sleepVals.length > 0
+          ? sleepLabelMap[Math.round(sleepVals.reduce((a,b)=>a+b,0)/sleepVals.length)]
+          : null
+
+        const rhrVals = phaseLogs.map(l => {
+          if (!l.resting_hr) return null
+          const m = String(l.resting_hr).match(/(\d+)/)
+          return m ? parseInt(m[1]) : null
+        }).filter(Boolean)
+        const avgRHR = rhrVals.length > 0
+          ? Math.round(rhrVals.reduce((a,b)=>a+b,0)/rhrVals.length)
+          : null
+
+        const symptomCounts = {}
+        phaseLogs.forEach(l => {
+          if (Array.isArray(l.symptoms)) {
+            l.symptoms.forEach(s => { symptomCounts[s] = (symptomCounts[s] || 0) + 1 })
+          }
+        })
+        const topSymptoms = Object.entries(symptomCounts)
+          .sort((a,b) => b[1]-a[1]).slice(0,4).map(([s]) => s)
+
+        return { count: phaseLogs.length, avgEnergy, avgSleep, avgRHR, topSymptoms }
+      } catch (e) {
+        console.error('Personal phase data error', e)
+        return null
+      }
+    }
+
+    window.openPhaseSheet = async function (phase) {
+      const isCurrentPhase = dashState.phase === phase
+      const hormoneInfo  = PHASE_HORMONE_INFO[phase]
+      const trainingInfo = PHASE_TRAINING_INFO[phase]
+      const nutritionInfo = NUTRITION_DATA[phase] || NUTRITION_DATA['observation']
+      const scienceNote  = PHASE_SCIENCE_NOTES[phase]
+      const protein = getProteinTarget(phase, dashState.bodyWeight)
+
+      let html = ''
+
+      // Header
+      html += `<div class="sheet-phase-header">`
+      if (isCurrentPhase) html += `<div class="sheet-you-are-here">You are here</div>`
+      html += `<div class="sheet-phase-name">${phase}</div>`
+      html += `<div class="sheet-phase-tagline">${hormoneInfo.summary}</div>`
+      html += `</div>`
+
+      // Hormones
+      html += `<div class="sheet-section">
+        <div class="sheet-section-title">What is happening hormonally</div>
+        <div class="sheet-block">
+          <div class="sheet-block-label">Estrogen</div>
+          <div class="sheet-block-sub">${hormoneInfo.estrogen}</div>
+        </div>
+        <div class="sheet-block">
+          <div class="sheet-block-label">Progesterone</div>
+          <div class="sheet-block-sub">${hormoneInfo.progesterone}</div>
+        </div>
+        <div class="sheet-block">
+          <div class="sheet-block-label">LH</div>
+          <div class="sheet-block-sub">${hormoneInfo.lh}</div>
+        </div>
+      </div>`
+
+      // Training
+      html += `<div class="sheet-section">
+        <div class="sheet-section-title">Training in this phase</div>
+        <div class="sheet-block">
+          <div class="sheet-block-label">Intensity modifier</div>
+          <div class="sheet-block-val">${trainingInfo.modifier}</div>
+        </div>
+        <div class="sheet-block">
+          <div class="sheet-block-label">Recommended activities</div>
+          <div class="sheet-block-sub">${trainingInfo.activities}</div>
+        </div>
+        <div class="sheet-block">
+          <div class="sheet-block-label">What to expect</div>
+          <div class="sheet-block-sub">${trainingInfo.expect}</div>
+        </div>
+        <div class="sheet-block">
+          <div class="sheet-block-label">Key tip</div>
+          <div class="sheet-block-sub">${trainingInfo.tip}</div>
+        </div>
+      </div>`
+
+      // Nutrition
+      html += `<div class="sheet-section">
+        <div class="sheet-section-title">Nutrition in this phase</div>
+        <div class="sheet-block">
+          <div class="sheet-block-label">Protein target</div>
+          <div class="sheet-block-val">${protein}g per day</div>
+          <div class="sheet-block-sub">${nutritionInfo.desc}</div>
+          <div class="sheet-food-row">${nutritionInfo.foods.map(f=>`<span class="sheet-food-tag">${f}</span>`).join('')}</div>
+          ${nutritionInfo.avoid ? `<div class="sheet-avoid">${nutritionInfo.avoid}</div>` : ''}
+        </div>
+      </div>`
+
+      // Personal data — show loading placeholder, replace after query
+      html += `<div class="sheet-section" id="sheetPersonalSection">
+        <div class="sheet-section-title">Your personal data for this phase</div>
+        <div class="sheet-block" id="sheetPersonalContent">
+          <div class="sheet-block-sub" style="color:#9a9590">Loading your data...</div>
+        </div>
+      </div>`
+
+      // Science note
+      html += `<div class="sheet-science-note">${scienceNote}</div>`
+
+      document.getElementById('sheetScroll').innerHTML = html
+      document.getElementById('sheetScroll').scrollTop = 0
+      document.getElementById('sheetOverlay').classList.add('open')
+      document.getElementById('phaseSheet').classList.add('open')
+
+      // Async: load personal data and replace placeholder
+      const personal = await loadPersonalPhaseData(phase)
+      const personalEl = document.getElementById('sheetPersonalContent')
+      if (!personalEl) return
+
+      if (!personal || !dashState.lastPeriodDate) {
+        personalEl.innerHTML = `<div class="sheet-personal-empty">Not enough data yet. Keep logging to see your personal patterns here.</div>`
+        return
+      }
+      if (personal.tooFew) {
+        personalEl.innerHTML = `<div class="sheet-personal-empty">Not enough data yet. Keep logging to see your personal patterns here.</div>`
+        return
+      }
+
+      let pHtml = `<div class="sheet-block-sub" style="margin-bottom:8px;color:#9a9590">Based on ${personal.count} logged days in this phase</div>`
+      pHtml += `<div>`
+      if (personal.avgEnergy) {
+        pHtml += `<div class="sheet-personal-stat"><span class="sheet-personal-label">Average energy</span><span class="sheet-personal-val">${personal.avgEnergy}</span></div>`
+      }
+      if (personal.avgSleep) {
+        pHtml += `<div class="sheet-personal-stat"><span class="sheet-personal-label">Average sleep</span><span class="sheet-personal-val">${personal.avgSleep}</span></div>`
+      }
+      if (personal.avgRHR) {
+        pHtml += `<div class="sheet-personal-stat"><span class="sheet-personal-label">Average resting HR</span><span class="sheet-personal-val">${personal.avgRHR} bpm</span></div>`
+      }
+      if (personal.topSymptoms?.length > 0) {
+        pHtml += `<div class="sheet-personal-stat" style="flex-direction:column;align-items:flex-start;gap:6px"><span class="sheet-personal-label">Most common symptoms</span><div class="sheet-symptom-row">${personal.topSymptoms.map(s=>`<span class="sheet-symptom-tag">${s}</span>`).join('')}</div></div>`
+      }
+      pHtml += `</div>`
+      personalEl.innerHTML = pHtml
+    }
+
+    window.closePhaseSheet = function () {
+      document.getElementById('phaseSheet').classList.remove('open')
+      document.getElementById('sheetOverlay').classList.remove('open')
+    }
+
+    async function loadDashboard() {
+      try {
+        const { data: { user }, error: authError } = await supabase.auth.getUser()
+        if (authError || !user) { window.location.href = 'login.html'; return }
+
+        // Greeting
+        const hour = new Date().getHours()
+        document.getElementById('greeting').textContent =
+          hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
+
+        // Load profile
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles').select('*').eq('id', user.id).single()
+
+        if (profileError || !profile || !profile.user_path) {
+          window.location.href = 'setup.html'; return
+        }
+
+        const bodyWeight = profile.body_weight_kg || 65
+        dashState.userId = user.id
+        dashState.bodyWeight = bodyWeight
+
+        // Load cycle data
+        const { data: cycleData } = await supabase
+          .from('cycle_data').select('*').eq('user_id', user.id)
+          .order('created_at', { ascending: false }).limit(1).single()
+
+        // Load recent logs for confidence boosting
+        const { data: recentLogs } = await supabase
+          .from('daily_logs').select('energy, resting_hr, wrist_temp, log_date')
+          .eq('user_id', user.id).order('log_date', { ascending: false }).limit(7)
+
+        document.getElementById('loadingState').style.display = 'none'
+        document.getElementById('dashContent').style.display = 'block'
+
+        let phase = 'observation'
+        let cycleDay = null
+        let cycleLen = 28
+        let daysLeft = null
+        let confidence = 0.05
+
+        if (cycleData?.last_period_date) {
+          const lastPeriod = new Date(cycleData.last_period_date + 'T00:00:00')
+          const today = new Date(); today.setHours(0, 0, 0, 0)
+          const diffDays = Math.floor((today - lastPeriod) / 86400000)
+          cycleDay = diffDays + 1
+          cycleLen = cycleData.cycle_length || 28
+          daysLeft = Math.max(0, cycleLen - cycleDay + 1)
+
+          dashState.lastPeriodDate = cycleData.last_period_date
+          dashState.cycleLen = cycleLen
+
+          if (cycleDay > 0 && cycleDay <= cycleLen + 7) {
+            phase = getPhase(cycleDay, cycleLen)
+            dashState.phase = phase
+            confidence = 0.45
+
+            // Boost confidence from recent logs
+            if (recentLogs?.length) {
+              confidence += Math.min(0.25, recentLogs.length * 0.04)
+              // Energy-phase mismatch reduces confidence
+              const latestEnergy = recentLogs[0]?.energy
+              if (latestEnergy === 'Very low' && (phase === 'Follicular' || phase === 'Ovulatory')) {
+                confidence -= 0.12
+              }
+              // RHR elevation in expected luteal — boosts confidence
+              const avgRHR = recentLogs.filter(l => l.resting_hr).map(l => parseFloat(l.resting_hr)).filter(n => !isNaN(n))
+              if (avgRHR.length >= 3 && phase === 'Luteal') {
+                const recent3avg = avgRHR.slice(0, 3).reduce((a, b) => a + b, 0) / 3
+                if (recent3avg > 65) confidence += 0.08
+              }
+            }
+            confidence = Math.min(0.88, Math.max(0.05, confidence))
+          }
+        }
+
+        // Render hero
+        const phaseData = PHASE_DATA[phase] || PHASE_DATA['observation']
+        const hero = document.getElementById('heroCard')
+        hero.className = 'hero ' + phaseData.heroClass
+
+        const phaseLabel = phase === 'observation' ? 'Observation mode' : phase + ' phase'
+        document.getElementById('currentPhase').textContent = phaseLabel
+
+        if (cycleDay && daysLeft !== null) {
+          document.getElementById('currentDay').textContent =
+            'Day ' + cycleDay + ' of ' + cycleLen + ', ' + daysLeft + ' days until next period'
+          document.getElementById('statsRow').style.display = 'grid'
+          document.getElementById('statCycleDay').textContent = 'Day ' + cycleDay
+          document.getElementById('statDaysLeft').textContent = daysLeft
+        } else {
+          document.getElementById('currentDay').textContent = 'Tracking your cycle patterns'
+        }
+
+        document.getElementById('phaseDesc').textContent = phaseData.desc
+
+        const confidenceLabel = confidence > 0.75 ? 'High confidence'
+          : confidence > 0.45 ? 'Moderate confidence' : 'Building your data'
+        const confidencePct = Math.round(confidence * 100) + '%'
+        document.getElementById('confidenceText').textContent = confidenceLabel + ' ' + confidencePct
+        if (phaseData.disclaimer) {
+          document.getElementById('scienceDisclaimer').textContent = phaseData.disclaimer
+        }
+
+        // Highlight active phase card
+        if (phaseData.cardId) {
+          document.getElementById(phaseData.cardId)?.classList.add('active')
+        }
+
+        // Check already logged today
+        const alreadyLogged = await checkAlreadyLogged(user.id)
+        if (alreadyLogged) {
+          document.getElementById('alreadyLoggedBanner').style.display = 'flex'
+          document.getElementById('logBtn').textContent = 'Update today\'s log'
+          document.getElementById('logBtn').classList.add('logged')
+        }
+
+        // Log streak
+        const streak = await getLogStreak(user.id)
+        document.getElementById('statStreak').textContent = streak
+
+        // Nutrition card
+        renderNutritionCard(phase, bodyWeight)
+
+        // P11: Hormone interpretation card
+        const today2 = new Date().toISOString().split('T')[0]
+        const { data: todayLog } = await supabase
+          .from('daily_logs').select('hormone_estradiol,hormone_progesterone,hormone_lh,hormone_cortisol')
+          .eq('user_id', user.id).eq('log_date', today2).single()
+        renderHormoneCard(todayLog)
+
+        // P20: Community pulse
+        await renderCommunityPulse(user.id, phase)
+
+      } catch (err) {
+        console.error('Dashboard error:', err)
+        document.getElementById('loadingState').innerHTML =
+          '<p style="color:#8a4a4a">Something went wrong loading your dashboard. <a href="login.html">Try signing in again.</a></p>'
+      }
+    }
+
+    window.handleSignOut = async function (e) {
+      e.preventDefault()
+      await supabase.auth.signOut()
+      window.location.href = 'login.html'
+    }
+
+    loadDashboard()
+  </script>
+</body>
+
+</html>
