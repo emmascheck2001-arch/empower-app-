@@ -1482,6 +1482,64 @@
             cursor: pointer; transition: background 0.15s;
         }
         .timer-finish-btn:active { background: #3d3830; }
+        .timer-segment-badge {
+            font-size:11px; font-weight:700; letter-spacing:0.1em; color:#8a7a6a;
+            background:#f0ebe3; border-radius:20px; padding:4px 14px; margin-bottom:20px;
+        }
+        .timer-instruction {
+            font-size:13px; color:#5a5550; text-align:center; line-height:1.7;
+            max-width:300px; margin-bottom:20px; overflow-y:auto; max-height:110px;
+        }
+        .timer-next-notice {
+            font-size:13px; color:#c8b89a; font-weight:500; text-align:center; margin-bottom:12px;
+        }
+        .timer-skip-btn {
+            background:transparent; border:1.5px solid #ede8e0; border-radius:12px;
+            padding:12px 24px; font-size:13px; color:#9a9590;
+            width:calc(100% - 32px); cursor:pointer;
+        }
+        .hiit-state-badge {
+            font-size:13px; font-weight:700; letter-spacing:0.12em;
+            padding:5px 18px; border-radius:20px; margin-bottom:20px;
+            background:#eef5ee; color:#2a5a2a;
+        }
+        .hiit-state-badge.rest { background:#f0ebe3; color:#8a7a6a; }
+        .hiit-exercise-name {
+            font-size:20px; font-weight:600; color:#2c2820;
+            text-align:center; margin-bottom:6px; max-width:280px;
+        }
+        .hiit-progress-text { font-size:12px; color:#9a9590; margin-bottom:24px; }
+        .timer-hiit-btns { display:flex; gap:10px; width:calc(100% - 32px); }
+        .timer-pause-btn {
+            flex:1; padding:16px; background:#fff; border:1.5px solid #ede8e0;
+            border-radius:14px; font-size:15px; font-weight:500; color:#2c2820; cursor:pointer;
+        }
+        .checklist-header { padding:16px 16px 8px; }
+        .checklist-progress-bar {
+            height:4px; background:#ede8e0; border-radius:2px; margin-bottom:8px; overflow:hidden;
+        }
+        .checklist-progress-fill {
+            height:100%; background:#c8b89a; border-radius:2px; transition:width 0.3s ease;
+        }
+        .checklist-progress-text { font-size:12px; color:#9a9590; margin-bottom:4px; }
+        .checklist-items-wrap { padding:0 16px 100px; overflow-y:auto; }
+        .checklist-item {
+            display:flex; align-items:flex-start; gap:12px;
+            padding:14px 0; border-bottom:1px solid #f0ebe3; cursor:pointer;
+        }
+        .checklist-item.done .checklist-item-name { text-decoration:line-through; color:#b0a898; }
+        .checklist-check {
+            width:22px; height:22px; border-radius:50%; border:2px solid #c8b89a;
+            flex-shrink:0; display:flex; align-items:center; justify-content:center;
+            font-size:11px; color:transparent; margin-top:2px;
+        }
+        .checklist-item.done .checklist-check { background:#2c2820; border-color:#2c2820; color:#f5f0e8; }
+        .checklist-item-name { font-size:15px; font-weight:600; color:#2c2820; margin-bottom:2px; }
+        .checklist-item-params { font-size:13px; color:#7a7268; }
+        .checklist-done-footer {
+            position:fixed; bottom:0; left:0; right:0; padding:16px;
+            background:#faf8f5; max-width:420px; margin:0 auto;
+        }
 
         .feel-btn {
             padding: 10px 12px;
@@ -1917,13 +1975,15 @@
             <!-- SCREEN 7: Activity timer -->
             <div id="screenTimer" class="hidden">
                 <div class="top-bar">
-                    <button class="back-btn" id="timerBackBtn" onclick="cancelActivityTimer()">
+                    <button class="back-btn" onclick="cancelActivityTimer()">
                         <i class="ti ti-arrow-left"></i>
                     </button>
                     <div class="top-bar-title" id="timerTitle">Walk</div>
                 </div>
-                <div class="timer-screen-body">
-                    <div class="timer-phase-tag" id="timerPhaseTag"></div>
+
+                <!-- Cardio mode: walk, run, cycle, swim -->
+                <div id="timerModeCardio" class="timer-screen-body hidden">
+                    <div class="timer-segment-badge" id="timerSegmentBadge">WARMUP</div>
                     <div class="timer-display-wrap">
                         <svg class="timer-ring" viewBox="0 0 200 200">
                             <circle class="timer-ring-bg" cx="100" cy="100" r="88"/>
@@ -1932,8 +1992,42 @@
                         </svg>
                         <div class="timer-time" id="timerDisplay">30:00</div>
                     </div>
-                    <div class="timer-note" id="timerNote"></div>
-                    <button class="timer-finish-btn" id="timerFinishBtn" onclick="finishActivityTimer()">Finish</button>
+                    <div class="timer-instruction" id="timerInstruction"></div>
+                    <div class="timer-next-notice hidden" id="timerNextNotice"></div>
+                    <button class="timer-skip-btn" id="timerSkipBtn" onclick="skipCardioSegment()">Skip to next segment</button>
+                </div>
+
+                <!-- HIIT mode -->
+                <div id="timerModeHIIT" class="timer-screen-body hidden">
+                    <div class="hiit-state-badge" id="hiitStateBadge">WORK</div>
+                    <div class="timer-display-wrap">
+                        <svg class="timer-ring" viewBox="0 0 200 200">
+                            <circle class="timer-ring-bg" cx="100" cy="100" r="88"/>
+                            <circle class="timer-ring-fill" id="hiitRingFill" cx="100" cy="100" r="88"
+                                stroke-dasharray="553" stroke-dashoffset="0"/>
+                        </svg>
+                        <div class="timer-time" id="hiitDisplay">35</div>
+                    </div>
+                    <div class="hiit-exercise-name" id="hiitExerciseName"></div>
+                    <div class="hiit-progress-text" id="hiitProgressText">Round 1 of 4</div>
+                    <div class="timer-hiit-btns">
+                        <button class="timer-pause-btn" id="hiitPauseBtn" onclick="toggleHIITPause()">Pause</button>
+                        <button class="timer-finish-btn" style="flex:2" onclick="finishActivityTimer()">Done</button>
+                    </div>
+                </div>
+
+                <!-- Checklist mode: yoga, pilates -->
+                <div id="timerModeChecklist" class="hidden">
+                    <div class="checklist-header">
+                        <div class="checklist-progress-bar">
+                            <div class="checklist-progress-fill" id="checklistProgressFill" style="width:0%"></div>
+                        </div>
+                        <div class="checklist-progress-text" id="checklistProgressText">0 of 10 done</div>
+                    </div>
+                    <div id="checklistItems" class="checklist-items-wrap"></div>
+                    <div class="checklist-done-footer">
+                        <button class="timer-finish-btn" onclick="finishActivityTimer()">Done</button>
+                    </div>
                 </div>
             </div>
 
@@ -3162,6 +3256,7 @@
             const cfg = configs[level] || configs['intermediate']
             const totalTime = Math.round(cfg.rounds * cfg.exercises * (cfg.work + cfg.rest) / 60)
             const selectedExercises = shuffleArray(hiitExercises).slice(0, cfg.exercises)
+            state.hiitSession = { exercises: selectedExercises, cfg }
 
             let html = `<div class="hiit-config-label">${cfg.label}. Approximately ${totalTime} minutes</div>`
             html += `<div class="pose-list">`
@@ -5155,65 +5250,291 @@
         }
 
         let timerInterval = null
-        let timerSecondsLeft = 1800
 
-        function startActivityTimer(activity) {
-            const TOTAL = 1800
-            timerSecondsLeft = TOTAL
+        // Parse minutes from text like "5 min easy jog" or "20 to 30 min" -> seconds
+        function parseSegmentSeconds(text) {
+            const rangeM = text.match(/(\d+)\s*to\s*(\d+)\s*min/)
+            if (rangeM) return Math.round((parseInt(rangeM[1]) + parseInt(rangeM[2])) / 2) * 60
+            const simpleM = text.match(/(\d+)\s*min/)
+            if (simpleM) return parseInt(simpleM[1]) * 60
+            return 1800
+        }
+
+        function fmtTime(s) {
+            return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0')
+        }
+
+        function updateRing(ringId, secsLeft, total) {
+            const offset = 553 * (1 - secsLeft / Math.max(total, 1))
+            document.getElementById(ringId).setAttribute('stroke-dashoffset', offset)
+        }
+
+        // ---- Cardio timer (walk, run, cycle, swim) ----
+
+        let cardioSegments = []
+        let cardioSegmentIndex = 0
+        let cardioSecsLeft = 0
+        let cardioSegmentTotal = 0
+
+        function startCardioTimer(activity) {
             clearInterval(timerInterval)
+            state.workoutStartTime = Date.now()
 
-            // Set up screen labels
-            const label = ACTIVITY_LABELS[activity] || activity
-            document.getElementById('timerTitle').textContent = label
-            document.getElementById('timerFinishBtn').textContent = 'Finish ' + label.toLowerCase()
+            const phase = state.phase
+            const level = state.fitnessLevel
+            const sub = state.subPhase
+            const phaseKey = (phase === 'Luteal phase' && sub) ? sub : phase
 
-            // Phase tag
-            const phaseKey = getPhaseKey()
-            document.getElementById('timerPhaseTag').textContent = phaseKey
-            document.getElementById('timerNote').textContent =
-                phaseKey === 'Menstrual' ? 'Go easy today. Gentle movement is enough.' :
-                phaseKey === 'Follicular' ? 'Great day for steady effort. Your energy is rising.' :
-                phaseKey === 'Ovulatory' ? 'Peak energy. Push if it feels good.' :
-                phaseKey === 'Early luteal' ? 'Moderate effort. Listen to your body today.' :
-                phaseKey === 'Mid luteal' ? 'Steady pace. Your body is working hard this week.' :
-                phaseKey === 'Late luteal' ? 'Gentle movement is the goal today.' :
-                'Steady effort. Every session builds your baseline.'
-
-            function updateDisplay() {
-                const m = Math.floor(timerSecondsLeft / 60)
-                const s = timerSecondsLeft % 60
-                document.getElementById('timerDisplay').textContent =
-                    String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0')
-
-                // Update ring: circumference = 2 * pi * 88 ≈ 553
-                const pct = timerSecondsLeft / TOTAL
-                const offset = 553 * (1 - pct)
-                document.getElementById('timerRingFill').setAttribute('stroke-dashoffset', offset)
+            const session = buildStructuredCardio(activity, level, phase)
+            let segments = []
+            if (session) {
+                segments = [
+                    { label: 'WARMUP', text: session.warmup },
+                    { label: 'MAIN SET', text: session.main },
+                    { label: 'COOLDOWN', text: session.cooldown }
+                ]
+            } else {
+                const walkData = cardioGuidance.walk
+                const guidance = walkData[phaseKey] || walkData[phase] || walkData['observation']
+                segments = [{ label: 'SESSION', text: guidance }]
             }
 
-            updateDisplay()
-            state.workoutStartTime = Date.now()
+            cardioSegments = segments.map(s => ({ ...s, seconds: parseSegmentSeconds(s.text) }))
+            cardioSegmentIndex = 0
+
+            document.getElementById('timerTitle').textContent = ACTIVITY_LABELS[activity] || activity
+            document.getElementById('timerModeCardio').classList.remove('hidden')
+            document.getElementById('timerModeHIIT').classList.add('hidden')
+            document.getElementById('timerModeChecklist').classList.add('hidden')
             showScreen('screenTimer')
+            runCardioSegment()
+        }
+
+        function runCardioSegment() {
+            clearInterval(timerInterval)
+            const seg = cardioSegments[cardioSegmentIndex]
+            if (!seg) { finishActivityTimer(); return }
+
+            cardioSecsLeft = seg.seconds
+            cardioSegmentTotal = seg.seconds
+
+            document.getElementById('timerSegmentBadge').textContent = seg.label
+            document.getElementById('timerInstruction').textContent = seg.text
+            document.getElementById('timerDisplay').textContent = fmtTime(cardioSecsLeft)
+            document.getElementById('timerNextNotice').classList.add('hidden')
+            updateRing('timerRingFill', cardioSecsLeft, cardioSegmentTotal)
+
+            const isLast = cardioSegmentIndex === cardioSegments.length - 1
+            document.getElementById('timerSkipBtn').textContent = isLast ? 'Finish session' : 'Skip to next segment'
 
             timerInterval = setInterval(() => {
-                timerSecondsLeft--
-                updateDisplay()
-                if (timerSecondsLeft <= 0) {
+                cardioSecsLeft--
+                document.getElementById('timerDisplay').textContent = fmtTime(cardioSecsLeft)
+                updateRing('timerRingFill', cardioSecsLeft, cardioSegmentTotal)
+                if (cardioSecsLeft <= 0) {
                     clearInterval(timerInterval)
-                    finishActivityTimer()
+                    advanceCardioSegment()
                 }
             }, 1000)
         }
 
-        window.cancelActivityTimer = function () {
+        function advanceCardioSegment() {
+            cardioSegmentIndex++
+            if (cardioSegmentIndex >= cardioSegments.length) {
+                finishActivityTimer()
+                return
+            }
+            const next = cardioSegments[cardioSegmentIndex]
+            const notice = document.getElementById('timerNextNotice')
+            notice.textContent = 'Up next: ' + next.label.toLowerCase().replace('set', ' set')
+            notice.classList.remove('hidden')
+            setTimeout(() => {
+                notice.classList.add('hidden')
+                runCardioSegment()
+            }, 2000)
+        }
+
+        window.skipCardioSegment = function() {
+            clearInterval(timerInterval)
+            advanceCardioSegment()
+        }
+
+        // ---- HIIT interval timer ----
+
+        let hiitExerciseIdx = 0
+        let hiitRoundIdx = 0
+        let hiitPhase = 'work'
+        let hiitSecsLeft = 0
+        let hiitSegmentTotal = 0
+        let hiitPaused = false
+
+        function startHIITTimer() {
+            clearInterval(timerInterval)
+            if (!state.hiitSession) { finishActivityTimer(); return }
+            state.workoutStartTime = Date.now()
+
+            hiitExerciseIdx = 0
+            hiitRoundIdx = 0
+            hiitPhase = 'work'
+            hiitPaused = false
+
+            document.getElementById('timerTitle').textContent = 'HIIT'
+            document.getElementById('timerModeCardio').classList.add('hidden')
+            document.getElementById('timerModeHIIT').classList.remove('hidden')
+            document.getElementById('timerModeChecklist').classList.add('hidden')
+            showScreen('screenTimer')
+            runHIITInterval()
+        }
+
+        function runHIITInterval() {
+            clearInterval(timerInterval)
+            const { exercises, cfg } = state.hiitSession
+            if (hiitExerciseIdx >= exercises.length) { finishActivityTimer(); return }
+
+            const ex = exercises[hiitExerciseIdx]
+            const secs = hiitPhase === 'work' ? cfg.work : cfg.rest
+            hiitSecsLeft = secs
+            hiitSegmentTotal = secs
+
+            const badge = document.getElementById('hiitStateBadge')
+            if (hiitPhase === 'work') {
+                badge.textContent = 'WORK'
+                badge.classList.remove('rest')
+            } else {
+                badge.textContent = 'REST'
+                badge.classList.add('rest')
+            }
+
+            document.getElementById('hiitExerciseName').textContent = hiitPhase === 'work' ? ex.name : 'Rest'
+            document.getElementById('hiitDisplay').textContent = String(hiitSecsLeft)
+            document.getElementById('hiitProgressText').textContent =
+                'Round ' + (hiitRoundIdx + 1) + ' of ' + cfg.rounds +
+                '  x  Exercise ' + (hiitExerciseIdx + 1) + ' of ' + exercises.length
+            updateRing('hiitRingFill', hiitSecsLeft, hiitSegmentTotal)
+
+            timerInterval = setInterval(() => {
+                if (hiitPaused) return
+                hiitSecsLeft--
+                document.getElementById('hiitDisplay').textContent = String(hiitSecsLeft)
+                updateRing('hiitRingFill', hiitSecsLeft, hiitSegmentTotal)
+                if (hiitSecsLeft <= 0) {
+                    clearInterval(timerInterval)
+                    advanceHIIT()
+                }
+            }, 1000)
+        }
+
+        function advanceHIIT() {
+            const { exercises, cfg } = state.hiitSession
+            if (hiitPhase === 'work') {
+                hiitPhase = 'rest'
+                runHIITInterval()
+            } else {
+                hiitPhase = 'work'
+                hiitRoundIdx++
+                if (hiitRoundIdx >= cfg.rounds) {
+                    hiitRoundIdx = 0
+                    hiitExerciseIdx++
+                    if (hiitExerciseIdx >= exercises.length) {
+                        finishActivityTimer()
+                        return
+                    }
+                    // 3-second transition to next exercise
+                    const nextName = exercises[hiitExerciseIdx].name
+                    const badge = document.getElementById('hiitStateBadge')
+                    badge.textContent = 'UP NEXT'
+                    badge.classList.add('rest')
+                    document.getElementById('hiitExerciseName').textContent = nextName
+                    let cd = 3
+                    document.getElementById('hiitDisplay').textContent = String(cd)
+                    const cdInt = setInterval(() => {
+                        cd--
+                        document.getElementById('hiitDisplay').textContent = String(cd)
+                        if (cd <= 0) { clearInterval(cdInt); runHIITInterval() }
+                    }, 1000)
+                } else {
+                    runHIITInterval()
+                }
+            }
+        }
+
+        window.toggleHIITPause = function() {
+            hiitPaused = !hiitPaused
+            document.getElementById('hiitPauseBtn').textContent = hiitPaused ? 'Resume' : 'Pause'
+        }
+
+        // ---- Checklist mode (yoga, pilates) ----
+
+        let checklistItems = []
+        let checklistDone = new Set()
+
+        function getYogaChecklist(phase) {
+            const sub = state.subPhase
+            const effectivePhase = sub || phase
+            const isRestPhase = effectivePhase === 'Late luteal' || phase === 'Menstrual phase'
+            const poses = isRestPhase
+                ? yogaPoses.filter(p => p.bestPhase.toLowerCase().includes('luteal') || p.bestPhase.toLowerCase().includes('menstrual') || p.bestPhase.toLowerCase().includes('all'))
+                : yogaPoses
+            return poses.map(p => ({ name: p.name, params: p.hold }))
+        }
+
+        function startChecklist(activity) {
+            clearInterval(timerInterval)
+            state.workoutStartTime = Date.now()
+            checklistDone = new Set()
+
+            if (activity === 'yoga') {
+                checklistItems = getYogaChecklist(state.phase)
+            } else {
+                checklistItems = pilatesExercises.map(ex => ({ name: ex.name, params: ex.repCount }))
+            }
+
+            document.getElementById('timerTitle').textContent = activity === 'yoga' ? 'Yoga' : 'Pilates'
+            document.getElementById('timerModeCardio').classList.add('hidden')
+            document.getElementById('timerModeHIIT').classList.add('hidden')
+            document.getElementById('timerModeChecklist').classList.remove('hidden')
+            showScreen('screenTimer')
+            renderChecklist()
+        }
+
+        function renderChecklist() {
+            const total = checklistItems.length
+            const done = checklistDone.size
+            const pct = total > 0 ? (done / total) * 100 : 0
+            document.getElementById('checklistProgressFill').style.width = pct + '%'
+            document.getElementById('checklistProgressText').textContent = done + ' of ' + total + ' done'
+            let html = ''
+            checklistItems.forEach((item, i) => {
+                const isDone = checklistDone.has(i)
+                html += '<div class="checklist-item' + (isDone ? ' done' : '') + '" onclick="toggleChecklistItem(' + i + ')">' +
+                    '<div class="checklist-check">' + (isDone ? '&#10003;' : '') + '</div>' +
+                    '<div><div class="checklist-item-name">' + item.name + '</div>' +
+                    '<div class="checklist-item-params">' + item.params + '</div></div></div>'
+            })
+            document.getElementById('checklistItems').innerHTML = html
+        }
+
+        window.toggleChecklistItem = function(index) {
+            if (checklistDone.has(index)) { checklistDone.delete(index) } else { checklistDone.add(index) }
+            renderChecklist()
+        }
+
+        // ---- Router and shared finish ----
+
+        function startActivityTimer(activity) {
+            if (activity === 'yoga' || activity === 'pilates') return startChecklist(activity)
+            if (activity === 'hiit') return startHIITTimer()
+            return startCardioTimer(activity)
+        }
+
+        window.cancelActivityTimer = function() {
             clearInterval(timerInterval)
             showScreen('screenSummary')
         }
 
-        window.finishActivityTimer = function () {
+        window.finishActivityTimer = function() {
             clearInterval(timerInterval)
             const elapsed = Math.round((Date.now() - state.workoutStartTime) / 60000)
-            // Pre-fill the duration field on the complete screen
             const durationEl = document.getElementById('activityDuration')
             if (durationEl) durationEl.value = elapsed > 0 ? elapsed : 30
             showComplete()
