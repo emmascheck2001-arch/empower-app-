@@ -1510,6 +1510,15 @@
             background:#eef5ee; color:#2a5a2a;
         }
         .hiit-state-badge.rest { background:#f0ebe3; color:#8a7a6a; }
+        .hiit-state-label {
+            font-size:22px; font-weight:800; letter-spacing:0.08em;
+            color:#2c2820;
+        }
+        .hiit-state-label.rest { color:#9a9590; }
+        .hiit-end-btn {
+            background:none; border:none; font-size:13px; color:#c8b89a;
+            cursor:pointer; padding:4px 0;
+        }
         .hiit-exercise-name {
             font-size:20px; font-weight:600; color:#2c2820;
             text-align:center; margin-bottom:6px; max-width:280px;
@@ -2026,7 +2035,10 @@
 
                 <!-- HIIT mode -->
                 <div id="timerModeHIIT" class="timer-screen-body hidden">
-                    <div class="hiit-state-badge" id="hiitStateBadge">WORK</div>
+                    <div style="display:flex;align-items:center;justify-content:space-between;width:calc(100% - 32px);margin-bottom:16px">
+                        <div class="hiit-state-label" id="hiitStateLabel">WORK</div>
+                        <button class="hiit-end-btn" onclick="finishActivityTimer()">End session</button>
+                    </div>
                     <div class="timer-display-wrap">
                         <svg class="timer-ring" viewBox="0 0 200 200">
                             <circle class="timer-ring-bg" cx="100" cy="100" r="88"/>
@@ -2039,7 +2051,7 @@
                     <div class="hiit-progress-text" id="hiitProgressText">Round 1 of 4</div>
                     <div class="timer-hiit-btns">
                         <button class="timer-pause-btn" id="hiitPauseBtn" onclick="toggleHIITPause()">Pause</button>
-                        <button class="timer-finish-btn" style="flex:2" onclick="finishActivityTimer()">Done</button>
+                        <button class="timer-pause-btn" id="hiitSkipBtn" onclick="skipHIITInterval()">Skip</button>
                     </div>
                 </div>
 
@@ -5450,7 +5462,7 @@
             hiitSecsLeft = secs
             hiitSegmentTotal = secs
 
-            const badge = document.getElementById('hiitStateBadge')
+            const badge = document.getElementById('hiitStateLabel')
             if (hiitPhase === 'work') {
                 badge.textContent = 'WORK'
                 badge.classList.remove('rest')
@@ -5495,7 +5507,7 @@
                     }
                     // 3-second transition to next exercise
                     const nextName = exercises[hiitExerciseIdx].name
-                    const badge = document.getElementById('hiitStateBadge')
+                    const badge = document.getElementById('hiitStateLabel')
                     badge.textContent = 'UP NEXT'
                     badge.classList.add('rest')
                     document.getElementById('hiitExerciseName').textContent = nextName
@@ -5515,6 +5527,12 @@
         window.toggleHIITPause = function() {
             hiitPaused = !hiitPaused
             document.getElementById('hiitPauseBtn').textContent = hiitPaused ? 'Resume' : 'Pause'
+        }
+
+        window.skipHIITInterval = function() {
+            clearInterval(timerInterval)
+            hiitSecsLeft = 0
+            advanceHIIT()
         }
 
         // ---- Checklist mode (yoga, pilates) ----
