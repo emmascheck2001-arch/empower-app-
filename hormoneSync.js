@@ -175,6 +175,127 @@ function getPredictions(phase, cycleDay, cycleLen) {
   return predictions
 }
 
+// ── Symptom inference engine ─────────────────────────────────────────────────
+// Estimates cycle phase from logged symptoms when no period date is available.
+// Source: Janse de Jonge 2003 Sports Medicine — personal tracking improves prediction accuracy.
+// Source: Bigelow et al. 2004 Human Reproduction — egg white fluid 80% sensitivity for fertile window.
+// Source: De Martin Topranin et al. 2023 IJSPP — RHR 1.7 bpm higher mid-luteal vs early follicular.
+export function inferPhaseFromSymptoms(recentLogs, mucusLogs = []) {
+  if (!recentLogs?.length) {
+    return { inferredPhase: null, confidence: 'insufficient', source: 'symptom_inference' }
+  }
+
+  const logs = recentLogs.slice(0, 7)
+  const latestLog = logs[0] || {}
+  const mucus = (mucusLogs || []).slice(0, 7)
+
+  // Flatten arrays across all recent logs for pattern detection
+  const allSymptoms = logs.flatMap(l => l.symptoms || [])
+  const allMoods = logs.flatMap(l => l.mood || [])
+  const energyValues = logs.map(l => l.energy).filter(Boolean)
+  const sleepValues = logs.map(l => l.sleep_quality).filter(Boolean)
+  const allFluid = mucus.map(m => m.discharge_type).filter(Boolean)
+  const rhrValues = logs.map(l => parseFloat(l.resting_hr)).filter(n => !isNaN(n))
+  const latestRHR = parseFloat(latestLog.resting_hr)
+  // Baseline = average of all logged RHR except the most recent (Zhu et al. 2021)
+  const rhrBaseline = rhrValues.length > 1
+    ? rhrValues.slice(1).reduce((a, b) => a + b, 0) / (rhrValues.length - 1)
+    : null
+
+  const scores = { Menstrual: 0, Follicular: 0, Ovulatory: 0, Luteal: 0 }
+  const signals = []
+
+  // ── MENSTRUAL signals (2 points each) ──────────────────────────────────────
+  if (allSymptoms.some(s => ['Cramps', 'Bloating', 'Fatigue', 'Back pain'].includes(s))) {
+    scores.Menstrual += 2; signals.push('cramping or fatigue symptoms')
+  }
+  if (energyValues.some(e => e === 'Very low')) {
+    scores.Menstrual += 2; signals.push('very low energy')
+  }
+  if (allMoods.some(m => ['Low', 'Irritable', 'Sad'].includes(m))) {
+    scores.Menstrual += 2; signals.push('low or irritable mood')
+  }
+  if (allFluid.some(f => f === 'Spotting')) {
+    scores.Menstrual += 2; signals.push('spotting')
+  }
+  if (sleepValues.some(s => s === 'Poor')) {
+    scores.Menstrual += 2; signals.push('poor sleep')
+  }
+
+  // ── FOLLICULAR signals (2 points each) ─────────────────────────────────────
+  if (energyValues.some(e => e === 'High')) {
+    scores.Follicular += 2; signals.push('high energy')
+  }
+  if (allMoods.some(m => ['Happy', 'Motivated', 'Social', 'Energetic'].includes(m))) {
+    scores.Follicular += 2; signals.push('positive motivated mood')
+  }
+  if (allFluid.some(f => f === 'Creamy' || f === 'Watery')) {
+    scores.Follicular += 2; signals.push('creamy or watery cervical fluid')
+  }
+  if (logs.some(l => l.workout_feel === 'Strong' || l.workout_feel === 'Great')) {
+    scores.Follicular += 2; signals.push('strong workout feel')
+  }
+  if (allSymptoms.length > 0 && !allSymptoms.some(s => ['Cramps', 'Fatigue'].includes(s))) {
+    scores.Follicular += 2; signals.push('no pain or fatigue logged')
+  }
+
+  // ── OVULATORY signals (3 points each — stronger specificity) ───────────────
+  if (allFluid.some(f => f === 'Egg white')) {
+    scores.Ovulatory += 3; signals.push('egg white cervical fluid')
+  }
+  if (logs.some(l => l.lh_result && l.lh_result.toLowerCase() === 'positive')) {
+    scores.Ovulatory += 3; signals.push('positive LH test')
+  }
+  if (energyValues.some(e => e === 'High') && allMoods.some(m => ['Confident', 'Energetic'].includes(m))) {
+    scores.Ovulatory += 3; signals.push('peak energy and confidence')
+  }
+  if (!isNaN(latestRHR) && rhrBaseline && latestRHR > rhrBaseline + 1.5) {
+    scores.Ovulatory += 3; signals.push('heart rate elevated above baseline')
+    // Also counts for Luteal — RHR elevated in both phases
+    scores.Luteal += 2
+  }
+
+  // ── LUTEAL signals (2 points each) ─────────────────────────────────────────
+  if (allSymptoms.some(s => ['Bloating', 'Sore breasts', 'Cravings', 'Mood swings'].includes(s))) {
+    scores.Luteal += 2; signals.push('luteal symptoms (bloating, breast tenderness, cravings)')
+  }
+  if (energyValues.some(e => e === 'Low' || e === 'Very low')) {
+    scores.Luteal += 2; signals.push('low energy')
+  }
+  if (allFluid.some(f => f === 'Sticky' || f === 'None')) {
+    scores.Luteal += 2; signals.push('low cervical fluid')
+  }
+  if (allMoods.some(m => ['Anxious', 'Tired', 'Sad', 'Irritable'].includes(m))) {
+    scores.Luteal += 2; signals.push('anxious or low mood')
+  }
+  if (sleepValues.some(s => s === 'Poor' || s === 'Disrupted')) {
+    scores.Luteal += 2
+    if (!signals.includes('poor sleep')) signals.push('disrupted sleep')
+  }
+
+  const uniqueSignals = [...new Set(signals)]
+
+  if (uniqueSignals.length < 3) {
+    return { inferredPhase: null, confidence: 'insufficient', source: 'symptom_inference' }
+  }
+
+  const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1])
+  const inferredPhase = sorted[0][0]
+
+  let confidence, confidencePct
+  if (uniqueSignals.length >= 5) { confidence = 'high'; confidencePct = 75 }
+  else if (uniqueSignals.length >= 3) { confidence = 'medium'; confidencePct = 55 }
+  else { confidence = 'low'; confidencePct = 30 }
+
+  return {
+    inferredPhase,
+    confidence,
+    confidencePct,
+    signals: uniqueSignals.slice(0, 5),
+    source: 'symptom_inference'
+  }
+}
+
 // ── Main exported function ───────────────────────────────────────────────────
 export async function getTodayStatus(supabase, userId) {
   const [
@@ -203,6 +324,8 @@ export async function getTodayStatus(supabase, userId) {
   let daysUntilPeriod = null
   let confidence = 0.05
 
+  let symptomInference = null
+
   if (cycleData?.last_period_date) {
     const lastPeriod = new Date(cycleData.last_period_date + 'T00:00:00')
     const diffDays = Math.floor((today - lastPeriod) / 86400000)
@@ -215,6 +338,15 @@ export async function getTodayStatus(supabase, userId) {
       if (phase === 'Luteal') subPhase = getLutealSubPhase(cycleDay, cycleLen)
       if (phase === 'Follicular') subPhase = getFollicularSubPhase(cycleDay)
       confidence = calcConfidence(phase, recentLogs, mucusLogs)
+      // Run inference alongside as supporting evidence even when phase is confirmed
+      symptomInference = inferPhaseFromSymptoms(recentLogs, mucusLogs)
+    }
+  } else {
+    // No cycle data — use symptom inference as the working phase estimate
+    symptomInference = inferPhaseFromSymptoms(recentLogs, mucusLogs)
+    if (symptomInference?.inferredPhase) {
+      phase = symptomInference.inferredPhase
+      confidence = symptomInference.confidencePct / 100
     }
   }
 
@@ -236,6 +368,7 @@ export async function getTodayStatus(supabase, userId) {
     immediateFeedback: getImmediateFeedback(recentLogs[0], phase, confidence),
     anomalies: detectAnomalies(recentLogs, phase),
     predictions: getPredictions(phase, cycleDay, cycleLen),
+    symptomInference,
     bodyWeight,
     profile: profile || {}
   }

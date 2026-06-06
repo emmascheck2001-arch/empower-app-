@@ -430,10 +430,26 @@ hormoneSync.js must export getTodayStatus which returns:
   nutritionTargets: { proteinG, extraCalories, headline, keyFoods, avoid, source },
   immediateFeedback: [],
   anomalies: [],
-  predictions: []
+  predictions: [],
+  symptomInference: {
+    inferredPhase,    // 'Follicular' | 'Menstrual' | 'Ovulatory' | 'Luteal' | null
+    confidence,       // 'low' | 'medium' | 'high' | 'insufficient'
+    confidencePct,    // rough percentage for UI display
+    signals,          // string[] — what drove the inference
+    source            // always 'symptom_inference'
+  }
 }
 ```
 Every screen imports this. No screen calculates phase independently.
+
+## inferPhaseFromSymptoms — symptom-based fallback phase detection
+hormoneSync.js exports inferPhaseFromSymptoms(recentLogs, mucusLogs).
+- If phase is confirmed from period date: inference runs alongside as supporting evidence
+- If no cycle data at all: inference result becomes the working phase (clearly labeled as estimated)
+- Returns null inferredPhase if fewer than 3 distinct signals are detected
+- UI must never show inferred phase with same confidence as a calculated phase
+- Always use "may be" or "looks like" language for inferred phases, never "You are in"
+- Sources: Janse de Jonge 2003 Sports Medicine; Bigelow et al. 2004 Human Reproduction; De Martin Topranin 2023 IJSPP; Zhu et al. 2021 JMIR
 
 ---
 

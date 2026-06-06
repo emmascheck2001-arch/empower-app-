@@ -186,14 +186,15 @@
       </div>
 
       <div class="section">
-        <div class="section-title">Any discharge or spotting today?</div>
-        <div class="section-why" style="margin-bottom:10px">Your strongest non-wearable ovulation signal.</div>
-        <div class="btn-row" id="mucusQuickRow">
-          <div class="opt-btn" onclick="selectOne('mucusQuickRow', this, 'mucus_quick', 'Nothing')">Nothing</div>
-          <div class="opt-btn" onclick="selectOne('mucusQuickRow', this, 'mucus_quick', 'Creamy')">Creamy</div>
-          <div class="opt-btn" onclick="selectOne('mucusQuickRow', this, 'mucus_quick', 'Watery')">Watery</div>
-          <div class="opt-btn" onclick="selectOne('mucusQuickRow', this, 'mucus_quick', 'Egg white')">Egg white</div>
-          <div class="opt-btn" onclick="selectOne('mucusQuickRow', this, 'mucus_quick', 'Spotting')">Spotting</div>
+        <div class="section-title">Cervical fluid</div>
+        <div class="section-why">Changes throughout your cycle and helps track your fertile window.</div>
+        <div class="btn-row" id="fluidRow">
+          <div class="opt-btn" onclick="selectFluid(this, 'None')">&#128167; None or dry</div>
+          <div class="opt-btn" onclick="selectFluid(this, 'Sticky')">&#129293; Sticky or crumbly</div>
+          <div class="opt-btn" onclick="selectFluid(this, 'Creamy')">&#129703; Creamy or lotion-like</div>
+          <div class="opt-btn" onclick="selectFluid(this, 'Watery')">&#128166; Watery</div>
+          <div class="opt-btn" onclick="selectFluid(this, 'Egg white')">&#10024; Egg white</div>
+          <div class="opt-btn" onclick="selectFluid(this, 'Spotting')">&#129978; Spotting</div>
         </div>
       </div>
 
@@ -338,7 +339,7 @@
   </div>
 
   <div class="save-bar">
-    <p class="save-note">One more section. Cervical mucus takes 30 seconds and is your strongest ovulation signal.</p>
+    <p class="save-note">Tap Save to record today. Every signal builds a more accurate picture of your cycle.</p>
     <button class="next-btn" onclick="saveAndContinue()">Save →</button>
   </div>
 
@@ -361,7 +362,7 @@
     localStorage.setItem('logDate', todayISO)
 
     const logData = {
-      energy: null, symptoms: [], mucus_quick: null,
+      energy: null, symptoms: [], cervical_fluid: null,
       workout_feel: null, mood: [], sleep_quality: null,
       resting_hr: null, disruptors: [], wrist_temp: null,
       hormone_estradiol: null, hormone_progesterone: null,
@@ -375,6 +376,12 @@
       row.querySelectorAll('.energy-btn, .sleep-btn, .opt-btn').forEach(b => b.classList.remove('selected-soft'))
       el.classList.add('selected-soft')
       logData[field] = value
+    }
+
+    window.selectFluid = function (el, value) {
+      document.querySelectorAll('#fluidRow .opt-btn').forEach(b => b.classList.remove('selected-soft'))
+      el.classList.add('selected-soft')
+      logData.cervical_fluid = value
     }
 
     window.selectMulti = function (el, field) {
@@ -475,6 +482,14 @@
 
       try {
         await supabase.from('daily_logs').upsert(payload, { onConflict: 'user_id,log_date' })
+
+        if (logData.cervical_fluid) {
+          await supabase.from('mucus_logs').upsert({
+            user_id: user.id,
+            log_date: today,
+            discharge_type: logData.cervical_fluid
+          }, { onConflict: 'user_id,log_date' })
+        }
       } catch (e) {
         console.error('Save error', e)
         const btn = document.getElementById('saveBtn')
@@ -485,7 +500,7 @@
       // Calculate new confidence
       const status = await getTodayStatus(supabase, user.id)
       const newConf = status.confidence
-      const signalsLogged = ['energy', 'sleep_quality', 'resting_hr', 'mucus_quick'].filter(k => logData[k] && logData[k] !== 'No data')
+      const signalsLogged = ['energy', 'sleep_quality', 'resting_hr', 'cervical_fluid'].filter(k => logData[k] && logData[k] !== 'No data')
 
       showFeedback(signalsLogged, prevConfidence, newConf)
     }
