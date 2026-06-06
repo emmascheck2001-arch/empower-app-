@@ -1,0 +1,18 @@
+{
+  "name": "hormone-app",
+  "version": "1.0.0",
+  "main": "hormoneSync.js",
+  "scripts": {
+    "sync": "cp *.html *.js *.css www/ 2>/dev/null || true && npx cap sync",
+    "open": "npx cap open ios"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@capacitor/cli": "^7.6.6",
+    "@capacitor/core": "^8.4.0",
+    "@capacitor/ios": "^8.4.0"
+  }
+}

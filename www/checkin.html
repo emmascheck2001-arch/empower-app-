@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HormoneSync — Morning Check-in</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #faf8f5; color: #2c2820; padding-bottom: 100px;
+    }
+    .screen { max-width: 420px; margin: 0 auto; }
+
+    .spinner {
+      width: 32px; height: 32px;
+      border: 3px solid #ede8e0; border-top-color: #c8b89a;
+      border-radius: 50%; animation: spin 0.8s linear infinite;
+      margin: 60px auto;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #spinnerWrap { text-align: center; padding: 60px 20px; color: #9a9590; font-size: 14px; }
+
+    .top-bar {
+      background: #f5f0e8; padding: 14px 20px 16px;
+      border-bottom: 1px solid #ede8e0; text-align: center;
+    }
+    .day-label { font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: #8a7a6a; margin-bottom: 4px; }
+    .phase-name { font-size: 18px; font-weight: 500; color: #2c2820; margin-bottom: 6px; }
+    .phase-tag { display: inline-block; font-size: 11px; padding: 4px 14px; border-radius: 99px; background: #e8e0d0; color: #6a5a4a; }
+
+    .quick-card {
+      margin: 14px 16px 0;
+      background: #fff; border: 1px solid #ede8e0; border-radius: 14px; overflow: hidden;
+    }
+    .quick-header {
+      background: #f5f0e8; padding: 12px 16px;
+      border-bottom: 1px solid #ede8e0;
+    }
+    .quick-header-title { font-size: 14px; font-weight: 500; color: #2c2820; margin-bottom: 2px; }
+    .quick-header-sub { font-size: 11px; color: #8a7a6a; }
+
+    .section { padding: 16px; border-bottom: 1px solid #ede8e0; }
+    .section-title { font-size: 14px; font-weight: 500; color: #2c2820; margin-bottom: 4px; }
+    .section-why { font-size: 12px; color: #7a7268; line-height: 1.5; margin-bottom: 12px; }
+
+    .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .opt-btn {
+      padding: 9px 16px; border-radius: 99px; border: 1px solid #ede8e0;
+      background: #ffffff; font-size: 13px; color: #5a5550; cursor: pointer; transition: all 0.15s;
+    }
+    .opt-btn:hover { border-color: #c8b89a; background: #fdf9f4; }
+    .opt-btn.selected-soft { background: #e8dfd0; color: #5a4a3a; border-color: #c8b89a; font-weight: 500; }
+
+    .energy-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .energy-btn {
+      padding: 10px 6px; border-radius: 10px; border: 1px solid #ede8e0;
+      background: #ffffff; font-size: 12px; color: #5a5550; text-align: center; cursor: pointer; transition: all 0.15s;
+    }
+    .energy-btn:hover { border-color: #c8b89a; }
+    .energy-btn.selected-soft { background: #e8dfd0; color: #5a4a3a; border-color: #c8b89a; font-weight: 500; }
+
+    .sleep-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .sleep-btn {
+      padding: 10px 6px; border-radius: 10px; border: 1px solid #ede8e0;
+      background: #ffffff; font-size: 12px; color: #5a5550; text-align: center; cursor: pointer; transition: all 0.15s;
+    }
+    .sleep-btn:hover { border-color: #c8b89a; }
+    .sleep-btn.selected-soft { background: #e8dfd0; color: #5a4a3a; border-color: #c8b89a; font-weight: 500; }
+
+    .save-btn {
+      display: block; width: calc(100% - 32px); margin: 16px;
+      background: #2c2820; color: #f5f0e8;
+      border: none; border-radius: 12px; padding: 15px;
+      font-size: 15px; font-weight: 500; cursor: pointer; transition: background 0.15s;
+    }
+    .save-btn:hover { background: #3d3830; }
+    .save-btn:disabled { background: #c8c0b8; cursor: not-allowed; }
+
+    .feedback-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(44,40,32,0.7); z-index: 100;
+      align-items: flex-end; justify-content: center;
+    }
+    .feedback-overlay.show { display: flex; }
+    .feedback-card {
+      background: #fff; border-radius: 20px 20px 0 0;
+      padding: 24px 20px 36px; width: 100%; max-width: 420px;
+    }
+    .feedback-title { font-size: 16px; font-weight: 600; color: #2c2820; margin-bottom: 8px; }
+    .feedback-body { font-size: 14px; color: #5a5550; line-height: 1.6; margin-bottom: 12px; }
+    .feedback-conf { font-size: 13px; font-weight: 500; color: #c8a87a; margin-bottom: 16px; }
+    .feedback-tap { font-size: 12px; color: #9a9590; text-align: center; }
+  </style>
+</head>
+
+<body>
+  <div id="spinnerWrap">
+    <div class="spinner"></div>
+    <p>Loading your data...</p>
+  </div>
+
+  <div id="mainContent" style="display:none">
+    <div class="screen">
+      <div class="top-bar">
+        <div class="day-label" id="todayLabel">Today</div>
+        <div class="phase-name" id="phaseName">Loading...</div>
+        <span class="phase-tag" id="phaseTag">—</span>
+      </div>
+
+      <div class="quick-card">
+        <div class="quick-header">
+          <div class="quick-header-title">Morning check-in</div>
+          <div class="quick-header-sub">5 questions, under 30 seconds</div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">How is your energy today?</div>
+          <div class="section-why">Your strongest single signal for the algorithm.</div>
+          <div class="energy-row" id="energyRow">
+            <div class="energy-btn" onclick="selectOne('energyRow', this, 'energy', 'Very low')">Very low</div>
+            <div class="energy-btn" onclick="selectOne('energyRow', this, 'energy', 'Low')">Low</div>
+            <div class="energy-btn" onclick="selectOne('energyRow', this, 'energy', 'Good')">Good</div>
+            <div class="energy-btn" onclick="selectOne('energyRow', this, 'energy', 'High')">High</div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Mucus this morning?</div>
+          <div class="section-why">80% sensitivity for detecting your fertile window (Bigelow et al. 2004).</div>
+          <div class="btn-row" id="mucusRow">
+            <div class="opt-btn" onclick="selectOne('mucusRow', this, 'mucus_quick', 'Nothing')">Nothing</div>
+            <div class="opt-btn" onclick="selectOne('mucusRow', this, 'mucus_quick', 'Creamy')">Creamy</div>
+            <div class="opt-btn" onclick="selectOne('mucusRow', this, 'mucus_quick', 'Watery')">Watery</div>
+            <div class="opt-btn" onclick="selectOne('mucusRow', this, 'mucus_quick', 'Egg white')">Egg white</div>
+            <div class="opt-btn" onclick="selectOne('mucusRow', this, 'mucus_quick', 'Spotting')">Spotting</div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Sleep last night?</div>
+          <div class="section-why">Sleep quality drops in mid-luteal due to progesterone (De Martin Topranin et al. 2023).</div>
+          <div class="sleep-row" id="sleepRow">
+            <div class="sleep-btn" onclick="selectOne('sleepRow', this, 'sleep_quality', 'Poor')">Poor</div>
+            <div class="sleep-btn" onclick="selectOne('sleepRow', this, 'sleep_quality', 'Fair')">Fair</div>
+            <div class="sleep-btn" onclick="selectOne('sleepRow', this, 'sleep_quality', 'Good')">Good</div>
+            <div class="sleep-btn" onclick="selectOne('sleepRow', this, 'sleep_quality', 'Great')">Great</div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Resting heart rate this morning?</div>
+          <div class="section-why">RHR rises ~1.7 bpm in mid-luteal phase (De Martin Topranin et al. 2023).</div>
+          <div class="btn-row" id="rhrRow">
+            <div class="opt-btn" onclick="selectOne('rhrRow', this, 'resting_hr', 'Under 55')">Under 55</div>
+            <div class="opt-btn" onclick="selectOne('rhrRow', this, 'resting_hr', '55–65')">55–65</div>
+            <div class="opt-btn" onclick="selectOne('rhrRow', this, 'resting_hr', '65–75')">65–75</div>
+            <div class="opt-btn" onclick="selectOne('rhrRow', this, 'resting_hr', 'Over 75')">Over 75</div>
+          </div>
+        </div>
+
+        <div class="section" style="border-bottom:none">
+          <div class="section-title">Any symptoms today?</div>
+          <div class="section-why">Optional. Select all that apply.</div>
+          <div class="btn-row" id="symptomsRow">
+            <div class="opt-btn" onclick="toggleSymptom(this, 'Cramps')">Cramps</div>
+            <div class="opt-btn" onclick="toggleSymptom(this, 'Bloating')">Bloating</div>
+            <div class="opt-btn" onclick="toggleSymptom(this, 'Headache')">Headache</div>
+            <div class="opt-btn" onclick="toggleSymptom(this, 'Fatigue')">Fatigue</div>
+            <div class="opt-btn" onclick="toggleSymptom(this, 'Mood changes')">Mood changes</div>
+            <div class="opt-btn" onclick="toggleSymptom(this, 'Breast tenderness')">Breast tenderness</div>
+          </div>
+        </div>
+      </div>
+
+      <button class="save-btn" id="saveBtn" onclick="saveCheckin()">Save check-in</button>
+    </div>
+  </div>
+
+  <div class="feedback-overlay" id="feedbackOverlay" onclick="goToDashboard()">
+    <div class="feedback-card">
+      <div class="feedback-title" id="feedbackTitle">Check-in saved</div>
+      <div class="feedback-body" id="feedbackBody"></div>
+      <div class="feedback-conf" id="feedbackConf"></div>
+      <div class="feedback-tap">Tap anywhere to go to dashboard →</div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
+    import { getTodayStatus } from './hormoneSync.js'
+
+    const SUPABASE_URL = 'https://imgujppjvffbubnsscge.supabase.co'
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImltZ3VqcHBqdmZmYnVibnNzY2dlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2MDQzNzIsImV4cCI6MjA5NjE4MDM3Mn0.TpjycdiHLl5iI1G8u07mVmStKZWU2fzEsuw1dUi6diU'
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+    // P16: Auth guard
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) { window.location.href = 'login.html' }
+    supabase.auth.onAuthStateChange((event, s) => {
+      if (!s) { window.location.href = 'login.html'; return }
+    })
+
+    const today = new Date().toISOString().split('T')[0]
+    const logData = { energy: null, mucus_quick: null, sleep_quality: null, resting_hr: null, symptoms: [] }
+    let todayStatus = null
+
+    // P15: Show spinner until data loaded
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        todayStatus = await getTodayStatus(supabase, user.id)
+        const dayLabel = new Date(today + 'T00:00:00').toLocaleDateString('en-CA', { weekday: 'long', month: 'short', day: 'numeric' })
+        document.getElementById('todayLabel').textContent = dayLabel
+        document.getElementById('phaseName').textContent = todayStatus.subPhase || todayStatus.phase || 'Observation mode'
+        document.getElementById('phaseTag').textContent = todayStatus.cycleDay ? `Day ${todayStatus.cycleDay}` : 'Building baseline'
+      }
+    } finally {
+      document.getElementById('spinnerWrap').style.display = 'none'
+      document.getElementById('mainContent').style.display = 'block'
+    }
+
+    window.selectOne = function (rowId, el, key, value) {
+      document.querySelectorAll(`#${rowId} .energy-btn, #${rowId} .sleep-btn, #${rowId} .opt-btn`).forEach(b => b.classList.remove('selected-soft'))
+      el.classList.add('selected-soft')
+      logData[key] = value
+    }
+
+    window.toggleSymptom = function (el, value) {
+      el.classList.toggle('selected-soft')
+      if (el.classList.contains('selected-soft')) {
+        logData.symptoms.push(value)
+      } else {
+        logData.symptoms = logData.symptoms.filter(s => s !== value)
+      }
+    }
+
+    window.saveCheckin = async function () {
+      const btn = document.getElementById('saveBtn')
+      btn.disabled = true; btn.textContent = 'Saving...'
+
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) { window.location.href = 'login.html'; return }
+
+        localStorage.setItem('logDate', today)
+
+        const payload = {
+          user_id: user.id,
+          log_date: today,
+          energy: logData.energy,
+          sleep_quality: logData.sleep_quality,
+          resting_hr: logData.resting_hr,
+          symptoms: logData.symptoms.length > 0 ? logData.symptoms : null
+        }
+        await supabase.from('daily_logs').upsert(payload, { onConflict: 'user_id,log_date' })
+
+        const signalMessages = {
+          energy: 'Energy signal added',
+          sleep_quality: 'Sleep signal added',
+          resting_hr: 'Resting HR signal added',
+          mucus_quick: 'Mucus signal added. Your strongest non-wearable ovulation indicator (Bigelow et al. 2004).'
+        }
+        const logged = ['energy', 'sleep_quality', 'resting_hr', 'mucus_quick'].filter(k => logData[k] && logData[k] !== 'No data')
+        const prevConf = todayStatus ? todayStatus.confidencePct : 20
+        const gain = logged.length * 5
+        const newConf = Math.min(95, prevConf + gain)
+
+        const headline = logged.includes('mucus_quick')
+          ? `Confidence up ${gain}%. Mucus signal added. Egg white discharge is your strongest non-wearable ovulation signal.`
+          : `Confidence up ${gain}%. ${logged.length} signal${logged.length !== 1 ? 's' : ''} logged.`
+
+        document.getElementById('feedbackTitle').textContent = 'Check-in saved'
+        document.getElementById('feedbackBody').textContent = headline
+        document.getElementById('feedbackConf').textContent = `Algorithm confidence now ${newConf}%`
+        document.getElementById('feedbackOverlay').classList.add('show')
+
+        setTimeout(() => goToDashboard(), 2500)
+      } catch (e) {
+        console.error('Check-in save error:', e)
+        btn.disabled = false; btn.textContent = 'Save check-in'
+      }
+    }
+
+    window.goToDashboard = function () {
+      window.location.href = 'dashboard.html'
+    }
+  </script>
+</body>
+
+</html>

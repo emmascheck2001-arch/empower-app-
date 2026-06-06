@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HormoneSync — Cervical Mucus</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #faf8f5;
+            color: #2c2820;
+        }
+
+        .screen {
+            max-width: 420px;
+            margin: 0 auto;
+            min-height: 100vh;
+            padding-bottom: 100px;
+        }
+
+        .screen-top {
+            background: #f5f0e8;
+            padding: 16px 20px;
+            border-bottom: 1px solid #ede8e0;
+        }
+
+        .screen-top h1 {
+            font-size: 17px;
+            font-weight: 500;
+            color: #2c2820;
+            margin-bottom: 2px;
+        }
+
+        .screen-top p {
+            font-size: 12px;
+            color: #8a7a6a;
+            margin: 0;
+        }
+
+        .why-box {
+            margin: 14px 16px 0;
+            padding: 12px 14px;
+            background: #f5f0e8;
+            border-radius: 12px;
+            border: 1px solid #ede8e0;
+        }
+
+        .why-label {
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #8a7a6a;
+            margin-bottom: 5px;
+        }
+
+        .why-text {
+            font-size: 12px;
+            color: #5a5550;
+            line-height: 1.6;
+            margin: 0;
+        }
+
+        .log-section {
+            padding: 16px 16px 0;
+        }
+
+        .log-section-title {
+            font-size: 14px;
+            font-weight: 500;
+            color: #2c2820;
+            margin-bottom: 4px;
+        }
+
+        .log-section-sub {
+            font-size: 12px;
+            color: #7a7268;
+            margin-bottom: 12px;
+            line-height: 1.5;
+        }
+
+        .mucus-option {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            padding: 12px;
+            border-radius: 12px;
+            border: 1px solid #ede8e0;
+            margin-bottom: 8px;
+            background: #ffffff;
+            cursor: pointer;
+            transition: border-color 0.15s, background 0.15s;
+        }
+
+        .mucus-option:hover {
+            border-color: #c8b89a;
+            background: #fdf9f4;
+        }
+
+        .mucus-option.selected {
+            background: #f5f0e8;
+            border-color: #c8b89a;
+        }
+
+        .dot-wrap {
+            flex-shrink: 0;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .d-none-bg {
+            background: #f0ece6;
+        }
+
+        .d-creamy {
+            background: #f5ead8;
+        }
+
+        .d-watery {
+            background: #ddeef5;
+        }
+
+        .d-egg {
+            background: #e8f5e0;
+        }
+
+        .d-brown {
+            background: #e8ddd0;
+        }
+
+        .d-pink {
+            background: #fae8ee;
+        }
+
+        .d-red {
+            background: #fce8e8;
+        }
+
+        .opt-right {
+            flex: 1;
+        }
+
+        .opt-name {
+            font-size: 13px;
+            font-weight: 500;
+            color: #2c2820;
+            margin-bottom: 3px;
+        }
+
+        .opt-look {
+            font-size: 12px;
+            color: #6b6560;
+            margin-bottom: 6px;
+            line-height: 1.5;
+        }
+
+        .phase-pill {
+            display: inline-block;
+            font-size: 10px;
+            padding: 3px 10px;
+            border-radius: 99px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .pill-gray {
+            background: #ede8e0;
+            color: #6a5a4a;
+        }
+
+        .pill-tan {
+            background: #f5ead8;
+            color: #7a5a3a;
+        }
+
+        .pill-blue {
+            background: #ddeef5;
+            color: #2a5a7a;
+        }
+
+        .pill-green {
+            background: #e8f5e0;
+            color: #2a5a3a;
+        }
+
+        .pill-brown {
+            background: #e8ddd0;
+            color: #6a4a2a;
+        }
+
+        .pill-pink {
+            background: #fae8ee;
+            color: #8a3a5a;
+        }
+
+        .pill-red {
+            background: #fce8e8;
+            color: #8a2a2a;
+        }
+
+        .opt-signal {
+            font-size: 11px;
+            color: #7a7268;
+            line-height: 1.5;
+            margin: 0;
+        }
+
+        .section-divider {
+            height: 1px;
+            background: #ede8e0;
+            margin: 20px 16px 16px;
+        }
+
+        .tip-box {
+            margin: 16px 16px 0;
+            padding: 12px 14px;
+            background: #ffffff;
+            border-radius: 12px;
+            border: 1px solid #ede8e0;
+        }
+
+        .tip-label {
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #8a7a6a;
+            margin-bottom: 5px;
+        }
+
+        .tip-text {
+            font-size: 12px;
+            color: #5a5550;
+            line-height: 1.6;
+            margin: 0;
+        }
+
+        .save-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #ffffff;
+            border-top: 1px solid #ede8e0;
+            padding: 14px 16px;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            max-width: 420px;
+            margin: 0 auto;
+        }
+
+        .save-note {
+            font-size: 11px;
+            color: #7a7268;
+            flex: 1;
+            line-height: 1.5;
+            margin: 0;
+        }
+
+        .save-btn {
+            background: #2c2820;
+            color: #f5f0e8;
+            border: none;
+            border-radius: 8px;
+            padding: 11px 24px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .save-btn:hover {
+            background: #3d3830;
+        }
+        .spinner {
+            width: 32px; height: 32px;
+            border: 3px solid #ede8e0; border-top-color: #c8b89a;
+            border-radius: 50%; animation: spin 0.8s linear infinite;
+            margin: 60px auto;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        #spinnerWrap { text-align: center; padding: 60px 20px; color: #9a9590; font-size: 14px; }
+    </style>
+</head>
+
+<body>
+    <div id="spinnerWrap"><div class="spinner"></div></div>
+    <div class="screen" id="mainContent" style="display:none">
+
+        <div class="screen-top">
+            <h1>Cervical mucus and spotting</h1>
+            <p id="daySubtitle">Today</p>
+        </div>
+
+        <div class="why-box">
+            <div class="why-label">Why this matters</div>
+            <p class="why-text">Your cervical fluid and any spotting change in direct response to your hormones
+                throughout the month. Together they are one of the most accurate signals for finding your ovulation
+                window and spotting hormonal patterns over time.</p>
+        </div>
+
+        <div class="log-section" style="margin-top:16px">
+            <div class="log-section-title">What does your discharge look and feel like?</div>
+            <div class="log-section-sub">Check when you use the bathroom. Look at the tissue after wiping or gently
+                check at the vaginal opening with clean fingers.</div>
+
+            <div class="mucus-option" onclick="selectOption(this, 'discharge')">
+                <div class="dot-wrap d-none-bg">
+                    <i class="ti ti-droplet-off" style="font-size:18px;color:#8a7a6a"></i>
+                </div>
+                <div class="opt-right">
+                    <div class="opt-name">Nothing or dry</div>
+                    <div class="opt-look">Nothing noticeable when you wipe, feels dry</div>
+                    <span class="phase-pill pill-gray">Early follicular or late luteal</span>
+                </div>
+            </div>
+
+            <div class="mucus-option" onclick="selectOption(this, 'discharge')">
+                <div class="dot-wrap d-creamy">
+                    <i class="ti ti-droplet-half-2" style="font-size:18px;color:#9a6a3a"></i>
+                </div>
+                <div class="opt-right">
+                    <div class="opt-name">Creamy or lotion-like</div>
+                    <div class="opt-look">White or yellowish, thick like hand lotion, does not stretch between fingers
+                    </div>
+                    <span class="phase-pill pill-tan">Mid follicular, ovulation approaching</span>
+                </div>
+            </div>
+
+            <div class="mucus-option" onclick="selectOption(this, 'discharge')">
+                <div class="dot-wrap d-watery">
+                    <i class="ti ti-droplet" style="font-size:18px;color:#2a6a8a"></i>
+                </div>
+                <div class="opt-right">
+                    <div class="opt-name">Watery</div>
+                    <div class="opt-look">Clear and thin, feels very wet, almost like water</div>
+                    <span class="phase-pill pill-blue">Getting close. Ovulation within a few days.</span>
+                </div>
+            </div>
+
+            <div class="mucus-option" onclick="selectOption(this, 'discharge')">
+                <div class="dot-wrap d-egg">
+                    <i class="ti ti-droplet-filled" style="font-size:18px;color:#2a6a3a"></i>
+                </div>
+                <div class="opt-right">
+                    <div class="opt-name">Egg white</div>
+                    <div class="opt-look">Clear and stretchy. You can pull it 2 to 3cm between your fingers without it
+                        breaking. Slippery like raw egg white.</div>
+                    <span class="phase-pill pill-green">Peak signal. Ovulation within 24 to 48 hours.</span>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="section-divider"></div>
+
+        <div class="log-section">
+            <div class="log-section-title">Any spotting or unusual colour?</div>
+            <div class="log-section-sub">Spotting outside of your period is not always a problem. It often carries
+                important information about where you are in your cycle.</div>
+
+            <div class="mucus-option" onclick="selectOption(this, 'spotting')">
+                <div class="dot-wrap d-brown">
+                    <i class="ti ti-droplet-half" style="font-size:18px;color:#6a4a2a"></i>
+                </div>
+                <div class="opt-right">
+                    <div class="opt-name">Brown at start or end of period</div>
+                    <div class="opt-look">Dark brown or rusty discharge at the very beginning or tail end of your bleed
+                    </div>
+                    <span class="phase-pill pill-brown">Normal. Old blood clearing out.</span>
+                    <p class="opt-signal">Old uterine lining that oxidised before leaving the body. Completely normal
+                        during menstruation.</p>
+                </div>
+            </div>
+
+            <div class="mucus-option" onclick="selectOption(this, 'spotting')">
+                <div class="dot-wrap d-brown">
+                    <i class="ti ti-droplet-half" style="font-size:18px;color:#6a4a2a"></i>
+                </div>
+                <div class="opt-right">
+                    <div class="opt-name">Brown mid-cycle</div>
+                    <div class="opt-look">Brown spotting in the middle of your cycle, not near your period</div>
+                    <span class="phase-pill pill-brown">Possible ovulation sign</span>
+                    <p class="opt-signal">Can happen when the follicle ruptures to release an egg. If it shows up
+                        consistently around day 12 to 16 it may be your personal ovulation signal.</p>
+                </div>
+            </div>
+
+            <div class="mucus-option" onclick="selectOption(this, 'spotting')">
+                <div class="dot-wrap d-brown">
+                    <i class="ti ti-droplet-half" style="font-size:18px;color:#6a4a2a"></i>
+                </div>
+                <div class="opt-right">
+                    <div class="opt-name">Brown before period</div>
+                    <div class="opt-look">Brown spotting in the days leading up to your period starting</div>
+                    <span class="phase-pill pill-brown">Worth tracking over time</span>
+                    <p class="opt-signal">When this shows up more than 1 to 2 days before your period consistently it
+                        can be a sign that progesterone drops earlier than ideal. We will track this pattern across your
+                        cycles.</p>
+                </div>
+            </div>
+
+            <div class="mucus-option" onclick="selectOption(this, 'spotting')">
+                <div class="dot-wrap d-pink">
+                    <i class="ti ti-droplet" style="font-size:18px;color:#8a3a5a"></i>
+                </div>
+                <div class="opt-right">
+                    <div class="opt-name">Pink spotting</div>
+                    <div class="opt-look">Light pink discharge, not a full bleed. Fresh blood mixed with discharge.
+                    </div>
+                    <span class="phase-pill pill-pink">Possible ovulation or hormonal signal</span>
+                    <p class="opt-signal">Mid-cycle pink spotting is often an ovulation sign. Pink spotting before your
+                        period is worth monitoring as it can reflect the same hormonal pattern.</p>
+                </div>
+            </div>
+
+            <div class="mucus-option" onclick="selectOption(this, 'spotting')">
+                <div class="dot-wrap d-red">
+                    <i class="ti ti-droplet-filled" style="font-size:18px;color:#8a2a2a"></i>
+                </div>
+                <div class="opt-right">
+                    <div class="opt-name">Red spotting outside of period</div>
+                    <div class="opt-look">Bright red bleeding that is not your period and not around ovulation</div>
+                    <span class="phase-pill pill-red">Worth keeping an eye on</span>
+                    <p class="opt-signal">Occasional spotting can be harmless. If this shows up repeatedly outside of
+                        ovulation and your period it is worth mentioning to your doctor. We will flag this pattern if it
+                        repeats.</p>
+                </div>
+            </div>
+
+            <div class="mucus-option" onclick="selectOption(this, 'spotting')">
+                <div class="dot-wrap d-none-bg">
+                    <i class="ti ti-circle-check" style="font-size:18px;color:#8a7a6a"></i>
+                </div>
+                <div class="opt-right">
+                    <div class="opt-name">None today</div>
+                    <div class="opt-look">No unusual colour or spotting to report</div>
+                    <span class="phase-pill pill-gray">All clear</span>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="tip-box">
+            <div class="tip-label">First time tracking this?</div>
+            <p class="tip-text">It takes 2 to 3 cycles to start seeing your personal patterns clearly. Even rough
+                observations now build a more accurate picture over time. You do not need to get it perfect. Just log
+                what you notice.</p>
+        </div>
+
+    </div><!-- end screen -->
+
+    <div class="save-bar">
+        <p class="save-note">This is one of your most accurate ovulation signals. Try to log it daily.</p>
+        <button class="save-btn" id="saveBtn" onclick="saveAndGo()">Save</button>
+    </div>
+
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
+
+        const SUPABASE_URL = 'https://imgujppjvffbubnsscge.supabase.co'
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImltZ3VqcHBqdmZmYnVibnNzY2dlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2MDQzNzIsImV4cCI6MjA5NjE4MDM3Mn0.TpjycdiHLl5iI1G8u07mVmStKZWU2fzEsuw1dUi6diU'
+        const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+        // P16: Auth guard
+        const { data: { session } } = await supabase.auth.getSession()
+        if (!session) { window.location.href = 'login.html' }
+        supabase.auth.onAuthStateChange((event, s) => { if (!s) { window.location.href = 'login.html'; return } })
+
+        // P14: Sync date from log.html via localStorage
+        const logDate = localStorage.getItem('logDate') || new Date().toISOString().split('T')[0]
+        const dateLabel = new Date(logDate + 'T00:00:00').toLocaleDateString('en-CA', { weekday: 'long', month: 'short', day: 'numeric' })
+        document.getElementById('daySubtitle').textContent = dateLabel
+
+        let selectedDischarge = null
+        let selectedSpotting = null
+
+        window.selectOption = function (el, group) {
+            document.querySelectorAll('.mucus-option').forEach(opt => {
+                if (opt.dataset.group === group) opt.classList.remove('selected')
+            })
+            el.dataset.group = group
+            el.classList.add('selected')
+            if (group === 'discharge') selectedDischarge = el.querySelector('.opt-name').textContent
+            if (group === 'spotting') selectedSpotting = el.querySelector('.opt-name').textContent
+        }
+
+        window.saveAndGo = async function () {
+            const saveBtn = document.getElementById('saveBtn')
+            try {
+                const { data: { user } } = await supabase.auth.getUser()
+                if (!user) { window.location.href = 'login.html'; return }
+                if (selectedDischarge || selectedSpotting) {
+                    const payload = {
+                        user_id: user.id,
+                        log_date: logDate,
+                        discharge_type: selectedDischarge,
+                        spotting_type: selectedSpotting
+                    }
+                    await supabase.from('mucus_logs').upsert(payload, { onConflict: 'user_id,log_date' })
+                }
+                window.location.href = 'dashboard.html'
+            } catch (e) {
+                console.error('Mucus save error:', e)
+                if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save failed. Tap to retry.' }
+            }
+        }
+
+        // Show content after auth check
+        document.getElementById('spinnerWrap').style.display = 'none'
+        document.getElementById('mainContent').style.display = 'block'
+    </script>
+
+</body>
+
+</html>

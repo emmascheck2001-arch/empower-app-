@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HormoneSync — Share Feedback</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css" />
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        background: #faf8f5; color: #2c2820;
+        max-width: 420px; margin: 0 auto; padding-bottom: 100px;
+      }
+      .top-bar {
+        background: #f5f0e8; padding: 16px 20px;
+        border-bottom: 1px solid #ede8e0;
+        display: flex; align-items: center; gap: 12px;
+      }
+      .back-btn {
+        background: none; border: none; font-size: 20px;
+        color: #2c2820; cursor: pointer; padding: 0; display: flex;
+      }
+      .top-bar-title { font-size: 16px; font-weight: 500; }
+      .hero {
+        margin: 16px; padding: 20px;
+        background: #2c2820; border-radius: 14px; color: #e8e0d4;
+      }
+      .hero-title {
+        font-family: Georgia, serif; font-size: 20px;
+        font-style: italic; font-weight: 400; margin-bottom: 8px;
+      }
+      .hero-sub { font-size: 13px; color: #a0988e; line-height: 1.6; }
+      .section { padding: 16px 16px 0; }
+      .section-label {
+        font-size: 11px; font-weight: 600; letter-spacing: 0.1em;
+        text-transform: uppercase; color: #9a9590; margin-bottom: 12px;
+      }
+      .category-grid {
+        display: grid; grid-template-columns: 1fr 1fr;
+        gap: 8px; margin-bottom: 16px;
+      }
+      .category-btn {
+        padding: 12px; border-radius: 12px; border: 1px solid #ede8e0;
+        background: #ffffff; cursor: pointer; transition: all 0.15s;
+        text-align: left;
+      }
+      .category-btn:hover { border-color: #c8b89a; background: #fdf9f4; }
+      .category-btn.selected { background: #f5f0e8; border-color: #2c2820; border-width: 1.5px; }
+      .category-icon { font-size: 20px; margin-bottom: 6px; display: block; }
+      .category-name { font-size: 13px; font-weight: 500; color: #2c2820; }
+      .category-sub { font-size: 11px; color: #9a9590; margin-top: 2px; }
+      textarea {
+        width: 100%; padding: 14px; border-radius: 12px;
+        border: 1px solid #ede8e0; background: #ffffff;
+        font-size: 14px; color: #2c2820; resize: none;
+        font-family: inherit; outline: none; line-height: 1.6;
+      }
+      textarea:focus { border-color: #c8b89a; }
+      textarea::placeholder { color: #c8c0b8; }
+      .rating-row {
+        display: flex; gap: 8px; margin-bottom: 16px;
+      }
+      .rating-btn {
+        flex: 1; padding: 10px; border-radius: 10px;
+        border: 1px solid #ede8e0; background: #ffffff;
+        font-size: 20px; text-align: center; cursor: pointer;
+        transition: all 0.15s;
+      }
+      .rating-btn:hover { border-color: #c8b89a; transform: scale(1.05); }
+      .rating-btn.selected { background: #f5f0e8; border-color: #2c2820; border-width: 1.5px; }
+      .rating-label {
+        display: flex; justify-content: space-between;
+        font-size: 11px; color: #9a9590; margin-top: 4px; margin-bottom: 16px;
+      }
+      .followup-card {
+        margin: 0 16px 16px; padding: 16px;
+        background: #ffffff; border: 1px solid #ede8e0;
+        border-radius: 14px; display: none;
+      }
+      .followup-card.visible { display: block; }
+      .followup-question {
+        font-size: 14px; font-weight: 500; color: #2c2820;
+        margin-bottom: 12px; line-height: 1.5;
+      }
+      .followup-options { display: flex; flex-direction: column; gap: 8px; }
+      .followup-option {
+        padding: 10px 14px; border-radius: 10px;
+        border: 1px solid #ede8e0; background: #faf8f5;
+        font-size: 13px; color: #2c2820; cursor: pointer;
+        transition: all 0.15s; text-align: left;
+      }
+      .followup-option:hover { border-color: #c8b89a; background: #fdf9f4; }
+      .followup-option.selected { background: #f5f0e8; border-color: #2c2820; }
+      .submit-btn {
+        display: block; width: calc(100% - 32px); margin: 0 16px;
+        background: #2c2820; color: #f5f0e8; border: none;
+        border-radius: 12px; padding: 16px; font-size: 15px;
+        font-weight: 500; cursor: pointer; transition: background 0.15s;
+      }
+      .submit-btn:hover { background: #3d3830; }
+      .submit-btn:disabled { background: #c8c0b8; cursor: not-allowed; }
+      .success-screen {
+        padding: 48px 20px; text-align: center; display: none;
+      }
+      .success-screen.visible { display: block; }
+      .success-icon { font-size: 52px; margin-bottom: 16px; }
+      .success-title {
+        font-family: Georgia, serif; font-size: 24px;
+        font-style: italic; font-weight: 400; color: #2c2820; margin-bottom: 8px;
+      }
+      .success-sub {
+        font-size: 14px; color: #7a7268; line-height: 1.6; margin-bottom: 28px;
+      }
+      .summary-card {
+        background: #ffffff; border: 1px solid #ede8e0;
+        border-radius: 14px; padding: 16px; margin-bottom: 12px; text-align: left;
+      }
+      .summary-label {
+        font-size: 10px; font-weight: 600; letter-spacing: 0.08em;
+        text-transform: uppercase; color: #9a9590; margin-bottom: 6px;
+      }
+      .summary-value { font-size: 13px; color: #2c2820; line-height: 1.6; }
+      .done-btn {
+        display: block; width: 100%; background: #2c2820; color: #f5f0e8;
+        border: none; border-radius: 12px; padding: 16px; font-size: 15px;
+        font-weight: 500; cursor: pointer; transition: background 0.15s;
+      }
+      .spinner {
+        width: 32px; height: 32px; border: 3px solid #ede8e0;
+        border-top-color: #c8b89a; border-radius: 50%;
+        animation: spin 0.8s linear infinite; margin: 60px auto;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+  </head>
+  <body>
+
+    <div id="mainForm">
+      <div class="top-bar">
+        <button class="back-btn" onclick="window.location.href='dashboard.html'">
+          <i class="ti ti-arrow-left"></i>
+        </button>
+        <div class="top-bar-title">Share your feedback</div>
+      </div>
+
+      <div class="hero">
+        <div class="hero-title">You are building this app.</div>
+        <div class="hero-sub">Every piece of feedback goes directly to the developer and shapes what gets fixed next. Nothing is too small to mention.</div>
+      </div>
+
+      <!-- Step 1: Category -->
+      <div class="section">
+        <div class="section-label">What is your feedback about?</div>
+        <div class="category-grid">
+          <div class="category-btn" onclick="selectCategory('something_broken', this)">
+            <span class="category-icon">🔧</span>
+            <div class="category-name">Something is broken</div>
+            <div class="category-sub">Error, crash, or not working</div>
+          </div>
+          <div class="category-btn" onclick="selectCategory('confusing', this)">
+            <span class="category-icon">🤔</span>
+            <div class="category-name">Something is confusing</div>
+            <div class="category-sub">Hard to understand or use</div>
+          </div>
+          <div class="category-btn" onclick="selectCategory('missing', this)">
+            <span class="category-icon">✨</span>
+            <div class="category-name">Something is missing</div>
+            <div class="category-sub">Feature or content I want</div>
+          </div>
+          <div class="category-btn" onclick="selectCategory('wrong', this)">
+            <span class="category-icon">📋</span>
+            <div class="category-name">Something seems wrong</div>
+            <div class="category-sub">Data, science, or recommendations</div>
+          </div>
+          <div class="category-btn" onclick="selectCategory('love', this)">
+            <span class="category-icon">❤️</span>
+            <div class="category-name">I love something</div>
+            <div class="category-sub">What is working well</div>
+          </div>
+          <div class="category-btn" onclick="selectCategory('other', this)">
+            <span class="category-icon">💬</span>
+            <div class="category-name">General feedback</div>
+            <div class="category-sub">Anything else</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2: Which screen -->
+      <div class="section" id="screenSection" style="display:none">
+        <div class="section-label">Which screen or feature?</div>
+        <div class="category-grid" id="screenGrid">
+          <div class="category-btn" onclick="selectScreen('dashboard', this)">
+            <span class="category-icon"><i class="ti ti-home" style="font-size:20px;color:#8a7a6a"></i></span>
+            <div class="category-name">Dashboard</div>
+          </div>
+          <div class="category-btn" onclick="selectScreen('log', this)">
+            <span class="category-icon"><i class="ti ti-pencil" style="font-size:20px;color:#8a7a6a"></i></span>
+            <div class="category-name">Daily log</div>
+          </div>
+          <div class="category-btn" onclick="selectScreen('workout', this)">
+            <span class="category-icon"><i class="ti ti-barbell" style="font-size:20px;color:#8a7a6a"></i></span>
+            <div class="category-name">Workout</div>
+          </div>
+          <div class="category-btn" onclick="selectScreen('mucus', this)">
+            <span class="category-icon"><i class="ti ti-droplet" style="font-size:20px;color:#8a7a6a"></i></span>
+            <div class="category-name">Cycle tracking</div>
+          </div>
+          <div class="category-btn" onclick="selectScreen('checkin', this)">
+            <span class="category-icon"><i class="ti ti-sun" style="font-size:20px;color:#8a7a6a"></i></span>
+            <div class="category-name">Morning check-in</div>
+          </div>
+          <div class="category-btn" onclick="selectScreen('general', this)">
+            <span class="category-icon"><i class="ti ti-apps" style="font-size:20px;color:#8a7a6a"></i></span>
+            <div class="category-name">General or other</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3: Description -->
+      <div class="section" id="descSection" style="display:none">
+        <div class="section-label">Tell us more</div>
+        <textarea id="feedbackText" rows="4" placeholder="Describe what happened, what you expected, or what you want..." oninput="onTextInput()"></textarea>
+        <div style="font-size:11px;color:#9a9590;margin-top:6px;margin-bottom:16px">Be as specific as you can — the more detail you give the faster it gets fixed.</div>
+      </div>
+
+      <!-- Step 4: Smart follow-up questions (generated based on category) -->
+      <div class="followup-card" id="followupCard">
+        <div class="followup-question" id="followupQuestion"></div>
+        <div class="followup-options" id="followupOptions"></div>
+      </div>
+
+      <!-- Step 5: Rating -->
+      <div class="section" id="ratingSection" style="display:none">
+        <div class="section-label">How frustrated are you with this?</div>
+        <div class="rating-row">
+          <div class="rating-btn" onclick="selectRating(1, this)">😌</div>
+          <div class="rating-btn" onclick="selectRating(2, this)">🙂</div>
+          <div class="rating-btn" onclick="selectRating(3, this)">😐</div>
+          <div class="rating-btn" onclick="selectRating(4, this)">😕</div>
+          <div class="rating-btn" onclick="selectRating(5, this)">😤</div>
+        </div>
+        <div class="rating-label">
+          <span>Not at all</span>
+          <span>Very frustrated</span>
+        </div>
+      </div>
+
+      <button class="submit-btn" id="submitBtn" onclick="submitFeedback()" disabled>
+        Tell me what you want fixed first
+      </button>
+    </div>
+
+    <!-- Success screen -->
+    <div class="success-screen" id="successScreen">
+      <div class="success-icon">🌿</div>
+      <div class="success-title">Feedback received.</div>
+      <div class="success-sub">Emma has been notified and will review this. If a fix is needed Claude Code will implement it automatically.</div>
+      <div class="summary-card">
+        <div class="summary-label">What you reported</div>
+        <div class="summary-value" id="summaryCategory"></div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">Your feedback</div>
+        <div class="summary-value" id="summaryText"></div>
+      </div>
+      <div class="summary-card" id="summaryFollowupCard" style="display:none">
+        <div class="summary-label">Additional detail</div>
+        <div class="summary-value" id="summaryFollowup"></div>
+      </div>
+      <button class="done-btn" onclick="window.location.href='dashboard.html'">Back to dashboard</button>
+    </div>
+
+    <script type="module">
+      import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
+      const SUPABASE_URL = 'https://imgujppjvffbubnsscge.supabase.co'
+      const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImltZ3VqcHBqdmZmYnVibnNzY2dlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2MDQzNzIsImV4cCI6MjA5NjE4MDM3Mn0.TpjycdiHLl5iI1G8u07mVmStKZWU2fzEsuw1dUi6diU'
+      const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+      const state = {
+        category: null,
+        screen: null,
+        text: null,
+        followupAnswer: null,
+        rating: null,
+        userId: null,
+        userEmail: null
+      }
+
+      // Smart follow-up questions based on category
+      const FOLLOWUPS = {
+        something_broken: {
+          question: 'What happened when it broke?',
+          options: [
+            'It showed a blank screen',
+            'I got an error message',
+            'The button did nothing when I tapped it',
+            'It saved but the data disappeared',
+            'It redirected me to the wrong screen',
+            'It crashed and closed'
+          ]
+        },
+        confusing: {
+          question: 'What specifically confused you?',
+          options: [
+            'I did not know what to tap next',
+            'The wording was hard to understand',
+            'I did not know what a feature was for',
+            'The phase information was unclear',
+            'The workout guidance did not make sense',
+            'I could not find something I was looking for'
+          ]
+        },
+        missing: {
+          question: 'What type of thing is missing?',
+          options: [
+            'A workout or exercise I want to do',
+            'A way to track something about my cycle',
+            'Better explanations of the science',
+            'More personalisation to my data',
+            'A way to see my history or trends',
+            'Something to connect with other users'
+          ]
+        },
+        wrong: {
+          question: 'What type of issue did you notice?',
+          options: [
+            'The phase prediction seems wrong for where I am in my cycle',
+            'The workout recommendation does not match how I feel',
+            'The nutrition advice seems off',
+            'A science claim does not seem accurate',
+            'The hormone reference ranges look incorrect',
+            'The weight suggestions are too high or too low'
+          ]
+        },
+        love: {
+          question: 'What made it feel good?',
+          options: [
+            'It felt personalised to me specifically',
+            'The science explanation was clear and useful',
+            'The design looks really good',
+            'It was easy and fast to use',
+            'It made me feel understood',
+            'The workout was exactly what I needed'
+          ]
+        },
+        other: {
+          question: 'What is the nature of your feedback?',
+          options: [
+            'A suggestion for improvement',
+            'A question about how something works',
+            'Feedback on the overall experience',
+            'Something about the app I want to discuss',
+            'A comparison to another app I use',
+            'Something else entirely'
+          ]
+        }
+      }
+
+      // Priority mapping for Claude Code
+      const PRIORITY_MAP = {
+        something_broken: 'CRITICAL — fix immediately',
+        wrong: 'HIGH — science or data accuracy issue',
+        confusing: 'MEDIUM — UX improvement needed',
+        missing: 'MEDIUM — feature request',
+        love: 'INFO — positive signal, do not change',
+        other: 'LOW — review and decide'
+      }
+
+      async function init() {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session) {
+          state.userId = session.user.id
+          state.userEmail = session.user.email
+        }
+      }
+
+      window.selectCategory = function(category, el) {
+        state.category = category
+        document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('selected'))
+        el.classList.add('selected')
+        document.getElementById('screenSection').style.display = 'block'
+        document.getElementById('descSection').style.display = 'block'
+        document.getElementById('ratingSection').style.display =
+          category === 'love' ? 'none' : 'block'
+        showFollowup(category)
+        checkSubmitReady()
+        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+      }
+
+      window.selectScreen = function(screen, el) {
+        state.screen = screen
+        document.querySelectorAll('#screenGrid .category-btn').forEach(b => b.classList.remove('selected'))
+        el.classList.add('selected')
+        checkSubmitReady()
+      }
+
+      window.onTextInput = function() {
+        state.text = document.getElementById('feedbackText').value.trim()
+        checkSubmitReady()
+      }
+
+      function showFollowup(category) {
+        const fq = FOLLOWUPS[category]
+        if (!fq) return
+        const card = document.getElementById('followupCard')
+        document.getElementById('followupQuestion').textContent = fq.question
+        let html = ''
+        fq.options.forEach(opt => {
+          html += `<button class="followup-option" onclick="selectFollowup('${opt.replace(/'/g, "\\'")}', this)">${opt}</button>`
+        })
+        document.getElementById('followupOptions').innerHTML = html
+        card.classList.add('visible')
+      }
+
+      window.selectFollowup = function(answer, el) {
+        state.followupAnswer = answer
+        document.querySelectorAll('.followup-option').forEach(b => b.classList.remove('selected'))
+        el.classList.add('selected')
+        checkSubmitReady()
+      }
+
+      window.selectRating = function(rating, el) {
+        state.rating = rating
+        document.querySelectorAll('.rating-btn').forEach(b => b.classList.remove('selected'))
+        el.classList.add('selected')
+        checkSubmitReady()
+      }
+
+      function checkSubmitReady() {
+        const btn = document.getElementById('submitBtn')
+        const hasCategory = !!state.category
+        const hasText = state.text && state.text.length > 5
+        if (hasCategory && hasText) {
+          btn.disabled = false
+          btn.textContent = 'Submit feedback'
+        } else if (hasCategory && !hasText) {
+          btn.disabled = true
+          btn.textContent = 'Describe your feedback above'
+        }
+      }
+
+      window.submitFeedback = async function() {
+        const btn = document.getElementById('submitBtn')
+        btn.disabled = true
+        btn.textContent = 'Sending...'
+
+        const priority = PRIORITY_MAP[state.category] || 'LOW'
+        const categoryLabels = {
+          something_broken: 'Something is broken',
+          confusing: 'Something is confusing',
+          missing: 'Something is missing',
+          wrong: 'Something seems wrong',
+          love: 'Positive feedback',
+          other: 'General feedback'
+        }
+        const categoryLabel = categoryLabels[state.category] || state.category
+
+        // Build the structured feedback record
+        const feedbackRecord = {
+          user_id: state.userId,
+          user_email: state.userEmail,
+          category: state.category,
+          screen: state.screen,
+          description: state.text,
+          followup_answer: state.followupAnswer,
+          frustration_rating: state.rating,
+          priority,
+          status: 'pending',
+          created_at: new Date().toISOString(),
+          // This is what gets sent to Claude Code
+          claude_code_instruction: buildClaudeInstruction(priority, categoryLabel)
+        }
+
+        try {
+          await supabase.from('user_feedback').insert(feedbackRecord)
+        } catch (e) {
+          // Table may not exist yet — still show success
+          console.log('Feedback table not set up yet:', e.message)
+        }
+
+        // Show success screen
+        document.getElementById('mainForm').style.display = 'none'
+        document.getElementById('successScreen').classList.add('visible')
+        document.getElementById('summaryCategory').textContent = categoryLabel + (state.screen ? ' — ' + state.screen : '')
+        document.getElementById('summaryText').textContent = state.text
+        if (state.followupAnswer) {
+          document.getElementById('summaryFollowupCard').style.display = 'block'
+          document.getElementById('summaryFollowup').textContent = state.followupAnswer
+        }
+      }
+
+      function buildClaudeInstruction(priority, categoryLabel) {
+        const screen = state.screen ? ' on the ' + state.screen + ' screen' : ''
+        const followup = state.followupAnswer ? ' Specifically: ' + state.followupAnswer + '.' : ''
+        const rating = state.rating ? ' Frustration level: ' + state.rating + '/5.' : ''
+        return priority + ' — ' + categoryLabel + screen + '. User reported: "' + state.text + '".' + followup + rating
+      }
+
+      init()
+    </script>
+  </body>
+</html>

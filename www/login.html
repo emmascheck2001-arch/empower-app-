@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HormoneSync — Login</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #faf8f5;
+      color: #2c2820;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      max-width: 420px;
+      margin: 0 auto;
+    }
+
+    .card {
+      width: 100%;
+      padding: 0 20px;
+    }
+
+    .logo {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #2c2820;
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    h1 {
+      font-family: Georgia, serif;
+      font-size: 26px;
+      font-weight: 400;
+      font-style: italic;
+      color: #2c2820;
+      text-align: center;
+      margin-bottom: 8px;
+    }
+
+    .sub {
+      font-size: 13px;
+      color: #7a7268;
+      text-align: center;
+      margin-bottom: 32px;
+      line-height: 1.6;
+    }
+
+    .tabs {
+      display: flex;
+      margin-bottom: 24px;
+      background: #f0ece6;
+      border-radius: 10px;
+      padding: 3px;
+    }
+
+    .tab {
+      flex: 1;
+      padding: 9px;
+      text-align: center;
+      font-size: 13px;
+      font-weight: 500;
+      color: #7a7268;
+      cursor: pointer;
+      border-radius: 8px;
+      transition: all 0.15s;
+    }
+
+    .tab.active {
+      background: #ffffff;
+      color: #2c2820;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    }
+
+    .field {
+      margin-bottom: 14px;
+    }
+
+    .field label {
+      display: block;
+      font-size: 12px;
+      font-weight: 500;
+      color: #5a5550;
+      margin-bottom: 6px;
+    }
+
+    .field input {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 10px;
+      border: 1px solid #ede8e0;
+      background: #ffffff;
+      font-size: 15px;
+      color: #2c2820;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .field input:focus {
+      border-color: #c8b89a;
+    }
+
+    .submit-btn {
+      width: 100%;
+      background: #2c2820;
+      color: #f5f0e8;
+      border: none;
+      border-radius: 10px;
+      padding: 14px;
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: background 0.15s;
+    }
+
+    .submit-btn:hover {
+      background: #3d3830;
+    }
+
+    .submit-btn:disabled {
+      background: #c8c0b8;
+      cursor: not-allowed;
+    }
+
+    .message {
+      font-size: 13px;
+      text-align: center;
+      margin-top: 14px;
+      line-height: 1.5;
+      padding: 10px 14px;
+      border-radius: 8px;
+      display: none;
+    }
+
+    .message.success {
+      background: #eef5ee;
+      color: #2a5a2a;
+      display: block;
+    }
+
+    .message.error {
+      background: #fce8e8;
+      color: #8a2a2a;
+      display: block;
+    }
+
+    .name-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="card">
+    <div class="logo">HormoneSync</div>
+    <h1>Welcome.</h1>
+    <p class="sub">Sign in or create an account to start tracking.</p>
+
+    <div class="tabs">
+      <div class="tab active" id="tabLogin" onclick="switchTab('login')">Sign in</div>
+      <div class="tab" id="tabSignup" onclick="switchTab('signup')">Create account</div>
+    </div>
+
+    <div id="loginForm">
+      <div class="field">
+        <label>Email</label>
+        <input type="email" id="loginEmail" placeholder="your@email.com" />
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input type="password" id="loginPassword" placeholder="Your password" />
+      </div>
+      <button class="submit-btn" id="loginBtn" onclick="handleLogin()">Sign in</button>
+      <div class="message" id="loginMessage"></div>
+    </div>
+
+    <div id="signupForm" style="display:none">
+      <div class="name-row">
+        <div class="field">
+          <label>First name</label>
+          <input type="text" id="signupFirstName" placeholder="Emma" />
+        </div>
+        <div class="field">
+          <label>Last name</label>
+          <input type="text" id="signupLastName" placeholder="Smith" />
+        </div>
+      </div>
+      <div class="field">
+        <label>Email</label>
+        <input type="email" id="signupEmail" placeholder="your@email.com" />
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input type="password" id="signupPassword" placeholder="At least 6 characters" />
+      </div>
+      <button class="submit-btn" id="signupBtn" onclick="handleSignup()">Create account</button>
+      <div class="message" id="signupMessage"></div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
+    const SUPABASE_URL = 'https://imgujppjvffbubnsscge.supabase.co'
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImltZ3VqcHBqdmZmYnVibnNzY2dlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2MDQzNzIsImV4cCI6MjA5NjE4MDM3Mn0.TpjycdiHLl5iI1G8u07mVmStKZWU2fzEsuw1dUi6diU'
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+    // Check if already logged in
+    async function checkSession() {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) window.location.href = 'dashboard.html'
+    }
+    checkSession()
+
+    window.switchTab = function (tab) {
+      document.getElementById('loginForm').style.display = tab === 'login' ? 'block' : 'none'
+      document.getElementById('signupForm').style.display = tab === 'signup' ? 'block' : 'none'
+      document.getElementById('tabLogin').classList.toggle('active', tab === 'login')
+      document.getElementById('tabSignup').classList.toggle('active', tab === 'signup')
+    }
+
+    window.handleLogin = async function () {
+      const email = document.getElementById('loginEmail').value.trim()
+      const password = document.getElementById('loginPassword').value
+      const msg = document.getElementById('loginMessage')
+      const btn = document.getElementById('loginBtn')
+
+      if (!email || !password) {
+        msg.textContent = 'Please enter your email and password.'
+        msg.className = 'message error'; return
+      }
+
+      btn.disabled = true; btn.textContent = 'Signing in...'
+      const { error } = await supabase.auth.signInWithPassword({ email, password })
+
+      if (error) {
+        msg.textContent = error.message === 'Invalid login credentials'
+          ? 'Email or password is incorrect. Please try again.'
+          : error.message
+        msg.className = 'message error'
+        btn.disabled = false; btn.textContent = 'Sign in'
+      } else {
+        msg.textContent = 'Signed in! Taking you to your dashboard...'
+        msg.className = 'message success'
+        // Always go to dashboard — dashboard handles setup redirect if needed
+        setTimeout(() => window.location.href = 'dashboard.html', 800)
+      }
+    }
+
+    window.handleSignup = async function () {
+      const firstName = document.getElementById('signupFirstName').value.trim()
+      const lastName = document.getElementById('signupLastName').value.trim()
+      const email = document.getElementById('signupEmail').value.trim()
+      const password = document.getElementById('signupPassword').value
+      const msg = document.getElementById('signupMessage')
+      const btn = document.getElementById('signupBtn')
+
+      if (!firstName || !email || !password) {
+        msg.textContent = 'Please fill in all fields.'
+        msg.className = 'message error'; return
+      }
+      if (password.length < 6) {
+        msg.textContent = 'Password must be at least 6 characters.'
+        msg.className = 'message error'; return
+      }
+
+      btn.disabled = true; btn.textContent = 'Creating account...'
+
+      const { data, error } = await supabase.auth.signUp({ email, password })
+
+      if (error) {
+        msg.textContent = error.message
+        msg.className = 'message error'
+        btn.disabled = false; btn.textContent = 'Create account'
+        return
+      }
+
+      if (data.user) {
+        // Create profile row — onboarding_complete = false so setup screen shows
+        const { error: profileError } = await supabase.from('profiles').upsert({
+          id: data.user.id,
+          email,
+          name: firstName + (lastName ? ' ' + lastName : ''),
+          onboarding_complete: false
+        })
+        if (profileError) console.error('Profile error:', profileError.message)
+
+        msg.textContent = 'Account created! Setting up your profile...'
+        msg.className = 'message success'
+        setTimeout(() => window.location.href = 'dashboard.html', 800)
+      }
+
+      btn.disabled = false; btn.textContent = 'Create account'
+    }
+  </script>
+</body>
+
+</html>
