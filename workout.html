@@ -1498,6 +1498,12 @@
             padding:12px 24px; font-size:13px; color:#9a9590;
             width:calc(100% - 32px); cursor:pointer;
         }
+        .lap-tap-btn {
+            background:#2c2820; color:#f5f0e8; border:none; border-radius:14px;
+            padding:18px 40px; font-size:18px; font-weight:500; cursor:pointer;
+            margin-bottom:20px; letter-spacing:0.01em;
+        }
+        .lap-tap-btn:active { background:#3d3830; }
         .hiit-state-badge {
             font-size:13px; font-weight:700; letter-spacing:0.12em;
             padding:5px 18px; border-radius:20px; margin-bottom:20px;
@@ -1984,14 +1990,35 @@
                 <!-- Cardio mode: walk, run, cycle, swim -->
                 <div id="timerModeCardio" class="timer-screen-body hidden">
                     <div class="timer-segment-badge" id="timerSegmentBadge">WARMUP</div>
-                    <div class="timer-display-wrap">
-                        <svg class="timer-ring" viewBox="0 0 200 200">
-                            <circle class="timer-ring-bg" cx="100" cy="100" r="88"/>
-                            <circle class="timer-ring-fill" id="timerRingFill" cx="100" cy="100" r="88"
-                                stroke-dasharray="553" stroke-dashoffset="0"/>
-                        </svg>
-                        <div class="timer-time" id="timerDisplay">30:00</div>
+
+                    <!-- Time-based view -->
+                    <div id="cardioTimerView">
+                        <div class="timer-display-wrap">
+                            <svg class="timer-ring" viewBox="0 0 200 200">
+                                <circle class="timer-ring-bg" cx="100" cy="100" r="88"/>
+                                <circle class="timer-ring-fill" id="timerRingFill" cx="100" cy="100" r="88"
+                                    stroke-dasharray="553" stroke-dashoffset="0"/>
+                            </svg>
+                            <div class="timer-time" id="timerDisplay">30:00</div>
+                        </div>
                     </div>
+
+                    <!-- Lap-based view -->
+                    <div id="cardioLapView" class="hidden" style="display:flex;flex-direction:column;align-items:center;width:100%">
+                        <div class="timer-display-wrap">
+                            <svg class="timer-ring" viewBox="0 0 200 200">
+                                <circle class="timer-ring-bg" cx="100" cy="100" r="88"/>
+                                <circle class="timer-ring-fill" id="lapRingFill" cx="100" cy="100" r="88"
+                                    stroke-dasharray="553" stroke-dashoffset="553"/>
+                            </svg>
+                            <div style="text-align:center">
+                                <div class="timer-time" id="lapCounterDisplay">0</div>
+                                <div style="font-size:13px;color:#9a9590;margin-top:2px" id="lapCounterTarget">of 8</div>
+                            </div>
+                        </div>
+                        <button class="lap-tap-btn" onclick="tapLap()">Tap to count lap</button>
+                    </div>
+
                     <div class="timer-instruction" id="timerInstruction"></div>
                     <div class="timer-next-notice hidden" id="timerNextNotice"></div>
                     <button class="timer-skip-btn" id="timerSkipBtn" onclick="skipCardioSegment()">Skip to next segment</button>
@@ -5252,12 +5279,15 @@
         let timerInterval = null
 
         // Parse minutes from text like "5 min easy jog" or "20 to 30 min" -> seconds
-        function parseSegmentSeconds(text) {
-            const rangeM = text.match(/(\d+)\s*to\s*(\d+)\s*min/)
-            if (rangeM) return Math.round((parseInt(rangeM[1]) + parseInt(rangeM[2])) / 2) * 60
-            const simpleM = text.match(/(\d+)\s*min/)
-            if (simpleM) return parseInt(simpleM[1]) * 60
-            return 1800
+        // Parse a segment's text and return { type: 'timer'|'laps', seconds?, count? }
+        function parseSegmentType(text) {
+            const lapsM = text.match(/(\d+)\s*(?:lengths?|laps?)/i)
+            if (lapsM) return { type: 'laps', count: parseInt(lapsM[1]) }
+            const rangeM = text.match(/(\d+)\s*to\s*(\d+)\s*min/i)
+            if (rangeM) return { type: 'timer', seconds: parseInt(rangeM[1]) * 60 }
+            const simpleM = text.match(/(\d+)\s*min/i)
+            if (simpleM) return { type: 'timer', seconds: parseInt(simpleM[1]) * 60 }
+            return { type: 'timer', seconds: 1800 }
         }
 
         function fmtTime(s) {
@@ -5275,6 +5305,8 @@
         let cardioSegmentIndex = 0
         let cardioSecsLeft = 0
         let cardioSegmentTotal = 0
+        let cardioLapCount = 0
+        let cardioLapTarget = 0
 
         function startCardioTimer(activity) {
             clearInterval(timerInterval)
@@ -5286,9 +5318,9 @@
             const phaseKey = (phase === 'Luteal phase' && sub) ? sub : phase
 
             const session = buildStructuredCardio(activity, level, phase)
-            let segments = []
+            let rawSegments = []
             if (session) {
-                segments = [
+                rawSegments = [
                     { label: 'WARMUP', text: session.warmup },
                     { label: 'MAIN SET', text: session.main },
                     { label: 'COOLDOWN', text: session.cooldown }
@@ -5296,10 +5328,10 @@
             } else {
                 const walkData = cardioGuidance.walk
                 const guidance = walkData[phaseKey] || walkData[phase] || walkData['observation']
-                segments = [{ label: 'SESSION', text: guidance }]
+                rawSegments = [{ label: 'SESSION', text: guidance }]
             }
 
-            cardioSegments = segments.map(s => ({ ...s, seconds: parseSegmentSeconds(s.text) }))
+            cardioSegments = rawSegments.map(s => ({ label: s.label, text: s.text, ...parseSegmentType(s.text) }))
             cardioSegmentIndex = 0
 
             document.getElementById('timerTitle').textContent = ACTIVITY_LABELS[activity] || activity
@@ -5315,27 +5347,49 @@
             const seg = cardioSegments[cardioSegmentIndex]
             if (!seg) { finishActivityTimer(); return }
 
-            cardioSecsLeft = seg.seconds
-            cardioSegmentTotal = seg.seconds
-
             document.getElementById('timerSegmentBadge').textContent = seg.label
             document.getElementById('timerInstruction').textContent = seg.text
-            document.getElementById('timerDisplay').textContent = fmtTime(cardioSecsLeft)
             document.getElementById('timerNextNotice').classList.add('hidden')
-            updateRing('timerRingFill', cardioSecsLeft, cardioSegmentTotal)
 
             const isLast = cardioSegmentIndex === cardioSegments.length - 1
             document.getElementById('timerSkipBtn').textContent = isLast ? 'Finish session' : 'Skip to next segment'
 
-            timerInterval = setInterval(() => {
-                cardioSecsLeft--
+            if (seg.type === 'laps') {
+                document.getElementById('cardioTimerView').classList.add('hidden')
+                document.getElementById('cardioLapView').classList.remove('hidden')
+                cardioLapCount = 0
+                cardioLapTarget = seg.count
+                document.getElementById('lapCounterDisplay').textContent = '0'
+                document.getElementById('lapCounterTarget').textContent = 'of ' + seg.count
+                document.getElementById('lapRingFill').setAttribute('stroke-dashoffset', 553)
+            } else {
+                document.getElementById('cardioTimerView').classList.remove('hidden')
+                document.getElementById('cardioLapView').classList.add('hidden')
+                cardioSecsLeft = seg.seconds
+                cardioSegmentTotal = seg.seconds
                 document.getElementById('timerDisplay').textContent = fmtTime(cardioSecsLeft)
                 updateRing('timerRingFill', cardioSecsLeft, cardioSegmentTotal)
-                if (cardioSecsLeft <= 0) {
-                    clearInterval(timerInterval)
-                    advanceCardioSegment()
-                }
-            }, 1000)
+
+                timerInterval = setInterval(() => {
+                    cardioSecsLeft--
+                    document.getElementById('timerDisplay').textContent = fmtTime(cardioSecsLeft)
+                    updateRing('timerRingFill', cardioSecsLeft, cardioSegmentTotal)
+                    if (cardioSecsLeft <= 0) {
+                        clearInterval(timerInterval)
+                        advanceCardioSegment()
+                    }
+                }, 1000)
+            }
+        }
+
+        window.tapLap = function() {
+            cardioLapCount++
+            document.getElementById('lapCounterDisplay').textContent = cardioLapCount
+            const offset = 553 * (1 - cardioLapCount / Math.max(cardioLapTarget, 1))
+            document.getElementById('lapRingFill').setAttribute('stroke-dashoffset', offset)
+            if (cardioLapCount >= cardioLapTarget) {
+                setTimeout(advanceCardioSegment, 400)
+            }
         }
 
         function advanceCardioSegment() {
