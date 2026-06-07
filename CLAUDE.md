@@ -258,7 +258,8 @@ NEVER use `return` after redirect at module top level (causes SyntaxError in ES 
 **Screen flow:** screenActivity → screenGymFocus (gym only) → screenSummary → screenWarmup → screenPlayer → screenCooldown → screenComplete
 
 **Activity picker grid (3x3, exact order):** Walk / Run / Cycle / Swim / Gym / Yoga / Pilates / HIIT / Rest day
-Icons: ti ti-walk / ti ti-run / ti ti-bike / ti ti-swimming / ti ti-barbell / ti ti-yoga / ti ti-accessible / ti ti-flame / ti ti-zzz
+Icons: ti ti-walk / ti ti-run / ti ti-bike / ti ti-swimming / ti ti-barbell / 🧘 emoji / ti ti-accessible / ti ti-flame / ti ti-zzz
+Note: Yoga uses 🧘 emoji (font-size:28px;line-height:1) — ti-yoga does not exist in the Tabler Icons webfont. Never change this back to a ti class.
 "Build me a plan" button below grid (`.plan-btn`).
 
 **Gym muscle group picker (screenGymFocus) — PERMANENT LAYOUT, NEVER CHANGE:**
