@@ -430,7 +430,7 @@
     const end   = new Date(yr, mo + 1, 7).toISOString().split('T')[0]
     try {
       const [logsRes, mucusRes] = await Promise.all([
-        supabase.from('daily_logs').select('log_date,energy,mood,sleep_quality,symptoms,disruptors,pain_rating,flow_volume,resting_hr,wrist_temp,workout_feel,notes,lh_result,hormone_estradiol,hormone_progesterone,hormone_lh,hormone_cortisol,hot_flash_count,night_sweats_severity,joint_pain_rating,brain_fog_rating').eq('user_id', userId).gte('log_date', start).lte('log_date', end),
+        supabase.from('daily_logs').select('log_date,energy,mood,sleep_quality,symptoms,disruptors,pain_rating,flow_volume,resting_hr,wrist_temp,workout_feel,notes,lh_result,hormone_estradiol,hormone_progesterone,hormone_lh,hormone_cortisol').eq('user_id', userId).gte('log_date', start).lte('log_date', end),
         supabase.from('mucus_logs').select('log_date,discharge_type,spotting_type').eq('user_id', userId).gte('log_date', start).lte('log_date', end)
       ])
       for (const l of (logsRes.data || [])) logsByDate[l.log_date] = l
@@ -487,22 +487,16 @@
   function burdenLevel(log) {
     if (!log) return 'unlogged'
     let score = 0
-    if (log.hot_flash_count === 'severe') score += 3
-    else if (log.hot_flash_count === 'moderate') score += 2
-    else if (log.hot_flash_count === 'mild') score += 1
-    if (log.night_sweats_severity === 'severe') score += 3
-    else if (log.night_sweats_severity === 'moderate') score += 2
-    else if (log.night_sweats_severity === 'mild') score += 1
-    if (log.joint_pain_rating >= 3) score += 2
-    else if (log.joint_pain_rating >= 2) score += 1
-    if (log.brain_fog_rating >= 3) score += 2
-    else if (log.brain_fog_rating >= 2) score += 1
     if (log.energy === 'Very low') score += 2
     else if (log.energy === 'Low') score += 1
-    if (log.sleep_quality === 'Poor') score += 1
+    if (log.sleep_quality === 'Poor') score += 2
+    if (log.symptoms?.includes('Fatigue')) score += 1
+    if (log.symptoms?.includes('Brain fog')) score += 1
+    if (log.pain_rating >= 4) score += 2
+    else if (log.pain_rating >= 2) score += 1
     if (score === 0) return 'none'
     if (score <= 3) return 'none'
-    if (score <= 6) return 'moderate'
+    if (score <= 5) return 'moderate'
     return 'high'
   }
 
