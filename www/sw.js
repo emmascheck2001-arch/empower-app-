@@ -1,4 +1,4 @@
-const CACHE_NAME = 'empower-v2'
+const CACHE_NAME = 'empower-v3'
 
 const APP_SHELL = [
   '/dashboard.html', '/log.html', '/login.html', '/setup.html',

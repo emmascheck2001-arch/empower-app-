@@ -588,10 +588,16 @@
         }
 
         // Click handler
-        el.addEventListener('click', () => {
-          if (isFuture) openFutureSheet(cell.date, ds, pi)
-          else openPastSheet(cell.date, ds, pi, log, mucusByDate[ds])
-        })
+        el.onclick = function() {
+          try {
+            if (isFuture) openFutureSheet(cell.date, ds, pi)
+            else openPastSheet(cell.date, ds, pi, log, mucusByDate[ds])
+          } catch(err) {
+            console.error('Cell click error:', err)
+            document.getElementById('pastContent').innerHTML = '<div style="padding:20px;font-size:13px;color:#8a5050">' + err.message + '</div>'
+            openSheet('pastSheet')
+          }
+        }
       }
 
       grid.appendChild(el)
