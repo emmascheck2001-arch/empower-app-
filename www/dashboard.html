@@ -736,6 +736,13 @@
       <div class="pulse-note" id="pulseNote"></div>
     </div>
 
+    <div id="allostaticCard" style="display:none;margin:0 16px 12px;border-radius:14px;padding:16px;border:1px solid #ede8e0;background:#fff"></div>
+    <div id="wearableCard" style="display:none;margin:0 16px 12px;background:#f0f4ff;border:1px solid #c8d4f0;border-radius:14px;padding:14px 16px">
+      <div style="font-size:10px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#6878a8;margin-bottom:8px">Wearable readiness score</div>
+      <div style="font-size:14px;color:#2c2820;line-height:1.6">Your readiness score may appear lower than expected. Wearable algorithms were calibrated on male physiology. Elevated core temperature and RHR in the luteal phase looks like poor recovery to a device that treats male physiology as the default. Your HormoneSync recommendations already account for this. <span style="font-size:11px;color:#6878a8">(Sims ST. ROAR 2024; De Martin Topranin et al. 2023)</span></div>
+    </div>
+    <div id="patternFlagContainer" style="display:none;margin:0 16px 12px"></div>
+
     <div class="section-label">Your cycle phases</div>
     <div class="cards">
       <div class="card" id="cardFollicular" onclick="openPhaseSheet('Follicular')">
@@ -802,7 +809,7 @@
 
   <script type="module">
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
-    import { getTodayStatus, getPhase } from './hormoneSync.js'
+    import { getTodayStatus, getPhase, getLutealSubPhase } from './hormoneSync.js'
 
     const SUPABASE_URL = 'https://imgujppjvffbubnsscge.supabase.co'
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImltZ3VqcHBqdmZmYnVibnNzY2dlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2MDQzNzIsImV4cCI6MjA5NjE4MDM3Mn0.TpjycdiHLl5iI1G8u07mVmStKZWU2fzEsuw1dUi6diU'
@@ -1531,6 +1538,89 @@
               </div>`).join('')
           }
         } catch (e) { console.error('Anomaly render error', e) }
+
+        // Allostatic load indicator (Source: Sims ST. ROAR 2024)
+        try {
+          const { data: weekLogs } = await supabase
+            .from('daily_logs')
+            .select('energy, sleep_quality, disruptors, log_date')
+            .eq('user_id', user.id)
+            .order('log_date', { ascending: false })
+            .limit(7)
+
+          if (weekLogs?.length >= 3) {
+            let load = 0
+            if (phase === 'Menstrual') load += 1
+            if (phase === 'Luteal' && cycleDay) {
+              const sub = getLutealSubPhase(cycleDay, cycleLen)
+              if (sub === 'Late luteal') load += 1
+            }
+            const poorSleepDays = weekLogs.filter(l => l.sleep_quality === 'Poor').length
+            if (poorSleepDays >= 2) load += 2
+            const veryLowDays = weekLogs.filter(l => l.energy === 'Very low').length
+            if (veryLowDays >= 2) load += 2
+            weekLogs.forEach(l => { if (l.disruptors?.length) load += Math.min(l.disruptors.length, 2) })
+            load = Math.min(10, load)
+
+            if (load >= 3) {
+              const colour = load >= 7 ? '#fce8e0' : load >= 4 ? '#fef4e4' : '#eaf4ea'
+              const borderColour = load >= 7 ? '#f0b8a0' : load >= 4 ? '#f0d498' : '#b0d8b0'
+              const textColour = load >= 7 ? '#8a3020' : load >= 4 ? '#6a4a10' : '#1a4a1a'
+              const label = load >= 7 ? 'High load' : load >= 4 ? 'Moderate load' : 'Low load'
+              const msg = load >= 7
+                ? 'Your combined load this week is high. When allostatic load is consistently high your body responds by down-regulating reproductive hormones. Consider rest, eat more, and prioritise sleep. (Sims ST. ROAR 2024)'
+                : 'Your load this week is moderate. Keep recovery a priority alongside training.'
+              const card = document.getElementById('allostaticCard')
+              card.style.display = 'block'
+              card.style.background = colour
+              card.style.borderColor = borderColour
+              card.innerHTML = `
+                <div style="font-size:10px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:${textColour};margin-bottom:8px">Weekly load: ${label} ${load}/10</div>
+                <div style="font-size:13px;color:#2c2820;line-height:1.6">${msg}</div>`
+            }
+          }
+        } catch (e) { console.error('Allostatic load error', e) }
+
+        // Wearable accuracy warning — mid/late luteal only (Source: Sims ST. ROAR 2024; De Martin Topranin 2023)
+        if (phase === 'Luteal' && cycleDay) {
+          const sub = getLutealSubPhase(cycleDay, cycleLen)
+          if (sub === 'Mid luteal' || sub === 'Late luteal') {
+            document.getElementById('wearableCard').style.display = 'block'
+          }
+        }
+
+        // PCOS pattern flag (Source: Teede et al. 2018; Crawford N.)
+        try {
+          if (cycleLen > 35 && profile.cycles_tracked >= 3) {
+            const flagEl = document.getElementById('patternFlagContainer')
+            flagEl.style.display = 'block'
+            flagEl.innerHTML = `<div style="background:#fef4e4;border:1px solid #f0d498;border-radius:14px;padding:14px 16px">
+              <div style="font-size:10px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#6a4a10;margin-bottom:8px">Cycle pattern worth noting</div>
+              <div style="font-size:13px;color:#2c2820;line-height:1.6">Your cycle pattern shows some features sometimes associated with PCOS. This is not a diagnosis. PCOS is very manageable through training and nutrition. Worth discussing with your doctor if you have not already. (Teede et al. Human Reproduction 2018)</div>
+            </div>`
+          }
+        } catch (e) { console.error('Pattern flag error', e) }
+
+        // Endometriosis pain flag (Source: Nnoaham et al. Fertility and Sterility 2011)
+        try {
+          const { data: painLogs } = await supabase
+            .from('daily_logs')
+            .select('pain_rating, log_date')
+            .eq('user_id', user.id)
+            .gte('pain_rating', 4)
+            .order('log_date', { ascending: false })
+            .limit(14)
+
+          if (painLogs?.length >= 3) {
+            const flagEl = document.getElementById('patternFlagContainer')
+            const existing = flagEl.innerHTML
+            flagEl.style.display = 'block'
+            flagEl.innerHTML = existing + `<div style="background:#fce8e0;border:1px solid #f0b8a0;border-radius:14px;padding:14px 16px;margin-top:8px">
+              <div style="font-size:10px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#8a3020;margin-bottom:8px">Period pain pattern</div>
+              <div style="font-size:13px;color:#2c2820;line-height:1.6">Severe period pain is not something you have to accept. Pain that disrupts daily life can indicate endometriosis, adenomyosis, or uterine fibroids. Women wait an average of 7 to 10 years for a diagnosis because pain is often dismissed. If your pain consistently affects your daily life, please pursue a proper investigation. (Nnoaham et al. Fertility and Sterility 2011)</div>
+            </div>`
+          }
+        } catch (e) { console.error('Endo flag error', e) }
 
       } catch (err) {
         console.error('Dashboard error:', err)

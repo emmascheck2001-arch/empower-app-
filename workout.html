@@ -1862,7 +1862,7 @@
                         <div class="activity-name">Gym</div>
                     </div>
                     <div class="activity-tile" onclick="selectActivity('yoga', this)">
-                        <span class="activity-icon" style="font-size:28px;line-height:1">🧘‍♀️</span>
+                        <i class="ti ti-yoga activity-icon"></i>
                         <div class="activity-name">Yoga</div>
                     </div>
                     <div class="activity-tile" onclick="selectActivity('pilates', this)">
@@ -1894,7 +1894,17 @@
                     <div class="top-bar-title">What do you want to train?</div>
                 </div>
 
-                <div class="section-label" style="margin-top:16px">Train everything</div>
+                <!-- Hidden legacy IDs for plan-restore JS compatibility -->
+                <div style="display:none">
+                    <div id="s2_chest_shoulders_triceps"></div>
+                    <div id="s2_back_biceps"></div>
+                    <div id="s2_legs"></div>
+                    <div id="s2_hamstrings_glutes"></div>
+                    <div id="s2_glutes_only"></div>
+                    <div id="s2_arms"></div>
+                </div>
+
+                <div class="section-label" style="margin-top:16px">Choose workout type</div>
                 <div class="s1-cards">
                     <div class="s1-card" id="s1_full_body" onclick="selectSection1('full_body', this)">
                         <div class="s1-card-radio"></div>
@@ -1918,37 +1928,32 @@
                         </div>
                     </div>
                 </div>
-
-                <div class="picker-divider">or build your own session</div>
-
-                <div class="s2-grid">
-                    <div class="s2-tile" id="s2_chest_shoulders_triceps" onclick="toggleSection2('chest_shoulders_triceps', this)">
-                        <div class="s2-check">&#10003;</div>
-                        <div class="s2-name">Chest, shoulders and triceps</div>
-                    </div>
-                    <div class="s2-tile" id="s2_back_biceps" onclick="toggleSection2('back_biceps', this)">
-                        <div class="s2-check">&#10003;</div>
-                        <div class="s2-name">Back and biceps</div>
-                    </div>
-                    <div class="s2-tile" id="s2_legs" onclick="toggleSection2('legs', this)">
-                        <div class="s2-check">&#10003;</div>
-                        <div class="s2-name">Legs</div>
-                    </div>
-                    <div class="s2-tile" id="s2_hamstrings_glutes" onclick="toggleSection2('hamstrings_glutes', this)">
-                        <div class="s2-check">&#10003;</div>
-                        <div class="s2-name">Glutes and hamstrings</div>
-                    </div>
-                    <div class="s2-tile" id="s2_glutes_only" onclick="toggleSection2('glutes_only', this)">
-                        <div class="s2-check">&#10003;</div>
-                        <div class="s2-name">Glutes only</div>
-                    </div>
-                    <div class="s2-tile" id="s2_arms" onclick="toggleSection2('arms', this)">
-                        <div class="s2-check">&#10003;</div>
-                        <div class="s2-name">Arms</div>
+                <div style="padding:0 2px;margin-bottom:4px">
+                    <div class="s1-card" id="s1_custom" onclick="selectSection1('custom', this)" style="border-style:dashed;border-color:#c8b89a">
+                        <div class="s1-card-radio"></div>
+                        <div>
+                            <div class="s1-card-name">Custom</div>
+                            <div class="s1-card-sub">Build your own session</div>
+                        </div>
                     </div>
                 </div>
 
-                <div class="core-finisher-row">
+                <div id="customMusclePanel" class="hidden" style="margin-bottom:4px">
+                    <div class="s2-grid">
+                        <div class="s2-tile" id="cm_chest" onclick="toggleCustomMuscle('chest', this)"><div class="s2-check">&#10003;</div><div class="s2-name">Chest</div></div>
+                        <div class="s2-tile" id="cm_back" onclick="toggleCustomMuscle('back', this)"><div class="s2-check">&#10003;</div><div class="s2-name">Back</div></div>
+                        <div class="s2-tile" id="cm_shoulders" onclick="toggleCustomMuscle('shoulders', this)"><div class="s2-check">&#10003;</div><div class="s2-name">Shoulders</div></div>
+                        <div class="s2-tile" id="cm_biceps" onclick="toggleCustomMuscle('biceps', this)"><div class="s2-check">&#10003;</div><div class="s2-name">Biceps</div></div>
+                        <div class="s2-tile" id="cm_triceps" onclick="toggleCustomMuscle('triceps', this)"><div class="s2-check">&#10003;</div><div class="s2-name">Triceps</div></div>
+                        <div class="s2-tile" id="cm_quads" onclick="toggleCustomMuscle('quads', this)"><div class="s2-check">&#10003;</div><div class="s2-name">Quads</div></div>
+                        <div class="s2-tile" id="cm_hamstrings" onclick="toggleCustomMuscle('hamstrings', this)"><div class="s2-check">&#10003;</div><div class="s2-name">Hamstrings</div></div>
+                        <div class="s2-tile" id="cm_glutes" onclick="toggleCustomMuscle('glutes', this)"><div class="s2-check">&#10003;</div><div class="s2-name">Glutes</div></div>
+                        <div class="s2-tile" id="cm_calves" onclick="toggleCustomMuscle('calves', this)"><div class="s2-check">&#10003;</div><div class="s2-name">Calves</div></div>
+                        <div class="s2-tile" id="cm_core" onclick="toggleCustomMuscle('core', this)"><div class="s2-check">&#10003;</div><div class="s2-name">Core</div></div>
+                    </div>
+                </div>
+
+                <div id="coreFinisherRow" class="core-finisher-row">
                     <div>
                         <div class="core-finisher-label">Add core finisher</div>
                         <div class="core-finisher-sub">3 core exercises at the end of your session</div>
@@ -4511,12 +4516,60 @@
             btn.disabled = false
         }
 
+        const CUSTOM_MUSCLE_MAP = {
+            chest: 'chest_shoulders_triceps',
+            shoulders: 'chest_shoulders_triceps',
+            triceps: 'chest_shoulders_triceps',
+            back: 'back_biceps',
+            biceps: 'back_biceps',
+            quads: 'legs',
+            calves: 'legs',
+            hamstrings: 'hamstrings_glutes',
+            glutes: 'glutes_only'
+        }
+
         window.selectSection1 = function (group, el) {
-            state.pickerSection = 1
-            state.selectedMuscleGroups = new Set([group])
             document.querySelectorAll('.s1-card').forEach(c => c.classList.remove('selected'))
             el.classList.add('selected')
-            document.querySelectorAll('.s2-tile').forEach(t => t.classList.remove('selected'))
+            const customPanel = document.getElementById('customMusclePanel')
+            const coreRow = document.getElementById('coreFinisherRow')
+            if (group === 'custom') {
+                state.pickerSection = 2
+                state.selectedMuscleGroups = new Set()
+                customPanel.classList.remove('hidden')
+                if (coreRow) coreRow.style.display = 'none'
+                updateGenerateBtn()
+                return
+            }
+            state.pickerSection = 1
+            state.selectedMuscleGroups = new Set([group])
+            customPanel.classList.add('hidden')
+            document.querySelectorAll('#customMusclePanel .s2-tile').forEach(t => t.classList.remove('selected'))
+            state.coreFinisher = false
+            const coreToggle = document.getElementById('coreFinisherToggle')
+            if (coreToggle) coreToggle.classList.remove('on')
+            if (coreRow) coreRow.style.display = ''
+            updateGenerateBtn()
+        }
+
+        window.toggleCustomMuscle = function (muscle, el) {
+            el.classList.toggle('selected')
+            const isSelected = el.classList.contains('selected')
+            if (muscle === 'core') {
+                state.coreFinisher = isSelected
+                updateGenerateBtn()
+                return
+            }
+            const group = CUSTOM_MUSCLE_MAP[muscle]
+            if (!group) return
+            const siblingStillSelected = Object.entries(CUSTOM_MUSCLE_MAP)
+                .filter(([m, g]) => g === group && m !== muscle)
+                .some(([m]) => document.getElementById('cm_' + m)?.classList.contains('selected'))
+            if (isSelected) {
+                state.selectedMuscleGroups.add(group)
+            } else if (!siblingStillSelected) {
+                state.selectedMuscleGroups.delete(group)
+            }
             updateGenerateBtn()
         }
 
