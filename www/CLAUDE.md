@@ -435,31 +435,97 @@ Icons: ti ti-home / ti ti-pencil / ti ti-barbell / ti ti-sun / ti ti-apps
 
 ### CALENDAR.HTML — Cycle calendar
 
-**Structure:** Month navigation (left arrow / "Month YYYY" title / right arrow) + weekday labels row + calendar grid + period banner + phase legend.
+**Title:** "Em~power Cycle Calendar". Subtitle in top bar: "Day X of Y" (cycle users) / "Symptom burden calendar" (Path 4) / "Building baseline" (no data).
 
-**Month navigation:** `background:#f5f0e8; border:1px solid #ede8e0; padding:7px 9px; border-radius:10px` buttons. Title: 18px, `letter-spacing:-0.01em`.
+**Top bar:** Back arrow (`ti ti-chevron-left`, links to dashboard.html) + centered title div (title + sub label) + 28px spacer div for balance.
+
+**Structure (top to bottom):**
+1. Top bar
+2. Period banner (hidden by default, shown when period is within 14 days)
+3. Month navigation: left chevron / "Month YYYY" title / right chevron
+4. Weekday labels row: Sun Mon Tue Wed Thu Fri Sat
+5. Calendar grid
+6. Phase legend
+7. Bottom nav (6 items)
+
+**Imports:** `getPhase`, `getLutealSubPhase`, `predictNextPeriod` from `./hormoneSync.js` and `PHASE_PREDICTIONS`, `BRAIN_STATE_STYLES` from `./algorithm_v3.js`.
+
+**Month navigation:** `background:#f5f0e8; border:1px solid #ede8e0; padding:7px 9px; border-radius:10px` buttons. Title: 18px, `letter-spacing:-0.01em`. Arrows: `ti ti-chevron-left` / `ti ti-chevron-right`.
 
 **Weekday labels:** 9px, `color:#b0a89a`, 7 columns.
 
-**Calendar grid:** White card, `border-radius:16px; box-shadow:0 2px 12px rgba(44,40,32,0.06); border:1px solid #ede8e0`. Cells are transparent with phase tint applied as inline background rgba. `min-height:54px; padding:7px 2px 10px`.
+**Calendar grid:** White card, `border-radius:16px; box-shadow:0 2px 12px rgba(44,40,32,0.06); border:1px solid #ede8e0`. Cells transparent with phase tint applied as inline background rgba. `min-height:54px; padding:7px 2px 10px`.
 
-**Cell day number:** 28x28px circle. Today date: highlighted.
+**Cell day number:** 28x28px circle. Today: `background:#2c2820; color:#f5f0e8; font-weight:700`.
 
-**Cell phase bar:** `position:absolute; bottom:5px; left:8px; right:8px; height:3px; border-radius:2px`. Colour from `PC` constant keyed by phase. Future days: `opacity:0.4`.
+**Cell phase bar:** `position:absolute; bottom:5px; left:8px; right:8px; height:3px; border-radius:2px`. Future days: `.future` class = `opacity:0.4`.
 
-**Mood dot:** 5x5px circle, `position:absolute; top:7px; right:5px`. Logged days with no mood get `#dcd8d0` neutral.
+**Mood dot:** 5x5px circle, `position:absolute; top:7px; right:5px`. Logged days with mood: coloured from MC constant. Logged days with no mood: `background:#dcd8d0; border:1px solid #c8c0b8`.
 
-**Phase colour constants (PC):** Menstrual = `#e09898`; Follicular = `#88c088`; Ovulatory = `#88c0e0`; Early luteal / Mid luteal = `#d0a040`; Late luteal = `#c8a830`; Period window = `#c85858`.
+**CRITICAL — pi scope rule:** `pi` (phase info object) MUST be computed at the TOP of `if (cell.inMonth)`, BEFORE the `if (isPath4)` / `else` branch. Never move it inside the else block — the click handler closure is outside both branches and needs `pi` in scope:
+```javascript
+if (cell.inMonth) {
+    const pi = isPath4 ? null : phaseForDate(cell.date)  // always here
+    if (isPath4) { ... } else { ... }
+    el.addEventListener('click', () => { ... pi ... })  // pi is in scope
+}
+```
 
-**Phase tints on cells:** Exact period = `rgba(200,88,88,0.13)`; Period window = `rgba(200,100,90,0.08)`; Pre-period = `rgba(220,160,150,0.06)`. Phase tint computed from hex with `0.06` opacity future / `0.10` opacity past.
+**Phase colour constants (PC object) — exact values, never change:**
+- Menstrual: dot `#e09898`, bg `#f0d8d8`, text `#5a2a28`
+- Follicular: dot `#88c088`, bg `#d8f0d8`, text `#1a4a1a`
+- Ovulatory: dot `#88c0e0`, bg `#d0e8f8`, text `#1a3a5a`
+- Early luteal: dot `#e0c070`, bg `#f8e8c8`, text `#6a3a10`
+- Mid luteal: dot `#d0a040`, bg `#f0d098`, text `#5a3008`
+- Late luteal: dot `#c88878`, bg `#f0c8b8`, text `#5a2818`
+- Luteal (generic): dot `#d0a040`, bg `#f0d098`, text `#5a3008`
+- Early follicular: dot `#88c088`, bg `#d8f0d8`, text `#1a4a1a`
+- Late follicular: dot `#68b068`, bg `#c8e8c8`, text `#1a4a1a`
+- observation: dot null, bg `#e8e5e0`, text `#4a4540`
+
+**Phase tints on cells:** Exact period = `rgba(200,88,88,0.13)`; Period window = `rgba(200,100,90,0.08)`; Pre-period = `rgba(220,160,150,0.06)`. Phase tint from PC dot hex with `0.06` opacity future / `0.10` opacity past.
 
 **Other month cells:** `opacity:0.28; pointer-events:none`.
 
-**Period banner:** Gradient `linear-gradient(135deg, #fce8e0, #fad8d0)`. Has droplet icon `ti ti-droplet-filled` + `.period-banner-body` wrapper div.
+**Period banner:** Gradient `linear-gradient(135deg, #fce8e0, #fad8d0); border:1px solid #f0c0b0`. Shown when period is within 14 days. Icon `ti ti-droplet-filled` (color `#c05858`) + `.period-banner-body` div with text + italic confidence note. Hidden for Path 4.
 
-**Phase legend (below grid, 5 items):** 8px dots + label text. Menstrual (#e09898) / Follicular (#88c088) / Ovulatory (#88c0e0) / Luteal (#d0a040) / Period window (#c85858).
+**Phase legend (below grid, 5 items):** 8px dots + label. Menstrual `#e09898` / Follicular `#88c088` / Ovulatory `#88c0e0` / Luteal `#d0a040` / Period window `#c85858`. Path 4 replaces legend with: Low burden `#b8e0b8` / Moderate `#e0c060` / High burden `#e09090` / Not logged `#d8d0c8`.
 
-**Bottom nav:** Not present on calendar.html (it is reached via dashboard nav only).
+**Path 4 mode (perimenopause):** `isPath4 = profileData?.user_path === '4'`. Cells coloured by symptom burden score instead of phase. Burden levels: none (score 0-3), moderate (4-6), high (7+). Score derived from: hot_flash_count, night_sweats_severity, joint_pain_rating, brain_fog_rating, energy, sleep_quality fields.
+
+**Bottom sheets:** Two overlays — `#pastSheet` (past/today cell tap) and `#futureSheet` (future cell tap). `#sheetOverlay` background with `onclick="closeSheet()"`. Both sheets have drag handle + scrollable content area.
+
+**Past day sheet sections (in order):**
+1. Date header: formatted date + phase pill (coloured from PC) + optional logged data
+2. Energy bar (if logged): colored fill bar + label
+3. Mood chips (if logged): coloured from MC constant
+4. Physical symptoms chips (if logged): grey pills
+5. Disruptors chips (if logged): amber pills
+6. Flow and pain (if logged): icon rows
+7. Biometrics: sleep, RHR, wrist temp, workout feel
+8. Mucus (if logged): discharge type
+9. LH test result (if logged): positive = amber tag, negative = grey tag
+10. Hormone values (if logged): 2-column grid with bar charts
+11. Phase guidance: collapsible `phase-why` text from PHASE_PREDICTIONS
+12. Log/edit button: links to `log.html`
+
+**Future day sheet sections (in order):**
+1. Date header + phase pill + days away note
+2. Period prediction card (if within prediction window): rose-tinted card with exact date, window, prep advice
+3. What to expect: `pred.why` text from PHASE_PREDICTIONS + quick chips (energy level / phase / intensity %)
+4. Your brain this day: brain state pill + sentence from BRAIN_SENTENCES
+5. Plan ahead: 3 suggestion rows with icons (from SUGGESTIONS object)
+6. Personal prediction: pattern note (updates after 2 cycles)
+7. Prediction confidence: progress bar + label
+8. Reminder button: downloads `.ics` calendar file via Blob
+
+**SUGGESTIONS object:** Per subPhase/phase — 3 items, each with `icon` (ti class) and `text`. Covers all phases including observation.
+
+**BRAIN_SENTENCES object:** Maps brain state strings to one explanatory sentence. States: Low serotonin / Rising serotonin / Peak dopamine / Neurochemical peak / GABA calm / Serotonin dropping / Serotonin crash / Low estrogen.
+
+**MC (mood colours) object:** Energised / Happy / Calm / Focused / Tired / Anxious / Irritable / Low. Each has bg / text / border hex values.
+
+**Bottom nav (6 items, Calendar active):** Home (`ti ti-home`, dashboard.html) / Workout (`ti ti-barbell`, workout.html) / Calendar (`ti ti-calendar`, calendar.html, active) / Log (`ti ti-pencil`, log.html) / Nutrition (`ti ti-salad`, nutrition.html) / Learn (`ti ti-book-2`, learn.html).
 
 ---
 
