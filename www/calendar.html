@@ -3,14 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>HormoneSync — Cycle Calendar</title>
+  <title>Em~power Cycle Calendar</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css" />
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: #faf8f5; color: #2c2820; padding-bottom: 100px;
-    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #faf8f5; color: #2c2820; padding-bottom: 100px; }
     .screen { max-width: 420px; margin: 0 auto; }
 
     .spinner { width: 32px; height: 32px; border: 3px solid #ede8e0; border-top-color: #c8b89a; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 60px auto; }
@@ -20,99 +17,149 @@
     .top-bar { background: #f5f0e8; padding: 14px 16px 12px; border-bottom: 1px solid #ede8e0; display: flex; align-items: center; justify-content: space-between; }
     .top-bar-title { font-size: 16px; font-weight: 500; color: #2c2820; }
     .top-bar-sub { font-size: 11px; color: #8a7a6a; margin-top: 2px; }
-    .back-btn { font-size: 20px; color: #6a5a4a; text-decoration: none; padding: 4px; }
+    .back-btn { font-size: 20px; color: #6a5a4a; text-decoration: none; padding: 4px; display: flex; }
 
-    /* Calendar strip */
-    .cal-strip-wrap { padding: 14px 0 0; }
-    .cal-strip-label { font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: #9a9590; padding: 0 16px; margin-bottom: 10px; }
-    .cal-strip { display: flex; gap: 6px; overflow-x: auto; padding: 0 16px 12px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
-    .cal-strip::-webkit-scrollbar { display: none; }
+    .period-banner { margin: 10px 14px 0; padding: 12px 14px; background: linear-gradient(135deg, #fce8e0, #fad8d0); border: 1px solid #f0c0b0; border-radius: 14px; display: flex; align-items: flex-start; gap: 10px; }
+    .period-banner-icon { font-size: 18px; color: #c05858; flex-shrink: 0; margin-top: 1px; }
+    .period-banner-body { flex: 1; }
+    .period-banner-text { font-size: 13px; color: #5a2820; line-height: 1.5; }
+    .period-banner-conf { font-size: 11px; color: #8a5040; font-style: italic; margin-top: 4px; }
 
-    .day-btn {
-      display: flex; flex-direction: column; align-items: center; gap: 3px;
-      min-width: 44px; cursor: pointer; position: relative; flex-shrink: 0;
-    }
-    .day-circle {
-      width: 38px; height: 38px; border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 13px; font-weight: 500;
-      border: 2px solid transparent;
-      transition: all 0.15s;
+    .month-nav { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 8px; }
+    .month-title { font-size: 18px; font-weight: 600; color: #2c2820; letter-spacing: -0.01em; }
+    .month-btn { background: #f5f0e8; border: 1px solid #ede8e0; color: #6a5a4a; cursor: pointer; padding: 7px 9px; display: flex; align-items: center; border-radius: 10px; transition: background 0.1s; }
+    .month-btn i { font-size: 17px; }
+    .month-btn:active { background: #ede8e0; }
+
+    .weekday-row { display: grid; grid-template-columns: repeat(7, 1fr); padding: 0 14px; margin-bottom: 4px; }
+    .weekday-lbl { text-align: center; font-size: 9px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #b0a89a; padding: 4px 0 6px; }
+
+    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); margin: 0 14px 8px; background: #fff; border-radius: 16px; overflow: hidden; border: 1px solid #ede8e0; box-shadow: 0 2px 12px rgba(44,40,32,0.06); }
+
+    .cal-cell {
+      background: transparent;
       position: relative;
+      padding: 7px 2px 10px;
+      cursor: pointer;
+      min-height: 54px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      transition: background 0.1s;
     }
-    .day-circle.today { border-color: #c8a87a; }
-    .day-circle.phase-menstrual { background: #f0d8d8; color: #5a2a28; }
-    .day-circle.phase-follicular { background: #d8f0d8; color: #1a4a1a; }
-    .day-circle.phase-ovulatory { background: #fff0c0; color: #4a3800; }
-    .day-circle.phase-luteal { background: #e0d8f0; color: #3a2060; }
-    .day-circle.phase-observation { background: #e8e5e0; color: #4a4540; }
-    .day-circle.selected { box-shadow: 0 0 0 3px #c8a87a; }
-    .day-circle.has-mood::after {
-      content: '';
-      position: absolute; bottom: 1px; right: 1px;
-      width: 8px; height: 8px; border-radius: 50%;
-      background: #c8a87a; border: 1px solid white;
-    }
-    .day-label { font-size: 9px; color: #8a7a6a; }
-    .brain-dot { font-size: 10px; line-height: 1; }
+    .cal-cell:active { background: rgba(44,40,32,0.05) !important; }
+    .cal-cell.other-month { opacity: 0.28; pointer-events: none; }
 
-    /* Expanded day card */
-    #dayDetail {
-      display: none; margin: 0 16px 12px;
-      background: #fff; border: 1px solid #ede8e0; border-radius: 14px;
-      overflow: hidden;
+    .cal-num {
+      font-size: 13px; font-weight: 400; color: #2c2820;
+      width: 28px; height: 28px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 50%; flex-shrink: 0; line-height: 1;
     }
-    .detail-header { padding: 14px 16px 10px; border-bottom: 1px solid #f0ece4; }
-    .detail-date { font-size: 11px; color: #9a9590; margin-bottom: 4px; }
-    .detail-phase { font-size: 16px; font-weight: 500; color: #2c2820; margin-bottom: 8px; }
-    .brain-pill {
-      display: inline-flex; align-items: center; gap: 5px;
-      padding: 4px 10px; border-radius: 99px;
-      font-size: 11px; font-weight: 600;
+    .cal-cell.today .cal-num { background: #2c2820; color: #f5f0e8; font-weight: 700; }
+
+    .cal-mood-dot {
+      position: absolute; top: 7px; right: 5px;
+      width: 5px; height: 5px; border-radius: 50%;
     }
-    .detail-why { padding: 12px 16px; font-size: 13px; color: #4a3828; line-height: 1.75; border-bottom: 1px solid #f0ece4; }
-    .detail-training { padding: 10px 16px; font-size: 12px; color: #5a4a38; line-height: 1.6; border-bottom: 1px solid #f0ece4; }
-    .detail-training strong { color: #2c2820; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 3px; }
 
-    /* Mood logger */
-    .mood-section { padding: 14px 16px; }
-    .mood-section-title { font-size: 12px; font-weight: 600; color: #2c2820; margin-bottom: 10px; }
-    .mood-chips { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 14px; }
-    .mood-chip {
-      padding: 7px 14px; border-radius: 99px;
-      border: 1px solid #ede8e0; background: #fff;
-      font-size: 13px; color: #4a3828; cursor: pointer;
-      transition: all 0.12s;
-      user-select: none;
+    .cal-phase-bar { position: absolute; bottom: 5px; left: 8px; right: 8px; height: 3px; border-radius: 2px; }
+    .cal-phase-bar.future { opacity: 0.4; }
+
+    .phase-legend { display: flex; flex-wrap: wrap; gap: 8px 14px; margin: 0 14px 16px; padding: 10px 14px; background: #fff; border: 1px solid #ede8e0; border-radius: 12px; }
+    .legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #7a7268; }
+    .legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+    .sheet-overlay { display: none; position: fixed; inset: 0; background: rgba(44,40,32,0.48); z-index: 100; }
+    .sheet-overlay.open { display: block; }
+
+    .bottom-sheet {
+      position: fixed; bottom: 0; left: 50%; transform: translateX(-50%) translateY(100%);
+      width: 100%; max-width: 420px; background: #fff;
+      border-radius: 20px 20px 0 0; z-index: 101;
+      transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+      max-height: 84vh; display: flex; flex-direction: column;
     }
-    .mood-chip.selected { background: #f5e8d0; border-color: #c8a87a; color: #2c1810; font-weight: 500; }
-    .intensity-row { margin-bottom: 12px; }
-    .intensity-label { font-size: 11px; color: #7a7268; margin-bottom: 6px; display: flex; justify-content: space-between; }
-    .intensity-slider { width: 100%; -webkit-appearance: none; appearance: none; height: 4px; border-radius: 2px; background: #ede8e0; outline: none; }
-    .intensity-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #c8a87a; cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,0.15); }
-    .save-mood-btn {
-      width: 100%; padding: 12px; border-radius: 10px;
-      background: #2c2820; color: #fff; font-size: 14px; font-weight: 500;
-      border: none; cursor: pointer;
-    }
-    .save-mood-btn:disabled { background: #c8c0b4; cursor: default; }
+    .bottom-sheet.open { transform: translateX(-50%) translateY(0); }
 
-    /* Mood context card — shown after saving */
-    .mood-context-card { display: none; padding: 14px 16px; background: #f5f0e8; border-top: 1px solid #ede8e0; }
-    .mood-context-headline { font-size: 13px; font-weight: 600; color: #2c2820; margin-bottom: 6px; }
-    .mood-context-body { font-size: 12px; color: #5a4838; line-height: 1.7; }
+    .drag-handle { width: 36px; height: 4px; background: #d8d0c8; border-radius: 2px; margin: 10px auto 0; flex-shrink: 0; }
 
-    /* Saved indicator */
-    .mood-saved-row { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px; }
-    .mood-saved-chip { padding: 4px 10px; border-radius: 99px; background: #f5e8d0; border: 1px solid #d8c0a0; font-size: 12px; color: #4a2810; }
+    .sheet-scroll { overflow-y: auto; padding: 0 16px 48px; flex: 1; -webkit-overflow-scrolling: touch; }
 
-    /* Bottom nav */
+    .sheet-hdr { padding: 14px 0 12px; border-bottom: 0.5px solid #ede8e0; margin-bottom: 4px; }
+    .sheet-date-line { font-size: 13px; color: #7a7268; margin-bottom: 7px; line-height: 1.4; }
+    .phase-pill { display: inline-block; padding: 4px 12px; border-radius: 99px; font-size: 12px; font-weight: 600; }
+    .days-away-note { font-size: 11px; color: #9a9590; margin-top: 5px; font-style: italic; }
+
+    .sec-lbl { font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: #9a9590; margin: 16px 0 10px; }
+    .sec-div { height: 0.5px; background: #ede8e0; margin: 14px 0; }
+
+    .energy-wrap { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .energy-bg { flex: 1; height: 8px; background: #f0ece4; border-radius: 4px; overflow: hidden; }
+    .energy-fill { height: 100%; border-radius: 4px; }
+    .energy-lbl { font-size: 13px; color: #4a3828; min-width: 56px; text-align: right; }
+
+    .chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+    .mood-chip { padding: 4px 10px; border-radius: 99px; font-size: 12px; font-weight: 500; }
+    .symp-chip { padding: 3px 9px; border-radius: 99px; font-size: 11px; background: #f0ece4; color: #5a5550; }
+    .disr-chip { padding: 3px 9px; border-radius: 99px; font-size: 11px; background: #fef4e4; color: #6a4a10; border: 1px solid #f0d498; }
+
+    .icon-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 13px; color: #4a3828; line-height: 1.5; }
+    .icon-row i { font-size: 15px; flex-shrink: 0; }
+
+    .lh-tag { display: inline-flex; align-items: center; gap: 7px; padding: 7px 13px; border-radius: 10px; font-size: 13px; margin-bottom: 8px; }
+    .lh-pos { background: #fef4d0; color: #6a4a00; border: 1px solid #e8d080; }
+    .lh-neg { background: #f0ece4; color: #5a5550; border: 1px solid #d8d0c8; }
+
+    .horm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+    .horm-item { background: #f8f5f0; border-radius: 10px; padding: 10px; }
+    .horm-name { font-size: 10px; font-weight: 600; letter-spacing: 0.05em; color: #9a9590; text-transform: uppercase; margin-bottom: 3px; }
+    .horm-val { font-size: 15px; font-weight: 600; color: #2c2820; }
+    .horm-unit { font-size: 10px; color: #9a9590; font-weight: 400; }
+    .horm-bar-bg { height: 4px; background: #ede8e0; border-radius: 2px; overflow: hidden; margin-top: 6px; }
+    .horm-bar-fill { height: 100%; border-radius: 2px; background: #c8a87a; }
+
+    .wo-card { background: #f0ece4; border-radius: 10px; padding: 11px 13px; }
+    .wo-title { font-size: 12px; font-weight: 600; color: #2c2820; margin-bottom: 3px; }
+    .wo-sub { font-size: 11px; color: #7a7268; line-height: 1.5; }
+
+    .phase-why { font-size: 13px; color: #4a3828; line-height: 1.75; }
+
+    .brain-pill { display: inline-flex; align-items: center; gap: 5px; padding: 4px 11px; border-radius: 99px; font-size: 12px; font-weight: 500; margin-top: 10px; }
+
+    .pattern-note { font-size: 12px; color: #7a7268; font-style: italic; line-height: 1.7; background: #f8f5f0; border-radius: 10px; padding: 10px 12px; }
+
+    .period-pred-card { background: #fce8e0; border: 1px solid #f0c0b0; border-radius: 12px; padding: 14px; margin-top: 4px; margin-bottom: 4px; }
+    .period-pred-title { font-size: 14px; font-weight: 600; color: #5a2820; margin-bottom: 8px; display: flex; align-items: center; gap: 7px; }
+    .period-pred-body { font-size: 12px; color: #4a2818; line-height: 1.75; }
+
+    .quick-chips { display: flex; gap: 7px; flex-wrap: wrap; margin: 8px 0; }
+    .quick-chip { padding: 5px 11px; border-radius: 99px; font-size: 12px; background: #f0ece4; color: #4a3828; border: 1px solid #ddd8d0; }
+
+    .plan-list { margin-top: 2px; }
+    .plan-row { display: flex; align-items: flex-start; gap: 10px; padding: 9px 0; border-bottom: 0.5px solid #f0ece4; font-size: 13px; color: #4a3828; line-height: 1.55; }
+    .plan-row:last-child { border-bottom: none; }
+    .plan-icon { font-size: 15px; color: #c8a87a; flex-shrink: 0; margin-top: 1px; }
+
+    .conf-bar-bg { height: 6px; background: #ede8e0; border-radius: 3px; overflow: hidden; margin: 6px 0 5px; }
+    .conf-bar-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, #c8d4f0, #8898d0); }
+    .conf-note { font-size: 11px; color: #7a7268; font-style: italic; line-height: 1.5; }
+
+    .reminder-btn { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #ede8e0; background: #f5f0e8; font-size: 13px; color: #4a3828; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 4px; }
+
+    .sheet-action-btn { display: block; width: 100%; padding: 14px; border-radius: 12px; background: #2c2820; color: #f5f0e8; border: none; font-size: 14px; font-weight: 500; cursor: pointer; text-align: center; margin-top: 16px; text-decoration: none; }
+    .sheet-action-sec { display: block; width: 100%; padding: 10px; border-radius: 12px; background: transparent; color: #6a5a4a; border: 1px solid #ede8e0; font-size: 13px; font-weight: 400; cursor: pointer; text-align: center; margin-top: 8px; text-decoration: none; }
+
     .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; max-width: 420px; margin: 0 auto; background: #fff; border-top: 1px solid #ede8e0; display: flex; padding: 8px 0 12px; }
-    .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; text-decoration: none; color: #9a9590; font-size: 10px; }
+    .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; text-decoration: none; color: #9a9590; font-size: 9px; }
     .nav-item i { font-size: 18px; }
     .nav-item.active { color: #2c2820; }
-    .section-label { font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: #9a9590; padding: 0 16px; margin: 12px 0 8px; }
   </style>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Em~power">
+  <meta name="theme-color" content="#2c2820">
 </head>
 <body>
 <div class="screen">
@@ -128,15 +175,39 @@
       <div style="width:28px"></div>
     </div>
 
-    <div class="cal-strip-wrap">
-      <div class="cal-strip-label">This cycle, tap any day</div>
-      <div class="cal-strip" id="calStrip"></div>
+    <div id="periodBanner" style="display:none" class="period-banner">
+      <i class="ti ti-droplet-filled period-banner-icon"></i>
+      <div class="period-banner-body">
+        <div class="period-banner-text" id="periodBannerText"></div>
+        <div class="period-banner-conf" id="periodBannerConf"></div>
+      </div>
     </div>
 
-    <div id="dayDetail"></div>
+    <div class="month-nav">
+      <button class="month-btn" onclick="navigateMonth(-1)"><i class="ti ti-chevron-left"></i></button>
+      <div class="month-title" id="monthTitle"></div>
+      <button class="month-btn" onclick="navigateMonth(1)"><i class="ti ti-chevron-right"></i></button>
+    </div>
 
-    <div class="section-label">Neurotransmitter guide</div>
-    <div id="brainLegend" style="padding:0 16px 16px;display:flex;flex-wrap:wrap;gap:7px"></div>
+    <div class="weekday-row">
+      <div class="weekday-lbl">Sun</div>
+      <div class="weekday-lbl">Mon</div>
+      <div class="weekday-lbl">Tue</div>
+      <div class="weekday-lbl">Wed</div>
+      <div class="weekday-lbl">Thu</div>
+      <div class="weekday-lbl">Fri</div>
+      <div class="weekday-lbl">Sat</div>
+    </div>
+
+    <div class="cal-grid" id="calGrid"></div>
+
+    <div class="phase-legend" id="calLegend">
+      <div class="legend-item"><div class="legend-dot" style="background:#e09898"></div><span>Menstrual</span></div>
+      <div class="legend-item"><div class="legend-dot" style="background:#88c088"></div><span>Follicular</span></div>
+      <div class="legend-item"><div class="legend-dot" style="background:#88c0e0"></div><span>Ovulatory</span></div>
+      <div class="legend-item"><div class="legend-dot" style="background:#d0a040"></div><span>Luteal</span></div>
+      <div class="legend-item"><div class="legend-dot" style="background:#c85858"></div><span>Period window</span></div>
+    </div>
   </div>
 
   <div class="bottom-nav">
@@ -149,10 +220,22 @@
   </div>
 </div>
 
+<div class="sheet-overlay" id="sheetOverlay" onclick="closeSheet()"></div>
+
+<div class="bottom-sheet" id="pastSheet">
+  <div class="drag-handle"></div>
+  <div class="sheet-scroll" id="pastContent"></div>
+</div>
+
+<div class="bottom-sheet" id="futureSheet">
+  <div class="drag-handle"></div>
+  <div class="sheet-scroll" id="futureContent"></div>
+</div>
+
 <script type="module">
   import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
-  import { getPhase, getLutealSubPhase } from './hormoneSync.js'
-  import { PHASE_PREDICTIONS, BRAIN_STATE_STYLES, getMoodContextFeedback } from './algorithm_v3.js'
+  import { getPhase, getLutealSubPhase, predictNextPeriod } from './hormoneSync.js'
+  import { PHASE_PREDICTIONS, BRAIN_STATE_STYLES } from './algorithm_v3.js'
 
   const supabase = createClient(
     'https://imgujppjvffbubnsscge.supabase.co',
@@ -165,237 +248,725 @@
     if (!session) window.location.href = 'login.html'
   })
 
-  const MOOD_OPTIONS = ['Energised', 'Happy', 'Calm', 'Focused', 'Tired', 'Anxious', 'Irritable', 'Low']
+  // ── Constants ─────────────────────────────────────────────────────────────────
+  const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
+  const DAYS_LONG = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
 
-  // Phase to CSS class map
-  function phaseClass(phase) {
-    if (!phase || phase === 'observation') return 'phase-observation'
-    return 'phase-' + phase.toLowerCase().replace(' ', '-')
+  const PC = {
+    'Menstrual':    { dot: '#e09898', bg: '#f0d8d8', text: '#5a2a28' },
+    'Follicular':   { dot: '#88c088', bg: '#d8f0d8', text: '#1a4a1a' },
+    'Ovulatory':    { dot: '#88c0e0', bg: '#d0e8f8', text: '#1a3a5a' },
+    'Early luteal': { dot: '#e0c070', bg: '#f8e8c8', text: '#6a3a10' },
+    'Mid luteal':   { dot: '#d0a040', bg: '#f0d098', text: '#5a3008' },
+    'Late luteal':  { dot: '#c88878', bg: '#f0c8b8', text: '#5a2818' },
+    'Luteal':       { dot: '#d0a040', bg: '#f0d098', text: '#5a3008' },
+    'Early follicular': { dot: '#88c088', bg: '#d8f0d8', text: '#1a4a1a' },
+    'Late follicular':  { dot: '#68b068', bg: '#c8e8c8', text: '#1a4a1a' },
+    'observation':  { dot: null,      bg: '#e8e5e0', text: '#4a4540' },
   }
 
-  function getSubPhaseKey(cycleDay, cycleLen) {
-    const phase = getPhase(cycleDay, cycleLen)
-    if (phase === 'Luteal') return getLutealSubPhase(cycleDay, cycleLen)
-    if (phase === 'Follicular') {
-      return cycleDay <= 9 ? 'Early follicular' : 'Late follicular'
-    }
-    return phase
+  const MC = {
+    'Energised': { bg: '#fef4d0', text: '#8a6a00', border: '#e8d080' },
+    'Happy':     { bg: '#d8f4d8', text: '#1a5a1a', border: '#90c890' },
+    'Calm':      { bg: '#d0eaf8', text: '#1a4a6a', border: '#90c8e8' },
+    'Focused':   { bg: '#ead8f8', text: '#4a2a8a', border: '#c0a0e0' },
+    'Tired':     { bg: '#e8e5e0', text: '#5a5550', border: '#c8c0b8' },
+    'Anxious':   { bg: '#f8e8c8', text: '#6a4a10', border: '#e8c888' },
+    'Irritable': { bg: '#f8dac8', text: '#6a3a1a', border: '#e0a870' },
+    'Low':       { bg: '#f8d8d8', text: '#6a2a2a', border: '#e0a0a0' },
   }
 
-  function getPhasePrediction(cycleDay, cycleLen) {
-    if (!cycleDay) return PHASE_PREDICTIONS.observation
-    const subPhaseKey = getSubPhaseKey(cycleDay, cycleLen)
-    return PHASE_PREDICTIONS[subPhaseKey] || PHASE_PREDICTIONS[getPhase(cycleDay, cycleLen)] || PHASE_PREDICTIONS.observation
+  const SUGGESTIONS = {
+    'Menstrual': [
+      { icon: 'ti-salad',       text: 'Prioritise iron-rich foods today. Meat, legumes, leafy greens, and pumpkin seeds all help replace what is lost. Pair with vitamin C for better absorption.' },
+      { icon: 'ti-walk',        text: 'Gentle movement reduces prostaglandins and cramping without adding cortisol. Walking or light yoga are ideal today.' },
+      { icon: 'ti-temperature', text: 'Heat therapy reduces prostaglandin-driven cramping. A heating pad on your lower abdomen is well-supported for period pain. (Akin et al. 2001)' }
+    ],
+    'Follicular': [
+      { icon: 'ti-barbell', text: 'Neuromuscular coordination and motivation are both rising with estrogen. This week is well-suited for building strength.' },
+      { icon: 'ti-salad',   text: 'Rising estrogen improves insulin sensitivity. Fuel training well with quality carbohydrates and adequate protein at every meal.' },
+      { icon: 'ti-moon',    text: 'Sleep quality tends to be better in the follicular phase. Use this window to build consistent sleep habits.' }
+    ],
+    'Early follicular': [
+      { icon: 'ti-barbell', text: 'Easing back into structured training. Strength work will feel more manageable each day as estrogen rises.' },
+      { icon: 'ti-salad',   text: 'Rising estrogen begins to improve carbohydrate utilisation. Fuel your returning energy with quality whole foods.' },
+      { icon: 'ti-moon',    text: 'Sleep is likely improving compared to late luteal. Take advantage of better recovery this week.' }
+    ],
+    'Late follicular': [
+      { icon: 'ti-barbell', text: 'Close to your peak training window. Aim for your hardest sessions this week while motivation and coordination are elevated.' },
+      { icon: 'ti-salad',   text: 'Your body is efficient at using carbohydrates now. Fuel hard sessions well and support muscle with adequate protein.' },
+      { icon: 'ti-bolt',    text: 'Cognitive performance is measurably elevated near ovulation. A good week for anything requiring focus or complex decisions.' }
+    ],
+    'Ovulatory': [
+      { icon: 'ti-barbell', text: 'Peak performance window. Your highest strength and coordination of the cycle. Attempt load increases and hardest sessions.' },
+      { icon: 'ti-run',     text: 'Warm up thoroughly before loading heavy. Peak estrogen slightly increases ligament laxity, making a full warmup especially important.' },
+      { icon: 'ti-salad',   text: 'Fuel generously. Your body is primed to use nutrients effectively right now. Protein, quality carbohydrates, and healthy fats all support peak performance.' }
+    ],
+    'Early luteal': [
+      { icon: 'ti-barbell', text: 'Still strong but slightly dialled back. Body temperature is rising slightly. Take a little longer to warm up and stay well hydrated.' },
+      { icon: 'ti-salad',   text: 'Protein needs are beginning to rise. Progesterone increases how fast your body breaks down muscle protein. Aim for the higher end of your protein range today.' },
+      { icon: 'ti-moon',    text: 'The calming effect of progesterone on the GABA system is strongest now. Sleep will likely feel easier in early luteal than mid or late luteal.' }
+    ],
+    'Mid luteal': [
+      { icon: 'ti-heart-rate-monitor', text: 'Perceived effort may feel higher at the same load. Resting heart rate rises about 1.7 bpm in mid-luteal. Adjust your expectations, not your effort. (De Martin Topranin 2023)' },
+      { icon: 'ti-salad',              text: 'Your body naturally wants 200 to 300 extra calories in mid-luteal. Honour this with whole foods. This is biology, not a failure of willpower. (ISSN 2023)' },
+      { icon: 'ti-moon',               text: 'Sleep quality may be lower than usual. This is a measurable hormonal effect. Prioritise wind-down routines.' }
+    ],
+    'Late luteal': [
+      { icon: 'ti-leaf',   text: 'Start magnesium 400mg daily now if you have not already. Magnesium relaxes smooth muscle including the uterus, reducing cramp severity. (Facchinetti et al. 1991)' },
+      { icon: 'ti-salad',  text: 'Reduce caffeine, alcohol, and ultra-processed foods in the days before your period. These increase prostaglandin load and worsen cramping.' },
+      { icon: 'ti-walk',   text: 'Low intensity movement is most appropriate. Walking, yoga, and gentle resistance work. High-cortisol training compounds the existing hormonal stress.' }
+    ],
+    'Luteal': [
+      { icon: 'ti-salad',              text: 'Protein needs are higher in the luteal phase. Progesterone increases muscle protein breakdown. Eat at the higher end of your protein range. (ISSN 2023)' },
+      { icon: 'ti-heart-rate-monitor', text: 'Perceived effort will feel higher at the same load as resting heart rate elevates slightly. This is physiological, not a sign of poor fitness.' },
+      { icon: 'ti-moon',               text: 'Sleep and recovery become more important in the luteal phase as your hormonal and thermal load increases.' }
+    ],
+    'observation': [
+      { icon: 'ti-barbell', text: 'Resistance training actively supports hormonal recovery. Every session builds the muscle mass that supports long-term hormonal health.' },
+      { icon: 'ti-salad',   text: 'Consistent, adequate nutrition is the foundation of hormonal recovery. Do not under-eat. Your body is working to restore hormonal function.' },
+      { icon: 'ti-moon',    text: 'Sleep 7 to 9 hours. Reproductive hormones are produced and regulated during sleep. This is the most impactful single thing you can do for hormonal recovery.' }
+    ]
   }
 
-  let selectedDay = null
-  let cycleLen = 28
-  let userId = null
+  const BRAIN_SENTENCES = {
+    'Low serotonin':      'Estrogen is at its lowest and serotonin drops with it. Any emotional heaviness you feel has a biological cause, not a personal one.',
+    'Rising serotonin':   'Estrogen is beginning to rise and serotonin rises with it. The mental lift many women notice at this point in the cycle is measurably real.',
+    'Peak dopamine':      'Dopamine, serotonin, and norepinephrine are all elevated together. Many women find this the clearest and most motivated stretch of their cycle.',
+    'Neurochemical peak': 'Every major mood and performance neurotransmitter is near its peak simultaneously. This feeling of clarity and confidence is biology, not coincidence.',
+    'GABA calm':          'Progesterone is metabolising into allopregnanolone which calms the GABA system. The settling feeling of early luteal is a real neurochemical state.',
+    'Serotonin dropping': 'Estrogen is declining and serotonin stability is reducing with it. Mixed mood days have a specific biochemical cause in mid-luteal.',
+    'Serotonin crash':    'Both estrogen and progesterone are dropping. Many women find this day emotionally heavier. That is biology, not weakness.',
+    'Low estrogen':       'Without a confirmed cycle, reduced estrogen support means less serotonin activity. The mood effects are real and have a hormonal cause.'
+  }
+
+  // ── State ─────────────────────────────────────────────────────────────────────
+  let viewYear, viewMonth
+  let todayDate, todayStr
+  let userId
+  let lastPeriodDate = null
+  let avgCycleLen = 28
+  let cyclesTracked = 0
+  let predNextPeriod = null
   let logsByDate = {}
+  let mucusByDate = {}
+  let isPath4 = false
 
+  // ── Init ──────────────────────────────────────────────────────────────────────
   try {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { window.location.href = 'login.html' }
     userId = user.id
 
-    const [cycleRes, profileRes, logsRes] = await Promise.all([
+    todayDate = new Date(); todayDate.setHours(0, 0, 0, 0)
+    todayStr = todayDate.toISOString().split('T')[0]
+    viewYear = todayDate.getFullYear()
+    viewMonth = todayDate.getMonth()
+
+    const [cycleRes, profileRes, baselineRes] = await Promise.all([
       supabase.from('cycle_data').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(1).single(),
-      supabase.from('profiles').select('cycle_length').eq('id', userId).single(),
-      supabase.from('daily_logs').select('log_date,mood,energy').eq('user_id', userId).order('log_date', { ascending: false }).limit(60)
+      supabase.from('profiles').select('cycle_length, cycles_tracked, user_path').eq('id', userId).single(),
+      supabase.from('user_baselines').select('avg_cycle_length, cycles_tracked').eq('user_id', userId).single()
     ])
 
     const cycleData = cycleRes.data
-    cycleLen = cycleData?.cycle_length || profileRes.data?.cycle_length || 28
-
-    // Index logs by date
-    for (const log of (logsRes.data || [])) {
-      logsByDate[log.log_date] = log
-    }
-
-    const today = new Date(); today.setHours(0, 0, 0, 0)
-    let cycleDay = null
-    let lastPeriodDate = null
+    const profileData = profileRes.data
+    const baselines = baselineRes.data
+    isPath4 = profileData?.user_path === '4'
 
     if (cycleData?.last_period_date) {
-      lastPeriodDate = new Date(cycleData.last_period_date + 'T00:00:00')
-      const diffDays = Math.floor((today - lastPeriodDate) / 86400000)
-      cycleDay = diffDays + 1
+      lastPeriodDate = cycleData.last_period_date
+      avgCycleLen = baselines?.avg_cycle_length || cycleData.cycle_length || profileData?.cycle_length || 28
+      cyclesTracked = baselines?.cycles_tracked || profileData?.cycles_tracked || 1
+    } else {
+      avgCycleLen = profileData?.cycle_length || 28
+      cyclesTracked = profileData?.cycles_tracked || 0
     }
 
-    document.getElementById('cycleSubLabel').textContent = cycleDay
-      ? `Day ${cycleDay} of ${cycleLen}`
-      : 'Building baseline'
+    // Build period prediction for the CURRENT cycle (advance past already-completed cycles)
+    if (lastPeriodDate && cyclesTracked >= 1) {
+      const lastP = new Date(lastPeriodDate + 'T00:00:00')
+      const diffDays = Math.floor((todayDate - lastP) / 86400000)
+      const completedCycles = Math.floor(diffDays / Math.round(avgCycleLen))
+      const curCycleStart = new Date(lastP)
+      curCycleStart.setDate(curCycleStart.getDate() + completedCycles * Math.round(avgCycleLen))
+      predNextPeriod = predictNextPeriod(curCycleStart.toISOString().split('T')[0], avgCycleLen, cyclesTracked)
+    }
 
-    // Build the strip
-    const strip = document.getElementById('calStrip')
-    const totalDays = cycleLen
+    // Subtitle
+    if (isPath4) {
+      document.getElementById('cycleSubLabel').textContent = 'Symptom burden calendar'
+    } else if (lastPeriodDate) {
+      const diff = Math.floor((todayDate - new Date(lastPeriodDate + 'T00:00:00')) / 86400000)
+      const cycleDay = (diff % Math.round(avgCycleLen)) + 1
+      document.getElementById('cycleSubLabel').textContent = `Day ${cycleDay} of ${Math.round(avgCycleLen)}`
+    } else {
+      document.getElementById('cycleSubLabel').textContent = 'Building baseline'
+    }
 
-    for (let d = 1; d <= totalDays; d++) {
-      const phase = cycleDay ? getPhase(d, cycleLen) : 'observation'
-      const pred = getPhasePrediction(d, cycleLen)
-      const isToday = cycleDay !== null && d === cycleDay
-
-      // Get the actual date for this cycle day
-      let dateStr = null
-      if (lastPeriodDate) {
-        const dayDate = new Date(lastPeriodDate)
-        dayDate.setDate(dayDate.getDate() + d - 1)
-        dateStr = dayDate.toISOString().split('T')[0]
-      }
-
-      const hasLog = dateStr && logsByDate[dateStr]?.mood?.length > 0
-
-      const btn = document.createElement('div')
-      btn.className = 'day-btn'
-      btn.innerHTML = `
-        <div class="day-circle ${phaseClass(phase)}${isToday ? ' today' : ''}${hasLog ? ' has-mood' : ''}" data-day="${d}" data-date="${dateStr || ''}">
-          ${d}
-        </div>
-        <div class="day-label">${isToday ? 'Today' : 'D' + d}</div>
-        <div class="brain-dot" title="${pred.brain_state}">&#129504;</div>
+    if (isPath4) {
+      document.getElementById('calLegend').innerHTML = `
+        <div class="legend-item"><div class="legend-dot" style="background:#b8e0b8"></div><span>Low burden</span></div>
+        <div class="legend-item"><div class="legend-dot" style="background:#e0c060"></div><span>Moderate</span></div>
+        <div class="legend-item"><div class="legend-dot" style="background:#e09090"></div><span>High burden</span></div>
+        <div class="legend-item"><div class="legend-dot" style="background:#d8d0c8"></div><span>Not logged</span></div>
       `
-      btn.addEventListener('click', () => showDayDetail(d, dateStr, phase, pred, isToday))
-      strip.appendChild(btn)
     }
 
-    // Scroll to today
-    if (cycleDay) {
-      setTimeout(() => {
-        const todayEl = strip.querySelector(`[data-day="${cycleDay}"]`)
-        todayEl?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
-      }, 100)
-    }
-
-    // Brain state legend
-    renderLegend()
+    await loadLogs(viewYear, viewMonth)
+    renderMonth()
+    renderBanner()
 
   } catch (err) {
-    console.error('Calendar error:', err)
+    console.error('Calendar init error:', err)
   } finally {
     document.getElementById('spinnerWrap').style.display = 'none'
     document.getElementById('mainContent').style.display = 'block'
   }
 
-  function renderLegend() {
-    const legend = document.getElementById('brainLegend')
-    for (const [state, style] of Object.entries(BRAIN_STATE_STYLES)) {
-      const pill = document.createElement('span')
-      pill.className = 'brain-pill'
-      pill.style.background = style.bg
-      pill.style.color = style.text
-      pill.style.padding = '4px 10px'
-      pill.style.borderRadius = '99px'
-      pill.style.fontSize = '11px'
-      pill.style.fontWeight = '500'
-      pill.textContent = state
-      legend.appendChild(pill)
-    }
-  }
-
-  function showDayDetail(dayNum, dateStr, phase, pred, isToday) {
-    // Deselect previous
-    document.querySelectorAll('.day-circle.selected').forEach(el => el.classList.remove('selected'))
-    const circle = document.querySelector(`.day-circle[data-day="${dayNum}"]`)
-    circle?.classList.add('selected')
-
-    selectedDay = { dayNum, dateStr, phase, pred, isToday }
-    const brainStyle = BRAIN_STATE_STYLES[pred.brain_state] || { bg: '#e8e5e0', text: '#4a4540' }
-    const savedLog = dateStr ? logsByDate[dateStr] : null
-    const savedMoods = savedLog?.mood || []
-
-    let formattedDate = 'Day ' + dayNum
-    if (dateStr) {
-      const d = new Date(dateStr + 'T00:00:00')
-      formattedDate = d.toLocaleDateString('en-CA', { weekday: 'short', month: 'short', day: 'numeric' }) + ' — Day ' + dayNum
-    }
-
-    const detail = document.getElementById('dayDetail')
-    detail.style.display = 'block'
-    detail.innerHTML = `
-      <div class="detail-header">
-        <div class="detail-date">${formattedDate}${isToday ? ' (Today)' : ''}</div>
-        <div class="detail-phase">${pred.label}</div>
-        <span class="brain-pill" style="background:${brainStyle.bg};color:${brainStyle.text}">
-          &#129504; ${pred.brain_state}
-        </span>
-      </div>
-      <div class="detail-why">${pred.why}</div>
-      <div class="detail-training">
-        <strong>Training</strong>${pred.training}
-      </div>
-      <div class="mood-section">
-        <div class="mood-section-title">How did you feel?</div>
-        ${savedMoods.length > 0 ? `
-          <div class="mood-saved-row">${savedMoods.map(m => `<span class="mood-saved-chip">${m}</span>`).join('')}</div>
-          <div style="font-size:11px;color:#8a7a6a;margin-bottom:10px">Tap to update</div>
-        ` : ''}
-        <div class="mood-chips" id="moodChips">
-          ${MOOD_OPTIONS.map(m => `
-            <div class="mood-chip${savedMoods.includes(m) ? ' selected' : ''}" data-mood="${m}" onclick="this.classList.toggle('selected')">${m}</div>
-          `).join('')}
-        </div>
-        <div class="intensity-row">
-          <div class="intensity-label">
-            <span>Overall mood intensity</span>
-            <span id="intensityVal">3</span>
-          </div>
-          <input type="range" min="1" max="5" value="3" class="intensity-slider" id="moodIntensity"
-            oninput="document.getElementById('intensityVal').textContent=this.value">
-        </div>
-        <button class="save-mood-btn" onclick="saveMood()">Save mood</button>
-        <div class="mood-context-card" id="moodContextCard">
-          <div class="mood-context-headline" id="moodContextHeadline"></div>
-          <div class="mood-context-body" id="moodContextBody"></div>
-        </div>
-      </div>
-    `
-
-    detail.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-  }
-
-  window.saveMood = async function() {
-    if (!selectedDay || !userId) return
-    const btn = document.querySelector('.save-mood-btn')
-    if (btn) { btn.disabled = true; btn.textContent = 'Saving...' }
-
-    const chips = document.querySelectorAll('#moodChips .mood-chip.selected')
-    const moods = Array.from(chips).map(c => c.dataset.mood)
-    const intensity = parseInt(document.getElementById('moodIntensity')?.value || '3')
-    const dateStr = selectedDay.dateStr || new Date().toISOString().split('T')[0]
-
+  // ── Load logs for displayed month (with buffer) ───────────────────────────────
+  async function loadLogs(yr, mo) {
+    const start = new Date(yr, mo, -6).toISOString().split('T')[0]
+    const end   = new Date(yr, mo + 1, 7).toISOString().split('T')[0]
     try {
-      await supabase.from('daily_logs').upsert({
-        user_id: userId,
-        log_date: dateStr,
-        mood: moods.length > 0 ? moods : null
-      }, { onConflict: 'user_id,log_date' })
+      const [logsRes, mucusRes] = await Promise.all([
+        supabase.from('daily_logs').select('log_date,energy,mood,sleep_quality,symptoms,disruptors,pain_rating,flow_volume,resting_hr,wrist_temp,workout_feel,notes,lh_result,hormone_estradiol,hormone_progesterone,hormone_lh,hormone_cortisol,hot_flash_count,night_sweats_severity,joint_pain_rating,brain_fog_rating').eq('user_id', userId).gte('log_date', start).lte('log_date', end),
+        supabase.from('mucus_logs').select('log_date,discharge_type,spotting_type').eq('user_id', userId).gte('log_date', start).lte('log_date', end)
+      ])
+      for (const l of (logsRes.data || [])) logsByDate[l.log_date] = l
+      for (const m of (mucusRes.data || [])) mucusByDate[m.log_date] = m
+    } catch (e) { console.error('Log load error:', e) }
+  }
 
-      // Update local cache
-      logsByDate[dateStr] = { ...(logsByDate[dateStr] || {}), mood: moods }
+  // ── Navigate months ───────────────────────────────────────────────────────────
+  window.navigateMonth = async function(dir) {
+    viewMonth += dir
+    if (viewMonth > 11) { viewMonth = 0; viewYear++ }
+    if (viewMonth < 0)  { viewMonth = 11; viewYear-- }
+    await loadLogs(viewYear, viewMonth)
+    renderMonth()
+  }
 
-      // Update has-mood dot
-      const circle = document.querySelector(`.day-circle[data-day="${selectedDay.dayNum}"]`)
-      if (moods.length > 0 && circle) circle.classList.add('has-mood')
+  // ── Phase for any given date ──────────────────────────────────────────────────
+  function phaseForDate(date) {
+    if (!lastPeriodDate) return null
+    const last = new Date(lastPeriodDate + 'T00:00:00')
+    const diff = Math.floor((date - last) / 86400000)
+    if (diff < 0) return null
+    const cl = Math.round(avgCycleLen)
+    const cycleDay = (diff % cl) + 1
+    const phase = getPhase(cycleDay, cl)
+    const subPhase = phase === 'Luteal' ? getLutealSubPhase(cycleDay, cl)
+      : phase === 'Follicular' ? (cycleDay <= 9 ? 'Early follicular' : 'Late follicular')
+      : phase
+    return { phase, subPhase, cycleDay }
+  }
 
-      // Show neurotransmitter context
-      const moodFeedback = getMoodContextFeedback(
-        { mood: moods, energy: logsByDate[dateStr]?.energy },
-        selectedDay.phase,
-        selectedDay.pred.label
-      )
-      const contextCard = document.getElementById('moodContextCard')
-      if (moodFeedback && contextCard) {
-        document.getElementById('moodContextHeadline').textContent = moodFeedback.headline
-        document.getElementById('moodContextBody').textContent = moodFeedback.body
-        contextCard.style.display = 'block'
+  // ── Period prediction status for a date ───────────────────────────────────────
+  function periodStatus(date) {
+    if (!predNextPeriod) return null
+    const ms = date.getTime()
+    const predMs  = predNextPeriod.predictedDate.getTime()
+    const startMs = predNextPeriod.windowStart.getTime()
+    const endMs   = predNextPeriod.windowEnd.getTime()
+    const prePad  = new Date(predNextPeriod.windowStart); prePad.setDate(prePad.getDate() - 2)
+    if (ms === predMs) return 'exact'
+    if (ms >= startMs && ms <= endMs) return 'window'
+    if (ms >= prePad.getTime() && ms < startMs) return 'pre'
+    return null
+  }
+
+  // ── Symptom burden for Path 4 ─────────────────────────────────────────────────
+  const BURDEN_COLORS = {
+    none:     { bar: '#b8e0b8', bg: 'rgba(120,200,120,0.10)', label: 'Low burden' },
+    moderate: { bar: '#e0c060', bg: 'rgba(220,180,60,0.12)',  label: 'Moderate burden' },
+    high:     { bar: '#e09090', bg: 'rgba(220,100,100,0.14)', label: 'High burden' },
+    unlogged: { bar: null,      bg: null,                     label: 'Not logged' }
+  }
+
+  function burdenLevel(log) {
+    if (!log) return 'unlogged'
+    let score = 0
+    if (log.hot_flash_count === 'severe') score += 3
+    else if (log.hot_flash_count === 'moderate') score += 2
+    else if (log.hot_flash_count === 'mild') score += 1
+    if (log.night_sweats_severity === 'severe') score += 3
+    else if (log.night_sweats_severity === 'moderate') score += 2
+    else if (log.night_sweats_severity === 'mild') score += 1
+    if (log.joint_pain_rating >= 3) score += 2
+    else if (log.joint_pain_rating >= 2) score += 1
+    if (log.brain_fog_rating >= 3) score += 2
+    else if (log.brain_fog_rating >= 2) score += 1
+    if (log.energy === 'Very low') score += 2
+    else if (log.energy === 'Low') score += 1
+    if (log.sleep_quality === 'Poor') score += 1
+    if (score === 0) return 'none'
+    if (score <= 3) return 'none'
+    if (score <= 6) return 'moderate'
+    return 'high'
+  }
+
+  // ── Render the month grid ─────────────────────────────────────────────────────
+  function renderMonth() {
+    document.getElementById('monthTitle').textContent = MONTHS[viewMonth] + ' ' + viewYear
+    const grid = document.getElementById('calGrid')
+    grid.innerHTML = ''
+
+    const startDow = new Date(viewYear, viewMonth, 1).getDay()
+    const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate()
+    const cells = []
+
+    for (let i = startDow - 1; i >= 0; i--) cells.push({ date: new Date(viewYear, viewMonth, -i), inMonth: false })
+    for (let d = 1; d <= daysInMonth; d++) cells.push({ date: new Date(viewYear, viewMonth, d), inMonth: true })
+    let t = 1
+    while (cells.length % 7 !== 0) cells.push({ date: new Date(viewYear, viewMonth + 1, t++), inMonth: false })
+
+    for (const cell of cells) {
+      const ds = cell.date.toISOString().split('T')[0]
+      const isToday = ds === todayStr
+      const isPast = cell.date < todayDate
+      const isFuture = cell.date > todayDate
+      const log = logsByDate[ds]
+
+      const el = document.createElement('div')
+      el.className = 'cal-cell' + (cell.inMonth ? '' : ' other-month')
+      if (isToday) el.classList.add('today')
+
+      // Date number
+      const numEl = document.createElement('div')
+      numEl.className = 'cal-num'
+      numEl.textContent = cell.date.getDate()
+      el.appendChild(numEl)
+
+      if (cell.inMonth) {
+        const pi = isPath4 ? null : phaseForDate(cell.date)
+        if (isPath4) {
+          // Path 4: symptom burden coloring
+          const burden = isPast || isToday ? burdenLevel(log) : 'unlogged'
+          const bc = BURDEN_COLORS[burden]
+          if (bc.bg && (isPast || isToday)) el.style.background = bc.bg
+          const bar = document.createElement('div')
+          bar.className = 'cal-phase-bar'
+          if (bc.bar && (isPast || isToday)) bar.style.background = bc.bar
+          else bar.style.opacity = '0'
+          el.appendChild(bar)
+        } else {
+          const pc = pi ? (PC[pi.subPhase] || PC[pi.phase]) : null
+          const ps = periodStatus(cell.date)
+
+          // Subtle phase or period background tint on cell
+          if (ps === 'exact') {
+            el.style.background = 'rgba(200,88,88,0.13)'
+          } else if (ps === 'window') {
+            el.style.background = 'rgba(200,100,90,0.08)'
+          } else if (ps === 'pre') {
+            el.style.background = 'rgba(220,160,150,0.06)'
+          } else if (pc?.dot) {
+            const r = parseInt(pc.dot.slice(1,3),16), g = parseInt(pc.dot.slice(3,5),16), bl = parseInt(pc.dot.slice(5,7),16)
+            el.style.background = `rgba(${r},${g},${bl},${isFuture ? 0.06 : 0.10})`
+          }
+
+          // Mood dot top-right — coloured for logged mood, neutral for any other log
+          if (log?.mood?.length > 0) {
+            const mDot = document.createElement('div')
+            mDot.className = 'cal-mood-dot'
+            const mc = MC[log.mood[0]]
+            mDot.style.background = mc ? mc.bg : '#f0ece4'
+            mDot.style.border = `1px solid ${mc ? mc.border : '#d8d0c8'}`
+            el.appendChild(mDot)
+          } else if (log && isPast) {
+            const mDot = document.createElement('div')
+            mDot.className = 'cal-mood-dot'
+            mDot.style.background = '#dcd8d0'
+            mDot.style.border = '1px solid #c8c0b8'
+            el.appendChild(mDot)
+          }
+
+          // Phase or period colour bar across the bottom of the cell
+          const bar = document.createElement('div')
+          bar.className = 'cal-phase-bar' + (isFuture ? ' future' : '')
+          if (ps === 'exact')       bar.style.background = '#c85858'
+          else if (ps === 'window') bar.style.background = '#d88080'
+          else if (ps === 'pre')    bar.style.background = '#f0b8b8'
+          else if (pc?.dot)         bar.style.background = pc.dot
+          else                      bar.style.opacity = '0'
+          el.appendChild(bar)
+        }
+
+        // Click handler
+        el.addEventListener('click', () => {
+          if (isFuture) openFutureSheet(cell.date, ds, pi)
+          else openPastSheet(cell.date, ds, pi, log, mucusByDate[ds])
+        })
       }
 
-      if (btn) { btn.textContent = 'Saved'; btn.disabled = false }
-    } catch (err) {
-      console.error('Mood save error:', err)
-      if (btn) { btn.disabled = false; btn.textContent = 'Save mood' }
+      grid.appendChild(el)
     }
   }
+
+  // ── Period prediction banner ──────────────────────────────────────────────────
+  function renderBanner() {
+    if (isPath4 || !predNextPeriod || cyclesTracked < 1) return
+    const daysAway = Math.round((predNextPeriod.predictedDate.getTime() - todayDate.getTime()) / 86400000)
+    let text = null
+
+    if (daysAway > 14) return
+    else if (daysAway >= 8)  text = `Period expected in approximately ${daysAway} days.`
+    else if (daysAway >= 4)  text = `Period likely in ${daysAway - 1} to ${daysAway + 1} days. Start magnesium and anti-inflammatory foods now.`
+    else if (daysAway >= 1)  text = `Period expected very soon. Iron-rich foods and heat therapy ready.`
+    else if (daysAway >= -2) text = `Period due around now. Cycles naturally vary by a few days.`
+    else if (daysAway >= -5) text = `Your period is a few days later than predicted. Cycle length naturally varies. Keep logging.`
+    else                     text = `Your period is later than usual. Stress, illness, travel, and changes in exercise or nutrition can all delay a cycle. If this persists mention it to your doctor.`
+
+    if (!text) return
+    const conf = cyclesTracked >= 3 ? `Based on your personal cycle average of ${Math.round(avgCycleLen)} days`
+      : cyclesTracked === 2 ? 'Based on your last 2 cycles'
+      : 'Based on your first cycle. Will become more accurate over time.'
+    document.getElementById('periodBanner').style.display = 'block'
+    document.getElementById('periodBannerText').textContent = text
+    document.getElementById('periodBannerConf').textContent = conf
+  }
+
+  // ── Past day sheet ────────────────────────────────────────────────────────────
+  async function openPastSheet(date, ds, pi, log, mucus) {
+    const content = document.getElementById('pastContent')
+    content.innerHTML = '<div style="padding:20px 0;text-align:center;color:#9a9590;font-size:13px">Loading...</div>'
+    openSheet('pastSheet')
+
+    try {
+      // Lazy-fetch full log if we only have summary data
+      let fullLog = log
+      if (ds && (!fullLog || fullLog.hormone_estradiol === undefined)) {
+        const { data } = await supabase.from('daily_logs').select('*').eq('user_id', userId).eq('log_date', ds).maybeSingle()
+        if (data) { fullLog = data; logsByDate[ds] = data }
+      }
+      let fullMucus = mucus
+      if (ds && !fullMucus) {
+        const { data } = await supabase.from('mucus_logs').select('*').eq('user_id', userId).eq('log_date', ds).maybeSingle()
+        if (data) { fullMucus = data; mucusByDate[ds] = data }
+      }
+
+      const subPhase = pi?.subPhase || pi?.phase || null
+      const phase = pi?.phase || null
+      const pc = subPhase ? (PC[subPhase] || PC[phase]) : null
+      const pred = subPhase ? (PHASE_PREDICTIONS[subPhase] || PHASE_PREDICTIONS[phase]) : null
+      const brainState = pred?.brain_state
+      const bs = brainState ? BRAIN_STATE_STYLES[brainState] : null
+
+      const formatted = DAYS_LONG[date.getDay()] + ' ' + MONTHS[date.getMonth()] + ' ' + date.getDate()
+      const phaseLabel = subPhase ? subPhase + ' phase' : (phase ? phase + ' phase' : 'Building baseline')
+
+      let html = `<div class="sheet-hdr">
+        <div class="sheet-date-line">${formatted}</div>
+        <span class="phase-pill" style="background:${pc?.bg || '#e8e5e0'};color:${pc?.text || '#4a4540'}">${phaseLabel}</span>
+      </div>`
+
+      const hasEnergy   = !!fullLog?.energy
+      const hasMood     = fullLog?.mood?.length > 0
+      const hasSleep    = !!fullLog?.sleep_quality
+      const hasPain     = fullLog?.pain_rating > 0
+      const hasFlow     = !!fullLog?.flow_volume
+      const hasSymp     = fullLog?.symptoms?.length > 0
+      const hasDisr     = fullLog?.disruptors?.length > 0
+      const hasSection1 = hasEnergy || hasMood || hasSleep || hasPain || hasFlow || hasSymp || hasDisr
+
+      const hasLH     = !!fullLog?.lh_result
+      const hasTemp   = !!fullLog?.wrist_temp
+      const hasMucus  = !!fullMucus?.discharge_type
+      const hasHorms  = !!(fullLog?.hormone_estradiol || fullLog?.hormone_progesterone || fullLog?.hormone_lh || fullLog?.hormone_cortisol)
+      const hasSection2 = hasLH || hasTemp || hasMucus || hasHorms
+
+      const hasWorkout = !!(fullLog?.workout_feel || fullLog?.notes)
+
+      // SECTION 1 — How you felt today
+      if (hasSection1) {
+        html += `<div class="sec-lbl">How you felt today</div>`
+
+        if (hasEnergy) {
+          const em = { 'Very low': { pct: 20, col: '#e09898' }, 'Low': { pct: 40, col: '#e0c070' }, 'Good': { pct: 70, col: '#88c088' }, 'High': { pct: 100, col: '#50b850' } }
+          const e = em[fullLog.energy] || { pct: 50, col: '#c8b89a' }
+          html += `<div class="energy-wrap">
+            <div class="energy-bg"><div class="energy-fill" style="width:${e.pct}%;background:${e.col}"></div></div>
+            <div class="energy-lbl">${fullLog.energy}</div>
+          </div>`
+        }
+
+        if (hasMood) {
+          html += `<div class="chip-row">`
+          fullLog.mood.forEach(m => {
+            const mc = MC[m] || { bg: '#e8e5e0', text: '#4a4540', border: '#c8c0b8' }
+            html += `<span class="mood-chip" style="background:${mc.bg};color:${mc.text};border:1px solid ${mc.border}">${m}</span>`
+          })
+          html += `</div>`
+        }
+
+        if (hasSleep) {
+          const sleepIcon = (fullLog.sleep_quality === 'Great' || fullLog.sleep_quality === 'Good') ? 'ti-moon' : 'ti-moon-off'
+          const sleepCol  = fullLog.sleep_quality === 'Great' ? '#d4a020' : fullLog.sleep_quality === 'Good' ? '#c8b060' : '#9a9590'
+          html += `<div class="icon-row"><i class="ti ${sleepIcon}" style="color:${sleepCol}"></i><span>Sleep: ${fullLog.sleep_quality}</span></div>`
+        }
+
+        if (hasPain) {
+          const high = fullLog.pain_rating >= 4
+          html += `<div class="icon-row"><i class="ti ti-flame" style="color:${high ? '#c84040' : '#c8c0b8'}"></i><span>Pain: ${fullLog.pain_rating} out of 5${high ? '. Pain that disrupts daily life is worth investigating.' : ''}</span></div>`
+        }
+
+        if (hasFlow) {
+          html += `<div class="icon-row"><i class="ti ti-droplet" style="color:#d09090"></i><span>Flow: ${fullLog.flow_volume}</span></div>`
+        }
+
+        if (hasSymp) {
+          html += `<div class="chip-row">${fullLog.symptoms.map(s => `<span class="symp-chip">${s}</span>`).join('')}</div>`
+        }
+
+        if (hasDisr) {
+          html += `<div class="chip-row">${fullLog.disruptors.map(d => `<span class="disr-chip"><i class="ti ti-alert-circle" style="font-size:10px;margin-right:3px;vertical-align:middle"></i>${d}</span>`).join('')}</div>`
+        }
+
+        html += `<div class="sec-div"></div>`
+      }
+
+      // SECTION 2 — Cycle signals
+      if (hasSection2) {
+        html += `<div class="sec-lbl">Cycle signals</div>`
+
+        if (hasLH) {
+          const isPos = fullLog.lh_result === 'Positive' || Number(fullLog.lh_result) > 8
+          html += `<div class="lh-tag ${isPos ? 'lh-pos' : 'lh-neg'}"><i class="ti ${isPos ? 'ti-circle-check' : 'ti-circle'}"></i>LH ${isPos ? 'surge detected' : 'baseline'}</div>`
+        }
+
+        if (hasTemp) {
+          html += `<div class="icon-row"><i class="ti ti-thermometer" style="color:#c8a87a"></i><span>Wrist temperature: ${fullLog.wrist_temp}C</span></div>`
+        }
+
+        if (hasMucus) {
+          const mucusMap = { 'Nothing': 'No discharge observed', 'Egg white': 'Egg white discharge. Consistent with your fertile window. (Bigelow et al. 2004)', 'Watery': 'Watery discharge', 'Creamy': 'Creamy discharge', 'Spotting': 'Light spotting' }
+          html += `<div class="icon-row"><i class="ti ti-droplets" style="color:#90c8e8"></i><span>${mucusMap[fullMucus.discharge_type] || fullMucus.discharge_type}</span></div>`
+        }
+
+        if (hasHorms) {
+          const hormoneDefs = [
+            { key: 'hormone_estradiol',    name: 'Estradiol',     unit: 'pmol/L', low: 77,  high: 1959 },
+            { key: 'hormone_progesterone', name: 'Progesterone',  unit: 'nmol/L', low: 0.1, high: 50   },
+            { key: 'hormone_lh',           name: 'LH',            unit: 'IU/L',   low: 2,   high: 90   },
+            { key: 'hormone_cortisol',     name: 'Cortisol',      unit: 'nmol/L', low: 10,  high: 30   }
+          ]
+          const logged = hormoneDefs.filter(h => fullLog[h.key])
+          if (logged.length > 0) {
+            html += `<div class="horm-grid">`
+            logged.forEach(h => {
+              const pct = Math.min(100, Math.max(4, ((fullLog[h.key] - h.low) / (h.high - h.low)) * 100))
+              html += `<div class="horm-item">
+                <div class="horm-name">${h.name}</div>
+                <div class="horm-val">${fullLog[h.key]}<span class="horm-unit"> ${h.unit}</span></div>
+                <div class="horm-bar-bg"><div class="horm-bar-fill" style="width:${pct}%"></div></div>
+              </div>`
+            })
+            html += `</div>`
+            html += `<div style="font-size:10px;color:#9a9590;font-style:italic;margin-bottom:6px;line-height:1.5">Population reference range shown. Your personal normal may differ. (LifeLabs/EORLA; Munster et al. 2021)</div>`
+          }
+        }
+
+        html += `<div class="sec-div"></div>`
+      }
+
+      // SECTION 3 — Workout
+      if (hasWorkout) {
+        html += `<div class="sec-lbl">Workout</div>
+        <div class="wo-card">
+          <div class="wo-title">Session logged</div>
+          <div class="wo-sub">${fullLog.workout_feel ? 'Felt ' + fullLog.workout_feel.toLowerCase() : ''}${fullLog.notes ? (fullLog.workout_feel ? '. ' : '') + fullLog.notes : ''}</div>
+        </div>
+        <div class="sec-div"></div>`
+      }
+
+      // SECTION 4 — What this day meant (always show when phase is known)
+      if (pred) {
+        html += `<div class="sec-lbl">What was happening hormonally</div>
+        <div class="phase-why">${pred.why}</div>`
+        if (bs) {
+          html += `<div><span class="brain-pill" style="background:${bs.bg};color:${bs.text}">${brainState}</span></div>`
+        }
+        html += `<div class="sec-div"></div>`
+      }
+
+      // SECTION 5 — Personal pattern placeholder
+      if (cyclesTracked >= 2) {
+        html += `<div class="sec-lbl">Your pattern</div>
+        <div class="pattern-note">Keep logging consistently through this phase across multiple cycles. Your personal energy and mood patterns for this cycle day will appear here after 2 full cycles.</div>
+        <div class="sec-div"></div>`
+      }
+
+      // Bottom button
+      const hasAnyLog = hasSection1 || hasSection2 || hasWorkout
+      if (hasAnyLog) {
+        html += `<a href="log.html" class="sheet-action-sec">Edit this day's log</a>`
+      } else {
+        html += `<a href="log.html" class="sheet-action-btn">Log this day</a>`
+      }
+
+      content.innerHTML = html
+    } catch (e) {
+      console.error('Past sheet error:', e)
+      content.innerHTML = '<div style="padding:20px;color:#8a5050;font-size:13px">Something went wrong loading this day.</div>'
+    }
+  }
+
+  // ── Future day sheet ──────────────────────────────────────────────────────────
+  function openFutureSheet(date, ds, pi) {
+    const subPhase = pi?.subPhase || pi?.phase || 'observation'
+    const phase    = pi?.phase || 'observation'
+    const pc       = PC[subPhase] || PC[phase] || PC['observation']
+    const pred     = PHASE_PREDICTIONS[subPhase] || PHASE_PREDICTIONS[phase] || PHASE_PREDICTIONS['observation']
+    const suggs    = SUGGESTIONS[subPhase] || SUGGESTIONS[phase] || SUGGESTIONS['observation']
+    const brainState = pred?.brain_state
+    const bs       = brainState ? BRAIN_STATE_STYLES[brainState] : null
+
+    const diffDays   = Math.round((date.getTime() - todayDate.getTime()) / 86400000)
+    const daysAwayTx = diffDays === 1 ? 'tomorrow' : `in ${diffDays} days`
+    const formatted  = DAYS_LONG[date.getDay()] + ' ' + MONTHS[date.getMonth()] + ' ' + date.getDate()
+    const phaseLabel = subPhase !== 'observation' ? subPhase + ' phase' : 'Building baseline'
+    const ps         = periodStatus(date)
+    const showPeriod = ps && (ps === 'exact' || ps === 'window' || ps === 'pre')
+
+    const confPct = cyclesTracked >= 3 ? 82 : cyclesTracked === 2 ? 62 : cyclesTracked === 1 ? 42 : 20
+    const confLabel = confPct >= 75 ? 'High confidence based on your personal cycle data'
+      : confPct >= 50 ? 'Moderate confidence based on a mix of your data and population averages'
+      : 'Early estimate based on population averages while we learn your cycle'
+
+    let html = `<div class="sheet-hdr">
+      <div class="sheet-date-line">${formatted}</div>
+      <span class="phase-pill" style="background:${pc.bg};color:${pc.text}">${phaseLabel}</span>
+      <div class="days-away-note">${daysAwayTx}${confPct < 50 ? '. Estimated from your average cycle length.' : ''}</div>
+    </div>`
+
+    // SECTION 1 — Period prediction card
+    if (showPeriod && predNextPeriod) {
+      const pDate  = predNextPeriod.predictedDate.toLocaleDateString('en-CA', { month: 'long', day: 'numeric' })
+      const pStart = predNextPeriod.windowStart.toLocaleDateString('en-CA', { month: 'long', day: 'numeric' })
+      const pEnd   = predNextPeriod.windowEnd.toLocaleDateString('en-CA', { month: 'long', day: 'numeric' })
+      html += `<div class="period-pred-card">
+        <div class="period-pred-title"><i class="ti ti-droplet" style="color:#c06060;font-size:15px"></i>Your period may start around this day</div>
+        <div class="period-pred-body">Based on your average cycle length of ${Math.round(avgCycleLen)} days, your next period is predicted around ${pDate}. The window is ${pStart} to ${pEnd}.<br><br>What to have ready: period products, a heat pad, iron-rich foods, and magnesium.<br><br>Starting 3 to 5 days before: anti-inflammatory foods, reduce caffeine and alcohol, and increase magnesium-rich foods such as dark chocolate, pumpkin seeds, and leafy greens.<br><br>This prediction is based on ${cyclesTracked} cycle${cyclesTracked !== 1 ? 's' : ''} of your personal data.</div>
+      </div>
+      <div class="sec-div"></div>`
+    }
+
+    // SECTION 2 — What to expect
+    if (pred) {
+      html += `<div class="sec-lbl">What to expect</div>
+      <div class="phase-why">${pred.why}</div>`
+
+      const intensityWord = pred.intensity >= 1.0 ? 'High energy' : pred.intensity >= 0.90 ? 'Good energy' : pred.intensity >= 0.80 ? 'Moderate energy' : 'Low energy'
+      html += `<div class="quick-chips">
+        <span class="quick-chip"><i class="ti ti-bolt" style="font-size:11px;margin-right:2px"></i>${intensityWord}</span>
+        <span class="quick-chip" style="background:${pc.bg};color:${pc.text}">${subPhase !== 'observation' ? subPhase : 'Observation'}</span>
+        <span class="quick-chip">${Math.round((pred.intensity || 0.72) * 100)}% intensity</span>
+      </div>
+      <div class="sec-div"></div>`
+    }
+
+    // SECTION 3 — Your brain this day
+    if (brainState && bs) {
+      const sentence = BRAIN_SENTENCES[brainState] || ''
+      html += `<div class="sec-lbl">Your brain this day</div>
+      <span class="brain-pill" style="background:${bs.bg};color:${bs.text}">${brainState}</span>`
+      if (sentence) html += `<div style="font-size:13px;color:#4a3828;line-height:1.7;margin-top:8px">${sentence}</div>`
+      html += `<div class="sec-div"></div>`
+    }
+
+    // SECTION 4 — Plan ahead
+    if (suggs?.length > 0) {
+      html += `<div class="sec-lbl">Plan ahead</div>
+      <div class="plan-list">`
+      suggs.forEach(s => {
+        html += `<div class="plan-row"><i class="ti ${s.icon} plan-icon"></i><span>${s.text}</span></div>`
+      })
+      html += `</div><div class="sec-div"></div>`
+    }
+
+    // SECTION 5 — Personal prediction
+    html += `<div class="sec-lbl">Personal prediction</div>`
+    if (cyclesTracked >= 2) {
+      html += `<div class="pattern-note">Your logged history around this cycle phase will show here as your data builds across multiple cycles. Keep logging daily to see your personal patterns instead of population estimates.</div>`
+    } else {
+      html += `<div class="pattern-note">Keep logging daily. After 2 full cycles this section will show your personal predictions instead of population estimates. Individual variation is the norm, not the exception.</div>`
+    }
+    html += `<div class="sec-div"></div>`
+
+    // SECTION 6 — Prediction confidence
+    html += `<div class="sec-lbl">Prediction confidence</div>
+    <div class="conf-bar-bg"><div class="conf-bar-fill" style="width:${confPct}%"></div></div>
+    <div class="conf-note">${confLabel}</div>
+    <div class="sec-div"></div>`
+
+    // SECTION 7 — Reminder button
+    const reminderText = {
+      'Late luteal': 'Start magnesium and anti-inflammatory foods today',
+      'Ovulatory':   'Peak performance window. Schedule your hardest workout today.',
+      'Menstrual':   'Rest and prioritise iron-rich foods today',
+      'Follicular':  'Building energy. Good time for progressive overload.',
+      'Early follicular': 'Easing back into training. Energy is returning.',
+      'Late follicular':  'Peak training window approaching.',
+      'Early luteal': 'Keep protein high and stay well hydrated.',
+      'Mid luteal':   'Honour your appetite today. Protein and whole foods.',
+    }
+    const rNote = reminderText[subPhase] || reminderText[phase] || phaseLabel + ' begins'
+    html += `<button class="reminder-btn" onclick="openReminder('${ds}', '${rNote.replace(/'/g, "\\'")}')">
+      <i class="ti ti-bell" style="font-size:16px"></i>Set a reminder for this day
+    </button>`
+
+    document.getElementById('futureContent').innerHTML = html
+    openSheet('futureSheet')
+  }
+
+  // ── Reminder via .ics download ───────────────────────────────────────────────
+  window.openReminder = function(ds, note) {
+    const dStr = ds.replace(/-/g, '')
+    const title = encodeURIComponent('Em~power: ' + note)
+    const ics = `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nDTSTART;VALUE=DATE:${dStr}\r\nDTEND;VALUE=DATE:${dStr}\r\nSUMMARY:Em~power - ${note}\r\nDESCRIPTION:${note}\r\nEND:VEVENT\r\nEND:VCALENDAR`
+    const blob = new Blob([ics], { type: 'text/calendar' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url; a.download = 'reminder.ics'; a.click()
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+  }
+
+  // ── Sheet control ─────────────────────────────────────────────────────────────
+  function openSheet(id) {
+    document.getElementById('sheetOverlay').classList.add('open')
+    document.getElementById(id).classList.add('open')
+  }
+
+  window.closeSheet = function() {
+    document.getElementById('sheetOverlay').classList.remove('open')
+    document.getElementById('pastSheet').classList.remove('open')
+    document.getElementById('futureSheet').classList.remove('open')
+  }
+
+  document.getElementById('pastSheet').addEventListener('click', e => e.stopPropagation())
+  document.getElementById('futureSheet').addEventListener('click', e => e.stopPropagation())
+</script>
+<script>
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js')
+  ;(function () {
+    var isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent)
+    var isStandalone = window.navigator.standalone === true
+    if (!isIOS || isStandalone || localStorage.getItem('pwa-prompt-dismissed')) return
+    var b = document.createElement('div')
+    b.style.cssText = 'position:fixed;bottom:80px;left:16px;right:16px;background:#2c2820;color:#faf8f5;font-size:13px;padding:12px 14px;border-radius:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.18)'
+    var msg = document.createElement('span')
+    msg.style.lineHeight = '1.4'
+    msg.textContent = 'Add Em~power to your home screen for the full experience'
+    var x = document.createElement('button')
+    x.textContent = '\u2715'
+    x.setAttribute('aria-label', 'Dismiss')
+    x.style.cssText = 'background:none;border:none;color:#faf8f5;font-size:18px;cursor:pointer;flex-shrink:0;padding:0 2px;line-height:1'
+    x.onclick = function () { b.remove(); localStorage.setItem('pwa-prompt-dismissed', '1') }
+    b.appendChild(msg)
+    b.appendChild(x)
+    document.body.appendChild(b)
+  })()
 </script>
 </body>
 </html>
