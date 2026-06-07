@@ -447,6 +447,76 @@
         }
         @keyframes spin { to { transform: rotate(360deg); } }
         #setupSpinner { text-align: center; padding: 0 20px; }
+
+        /* Body stats overlay */
+        .stats-overlay {
+            display: none;
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.45);
+            z-index: 200;
+            align-items: flex-end;
+            justify-content: center;
+        }
+        .stats-overlay.open { display: flex; }
+        .stats-sheet {
+            background: #faf8f5;
+            width: 100%; max-width: 420px;
+            border-radius: 20px 20px 0 0;
+            padding: 24px 20px 36px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .stats-handle {
+            width: 36px; height: 4px; border-radius: 2px;
+            background: #c8c0b8; margin: 0 auto 20px;
+        }
+        .stats-title {
+            font-family: Georgia, serif; font-size: 22px;
+            font-weight: 400; font-style: italic;
+            color: #2c2820; margin-bottom: 6px;
+        }
+        .stats-sub {
+            font-size: 13px; color: #7a7268; line-height: 1.6; margin-bottom: 24px;
+        }
+        .stats-field { margin-bottom: 20px; }
+        .stats-label {
+            font-size: 12px; font-weight: 600; color: #2c2820;
+            margin-bottom: 6px; display: block;
+        }
+        .stats-label-why {
+            font-size: 11px; color: #9a9590; margin-bottom: 8px; display: block;
+        }
+        .weight-row {
+            display: flex; gap: 8px; align-items: center;
+        }
+        .weight-input {
+            flex: 1; padding: 12px 14px; border: 1.5px solid #ede8e0;
+            border-radius: 10px; font-size: 16px; color: #2c2820;
+            background: #fff; outline: none;
+        }
+        .weight-input:focus { border-color: #c8b89a; }
+        .unit-toggle {
+            display: flex; border: 1.5px solid #ede8e0; border-radius: 10px; overflow: hidden;
+        }
+        .unit-btn {
+            padding: 10px 14px; font-size: 13px; font-weight: 500;
+            background: none; border: none; cursor: pointer; color: #7a7268;
+        }
+        .unit-btn.active { background: #2c2820; color: #f5f0e8; }
+        .fitness-grid {
+            display: flex; flex-direction: column; gap: 8px;
+        }
+        .fitness-option {
+            padding: 12px 14px; border: 1.5px solid #ede8e0;
+            border-radius: 10px; cursor: pointer; background: #fff;
+        }
+        .fitness-option.selected { border-color: #2c2820; background: #f5f0e8; }
+        .fitness-option-title { font-size: 13px; font-weight: 600; color: #2c2820; margin-bottom: 2px; }
+        .fitness-option-desc { font-size: 11px; color: #7a7268; }
+        .stats-skip {
+            text-align: center; margin-top: 12px;
+            font-size: 12px; color: #9a9590; cursor: pointer; text-decoration: underline;
+        }
     </style>
 </head>
 
@@ -455,8 +525,18 @@
     <div class="screen" id="setupContent" style="display:none">
         <div class="top-bar">
             <div class="logo">HormoneSync</div>
-            <h1>Let's find your phase.</h1>
-            <p>Every body is different. Tell us where you are and we will build your plan from there.</p>
+            <h1>Welcome.</h1>
+            <p>You have probably been dismissed before. Maybe your pain was called normal. Maybe your symptoms were called anxiety. Maybe you were told to come back if it got worse. HormoneSync is not that. Your body sends signals every single day. This app learns to read them and takes every single one seriously.</p>
+        </div>
+
+        <div style="margin:16px;padding:14px 16px;background:#f5f0e8;border-radius:12px;border:1px solid #ede8e0">
+            <div style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#8a7a6a;margin-bottom:6px">Your cycle is a vital sign</div>
+            <div style="font-size:13px;color:#4a4540;line-height:1.65">Your menstrual cycle is a monthly health report. It reflects your bone health, brain health, cardiovascular health, and metabolic health. When it is regular and pain-free your hormonal system is functioning well. When it is not, it is sending you a signal worth listening to.</div>
+        </div>
+
+        <div style="margin:0 16px 16px;padding:14px 16px;background:#fff;border-radius:12px;border:1px solid #ede8e0">
+            <div style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#8a7a6a;margin-bottom:6px">Built on research about women</div>
+            <div style="font-size:13px;color:#4a4540;line-height:1.65">Almost everything you have been told about exercise and nutrition was researched on men and generalised to women. Women were not required to be included in research studies until 1993 (NIH Revitalization Act). HormoneSync is built on research conducted on women.</div>
         </div>
 
         <div class="path-section">
@@ -689,6 +769,77 @@
         <button class="next-btn" id="nextBtn" disabled>Select an option above to continue</button>
     </div>
 
+    <!-- Body stats overlay — shown after path selection, before final save -->
+    <div class="stats-overlay" id="statsOverlay">
+      <div class="stats-sheet">
+        <div class="stats-handle"></div>
+        <div class="stats-title">One last thing</div>
+        <div class="stats-sub">Your body weight is used to calculate personalised protein targets. That is all it is used for.</div>
+
+        <div class="stats-field">
+          <label class="stats-label">Body weight</label>
+          <span class="stats-label-why">Used only for nutrition targets (e.g. protein per kg). Not stored beyond this app.</span>
+          <div class="weight-row">
+            <input class="weight-input" type="number" id="bodyWeightInput" placeholder="e.g. 65" min="30" max="200" step="0.5" />
+            <div class="unit-toggle">
+              <button class="unit-btn active" id="unitKg" onclick="setUnit('kg')">kg</button>
+              <button class="unit-btn" id="unitLbs" onclick="setUnit('lbs')">lbs</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="stats-field">
+          <label class="stats-label">Height</label>
+          <span class="stats-label-why">Used alongside your weight for calorie and nutrition estimates.</span>
+          <div class="weight-row">
+            <input class="weight-input" type="number" id="heightInput" placeholder="e.g. 165" min="120" max="220" step="1" />
+            <div class="unit-toggle">
+              <button class="unit-btn active" id="unitCm" onclick="setHeightUnit('cm')">cm</button>
+              <button class="unit-btn" id="unitFtIn" onclick="setHeightUnit('ftin')">ft/in</button>
+            </div>
+          </div>
+          <div id="ftInRow" style="display:none;gap:8px;margin-top:8px" class="weight-row">
+            <input class="weight-input" type="number" id="heightFt" placeholder="5" min="3" max="7" step="1" style="flex:1" />
+            <span style="font-size:13px;color:#7a7268;align-self:center">ft</span>
+            <input class="weight-input" type="number" id="heightIn" placeholder="5" min="0" max="11" step="1" style="flex:1" />
+            <span style="font-size:13px;color:#7a7268;align-self:center">in</span>
+          </div>
+        </div>
+
+        <div class="stats-field">
+          <label class="stats-label">Activity level</label>
+          <span class="stats-label-why">Helps calibrate workout intensity recommendations.</span>
+          <div class="fitness-grid">
+            <div class="fitness-option" onclick="selectFitness(this, 'beginner')">
+              <div class="fitness-option-title">New to the gym</div>
+              <div class="fitness-option-desc">Training less than once a week or just starting out</div>
+            </div>
+            <div class="fitness-option" onclick="selectFitness(this, 'intermediate')">
+              <div class="fitness-option-title">Getting consistent</div>
+              <div class="fitness-option-desc">Training 1 to 3 times per week</div>
+            </div>
+            <div class="fitness-option" onclick="selectFitness(this, 'active')">
+              <div class="fitness-option-title">Regularly active</div>
+              <div class="fitness-option-desc">Training 3 to 5 times per week</div>
+            </div>
+            <div class="fitness-option" onclick="selectFitness(this, 'athlete')">
+              <div class="fitness-option-title">Athlete</div>
+              <div class="fitness-option-desc">Training 5 or more times per week or competing</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="background:#f5f0e8;border-radius:12px;padding:16px;margin-bottom:20px">
+          <div style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#9a6a3a;margin-bottom:8px">How HormoneSync works for you</div>
+          <div style="font-size:13px;color:#2c2820;line-height:1.7">HormoneSync does not compare you to other women. It learns what is normal for you specifically.</div>
+          <div style="font-size:12px;color:#7a6a5a;line-height:1.7;margin-top:8px">Population averages are built from research that often excluded women entirely. Your personal pattern across your own cycles is the only benchmark that matters for your health. The longer you use HormoneSync, the more personal and accurate your recommendations become.</div>
+          <div style="font-size:10px;color:#9a9590;margin-top:8px;font-style:italic">Source: Münster et al. 2021; Janse de Jonge. Sports Medicine 2003; Sims ST. ROAR. 2024.</div>
+        </div>
+        <button class="next-btn" id="finishBtn" onclick="finishSetup()">Finish setup</button>
+        <div class="stats-skip" onclick="finishSetup(true)">Skip body stats</div>
+      </div>
+    </div>
+
     <script type="module">
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
         import { getPhase as _getPhase } from './hormoneSync.js'
@@ -812,36 +963,94 @@
             selections.bcType = type
         }
 
-        document.getElementById('nextBtn').addEventListener('click', async function () {
+        let weightUnit = 'kg'
+        let heightUnit = 'cm'
+        let selectedFitness = null
+
+        window.setUnit = function(unit) {
+            weightUnit = unit
+            document.getElementById('unitKg').classList.toggle('active', unit === 'kg')
+            document.getElementById('unitLbs').classList.toggle('active', unit === 'lbs')
+        }
+
+        window.setHeightUnit = function(unit) {
+            heightUnit = unit
+            document.getElementById('unitCm').classList.toggle('active', unit === 'cm')
+            document.getElementById('unitFtIn').classList.toggle('active', unit === 'ftin')
+            document.getElementById('heightInput').style.display = unit === 'cm' ? '' : 'none'
+            document.getElementById('ftInRow').style.display = unit === 'ftin' ? 'flex' : 'none'
+        }
+
+        window.selectFitness = function(el, level) {
+            document.querySelectorAll('.fitness-option').forEach(o => o.classList.remove('selected'))
+            el.classList.add('selected')
+            selectedFitness = level
+        }
+
+        document.getElementById('nextBtn').addEventListener('click', function () {
             if (this.disabled) return
-
-            const { data: { user } } = await supabase.auth.getUser()
-            if (!user) {
-                window.location.href = 'login.html'
-                return
-            }
-
-            const cycleLen = parseInt(document.getElementById('cycleLength')?.value) || 28
-            const lastPeriodDate = document.getElementById('lastPeriod')?.value || null
-            const lastPeriodIrreg = document.getElementById('lastPeriodIrreg')?.value || null
-
-            await supabase.from('profiles').update({
-                user_path: String(currentPath),
-                bc_type: selections.bcType || null,
-                cycle_length: cycleLen,
-                onboarding_complete: true
-            }).eq('id', user.id)
-
-            if (lastPeriodDate || lastPeriodIrreg) {
-                await supabase.from('cycle_data').insert({
-                    user_id: user.id,
-                    last_period_date: lastPeriodDate || lastPeriodIrreg,
-                    cycle_length: cycleLen
-                })
-            }
-
-            window.location.href = 'dashboard.html'
+            document.getElementById('statsOverlay').classList.add('open')
         })
+
+        window.finishSetup = async function(skip) {
+            const btn = document.getElementById('finishBtn')
+            btn.disabled = true
+            btn.textContent = 'Saving...'
+
+            try {
+                const { data: { user } } = await supabase.auth.getUser()
+                if (!user) { window.location.href = 'login.html'; return }
+
+                const cycleLen = parseInt(document.getElementById('cycleLength')?.value) || 28
+                const lastPeriodDate = document.getElementById('lastPeriod')?.value || null
+                const lastPeriodIrreg = document.getElementById('lastPeriodIrreg')?.value || null
+
+                let bodyWeightKg = null
+                let heightCm = null
+                if (!skip) {
+                    const rawWeight = parseFloat(document.getElementById('bodyWeightInput').value)
+                    if (!isNaN(rawWeight) && rawWeight > 0) {
+                        bodyWeightKg = weightUnit === 'lbs' ? Math.round(rawWeight / 2.20462 * 10) / 10 : rawWeight
+                    }
+                    if (heightUnit === 'cm') {
+                        const rawH = parseFloat(document.getElementById('heightInput').value)
+                        if (!isNaN(rawH) && rawH > 0) heightCm = rawH
+                    } else {
+                        const ft = parseFloat(document.getElementById('heightFt').value) || 0
+                        const inches = parseFloat(document.getElementById('heightIn').value) || 0
+                        const totalIn = ft * 12 + inches
+                        if (totalIn > 0) heightCm = Math.round(totalIn * 2.54)
+                    }
+                }
+
+                // Persist height to localStorage (used by nutrition screen)
+                if (heightCm) localStorage.setItem('hsync_height_cm', String(heightCm))
+                if (bodyWeightKg) localStorage.setItem('hsync_weight_kg', String(bodyWeightKg))
+
+                await supabase.from('profiles').update({
+                    user_path: String(currentPath),
+                    bc_type: selections.bcType || null,
+                    cycle_length: cycleLen,
+                    onboarding_complete: true,
+                    body_weight_kg: bodyWeightKg,
+                    fitness_level: skip ? null : (selectedFitness || null)
+                }).eq('id', user.id)
+
+                if (lastPeriodDate || lastPeriodIrreg) {
+                    await supabase.from('cycle_data').insert({
+                        user_id: user.id,
+                        last_period_date: lastPeriodDate || lastPeriodIrreg,
+                        cycle_length: cycleLen
+                    })
+                }
+
+                window.location.href = 'dashboard.html'
+            } catch (e) {
+                btn.disabled = false
+                btn.textContent = 'Finish setup'
+                console.error('Setup save error:', e)
+            }
+        }
     </script>
 </body>
 

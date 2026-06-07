@@ -1,5 +1,6 @@
 // hormoneSync.js — shared algorithm module
 // All phase logic lives here. Import getTodayStatus into every screen.
+import { interpretMoodSignal, detectPMDDPattern, getMoodContextFeedback, checkFlag } from './algorithm_v3.js'
 
 // ── Phase calculation (canonical — never duplicate this elsewhere) ──────────
 export function getPhase(cycleDay, cycleLen) {
@@ -70,7 +71,7 @@ export function getNutritionTargets(phase, bodyWeight) {
 }
 
 // ── Confidence calculation ───────────────────────────────────────────────────
-function calcConfidence(phase, recentLogs, mucusLogs) {
+function calcConfidence(phase, subPhase, recentLogs, mucusLogs) {
   let confidence = 0.45
 
   if (recentLogs?.length) {
@@ -87,6 +88,11 @@ function calcConfidence(phase, recentLogs, mucusLogs) {
       const avg = rhrData.slice(0, 3).reduce((a, b) => a + b, 0) / 3
       if (avg > 65) confidence += 0.08
     }
+
+    // Mood signal adjustment
+    // Source: Backstrom et al. 2008; interpretMoodSignal in algorithm_v3.js
+    const moodResult = interpretMoodSignal(recentLogs[0], recentLogs, phase, subPhase)
+    confidence += moodResult.confidenceAdjustment
   }
 
   if (mucusLogs?.length) {
@@ -106,35 +112,54 @@ function calcConfidence(phase, recentLogs, mucusLogs) {
 }
 
 // ── Anomaly detection ────────────────────────────────────────────────────────
-function detectAnomalies(recentLogs, phase) {
+// Language rules: start with what the woman is experiencing, never use diagnostic headers,
+// always warm and curious — never alarming or clinical. (Per CLAUDE.md tone rules.)
+function detectAnomalies(recentLogs, phase, cycleLen, flagStats) {
   const anomalies = []
   if (!recentLogs?.length) return anomalies
 
   const latest = recentLogs[0]
   if (!latest) return anomalies
 
-  if (latest.energy === 'Very low' && phase === 'Follicular') {
-    anomalies.push({ type: 'energy_mismatch', text: 'Very low energy in follicular phase is unexpected. This may reflect incomplete recovery, under-fuelling, or a later start to your energy rise. Worth monitoring.' })
+  // pattern_observation threshold required for most anomaly observations
+  const canObserve = checkFlag('pattern_observation', flagStats)
+  const canFlag = checkFlag('health_pattern_flag', flagStats)
+
+  if (canObserve && latest.energy === 'Very low' && phase === 'Follicular') {
+    anomalies.push({ type: 'energy_mismatch', text: 'Your energy today is lower than expected for this phase. This sometimes happens when recovery is incomplete, when you have been under-fuelling, or when your energy rise is simply starting a little later than usual. Worth keeping an eye on over the next few days.' })
   }
-  if (latest.energy === 'High' && phase === 'Menstrual') {
-    anomalies.push({ type: 'energy_high_menstrual', text: 'High energy during menstruation is worth noting. Some women feel a surge of energy on day 1 or 2 before cramps set in. Log how your training feels.' })
+  if (canObserve && latest.energy === 'High' && phase === 'Menstrual') {
+    anomalies.push({ type: 'energy_high_menstrual', text: 'Interesting — high energy during your period. Some women notice a brief energy surge on day 1 or 2 before cramps set in, as the drop in hormones briefly lifts mood. Log how your training feels today.' })
   }
 
   const rhr = parseFloat(latest.resting_hr)
-  if (!isNaN(rhr) && rhr > 75 && (phase === 'Follicular' || phase === 'Ovulatory')) {
-    anomalies.push({ type: 'rhr_elevated', text: 'Elevated resting heart rate in follicular or ovulatory phase. This may indicate poor recovery, illness, or stress. Consider reducing training intensity today. If persistent, consult your doctor.' })
+  if (canObserve && !isNaN(rhr) && rhr > 75 && (phase === 'Follicular' || phase === 'Ovulatory')) {
+    anomalies.push({ type: 'rhr_elevated', text: 'Your resting heart rate is on the higher side for this phase. This can reflect poor recovery, early illness, or a stressful few days. Consider dialling back intensity today and prioritising sleep. If it stays elevated for a week, worth mentioning to your doctor.' })
   }
 
   const cortisol = parseFloat(latest.hormone_cortisol)
-  if (!isNaN(cortisol) && cortisol > 30) {
-    anomalies.push({ type: 'cortisol_elevated', text: 'Cortisol elevated above normal morning range (above 30 nmol/L per LifeLabs/EORLA). Consider reducing training intensity today. High cortisol competes with progesterone and increases protein catabolism.' })
+  if (canObserve && !isNaN(cortisol) && cortisol > 30) {
+    anomalies.push({ type: 'cortisol_elevated', text: 'Your cortisol reading this morning is above the typical range (above 30 nmol/L, LifeLabs/EORLA). High cortisol and progesterone compete directly in the body, which can affect how well you recover from training. Consider a lighter session today. (Source: Hackney 2006.)' })
+  }
+
+  // PMDD pattern: requires 3 cycles of data before flagging
+  // Source: DSM-5 PMDD criteria; Osborn et al. Frontiers in Pharmacology 2025
+  if (canFlag && checkFlag('pmdd_pattern_flag', flagStats)) {
+    const pmddResult = detectPMDDPattern(recentLogs, cycleLen)
+    if (pmddResult) {
+      // Rewrite with warm non-diagnostic framing
+      anomalies.push({
+        ...pmddResult,
+        message: 'We have noticed a consistent mood pattern across your last few cycles — you tend to feel significantly more low or anxious in the week before your period, and noticeably better once it begins. This kind of cyclical pattern is worth knowing about. It has a specific biological explanation and there are effective approaches to managing it. If it is disrupting your life, it is worth raising with your doctor and specifically mentioning the cyclical timing — that detail matters for how it is assessed. This is a pattern observation, not a diagnosis.'
+      })
+    }
   }
 
   return anomalies
 }
 
 // ── Immediate feedback from latest log ──────────────────────────────────────
-function getImmediateFeedback(latestLog, phase, confidence) {
+function getImmediateFeedback(latestLog, phase, subPhase, confidence) {
   if (!latestLog) return []
   const feedback = []
   const confPct = Math.round(confidence * 100)
@@ -148,6 +173,11 @@ function getImmediateFeedback(latestLog, phase, confidence) {
   if (latestLog.sleep_quality) {
     feedback.push({ signal: 'Sleep', text: 'Sleep quality logged. Sleep disruption is most common in mid-luteal phase (De Martin Topranin 2023). Patterns here flag the phase boundary early.' })
   }
+
+  // Mood context feedback — connects logged mood to neurotransmitter explanation
+  // Source: Backstrom et al. 2008; Lokuge et al. 2011; algorithm_v3.js
+  const moodFeedback = getMoodContextFeedback(latestLog, phase, subPhase)
+  if (moodFeedback) feedback.push(moodFeedback)
 
   return feedback
 }
@@ -173,6 +203,127 @@ function getPredictions(phase, cycleDay, cycleLen) {
   }
 
   return predictions
+}
+
+// ── Symptom inference engine ─────────────────────────────────────────────────
+// Estimates cycle phase from logged symptoms when no period date is available.
+// Source: Janse de Jonge 2003 Sports Medicine — personal tracking improves prediction accuracy.
+// Source: Bigelow et al. 2004 Human Reproduction — egg white fluid 80% sensitivity for fertile window.
+// Source: De Martin Topranin et al. 2023 IJSPP — RHR 1.7 bpm higher mid-luteal vs early follicular.
+export function inferPhaseFromSymptoms(recentLogs, mucusLogs = []) {
+  if (!recentLogs?.length) {
+    return { inferredPhase: null, confidence: 'insufficient', source: 'symptom_inference' }
+  }
+
+  const logs = recentLogs.slice(0, 7)
+  const latestLog = logs[0] || {}
+  const mucus = (mucusLogs || []).slice(0, 7)
+
+  // Flatten arrays across all recent logs for pattern detection
+  const allSymptoms = logs.flatMap(l => l.symptoms || [])
+  const allMoods = logs.flatMap(l => l.mood || [])
+  const energyValues = logs.map(l => l.energy).filter(Boolean)
+  const sleepValues = logs.map(l => l.sleep_quality).filter(Boolean)
+  const allFluid = mucus.map(m => m.discharge_type).filter(Boolean)
+  const rhrValues = logs.map(l => parseFloat(l.resting_hr)).filter(n => !isNaN(n))
+  const latestRHR = parseFloat(latestLog.resting_hr)
+  // Baseline = average of all logged RHR except the most recent (Zhu et al. 2021)
+  const rhrBaseline = rhrValues.length > 1
+    ? rhrValues.slice(1).reduce((a, b) => a + b, 0) / (rhrValues.length - 1)
+    : null
+
+  const scores = { Menstrual: 0, Follicular: 0, Ovulatory: 0, Luteal: 0 }
+  const signals = []
+
+  // ── MENSTRUAL signals (2 points each) ──────────────────────────────────────
+  if (allSymptoms.some(s => ['Cramps', 'Bloating', 'Fatigue', 'Back pain'].includes(s))) {
+    scores.Menstrual += 2; signals.push('cramping or fatigue symptoms')
+  }
+  if (energyValues.some(e => e === 'Very low')) {
+    scores.Menstrual += 2; signals.push('very low energy')
+  }
+  if (allMoods.some(m => ['Low', 'Irritable', 'Sad'].includes(m))) {
+    scores.Menstrual += 2; signals.push('low or irritable mood')
+  }
+  if (allFluid.some(f => f === 'Spotting')) {
+    scores.Menstrual += 2; signals.push('spotting')
+  }
+  if (sleepValues.some(s => s === 'Poor')) {
+    scores.Menstrual += 2; signals.push('poor sleep')
+  }
+
+  // ── FOLLICULAR signals (2 points each) ─────────────────────────────────────
+  if (energyValues.some(e => e === 'High')) {
+    scores.Follicular += 2; signals.push('high energy')
+  }
+  if (allMoods.some(m => ['Happy', 'Motivated', 'Social', 'Energetic'].includes(m))) {
+    scores.Follicular += 2; signals.push('positive motivated mood')
+  }
+  if (allFluid.some(f => f === 'Creamy' || f === 'Watery')) {
+    scores.Follicular += 2; signals.push('creamy or watery cervical fluid')
+  }
+  if (logs.some(l => ['Strong', 'Great', 'Felt strong'].includes(l.workout_feel))) {
+    scores.Follicular += 2; signals.push('strong workout feel')
+  }
+  if (allSymptoms.length > 0 && !allSymptoms.some(s => ['Cramps', 'Fatigue'].includes(s))) {
+    scores.Follicular += 2; signals.push('no pain or fatigue logged')
+  }
+
+  // ── OVULATORY signals (3 points each — stronger specificity) ───────────────
+  if (allFluid.some(f => f === 'Egg white')) {
+    scores.Ovulatory += 3; signals.push('egg white cervical fluid')
+  }
+  if (logs.some(l => l.lh_result && l.lh_result.toLowerCase() === 'positive')) {
+    scores.Ovulatory += 3; signals.push('positive LH test')
+  }
+  if (energyValues.some(e => e === 'High') && allMoods.some(m => ['Confident', 'Energetic'].includes(m))) {
+    scores.Ovulatory += 3; signals.push('peak energy and confidence')
+  }
+  if (!isNaN(latestRHR) && rhrBaseline && latestRHR > rhrBaseline + 1.5) {
+    scores.Ovulatory += 3; signals.push('heart rate elevated above baseline')
+    // Also counts for Luteal — RHR elevated in both phases
+    scores.Luteal += 2
+  }
+
+  // ── LUTEAL signals (2 points each) ─────────────────────────────────────────
+  if (allSymptoms.some(s => ['Bloating', 'Sore breasts', 'Cravings', 'Mood swings'].includes(s))) {
+    scores.Luteal += 2; signals.push('luteal symptoms (bloating, breast tenderness, cravings)')
+  }
+  if (energyValues.some(e => e === 'Low' || e === 'Very low')) {
+    scores.Luteal += 2; signals.push('low energy')
+  }
+  if (allFluid.some(f => f === 'Sticky' || f === 'None')) {
+    scores.Luteal += 2; signals.push('low cervical fluid')
+  }
+  if (allMoods.some(m => ['Anxious', 'Tired', 'Sad', 'Irritable'].includes(m))) {
+    scores.Luteal += 2; signals.push('anxious or low mood')
+  }
+  if (sleepValues.some(s => s === 'Poor' || s === 'Disrupted')) {
+    scores.Luteal += 2
+    if (!signals.includes('poor sleep')) signals.push('disrupted sleep')
+  }
+
+  const uniqueSignals = [...new Set(signals)]
+
+  if (uniqueSignals.length < 3) {
+    return { inferredPhase: null, confidence: 'insufficient', source: 'symptom_inference' }
+  }
+
+  const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1])
+  const inferredPhase = sorted[0][0]
+
+  let confidence, confidencePct
+  if (uniqueSignals.length >= 5) { confidence = 'high'; confidencePct = 75 }
+  else if (uniqueSignals.length >= 3) { confidence = 'medium'; confidencePct = 55 }
+  else { confidence = 'low'; confidencePct = 30 }
+
+  return {
+    inferredPhase,
+    confidence,
+    confidencePct,
+    signals: uniqueSignals.slice(0, 5),
+    source: 'symptom_inference'
+  }
 }
 
 // ── Main exported function ───────────────────────────────────────────────────
@@ -203,6 +354,8 @@ export async function getTodayStatus(supabase, userId) {
   let daysUntilPeriod = null
   let confidence = 0.05
 
+  let symptomInference = null
+
   if (cycleData?.last_period_date) {
     const lastPeriod = new Date(cycleData.last_period_date + 'T00:00:00')
     const diffDays = Math.floor((today - lastPeriod) / 86400000)
@@ -214,7 +367,16 @@ export async function getTodayStatus(supabase, userId) {
       phase = getPhase(cycleDay, cycleLen)
       if (phase === 'Luteal') subPhase = getLutealSubPhase(cycleDay, cycleLen)
       if (phase === 'Follicular') subPhase = getFollicularSubPhase(cycleDay)
-      confidence = calcConfidence(phase, recentLogs, mucusLogs)
+      confidence = calcConfidence(phase, subPhase, recentLogs, mucusLogs)
+      // Run inference alongside as supporting evidence even when phase is confirmed
+      symptomInference = inferPhaseFromSymptoms(recentLogs, mucusLogs)
+    }
+  } else {
+    // No cycle data — use symptom inference as the working phase estimate
+    symptomInference = inferPhaseFromSymptoms(recentLogs, mucusLogs)
+    if (symptomInference?.inferredPhase) {
+      phase = symptomInference.inferredPhase
+      confidence = symptomInference.confidencePct / 100
     }
   }
 
@@ -228,14 +390,26 @@ export async function getTodayStatus(supabase, userId) {
     cycleLen,
     daysUntilPeriod,
     confidence,
-    confidenceLabel: confidence > 0.75 ? 'High confidence' : confidence > 0.45 ? 'Moderate confidence' : 'Building your data',
+    confidenceLabel: confidence > 0.90 ? 'Fully personalised'
+      : confidence > 0.75 ? 'Your personal baseline established'
+      : confidence > 0.55 ? 'Mostly your data now'
+      : confidence > 0.30 ? 'Your personal pattern is emerging'
+      : 'Learning your baseline',
     confidencePct: Math.round(confidence * 100),
     intensityModifier,
     intensityLabel: getIntensityLabel(intensityModifier),
     nutritionTargets: getNutritionTargets(phase, bodyWeight),
-    immediateFeedback: getImmediateFeedback(recentLogs[0], phase, confidence),
-    anomalies: detectAnomalies(recentLogs, phase),
+    immediateFeedback: getImmediateFeedback(recentLogs[0], phase, subPhase, confidence),
+    anomalies: detectAnomalies(recentLogs, phase, cycleLen, {
+      daysLogged: recentLogs.length,
+      confidence,
+      cyclesTracked: profile?.cycles_tracked || 0,
+      userPath: profile?.user_path,
+      bcType: profile?.bc_type
+    }),
     predictions: getPredictions(phase, cycleDay, cycleLen),
+    symptomInference,
+    moodInsight: interpretMoodSignal(recentLogs[0], recentLogs, phase, subPhase).insight,
     bodyWeight,
     profile: profile || {}
   }

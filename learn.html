@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Learn - HormoneSync</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #faf8f5;
+      color: #2c2820;
+      padding-bottom: 80px;
+      max-width: 420px;
+      margin: 0 auto;
+    }
+
+    .top-bar {
+      background: #f5f0e8;
+      padding: 20px 20px 16px;
+      border-bottom: 1px solid #ede8e0;
+    }
+
+    .logo {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #2c2820;
+    }
+
+    .page-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: #2c2820;
+      margin-top: 6px;
+    }
+
+    .page-subtitle {
+      font-size: 13px;
+      color: #7a7268;
+      margin-top: 4px;
+      line-height: 1.5;
+    }
+
+    .spinner {
+      width: 32px; height: 32px;
+      border: 3px solid #ede8e0;
+      border-top-color: #c8b89a;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 60px auto;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Section list */
+    .section-list { padding: 16px; }
+
+    .section-card {
+      background: #fff;
+      border-radius: 14px;
+      margin-bottom: 10px;
+      border: 1px solid #ede8e0;
+      overflow: hidden;
+      cursor: pointer;
+      transition: box-shadow 0.15s;
+    }
+
+    .section-card:active { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 18px 16px;
+    }
+
+    .section-icon {
+      width: 40px; height: 40px;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .section-text { flex: 1; min-width: 0; }
+
+    .section-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: #2c2820;
+    }
+
+    .section-desc {
+      font-size: 12px;
+      color: #9a9590;
+      margin-top: 2px;
+      line-height: 1.4;
+    }
+
+    .section-chevron {
+      font-size: 16px;
+      color: #c8b89a;
+      flex-shrink: 0;
+    }
+
+    /* Article overlay */
+    .article-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 100;
+    }
+
+    .article-overlay.open { display: block; }
+
+    .article-sheet {
+      position: fixed;
+      bottom: 0; left: 50%; transform: translateX(-50%);
+      width: 100%; max-width: 420px;
+      max-height: 92vh;
+      background: #faf8f5;
+      border-radius: 20px 20px 0 0;
+      overflow: hidden;
+      display: flex; flex-direction: column;
+      z-index: 101;
+    }
+
+    .article-top {
+      padding: 16px 20px 12px;
+      border-bottom: 1px solid #ede8e0;
+      display: flex; align-items: center; gap: 12px;
+      flex-shrink: 0;
+    }
+
+    .article-handle {
+      width: 36px; height: 4px;
+      background: #ddd;
+      border-radius: 2px;
+      margin: 0 auto 12px;
+    }
+
+    .article-close-btn {
+      background: none; border: none;
+      font-size: 18px; color: #9a9590;
+      cursor: pointer; padding: 4px;
+      margin-left: auto;
+      line-height: 1;
+    }
+
+    .article-title-bar {
+      flex: 1;
+    }
+
+    .article-title-bar h2 {
+      font-size: 18px;
+      font-weight: 700;
+      color: #2c2820;
+    }
+
+    .article-body {
+      overflow-y: auto;
+      padding: 0 20px 40px;
+      flex: 1;
+    }
+
+    .article-body h3 {
+      font-size: 15px;
+      font-weight: 700;
+      color: #2c2820;
+      margin: 24px 0 8px;
+    }
+
+    .article-body p {
+      font-size: 14px;
+      color: #4a4540;
+      line-height: 1.65;
+      margin-bottom: 12px;
+    }
+
+    .article-body ul {
+      padding-left: 18px;
+      margin-bottom: 12px;
+    }
+
+    .article-body li {
+      font-size: 14px;
+      color: #4a4540;
+      line-height: 1.65;
+      margin-bottom: 6px;
+    }
+
+    .cite {
+      font-size: 12px;
+      color: #9a9590;
+      font-style: italic;
+      border-top: 1px solid #ede8e0;
+      padding-top: 12px;
+      margin-top: 20px;
+    }
+
+    .highlight-box {
+      background: #f5f0e8;
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin: 14px 0;
+      font-size: 13px;
+      color: #5a5048;
+      line-height: 1.6;
+    }
+
+    .phase-pill {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      margin: 2px 3px;
+    }
+
+    /* Bottom nav */
+    .bottom-nav {
+      position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+      width: 100%; max-width: 420px;
+      background: #f5f0e8;
+      border-top: 1px solid #ede8e0;
+      display: flex; justify-content: space-around; align-items: center;
+      padding: 8px 0 20px;
+      z-index: 50;
+    }
+
+    .nav-item {
+      display: flex; flex-direction: column; align-items: center; gap: 3px;
+      text-decoration: none; color: #9a9590; font-size: 9px; font-weight: 500;
+      padding: 6px 12px;
+    }
+
+    .nav-item i { font-size: 20px; }
+
+    .nav-item span { font-size: 9px; }
+
+    .nav-item.active i, .nav-item.active span { color: #c8b89a; }
+  </style>
+</head>
+
+<body>
+
+  <div class="top-bar">
+    <div class="logo">HormoneSync</div>
+    <div class="page-title">Learn</div>
+    <div class="page-subtitle">Science explained warmly. Everything here is based on research conducted on women.</div>
+  </div>
+
+  <div id="loading"><div class="spinner"></div></div>
+
+  <div id="mainContent" style="display:none">
+    <div class="section-list">
+
+      <div class="section-card" onclick="openArticle('hormones')">
+        <div class="section-header">
+          <div class="section-icon" style="background:#f0e8f8;color:#7a4a9a">
+            <i class="ti ti-dna"></i>
+          </div>
+          <div class="section-text">
+            <div class="section-title">Your hormones</div>
+            <div class="section-desc">What estrogen, progesterone, LH, and cortisol actually do in your body</div>
+          </div>
+          <i class="ti ti-chevron-right section-chevron"></i>
+        </div>
+      </div>
+
+      <div class="section-card" onclick="openArticle('phases')">
+        <div class="section-header">
+          <div class="section-icon" style="background:#f8f0e8;color:#9a6a2a">
+            <i class="ti ti-circle-dotted"></i>
+          </div>
+          <div class="section-text">
+            <div class="section-title">Your cycle phases</div>
+            <div class="section-desc">What is actually happening across your cycle, and why it matters for training</div>
+          </div>
+          <i class="ti ti-chevron-right section-chevron"></i>
+        </div>
+      </div>
+
+      <div class="section-card" onclick="openArticle('brain')">
+        <div class="section-header">
+          <div class="section-icon" style="background:#e8f0f8;color:#2a5a8a">
+            <i class="ti ti-brain"></i>
+          </div>
+          <div class="section-text">
+            <div class="section-title">Your brain and your cycle</div>
+            <div class="section-desc">How serotonin, dopamine, and GABA shift across your cycle, and why your mood is not weakness</div>
+          </div>
+          <i class="ti ti-chevron-right section-chevron"></i>
+        </div>
+      </div>
+
+      <div class="section-card" onclick="openArticle('nutrition')">
+        <div class="section-header">
+          <div class="section-icon" style="background:#e8f8e8;color:#2a6a2a">
+            <i class="ti ti-salad"></i>
+          </div>
+          <div class="section-text">
+            <div class="section-title">Nutrition and hormones</div>
+            <div class="section-desc">Why your appetite, cravings, and food needs change across your cycle</div>
+          </div>
+          <i class="ti ti-chevron-right section-chevron"></i>
+        </div>
+      </div>
+
+      <div class="section-card" onclick="openArticle('training')">
+        <div class="section-header">
+          <div class="section-icon" style="background:#f8e8e8;color:#8a2a2a">
+            <i class="ti ti-barbell"></i>
+          </div>
+          <div class="section-text">
+            <div class="section-title">Training and hormones</div>
+            <div class="section-desc">Why exercise science was built on men's bodies, and what that means for you</div>
+          </div>
+          <i class="ti ti-chevron-right section-chevron"></i>
+        </div>
+      </div>
+
+      <div class="section-card" onclick="openArticle('conditions')">
+        <div class="section-header">
+          <div class="section-icon" style="background:#f8f8e8;color:#6a6a1a">
+            <i class="ti ti-stethoscope"></i>
+          </div>
+          <div class="section-text">
+            <div class="section-title">Conditions worth knowing about</div>
+            <div class="section-desc">PCOS, endometriosis, RED-S, and perimenopause, explained without dismissal</div>
+          </div>
+          <i class="ti ti-chevron-right section-chevron"></i>
+        </div>
+      </div>
+
+      <div class="section-card" id="pathCard" onclick="openArticle('path')" style="display:none">
+        <div class="section-header">
+          <div class="section-icon" style="background:#f5f0e8;color:#8a6a4a">
+            <i class="ti ti-route"></i>
+          </div>
+          <div class="section-text">
+            <div class="section-title">Your path</div>
+            <div class="section-desc">What to expect based on your specific situation</div>
+          </div>
+          <i class="ti ti-chevron-right section-chevron"></i>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Article overlay -->
+  <div class="article-overlay" id="articleOverlay" onclick="closeArticle(event)">
+    <div class="article-sheet" id="articleSheet">
+      <div style="padding:12px 20px 0"><div class="article-handle"></div></div>
+      <div class="article-top">
+        <div class="article-title-bar"><h2 id="articleTitle"></h2></div>
+        <button class="article-close-btn" onclick="closeArticle()">&#x2715;</button>
+      </div>
+      <div class="article-body" id="articleBody"></div>
+    </div>
+  </div>
+
+  <div class="bottom-nav">
+    <a href="dashboard.html" class="nav-item">
+      <i class="ti ti-home"></i><span>Home</span>
+    </a>
+    <a href="workout.html" class="nav-item">
+      <i class="ti ti-barbell"></i><span>Workout</span>
+    </a>
+    <a href="calendar.html" class="nav-item">
+      <i class="ti ti-calendar"></i><span>Calendar</span>
+    </a>
+    <a href="log.html" class="nav-item">
+      <i class="ti ti-pencil"></i><span>Log</span>
+    </a>
+    <a href="nutrition.html" class="nav-item">
+      <i class="ti ti-salad"></i><span>Nutrition</span>
+    </a>
+  </div>
+
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
+
+    const supabase = createClient(
+      'https://imgujppjvffbubnsscge.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImltZ3VqcHBqdmZmYnVibnNzY2dlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2MDQzNzIsImV4cCI6MjA5NjE4MDM3Mn0.TpjycdiHLl5iI1G8u07mVmStKZWU2fzEsuw1dUi6diU'
+    )
+
+    const { data: { session: _s } } = await supabase.auth.getSession()
+    if (!_s) { window.location.href = 'login.html' }
+
+    supabase.auth.onAuthStateChange((event, session) => {
+      if (!session) window.location.href = 'login.html'
+    })
+
+    if (_s) {
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('user_path, bc_type')
+          .eq('id', _s.user.id)
+          .single()
+
+        if (profile?.user_path) {
+          document.getElementById('pathCard').style.display = 'block'
+          window._userPath = profile.user_path
+          window._bcType = profile.bc_type
+        }
+      } catch (e) {
+        console.error('Profile load error:', e)
+      }
+    }
+
+    document.getElementById('loading').style.display = 'none'
+    document.getElementById('mainContent').style.display = 'block'
+
+    // ── Article content ──────────────────────────────────────────────────────
+    const ARTICLES = {
+
+      hormones: {
+        title: 'Your hormones',
+        body: `
+          <h3>Why no two women have the same hormone profile</h3>
+          <p>Almost everything you have been told about hormone levels is based on population averages, often derived from studies that underrepresented women. Your normal is yours. A single blood test tells you almost nothing. What matters is your personal pattern across multiple cycles.</p>
+          <div class="highlight-box">Population averages in hormone reference ranges come from studies with sample sizes like 97 women across 2105 cycles (Munster et al. 2021). Your individual normal may differ from those averages and still be completely healthy.</div>
+
+          <h3>Estrogen</h3>
+          <p>Estrogen rises through the follicular phase, peaks just before ovulation, drops briefly, rises again mid-luteal, then falls sharply before your period. It supports mood, bone density, cardiovascular health, cognitive function, muscle protein synthesis, and insulin sensitivity.</p>
+          <p>Estrogen improves how your cells respond to insulin, which is why you may notice better energy and fewer cravings in the follicular phase. When estrogen drops in the late luteal phase, insulin sensitivity decreases, which is part of why carbohydrate cravings increase. (Source: Mauvais-Jarvis et al. Journal of Clinical Investigation 2013; Carr et al. JCEM 2003.)</p>
+
+          <h3>Progesterone</h3>
+          <p>Progesterone rises after ovulation and falls before your period. It raises your core body temperature slightly (0.3 to 0.5 degrees Celsius, Charkoudian and Stachenfeld 2014). It increases protein breakdown, which is why protein needs are higher in the luteal phase. It also competes with cortisol for the same receptors, which affects how your body handles training stress. (Source: Hackney. Journal of Sports Science and Medicine 2006.)</p>
+          <p>Progesterone pulses throughout the luteal phase in waves, not in a smooth curve. Population average charts flatten this into a line that does not reflect any individual woman's reality. (Filicori et al. JCEM 1984.)</p>
+
+          <h3>LH (Luteinising hormone)</h3>
+          <p>LH surges just before ovulation, triggering the release of an egg. A surge above 8 IU/L is consistent with imminent ovulation. (Source: Munster et al. 2021.) Home LH tests detect this surge.</p>
+
+          <h3>Cortisol</h3>
+          <p>Cortisol is your stress hormone. Normal morning cortisol is 10 to 30 nmol/L (LifeLabs/EORLA). It competes with progesterone during the luteal phase, and high-intensity training raises cortisol further. This is why your body's stress response to the same workout can feel larger in the luteal phase than the follicular phase. (Source: Hackney 2006.)</p>
+
+          <h3>A note on hormone testing</h3>
+          <p>If you are testing your hormones at home or through a clinic, always note where you are in your cycle when the test is taken. Progesterone is only meaningful when measured approximately 7 days after confirmed ovulation, not on a fixed "day 21" that assumes a 28-day cycle with ovulation on day 14.</p>
+          <p class="cite">Sources: Munster et al. 2021 (n=97, 2105 cycles); LifeLabs/EORLA Canadian reference ranges; Charkoudian N, Stachenfeld NS. Comprehensive Physiology 2014; Hackney AC. JSSM 2006; Mauvais-Jarvis et al. JCI 2013; Carr MC. JCEM 2003; Filicori M et al. JCEM 1984.</p>
+        `
+      },
+
+      phases: {
+        title: 'Your cycle phases',
+        body: `
+          <h3>The four phases</h3>
+          <p>Your cycle has four phases. Their timing varies between women and between cycles. The phase lengths that matter most are yours, not the population average.</p>
+
+          <h3>Menstrual phase (days 1 to 5, roughly)</h3>
+          <p>Estrogen and progesterone are at their lowest. Energy is often low, mood may be affected, and physical performance may feel harder. This is a hormonal reality, not a sign of weakness. The drop in hormones is the signal that triggers your period.</p>
+          <p>Your body is losing iron with blood loss. Iron supports oxygen transport and directly affects training performance. (Source: Angeli et al. European Journal of Sport Science 2016.)</p>
+
+          <h3>Follicular phase (roughly days 6 to ovulation minus 2)</h3>
+          <p>Estrogen rises. Energy, mood, motivation, and strength all tend to improve. This is the phase where strength training shows some of its strongest adaptations in women. Insulin sensitivity is higher, making carbohydrate metabolism more efficient. A strong training window. (Source: Kissow et al. Sports Medicine 2022.)</p>
+
+          <h3>Ovulatory phase (roughly 2 days around ovulation)</h3>
+          <p>Estrogen peaks. Testosterone is also briefly elevated. Energy, confidence, and cognitive performance tend to peak. The most physically capable days for many women.</p>
+          <p>Peak estrogen increases ligament laxity slightly. A thorough warmup is especially important before heavy loading. (SOURCE NEEDED: ACL injury risk research in ovulatory phase -- verifying against peer-reviewed sources.)</p>
+
+          <h3>Luteal phase (ovulation to period)</h3>
+          <p>Progesterone rises and then falls. Core temperature rises. Resting heart rate is on average 1.7 bpm higher than in the early follicular phase (De Martin Topranin et al. IJSPP 2023). Perceived effort for the same workout is higher. Protein needs increase to 1.8 to 2.2g per kg bodyweight due to progesterone-driven protein breakdown. (Source: ISSN 2023.)</p>
+          <p>Wearable devices were calibrated on male physiology. Your elevated temperature and heart rate in the luteal phase register as poor recovery to a device that treats male physiology as the default. HormoneSync accounts for this. (Source: Sims ST. ROAR 2024.)</p>
+
+          <h3>What is normal?</h3>
+          <p>A healthy cycle is 21 to 35 days. Flow lasts 3 to 7 days. Pain that disrupts your daily life is not normal and is worth investigating. Irregular cycles may reflect multiple different things, some temporary and some worth exploring with a doctor. (Source: Crawford N. Natalie Crawford MD.)</p>
+          <p class="cite">Sources: Kissow et al. Sports Medicine 2022; De Martin Topranin et al. IJSPP 2023; ISSN 2023; Angeli et al. 2016; Sims ST. ROAR. Rodale 2024; Colenso-Semple et al. Frontiers 2023.</p>
+        `
+      },
+
+      brain: {
+        title: 'Your brain and your cycle',
+        body: `
+          <h3>Your mood is not random. It is hormonal.</h3>
+          <p>The way you feel across your cycle is not a personality trait. It is a biological pattern driven by how your hormones interact with your brain chemistry. Understanding this pattern does not mean your emotions are less real. It means they have a cause you can learn to anticipate.</p>
+
+          <h3>Estrogen and serotonin</h3>
+          <p>Estrogen supports serotonin production and serotonin receptor density. As estrogen rises in the follicular phase, serotonin activity tends to rise with it, which is associated with improved mood, motivation, and cognitive clarity. When estrogen drops sharply before your period, serotonin drops with it. This is one reason mood is affected in the late luteal and menstrual phases. (Source: Lokuge et al. Biological Psychiatry 2011; Backstrom et al. 2008.)</p>
+
+          <h3>Progesterone and GABA</h3>
+          <p>Progesterone is converted in the brain to allopregnanolone, which acts on GABA receptors and produces a calming, sedating effect. This is partly why the early luteal phase often feels settled and calm. In the late luteal phase, as progesterone drops rapidly, GABA activity falls, which is associated with anxiety, irritability, and mood shifts. (Source: Backstrom et al. Molecular and Cellular Endocrinology 2014.)</p>
+
+          <div class="highlight-box">Women with PMDD appear to have unusual sensitivity to normal progesterone fluctuations in the late luteal phase, not abnormally high progesterone levels. The hormone change itself triggers a greater neurological response than in women without PMDD. (Source: Osborn et al. Frontiers in Pharmacology 2025.)</div>
+
+          <h3>Brain state by phase</h3>
+          <p><span class="phase-pill" style="background:#d8edd8;color:#2a5a2a">Follicular</span> Rising serotonin. Motivation and clarity tend to improve.</p>
+          <p><span class="phase-pill" style="background:#f5e898;color:#4a3a00">Ovulatory</span> Peak estrogen and testosterone. Cognitive performance and confidence peak.</p>
+          <p><span class="phase-pill" style="background:#d5e0f0;color:#2a3a5a">Early luteal</span> GABA calm from allopregnanolone. Settled, focused.</p>
+          <p><span class="phase-pill" style="background:#f5e0c0;color:#5a3800">Mid luteal</span> Estrogen declining, serotonin less stable. Mixed mood pattern.</p>
+          <p><span class="phase-pill" style="background:#f0d0c0;color:#5a2a10">Late luteal</span> Serotonin and GABA both dropping. Mood most vulnerable.</p>
+          <p><span class="phase-pill" style="background:#ede0f0;color:#5a3a6a">Menstrual</span> Lowest serotonin point. Low mood, fatigue, and low motivation are normal here.</p>
+
+          <h3>These moods are real. They are also changeable.</h3>
+          <p>Knowing the cause does not make the mood disappear. But it can change how you respond to it. Nutritional strategies, training modifications, sleep prioritisation, and in some cases medical support all have evidence behind them. None of this means your emotions are not valid.</p>
+          <p class="cite">Sources: Backstrom T et al. 2008; Backstrom T et al. Mol Cell Endocrinol 2014; Lokuge S et al. Biological Psychiatry 2011; Osborn E et al. Front Pharmacol 2025; DSM-5 PMDD criteria.</p>
+        `
+      },
+
+      nutrition: {
+        title: 'Nutrition and hormones',
+        body: `
+          <h3>Your nutritional needs change across your cycle. This is biology, not willpower.</h3>
+          <p>The same meal plan across all four phases will not serve you as well as one that accounts for what your hormones are doing. This is not about restriction. It is about fuelling what is actually happening.</p>
+
+          <h3>Protein needs shift in the luteal phase</h3>
+          <p>Progesterone increases protein breakdown (catabolism). In the luteal phase, your protein needs rise to approximately 1.8 to 2.2g per kg of bodyweight per day, compared to around 1.5g in the follicular phase. If you are training through the luteal phase and not eating enough protein, you are breaking down muscle at a faster rate than usual. (Source: ISSN 2023; Lariviere et al. Am J Physiol 2006.)</p>
+
+          <h3>Energy intake is naturally higher in the luteal phase</h3>
+          <p>Research suggests total energy intake is naturally 200 to 300 kcal higher in the luteal phase than the follicular phase (ISSN 2023). This is not a failure of willpower. It is your body appropriately increasing demand. Trying to eat at the same calorie level as your follicular phase in the luteal phase while training can create a short-term energy deficit that compounds into fatigue and increased cortisol.</p>
+
+          <h3>Carbohydrate cravings and estrogen</h3>
+          <p>Estrogen improves insulin sensitivity, meaning your cells respond well to carbohydrates in the follicular phase. When estrogen drops in the late luteal phase, insulin sensitivity decreases, and your body craves quick energy sources. Understanding this mechanism is not the same as saying you should eat all the carbohydrates -- it means you can plan for it rather than feeling out of control. (Source: Mauvais-Jarvis et al. JCI 2013.)</p>
+
+          <h3>Iron and your period</h3>
+          <p>Iron loss during menstruation directly affects training performance. Vitamin C improves iron absorption by up to 67%. Many women with normal haemoglobin are functionally iron deficient -- ferritin below 30 mcg/L impairs performance and energy even when haemoglobin looks normal. If you are persistently fatigued, ask your doctor for a full iron panel including ferritin, not just haemoglobin. (Source: Angeli et al. 2016; Burden et al. BJSM 2015.)</p>
+
+          <h3>Creatine for women</h3>
+          <p>Women have lower natural creatine stores than men. 3 to 5g of creatine monohydrate daily with food supports muscle strength, cognitive function, and mood. It is safe across all phases of the menstrual cycle. Particularly useful in the luteal phase when protein breakdown is elevated. (Source: Rawson et al. JISSN 2018; Candow et al. Nutrients 2021.)</p>
+
+          <h3>A note on intermittent fasting</h3>
+          <p>Intermittent fasting and skipping breakfast may backfire for women. Research suggests fasting can suppress the HPA axis in women, raise cortisol, and disrupt the hormonal cascade that regulates your cycle. Eating within 30 to 60 minutes of waking is particularly important for women who train. (Source: Sims ST. ROAR 2024; Hamadeh MJ et al. Am J Physiol 2005.)</p>
+
+          <h3>Period pain and nutrition</h3>
+          <p>In the 5 to 7 days before your period, anti-inflammatory nutrition may reduce cramping. Omega-3 fatty acids from oily fish compete with arachidonic acid to reduce prostaglandin production (Rahbar N et al. Gynecol Endocrinol 2012). Magnesium 400mg daily relaxes smooth muscle including the uterus (Facchinetti F et al. Obstet Gynecol 1991). Heat therapy also reduces prostaglandin-driven cramping (Akin MD et al. Obstet Gynecol 2001).</p>
+          <p class="cite">Sources: ISSN 2023; Lariviere F et al. Am J Physiol 2006; Mauvais-Jarvis F et al. JCI 2013; Angeli A et al. 2016; Burden RJ et al. BJSM 2015; Rawson ES et al. JISSN 2018; Candow DG et al. Nutrients 2021; Sims ST. ROAR 2024; Hamadeh MJ et al. Am J Physiol 2005; Rahbar N et al. 2012; Facchinetti F et al. 1991; Akin MD et al. 2001.</p>
+        `
+      },
+
+      training: {
+        title: 'Training and hormones',
+        body: `
+          <h3>Exercise science was built on men's bodies</h3>
+          <p>Until 1993, women were not required to be included in medical research in the United States. The result is that almost every training guideline you have ever received -- from heart rate zones to recovery protocols to nutrition timing -- was developed on male participants and generalised to women. Women are not small men. Female physiology differs at the cellular level. (Source: NIH Revitalization Act 1993; Sims ST. ROAR 2024.)</p>
+
+          <h3>Do strength outcomes actually differ by phase?</h3>
+          <p>The short answer is: possibly, but individual variation is large enough that population averages have limited value for any individual woman. Some research suggests follicular phase resistance training may produce superior strength gains (Kissow et al. Sports Medicine 2022). However, a 2023 review found no consistent evidence that strength outcomes differ reliably by phase when individual variation is accounted for (Colenso-Semple et al. Frontiers 2023). The most important thing is tracking your own pattern, not applying a population average.</p>
+
+          <div class="highlight-box">Your personal pattern across multiple cycles matters more than any population average. Track how your training feels across phases and use that as your guide.</div>
+
+          <h3>Why the luteal phase feels harder</h3>
+          <p>The same workout genuinely requires more physiological effort in the mid and late luteal phase. Core temperature is elevated. Resting heart rate is 1.7 bpm higher on average (De Martin Topranin et al. IJSPP 2023). Protein breakdown is increased. Cortisol competes with progesterone and compounds training stress (Hackney 2006). Perceived exertion is higher for the same load. This is not in your head.</p>
+
+          <h3>Wearable devices and the male calibration problem</h3>
+          <p>Wearable readiness scores are calculated using algorithms trained primarily on male physiology. Your elevated core temperature and heart rate in the luteal phase looks like poor recovery to a device that treats male physiology as the default. If your Oura ring or Apple Watch consistently marks you as unready in the second half of your cycle, that is likely a calibration problem, not an accurate reflection of your readiness. (Source: Sims ST. ROAR 2024.)</p>
+
+          <h3>Muscle and your long-term health</h3>
+          <p>Muscle mass is one of the most powerful things you can build for your long-term hormonal health. It improves insulin sensitivity, supports healthy estrogen metabolism, and directly influences how you transition through perimenopause and menopause. Bone responds to load at every age. Every weighted squat and deadlift stimulates bone formation. (Source: Wright V; Kohrt WM et al. MSSE 2004.)</p>
+
+          <h3>RED-S: when exercise costs more than it returns</h3>
+          <p>Relative Energy Deficiency in Sport (RED-S) happens when energy burned through exercise consistently exceeds energy taken in through food. Your body responds by shutting down non-essential systems, starting with reproduction. Signs include: persistent fatigue, getting sick frequently, stress fractures, and a missing or irregular period. You do not need to be elite or underweight. (Source: IOC Consensus Statement on RED-S, Mountjoy et al. BJSM 2023.)</p>
+          <p>A missing period is not a fitness badge. It is a sign your body has decided reproduction is too costly given your current energy balance. (Source: Sims ST. ROAR 2024.)</p>
+          <p class="cite">Sources: Sims ST. ROAR. Rodale 2024; Kissow et al. Sports Medicine 2022; Colenso-Semple et al. Frontiers 2023; De Martin Topranin et al. IJSPP 2023; Hackney AC. JSSM 2006; Kohrt WM et al. MSSE 2004; Mountjoy M et al. BJSM 2023 (IOC RED-S Consensus); NIH Revitalization Act 1993.</p>
+        `
+      },
+
+      conditions: {
+        title: 'Conditions worth knowing about',
+        body: `
+          <h3>These conditions are common. They are also commonly missed or dismissed.</h3>
+          <p>If any of the following sounds familiar, you are not imagining it, and you are not alone. Each of these conditions has a specific biological explanation, and each one is manageable with the right support.</p>
+
+          <h3>PCOS</h3>
+          <p>Polycystic ovary syndrome affects roughly 1 in 10 women and is one of the most common hormonal conditions. It is characterised by elevated androgens, irregular cycles, and often insulin resistance. PCOS is very manageable through nutrition, resistance training, and in some cases medication. It is not a fertility sentence. (Source: Teede HJ et al. Human Reproduction 2018.)</p>
+          <p>Birth control can suppress PCOS symptoms without addressing the underlying hormonal pattern. If you were put on the pill for irregular cycles, the original pattern may return after stopping. (Source: Crawford N.)</p>
+          <p>Insulin resistance is central to PCOS in many women. Resistance training is one of the most effective interventions for improving insulin sensitivity. (Source: Woodward A et al. Obesity Reviews 2019; Fica S et al. J Medicine 2008.)</p>
+
+          <h3>Endometriosis</h3>
+          <p>Endometriosis affects approximately 1 in 10 women and causes an average diagnostic delay of 7 to 10 years (Nnoaham KE et al. Fertility and Sterility 2011). The diagnostic delay exists because period pain is frequently dismissed as normal. Pain that disrupts your daily life is not normal.</p>
+          <p>Symptoms include severe period pain, pain during sex, bowel symptoms around your period, and subfertility. If this sounds familiar, please pursue investigation specifically. Name the symptoms. Ask for a referral. Do not accept "some pain is normal." (Source: Meuleman C et al. Human Reproduction Update 2009.)</p>
+
+          <h3>Perimenopause</h3>
+          <p>Perimenopause can begin as early as age 35. Symptoms include cycle irregularity, sleep disruption, mood changes, brain fog, and changes in exercise tolerance. These are real hormonal shifts, not just stress. The transition is gradual and highly individual. (Source: Harlow SD et al. Climacteric 2012, STRAW+10.)</p>
+          <p>Current evidence shows that hormone replacement therapy (HRT) started within 10 years of menopause or before age 60 is associated with reduced risk of osteoporosis, cardiovascular disease, and cognitive decline. The 2002 study that caused widespread HRT avoidance was later found to have been misinterpreted. It used older formulations in older women and conclusions were over-generalised. (Source: Manson JE et al. NEJM 2013.)</p>
+
+          <h3>RED-S</h3>
+          <p>Relative Energy Deficiency in Sport is not just an elite athlete problem. Any woman training consistently while under-fuelling is at risk. Your immune function, bone health, metabolic rate, and reproductive function are all affected before you feel obviously unwell. A missing period is the clearest signal. (Source: Mountjoy M et al. BJSM 2023.)</p>
+
+          <h3>Iron deficiency</h3>
+          <p>Standard anaemia blood tests measure haemoglobin. But ferritin -- your iron stores -- can be depleted while haemoglobin looks normal. Ferritin below 30 mcg/L is functionally deficient for active women even with normal haemoglobin. Symptoms include persistent fatigue, poor training recovery, brain fog, and breathlessness. Ask your doctor for a full iron panel, not just haemoglobin. (Source: Burden RJ et al. BJSM 2015.)</p>
+
+          <p>If any of these descriptions match your experience, you deserve a proper investigation. Bring your HormoneSync data to the appointment.</p>
+          <p class="cite">Sources: Teede HJ et al. Human Reproduction 2018; Nnoaham KE et al. Fertility and Sterility 2011; Meuleman C et al. Human Reproduction Update 2009; Harlow SD et al. Climacteric 2012 (STRAW+10); Manson JE et al. NEJM 2013; Mountjoy M et al. BJSM 2023; Woodward A et al. Obesity Reviews 2019; Fica S et al. 2008; Burden RJ et al. BJSM 2015.</p>
+        `
+      },
+
+      path: {
+        title: 'Your path',
+        body: `<div id="pathContent"><p style="color:#9a9590;font-size:14px">Loading...</p></div>`
+      }
+    }
+
+    window.openArticle = function(key) {
+      const article = ARTICLES[key]
+      if (!article) return
+
+      let body = article.body
+
+      // Personalise the path article
+      if (key === 'path') {
+        body = getPathContent(window._userPath, window._bcType)
+      }
+
+      document.getElementById('articleTitle').textContent = article.title
+      document.getElementById('articleBody').innerHTML = body
+      document.getElementById('articleOverlay').classList.add('open')
+      document.body.style.overflow = 'hidden'
+    }
+
+    window.closeArticle = function(e) {
+      if (e && e.target !== document.getElementById('articleOverlay')) return
+      document.getElementById('articleOverlay').classList.remove('open')
+      document.body.style.overflow = ''
+    }
+
+    function getPathContent(path, bcType) {
+      if (path === '2' || bcType === 'depo') {
+        return `
+          <h3>What to expect after stopping birth control</h3>
+          <p>Your cycle will return on its own timeline. For most women on the pill, the first cycle returns within 1 to 3 months. For Depo-Provera specifically, cycle return can take 9 to 18 months, and 55% of women have no period at 12 months. This is within the normal range.</p>
+          <p>HormoneSync tracks your recovery signals daily. Temperature shifts, cervical fluid changes, and mood patterns all emerge before your period returns and give useful information about how your hormonal recovery is progressing.</p>
+          <h3>Bone density after Depo</h3>
+          <p>Depo-Provera reduces estrogen and causes measurable bone mineral density loss. The FDA carries a black box warning. Weight-bearing exercise and strength training are the most effective non-pharmacological ways to protect your bones during recovery. Every workout you log is actively protective. (Source: FDA Depo-Provera prescribing information 2016.)</p>
+          <h3>What to eat during recovery</h3>
+          <p>Calcium 600mg twice daily and vitamin D 800 to 1000 IU are recommended during hormonal recovery. Prioritise protein to support the returning hormonal environment. (Source: FDA Depo-Provera prescribing information 2016.)</p>
+          <p class="cite">Source: FDA Depo-Provera prescribing information 2016; Teede HJ et al. Human Reproduction 2018.</p>
+        `
+      }
+      if (path === '3') {
+        return `
+          <h3>Irregular cycles</h3>
+          <p>Irregular cycles have many possible causes: stress, under-fuelling, polycystic ovary syndrome, thyroid conditions, perimenopause, or simply natural variation. HormoneSync tracks your patterns over time to help you understand which signals are consistent and which are one-off.</p>
+          <p>Symptom inference -- reading your energy, mood, cervical fluid, and temperature patterns -- is especially important when your cycle timing is unpredictable. The more you log, the more accurately your phase can be estimated even without a reliable period date.</p>
+          <h3>When to see a doctor</h3>
+          <p>If your cycle is consistently shorter than 21 days or longer than 35 days, it is worth an investigation. Bring your HormoneSync logs to show the pattern over time.</p>
+          <p class="cite">Source: Teede HJ et al. Human Reproduction 2018; Crawford N.</p>
+        `
+      }
+      if (path === '4') {
+        return `
+          <h3>Perimenopause</h3>
+          <p>Perimenopause is a hormonal transition, not a disease. It can begin as early as the mid-30s and typically spans several years before menopause. The hormonal shifts are real and affect sleep, mood, cognitive function, metabolism, bone density, and exercise tolerance.</p>
+          <p>Tracking your symptoms alongside your cycle data gives you and your doctor a much clearer picture of where you are in this transition than a single blood test.</p>
+          <h3>HRT: what the evidence actually says</h3>
+          <p>HRT started within 10 years of menopause or before age 60 is associated with reduced risk of osteoporosis, cardiovascular disease, and cognitive decline for most women. The 2002 study that caused widespread HRT avoidance was later found to have been misinterpreted. Current evidence supports HRT as appropriate for most healthy women in perimenopause or early menopause. (Source: Manson JE et al. NEJM 2013.)</p>
+          <h3>Strength training in perimenopause</h3>
+          <p>The years before menopause are a critical bone-building window while estrogen is still present to support that process. Resistance training is the most effective non-pharmacological intervention for bone and muscle health through the transition. (Source: Kohrt WM et al. MSSE 2004.)</p>
+          <p class="cite">Source: Harlow SD et al. Climacteric 2012 (STRAW+10); Manson JE et al. NEJM 2013; Kohrt WM et al. MSSE 2004.</p>
+        `
+      }
+      return `
+        <h3>Tracking your natural cycle</h3>
+        <p>HormoneSync uses your logged data to build a picture of your personal hormonal pattern over time. The more consistently you log, the more personalised your recommendations become.</p>
+        <p>Your personal cycle length, phase timing, energy patterns, and symptom clusters are all unique to you. Population averages fade out of your recommendations as your personal data builds up.</p>
+        <p class="cite">Source: Janse de Jonge XAK. Sports Medicine 2003; Munster et al. 2021.</p>
+      `
+    }
+  </script>
+
+</body>
+</html>

@@ -1625,6 +1625,178 @@
             display: none !important;
         }
 
+        /* Player v2 - Strength-app quality */
+        .player-minimap {
+            display: flex;
+            gap: 6px;
+            padding: 12px 20px 10px;
+            background: #f5f0e8;
+            border-bottom: 1px solid #ede8e0;
+            overflow-x: auto;
+            scrollbar-width: none;
+        }
+        .player-minimap::-webkit-scrollbar { display: none; }
+        .minimap-dot {
+            flex-shrink: 0;
+            width: 28px; height: 28px;
+            border-radius: 50%;
+            border: 2px solid #d8d0c8;
+            background: #ffffff;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 11px; font-weight: 600; color: #9a9590;
+            transition: all 0.2s;
+        }
+        .minimap-dot.done {
+            background: #c8b89a; border-color: #c8b89a; color: #2c2820;
+        }
+        .minimap-dot.active {
+            background: #2c2820; border-color: #2c2820; color: #f5f0e8;
+            width: 32px; height: 32px; font-size: 12px;
+        }
+        .player-header-v2 {
+            padding: 12px 20px;
+            display: flex; align-items: center; justify-content: space-between;
+            background: #f5f0e8; border-bottom: 1px solid #ede8e0;
+        }
+        .player-phase-tag-v2 {
+            font-size: 11px; padding: 4px 12px; border-radius: 99px;
+            background: #e8e0d0; color: #6a5a4a;
+        }
+        .player-volume-counter {
+            font-size: 12px; color: #9a9590; font-weight: 500;
+        }
+        .player-body-v2 {
+            padding: 16px 20px 100px;
+            overflow-y: auto;
+        }
+        .player-exercise-name-row {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 4px;
+        }
+        .player-exercise-name {
+            font-family: Georgia, serif;
+            font-size: 20px; font-weight: 400; font-style: italic; color: #2c2820;
+        }
+        .pr-badge {
+            display: none;
+            background: #e8f5e8; border: 1px solid #a0d0a0;
+            color: #2a6a2a; font-size: 11px; font-weight: 700;
+            padding: 3px 8px; border-radius: 6px; letter-spacing: 0.05em;
+        }
+        .pr-badge.visible { display: inline-block; }
+        .player-exercise-meta {
+            font-size: 12px; color: #9a9590; margin-bottom: 16px;
+        }
+        .phase-note-compact {
+            padding: 10px 14px; background: #f5f0e8; border-radius: 10px;
+            margin-bottom: 16px; cursor: pointer;
+        }
+        .phase-note-compact-header {
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .phase-note-compact-label {
+            font-size: 10px; font-weight: 600; letter-spacing: 0.08em;
+            text-transform: uppercase; color: #8a7a6a;
+        }
+        .phase-note-compact-chevron { font-size: 14px; color: #9a9590; transition: transform 0.2s; }
+        .phase-note-compact.open .phase-note-compact-chevron { transform: rotate(180deg); }
+        .phase-note-compact-text {
+            display: none; font-size: 12px; color: #6a5a4a;
+            line-height: 1.5; margin-top: 8px;
+        }
+        .phase-note-compact.open .phase-note-compact-text { display: block; }
+        .set-table-head {
+            display: grid; grid-template-columns: 28px 1fr 52px 36px;
+            gap: 8px; padding: 0 4px 8px;
+            font-size: 10px; font-weight: 600; letter-spacing: 0.06em;
+            text-transform: uppercase; color: #9a9590;
+        }
+        .set-row-v2 {
+            display: grid; grid-template-columns: 28px 1fr 52px 36px;
+            gap: 8px; align-items: center;
+            padding: 8px 4px;
+            border-bottom: 1px solid #f0ebe3;
+            transition: background 0.15s;
+        }
+        .set-row-v2.completed { background: #f0faf0; border-radius: 8px; }
+        .set-num-v2 {
+            font-size: 13px; font-weight: 600; color: #2c2820; text-align: center;
+        }
+        .set-weight-group {
+            display: flex; align-items: center; gap: 6px;
+        }
+        .set-stepper-btn {
+            width: 28px; height: 32px; border-radius: 6px;
+            border: 1px solid #ede8e0; background: #ffffff;
+            font-size: 16px; color: #2c2820; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0; font-weight: 300; transition: background 0.12s;
+        }
+        .set-stepper-btn:active { background: #f0ebe3; }
+        .set-weight-wrap {
+            flex: 1; position: relative;
+        }
+        .set-weight-inp {
+            width: 100%; padding: 6px 4px; border-radius: 6px;
+            border: 1px solid #ede8e0; font-size: 14px; color: #2c2820;
+            background: #ffffff; text-align: center;
+            font-weight: 500;
+        }
+        .set-weight-inp:focus { outline: none; border-color: #c8b89a; }
+        .set-prev-hint {
+            position: absolute; bottom: -14px; left: 0; right: 0; text-align: center;
+            font-size: 10px; color: #c0b8b0;
+        }
+        .set-reps-v2 {
+            font-size: 13px; color: #5a5550; text-align: center; font-weight: 500;
+        }
+        .set-check-v2 {
+            width: 36px; height: 36px; border-radius: 50%;
+            border: 2px solid #c8b89a; background: #ffffff;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            font-size: 16px; color: transparent; transition: all 0.15s;
+            flex-shrink: 0;
+        }
+        .set-check-v2.done { background: #2c2820; border-color: #2c2820; color: #f5f0e8; }
+        /* Rest timer strip - always visible when active, fixed bottom */
+        .rest-strip {
+            position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+            width: 100%; max-width: 420px;
+            background: #2c2820; color: #f5f0e8;
+            padding: 12px 20px 28px;
+            display: none;
+            flex-direction: row; align-items: center; gap: 12px;
+            z-index: 50;
+        }
+        .rest-strip.visible { display: flex; }
+        .rest-strip-left {
+            display: flex; align-items: baseline; gap: 8px; flex-shrink: 0;
+        }
+        .rest-strip-label {
+            font-size: 10px; font-weight: 700; letter-spacing: 0.12em;
+            color: #8a8078; text-transform: uppercase;
+        }
+        .rest-strip-count {
+            font-family: Georgia, serif; font-size: 28px; font-weight: 400;
+            font-style: italic; color: #f5f0e8; min-width: 44px;
+            font-variant-numeric: tabular-nums;
+        }
+        .rest-dur-btns {
+            display: flex; gap: 6px; flex: 1; justify-content: center;
+        }
+        .rest-dur-btn {
+            padding: 5px 10px; border-radius: 20px;
+            border: 1px solid #4a4540; background: transparent;
+            font-size: 12px; color: #a09890; cursor: pointer;
+            transition: all 0.12s;
+        }
+        .rest-dur-btn:active { background: #3d3830; color: #f5f0e8; }
+        .rest-dur-btn.active { background: #c8b89a; border-color: #c8b89a; color: #2c2820; font-weight: 600; }
+        .rest-skip-btn-v2 {
+            background: none; border: none; font-size: 13px; color: #c8b89a;
+            cursor: pointer; font-weight: 500; flex-shrink: 0; padding: 4px;
+        }
+
         /* P15: Loading spinner */
         .spinner {
             width: 32px;
@@ -1690,7 +1862,7 @@
                         <div class="activity-name">Gym</div>
                     </div>
                     <div class="activity-tile" onclick="selectActivity('yoga', this)">
-                        <i class="ti ti-leaf activity-icon"></i>
+                        <span class="activity-icon" style="font-size:28px;line-height:1">🧘‍♀️</span>
                         <div class="activity-name">Yoga</div>
                     </div>
                     <div class="activity-tile" onclick="selectActivity('pilates', this)">
@@ -1900,9 +2072,8 @@
                     <!-- P5: ACL warning. Shown for ovulatory + gym/HIIT -->
                     <div class="summary-card acl-warning hidden" id="aclWarning">
                         <div class="acl-warning-icon">⚠</div>
-                        <div class="acl-warning-title">Ligament laxity is elevated today</div>
-                        <div class="acl-warning-text">Peak estrogen this week increases ligament laxity. A thorough
-                            warmup is not optional today. Complete all warmup exercises before loading any weight.</div>
+                        <div class="acl-warning-title">Your warmup matters more today</div>
+                        <div class="acl-warning-text">Peak estrogen around ovulation may increase ligament laxity slightly. This is not a reason to avoid training -- it is a reason to take every warmup exercise seriously. Complete all warmup movements before loading any weight.</div>
                     </div>
                     <!-- P4: HIIT warning. Shown for mid/late luteal -->
                     <div class="summary-card hiit-warning hidden" id="hiitWarning">
@@ -1919,10 +2090,8 @@
                     </div>
                     <!-- P6: Observation mode card. Shown for Path 2 users -->
                     <div class="summary-card obs-card hidden" id="obsCard">
-                        <div class="obs-card-title">Hormone recovery mode</div>
-                        <div class="obs-card-text">Your hormone levels during recovery are similar to the menstrual
-                            phase. Your recommendations reflect a low-estrogen environment. When your first confirmed
-                            cycle begins your recommendations will update automatically.</div>
+                        <div class="obs-card-title">Building your baseline</div>
+                        <div class="obs-card-text">Without a confirmed cycle your recommendations reflect a conservative, low-estrogen environment. This is intentional -- it protects your recovery. When your first confirmed cycle begins your recommendations will update automatically to match your actual phase.</div>
                     </div>
                     <div class="summary-card">
                         <div class="summary-card-title">
@@ -1947,43 +2116,54 @@
                 <div class="player-progress-bar">
                     <div class="player-progress-fill" id="playerProgress" style="width:0%"></div>
                 </div>
-                <div class="player-header">
-                    <div class="player-count" id="playerCount">Exercise 1 of 6</div>
-                    <div class="player-phase-tag" id="playerPhaseTag">Follicular</div>
+                <div id="playerMinimap" class="player-minimap"></div>
+                <div class="player-header-v2">
+                    <div class="player-phase-tag-v2" id="playerPhaseTag">Follicular</div>
+                    <div class="player-volume-counter" id="playerVolumeCounter">0 kg volume</div>
                 </div>
-                <div class="player-body">
-                    <div class="player-exercise-demo" id="playerExerciseDemo"></div>
-                    <div class="phase-note-box">
-                        <div class="phase-note-label">Phase guidance</div>
-                        <div class="phase-note-text" id="phaseNoteText"></div>
+                <div class="player-body-v2" id="playerBodyV2">
+                    <div class="player-exercise-name-row">
+                        <div class="player-exercise-name" id="playerExerciseName"></div>
+                        <div class="pr-badge" id="prBadge">PR</div>
                     </div>
-                    <div class="weight-suggestion-box" id="weightSuggestionBox">
-                        <div class="weight-suggestion-label">Suggested starting weight</div>
+                    <div class="player-exercise-meta" id="playerExerciseMeta"></div>
+                    <div class="player-exercise-demo" id="playerExerciseDemo"></div>
+                    <div class="phase-note-compact" id="phaseNoteCompact" onclick="togglePhaseNote()">
+                        <div class="phase-note-compact-header">
+                            <div class="phase-note-compact-label">Phase guidance</div>
+                            <i class="ti ti-chevron-down phase-note-compact-chevron"></i>
+                        </div>
+                        <div class="phase-note-compact-text" id="phaseNoteText"></div>
+                    </div>
+                    <div class="weight-suggestion-box" id="weightSuggestionBox" style="margin-bottom:16px">
+                        <div class="weight-suggestion-label">Starting weight guide</div>
                         <div class="weight-suggestion-text" id="weightSuggestionText"></div>
                         <div class="weight-science" id="weightScienceText"></div>
                     </div>
-                    <div class="set-tracker">
-                        <div class="set-tracker-header">
-                            <div class="set-tracker-title">Sets</div>
-                            <div class="set-counter" id="setCounter">0 of 3 complete</div>
-                        </div>
-                        <div class="set-rows" id="setRows"></div>
+                    <div class="set-table-head">
+                        <span style="text-align:center">Set</span>
+                        <span style="padding-left:4px">Weight (kg)</span>
+                        <span style="text-align:center">Reps</span>
+                        <span></span>
                     </div>
-                    <div class="rest-timer" id="restTimer">
-                        <div class="rest-timer-label">Rest time</div>
-                        <div class="rest-timer-count" id="timerCount">60</div>
-                        <div class="rest-timer-controls">
-                            <div class="timer-btn" onclick="setRestTime(30)">30s</div>
-                            <div class="timer-btn" onclick="setRestTime(45)">45s</div>
-                            <div class="timer-btn active" id="btn60" onclick="setRestTime(60)">60s</div>
-                            <div class="timer-btn" onclick="setRestTime(90)">90s</div>
-                            <div class="timer-btn" onclick="setRestTime(120)">2min</div>
-                            <div class="timer-btn" onclick="skipRest()">Skip</div>
-                        </div>
-                    </div>
-                    <button class="next-exercise-btn" id="nextExerciseBtn" onclick="nextExercise()">
+                    <div id="setRows"></div>
+                    <button class="next-exercise-btn" id="nextExerciseBtn" onclick="nextExercise()" style="margin-top:24px">
                         Next exercise <i class="ti ti-arrow-right"></i>
                     </button>
+                    <div style="height:100px"></div>
+                </div>
+                <div class="rest-strip" id="restStrip">
+                    <div class="rest-strip-left">
+                        <div class="rest-strip-label">Rest</div>
+                        <div class="rest-strip-count" id="restStripCount">60</div>
+                    </div>
+                    <div class="rest-dur-btns">
+                        <button class="rest-dur-btn" data-secs="30" onclick="setRestTime(30)">30s</button>
+                        <button class="rest-dur-btn active" data-secs="60" onclick="setRestTime(60)">60s</button>
+                        <button class="rest-dur-btn" data-secs="90" onclick="setRestTime(90)">90s</button>
+                        <button class="rest-dur-btn" data-secs="120" onclick="setRestTime(120)">2m</button>
+                    </div>
+                    <button class="rest-skip-btn-v2" onclick="skipRest()">Skip</button>
                 </div>
             </div>
 
@@ -4651,6 +4831,84 @@
             loadExercise(0)
         }
 
+        function renderMinimap(currentIndex) {
+            const total = state.exercises.length
+            let html = ''
+            for (let i = 0; i < total; i++) {
+                const cls = i < currentIndex ? 'done' : i === currentIndex ? 'active' : ''
+                html += `<div class="minimap-dot ${cls}">${i + 1}</div>`
+            }
+            const el = document.getElementById('playerMinimap')
+            el.innerHTML = html
+            const active = el.querySelector('.minimap-dot.active')
+            if (active) active.scrollIntoView({ inline: 'center', behavior: 'smooth' })
+        }
+
+        function updateVolumeCounter() {
+            let total = 0
+            document.querySelectorAll('.set-row-v2.completed').forEach(row => {
+                const idx = row.dataset.setIdx
+                const inp = document.getElementById('wt' + idx)
+                const repsEl = row.querySelector('.set-reps-v2')
+                if (inp && repsEl) {
+                    const kg = parseFloat(inp.value) || 0
+                    const reps = parseInt(repsEl.dataset.reps) || 0
+                    total += kg * reps
+                }
+            })
+            const el = document.getElementById('playerVolumeCounter')
+            if (el) el.textContent = total > 0 ? Math.round(total) + ' kg volume' : ''
+        }
+
+        function checkPR(exName, weight) {
+            const key = 'hsync_pr_' + exName.replace(/\s+/g, '_')
+            const prev = parseFloat(localStorage.getItem(key)) || 0
+            if (weight > prev) {
+                localStorage.setItem(key, weight)
+                return true
+            }
+            return false
+        }
+
+        function getPrevWeight(exName) {
+            const key = 'hsync_w_' + exName.replace(/\s+/g, '_')
+            return localStorage.getItem(key)
+        }
+
+        function savePrevWeight(exName, weight) {
+            if (weight > 0) {
+                const key = 'hsync_w_' + exName.replace(/\s+/g, '_')
+                localStorage.setItem(key, weight)
+            }
+        }
+
+        window.togglePhaseNote = function () {
+            document.getElementById('phaseNoteCompact').classList.toggle('open')
+        }
+
+        window.stepWeight = function (idx, delta) {
+            const inp = document.getElementById('wt' + idx)
+            const current = parseFloat(inp.value) || 0
+            const stepped = Math.max(0, Math.round((current + delta) * 4) / 4)
+            inp.value = stepped > 0 ? stepped : ''
+            checkPRLive(idx)
+        }
+
+        function checkPRLive(idx) {
+            const inp = document.getElementById('wt' + idx)
+            const ex = state.exercises[state.currentExerciseIndex]
+            if (!ex || !inp) return
+            const kg = parseFloat(inp.value) || 0
+            const prKey = 'hsync_pr_' + ex.name.replace(/\s+/g, '_')
+            const prevPR = parseFloat(localStorage.getItem(prKey)) || 0
+            const badge = document.getElementById('prBadge')
+            if (badge && kg > 0 && kg > prevPR) {
+                badge.classList.add('visible')
+            } else if (badge) {
+                badge.classList.remove('visible')
+            }
+        }
+
         function loadExercise(index) {
             const ex = state.exercises[index]
             if (!ex) { showComplete(); return }
@@ -4658,16 +4916,22 @@
             const total = state.exercises.length
             document.getElementById('playerProgress').style.width = ((index / total) * 100) + '%'
 
-            document.getElementById('playerCount').textContent = 'Exercise ' + (index + 1) + ' of ' + total
+            renderMinimap(index)
 
             document.getElementById('playerPhaseTag').textContent =
                 state.phase === 'observation' ? 'Observation' :
                     (state.subPhase || state.phase.replace(' phase', ''))
+
+            document.getElementById('playerExerciseName').textContent = ex.name
+            document.getElementById('prBadge').classList.remove('visible')
+            document.getElementById('playerExerciseMeta').textContent = ex.sets + ' sets  x  ' + ex.reps
+
             renderExerciseDetail(ex)
 
             const phaseKey = (state.phase === 'Luteal phase' && state.subPhase) ? state.subPhase : state.phase
             document.getElementById('phaseNoteText').textContent =
                 phaseIntensityNotes[phaseKey] || phaseIntensityNotes['observation']
+            document.getElementById('phaseNoteCompact').classList.remove('open')
 
             const weightData = weightsByLevel[state.fitnessLevel] && weightsByLevel[state.fitnessLevel][ex.name]
             const weightBox = document.getElementById('weightSuggestionBox')
@@ -4680,39 +4944,64 @@
             }
 
             const setsNum = parseInt(ex.sets) || 3
-            document.getElementById('setCounter').textContent = '0 of ' + setsNum + ' complete'
+            const prevWt = getPrevWeight(ex.name)
+            const repsTarget = ex.reps
 
             let rowsHTML = ''
             for (let s = 1; s <= setsNum; s++) {
+                const placeholder = prevWt ? prevWt : ''
+                const prevHint = prevWt ? `<div class="set-prev-hint">last: ${prevWt} kg</div>` : ''
                 rowsHTML += `
-            <div class="set-row" id="setRow${s}">
-              <div class="set-num">${s}</div>
-              <div class="set-reps">${ex.reps}</div>
-              <input class="set-weight-input" type="text" placeholder="kg" id="weight${s}" />
-              <div class="set-check" id="check${s}" onclick="completeSet(${s}, ${setsNum})">✓</div>
-            </div>`
+                <div class="set-row-v2" id="setRow${s}" data-set-idx="${s}">
+                  <div class="set-num-v2">${s}</div>
+                  <div class="set-weight-group">
+                    <button class="set-stepper-btn" onclick="stepWeight(${s}, -2.5)">-</button>
+                    <div class="set-weight-wrap">
+                      <input class="set-weight-inp" type="number" step="0.5" min="0" placeholder="${placeholder}" id="wt${s}" oninput="checkPRLive(${s})" />
+                      ${prevHint}
+                    </div>
+                    <button class="set-stepper-btn" onclick="stepWeight(${s}, 2.5)">+</button>
+                  </div>
+                  <div class="set-reps-v2" data-reps="${parseInt(repsTarget) || 8}">${repsTarget}</div>
+                  <div class="set-check-v2" id="check${s}" onclick="completeSet(${s}, ${setsNum})">✓</div>
+                </div>`
             }
             document.getElementById('setRows').innerHTML = rowsHTML
-            document.getElementById('restTimer').classList.remove('visible')
+            document.getElementById('playerVolumeCounter').textContent = ''
+
+            skipRest()
+
             const nextBtn = document.getElementById('nextExerciseBtn')
             nextBtn.classList.remove('visible')
-            nextBtn.textContent = index + 1 < total ? 'Next exercise →' : 'Finish workout'
+            nextBtn.innerHTML = index + 1 < total
+                ? 'Next exercise <i class="ti ti-arrow-right"></i>'
+                : 'Finish workout <i class="ti ti-check"></i>'
         }
 
         window.completeSet = function (setNum, totalSets) {
             const check = document.getElementById('check' + setNum)
             if (check.classList.contains('done')) return
             check.classList.add('done')
-            document.getElementById('setRow' + setNum).classList.add('completed')
+            const row = document.getElementById('setRow' + setNum)
+            row.classList.add('completed')
 
-            const completedSets = document.querySelectorAll('.set-check.done').length
-            document.getElementById('setCounter').textContent = completedSets + ' of ' + totalSets + ' complete'
+            const inp = document.getElementById('wt' + setNum)
+            const kg = parseFloat(inp.value) || 0
+            const ex = state.exercises[state.currentExerciseIndex]
 
+            if (kg > 0 && ex) {
+                savePrevWeight(ex.name, kg)
+                const isPR = checkPR(ex.name, kg)
+                if (isPR) document.getElementById('prBadge').classList.add('visible')
+            }
+
+            updateVolumeCounter()
+
+            const completedSets = document.querySelectorAll('.set-check-v2.done').length
             if (completedSets < totalSets) {
                 startRestTimer()
             } else {
-                clearInterval(state.restInterval)
-                document.getElementById('restTimer').classList.remove('visible')
+                skipRest()
                 document.getElementById('nextExerciseBtn').classList.add('visible')
             }
         }
@@ -4720,43 +5009,45 @@
         function startRestTimer() {
             clearInterval(state.restInterval)
             let timeLeft = state.restTime
-            document.getElementById('timerCount').textContent = timeLeft
-            document.getElementById('restTimer').classList.add('visible')
+            document.getElementById('restStripCount').textContent = timeLeft
+            document.getElementById('restStrip').classList.add('visible')
             state.restInterval = setInterval(() => {
                 timeLeft--
-                document.getElementById('timerCount').textContent = timeLeft
+                document.getElementById('restStripCount').textContent = timeLeft
                 if (timeLeft <= 0) {
                     clearInterval(state.restInterval)
-                    document.getElementById('restTimer').classList.remove('visible')
+                    document.getElementById('restStrip').classList.remove('visible')
                 }
             }, 1000)
         }
 
         window.setRestTime = function (seconds) {
             state.restTime = seconds
-            document.querySelectorAll('.timer-btn').forEach(b => b.classList.remove('active'))
-            event.currentTarget.classList.add('active')
+            document.querySelectorAll('.rest-dur-btn').forEach(b => b.classList.remove('active'))
+            const clicked = document.querySelector('.rest-dur-btn[data-secs="' + seconds + '"]')
+            if (clicked) clicked.classList.add('active')
             clearInterval(state.restInterval)
             let timeLeft = seconds
-            document.getElementById('timerCount').textContent = timeLeft
-            document.getElementById('restTimer').classList.add('visible')
+            document.getElementById('restStripCount').textContent = timeLeft
+            document.getElementById('restStrip').classList.add('visible')
             state.restInterval = setInterval(() => {
                 timeLeft--
-                document.getElementById('timerCount').textContent = timeLeft
+                document.getElementById('restStripCount').textContent = timeLeft
                 if (timeLeft <= 0) {
                     clearInterval(state.restInterval)
-                    document.getElementById('restTimer').classList.remove('visible')
+                    document.getElementById('restStrip').classList.remove('visible')
                 }
             }, 1000)
         }
 
         window.skipRest = function () {
             clearInterval(state.restInterval)
-            document.getElementById('restTimer').classList.remove('visible')
+            document.getElementById('restStrip').classList.remove('visible')
         }
 
         window.nextExercise = function () {
             clearInterval(state.restInterval)
+            document.getElementById('restStrip').classList.remove('visible')
             state.currentExerciseIndex++
             if (state.currentExerciseIndex >= state.exercises.length) {
                 showCooldownScreen()
@@ -5281,6 +5572,10 @@
                 document.getElementById(s).classList.add('hidden')
             })
             document.getElementById(id).classList.remove('hidden')
+            if (id !== 'screenPlayer') {
+                clearInterval(state.restInterval)
+                document.getElementById('restStrip').classList.remove('visible')
+            }
         }
 
         const ACTIVITY_LABELS = {

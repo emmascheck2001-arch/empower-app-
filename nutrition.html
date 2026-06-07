@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nutrition — HormoneSync</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #faf8f5;
+      color: #2c2820;
+      padding-bottom: 90px;
+      max-width: 420px;
+      margin: 0 auto;
+    }
+
+    /* ── Spinner ── */
+    .spinner-wrap { text-align: center; padding: 80px 20px; }
+    .spinner {
+      width: 32px; height: 32px;
+      border: 3px solid #ede8e0;
+      border-top-color: #c8b89a;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 12px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner-label { font-size: 13px; color: #9a9590; }
+
+    /* ── Top bar ── */
+    .top-bar {
+      background: #f5f0e8;
+      padding: 20px 20px 16px;
+      border-bottom: 1px solid #ede8e0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .top-bar-left { display: flex; align-items: center; gap: 10px; }
+    .back-btn {
+      background: none; border: none; cursor: pointer;
+      color: #7a7268; font-size: 20px; padding: 0; display: flex;
+    }
+    .logo { font-size: 13px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #2c2820; }
+    .phase-chip {
+      font-size: 11px; font-weight: 600; padding: 4px 10px;
+      border-radius: 99px; background: #f5ead8; color: #9a6a3a;
+      text-transform: uppercase; letter-spacing: 0.08em;
+    }
+
+    /* ── Phase banner ── */
+    .phase-banner {
+      margin: 16px 16px 0;
+      border-radius: 16px;
+      padding: 22px 20px;
+      color: #e8e0d4;
+      position: relative;
+    }
+    .phase-banner.menstrual  { background: linear-gradient(135deg, #3d2830 0%, #2c1f25 100%); }
+    .phase-banner.follicular { background: linear-gradient(135deg, #2c3828 0%, #1f2c20 100%); }
+    .phase-banner.ovulatory  { background: linear-gradient(135deg, #2c3035 0%, #1f252c 100%); }
+    .phase-banner.luteal     { background: linear-gradient(135deg, #352c20 0%, #2c2415 100%); }
+    .phase-banner.observation{ background: linear-gradient(135deg, #2c2820 0%, #1f1e18 100%); }
+    .banner-label {
+      font-size: 10px; font-weight: 600; letter-spacing: 0.1em;
+      text-transform: uppercase; color: #8a8078; margin-bottom: 6px;
+    }
+    .banner-phase {
+      font-family: Georgia, serif; font-size: 22px; font-weight: 400;
+      font-style: italic; color: #e8e0d4; margin-bottom: 6px;
+    }
+    .banner-desc { font-size: 12px; color: #a0988e; line-height: 1.6; }
+    .banner-science {
+      font-size: 10px; color: #6a6058; margin-top: 10px;
+      padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.07);
+      line-height: 1.5;
+    }
+
+    /* ── Targets card ── */
+    .targets-card {
+      margin: 12px 16px 0;
+      background: #fff;
+      border: 1px solid #ede8e0;
+      border-radius: 14px;
+      padding: 16px;
+    }
+    .targets-label {
+      font-size: 10px; font-weight: 600; letter-spacing: 0.1em;
+      text-transform: uppercase; color: #9a9590; margin-bottom: 12px;
+    }
+    .targets-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .target-item {
+      background: #faf8f5; border-radius: 10px; padding: 12px;
+      text-align: center;
+    }
+    .target-value { font-size: 22px; font-weight: 600; color: #2c2820; margin-bottom: 2px; }
+    .target-unit  { font-size: 10px; color: #9a9590; text-transform: uppercase; letter-spacing: 0.06em; }
+    .target-note  { font-size: 11px; color: #7a7268; margin-top: 6px; line-height: 1.5; }
+    .targets-source { font-size: 10px; color: #9a9590; margin-top: 10px; font-style: italic; }
+
+    /* ── Tabs ── */
+    .tabs {
+      display: flex; gap: 0;
+      margin: 16px 16px 0;
+      background: #f0ece4;
+      border-radius: 10px;
+      padding: 4px;
+    }
+    .tab-btn {
+      flex: 1; padding: 9px 0; font-size: 13px; font-weight: 500;
+      background: none; border: none; cursor: pointer;
+      color: #7a7268; border-radius: 7px; transition: all 0.15s;
+    }
+    .tab-btn.active { background: #fff; color: #2c2820; font-weight: 600; }
+
+    /* ── Tab panes ── */
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+
+    /* ── Section labels ── */
+    .section-label {
+      font-size: 11px; font-weight: 600; letter-spacing: 0.1em;
+      text-transform: uppercase; color: #9a9590;
+      padding: 0 16px; margin: 20px 0 10px;
+    }
+
+    /* ── Food grid ── */
+    .food-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      padding: 0 16px;
+      margin-bottom: 4px;
+    }
+    .food-card {
+      background: #fff;
+      border: 1px solid #ede8e0;
+      border-radius: 14px;
+      padding: 14px 12px;
+    }
+    .food-icon { font-size: 26px; margin-bottom: 8px; }
+    .food-name { font-size: 13px; font-weight: 600; color: #2c2820; margin-bottom: 4px; }
+    .food-why  { font-size: 11px; color: #7a7268; line-height: 1.5; }
+    .food-source { font-size: 10px; color: #9a9590; margin-top: 5px; font-style: italic; }
+
+    /* ── Avoid section ── */
+    .avoid-card {
+      margin: 0 16px 4px;
+      background: #fdf5f0;
+      border: 1px solid #f0d8cc;
+      border-radius: 12px;
+      padding: 14px 16px;
+    }
+    .avoid-title {
+      font-size: 12px; font-weight: 600; color: #8a4a2a;
+      margin-bottom: 8px; display: flex; align-items: center; gap: 6px;
+    }
+    .avoid-item {
+      font-size: 12px; color: #5a3a28; line-height: 1.7;
+      padding: 3px 0; border-bottom: 1px solid rgba(0,0,0,0.05);
+    }
+    .avoid-item:last-child { border-bottom: none; }
+
+    /* ── Symptom accordion ── */
+    .symptom-card {
+      margin: 0 16px 10px;
+      background: #fff;
+      border: 1px solid #ede8e0;
+      border-radius: 14px;
+      overflow: hidden;
+    }
+    .symptom-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .symptom-header-left { display: flex; align-items: center; gap: 12px; }
+    .symptom-icon-wrap {
+      width: 36px; height: 36px; border-radius: 10px;
+      background: #f5ead8; display: flex; align-items: center;
+      justify-content: center; font-size: 18px; flex-shrink: 0;
+    }
+    .symptom-title { font-size: 14px; font-weight: 600; color: #2c2820; }
+    .symptom-sub   { font-size: 11px; color: #9a9590; margin-top: 1px; }
+    .symptom-chevron {
+      font-size: 18px; color: #9a9590; transition: transform 0.2s; flex-shrink: 0;
+    }
+    .symptom-card.open .symptom-chevron { transform: rotate(180deg); }
+    .symptom-body {
+      display: none;
+      padding: 0 16px 16px;
+      border-top: 1px solid #ede8e0;
+    }
+    .symptom-card.open .symptom-body { display: block; }
+
+    .remedy-item {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 10px 0; border-bottom: 1px solid #f0ece4;
+    }
+    .remedy-item:last-child { border-bottom: none; }
+    .remedy-icon { font-size: 22px; flex-shrink: 0; margin-top: 1px; }
+    .remedy-content { flex: 1; }
+    .remedy-name { font-size: 13px; font-weight: 600; color: #2c2820; margin-bottom: 3px; }
+    .remedy-desc { font-size: 12px; color: #7a7268; line-height: 1.5; }
+    .remedy-source { font-size: 10px; color: #9a9590; margin-top: 3px; font-style: italic; }
+
+    .symptom-avoid {
+      margin-top: 10px;
+      background: #fdf5f0; border-radius: 8px; padding: 10px 12px;
+    }
+    .symptom-avoid-label { font-size: 11px; font-weight: 600; color: #8a4a2a; margin-bottom: 5px; }
+    .symptom-avoid-text  { font-size: 11px; color: #5a3a28; line-height: 1.6; }
+
+    /* ── Disclaimer ── */
+    .disclaimer {
+      margin: 16px 16px 8px;
+      font-size: 11px; color: #9a9590; line-height: 1.6;
+      padding: 12px 14px;
+      background: #f5f0e8; border-radius: 10px;
+    }
+
+    /* ── Bottom nav ── */
+    .bottom-nav {
+      position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+      width: 100%; max-width: 420px;
+      background: #f5f0e8; border-top: 1px solid #ede8e0;
+      display: flex; justify-content: space-around;
+      padding: 10px 0 calc(10px + env(safe-area-inset-bottom));
+      z-index: 100;
+    }
+    .nav-item {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 3px; text-decoration: none; color: #9a9590; font-size: 9px;
+      font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase;
+    }
+    .nav-item i { font-size: 18px; }
+    .nav-item.active i,
+    .nav-item.active span { color: #2c2820; }
+  </style>
+</head>
+
+<body>
+
+  <div id="spinnerWrap" class="spinner-wrap">
+    <div class="spinner"></div>
+    <div class="spinner-label">Loading your nutrition plan...</div>
+  </div>
+
+  <div id="mainContent" style="display:none">
+
+    <div class="top-bar">
+      <div class="top-bar-left">
+        <button class="back-btn" onclick="window.location.href='dashboard.html'">
+          <i class="ti ti-arrow-left"></i>
+        </button>
+        <div class="logo">Nutrition</div>
+      </div>
+      <div class="phase-chip" id="topPhaseChip"></div>
+    </div>
+
+    <!-- Phase nutrition banner -->
+    <div class="phase-banner" id="phaseBanner">
+      <div class="banner-label">Your nutrition focus</div>
+      <div class="banner-phase" id="bannerPhase"></div>
+      <div class="banner-desc" id="bannerDesc"></div>
+      <div class="banner-science" id="bannerScience"></div>
+    </div>
+
+    <!-- Profile stats bar -->
+    <div id="profileStatsBar" style="display:none;margin:12px 16px 0;background:#fff;border:1px solid #ede8e0;border-radius:12px;padding:12px 14px;align-items:center;justify-content:space-between">
+      <div style="display:flex;align-items:center;gap:16px">
+        <div style="text-align:center">
+          <div style="font-size:15px;font-weight:600;color:#2c2820" id="profileWeightDisplay">--</div>
+          <div style="font-size:10px;color:#9a9590;text-transform:uppercase;letter-spacing:0.06em">weight</div>
+        </div>
+        <div id="profileHeightWrap" style="text-align:center;display:none">
+          <div style="font-size:15px;font-weight:600;color:#2c2820" id="profileHeightDisplay">--</div>
+          <div style="font-size:10px;color:#9a9590;text-transform:uppercase;letter-spacing:0.06em">height</div>
+        </div>
+        <div style="text-align:center" id="profileBmiWrap" style="display:none">
+          <div style="font-size:15px;font-weight:600;color:#2c2820" id="profileFitnessDisplay">--</div>
+          <div style="font-size:10px;color:#9a9590;text-transform:uppercase;letter-spacing:0.06em">level</div>
+        </div>
+      </div>
+      <a href="setup.html" style="font-size:11px;color:#9a9590;text-decoration:none;display:flex;align-items:center;gap:4px">
+        <i class="ti ti-edit" style="font-size:13px"></i> Update
+      </a>
+    </div>
+
+    <!-- Today's targets -->
+    <div class="targets-card" id="targetsCard">
+      <div class="targets-label">Today's targets</div>
+      <div class="targets-row">
+        <div class="target-item">
+          <div class="target-value" id="targetProtein">--</div>
+          <div class="target-unit">g protein</div>
+          <div class="target-note" id="targetProteinNote"></div>
+        </div>
+        <div class="target-item">
+          <div class="target-value" id="targetCals">+<span id="targetCalsNum">--</span></div>
+          <div class="target-unit">extra kcal</div>
+          <div class="target-note" id="targetCalsNote"></div>
+        </div>
+      </div>
+      <div class="targets-source" id="targetsSource"></div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab-btn active" id="tabBtnFoods" onclick="switchTab('foods', this)">Phase foods</button>
+      <button class="tab-btn" id="tabBtnSymptoms" onclick="switchTab('symptoms', this)">Symptom relief</button>
+    </div>
+
+    <!-- Foods tab -->
+    <div class="tab-pane active" id="tabFoods">
+      <div class="section-label" id="foodsSectionLabel">Power foods this phase</div>
+      <div class="food-grid" id="foodGrid"></div>
+      <div class="section-label" style="margin-top:16px">Minimize right now</div>
+      <div class="avoid-card" id="avoidCard"></div>
+
+      <!-- Carb cravings note: shown only in Menstrual phase -->
+      <div id="carbCravingsNote" style="display:none;background:#fff4f0;border:1px solid #e8cfc8;border-radius:12px;padding:14px 16px;margin-top:12px">
+        <div style="font-size:11px;font-weight:700;color:#8a3a28;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px">Why carbohydrate cravings are real right now</div>
+        <div style="font-size:13px;color:#4a2a20;line-height:1.75;margin-bottom:10px">Estrogen is at its lowest point in your cycle right now. Estrogen directly improves insulin sensitivity. When estrogen drops, your cells become temporarily less responsive to insulin. Your body compensates by craving quick glucose.</div>
+        <div style="font-size:13px;color:#4a2a20;line-height:1.75;margin-bottom:10px">This is not weak willpower. It is a measurable metabolic response to low estrogen.</div>
+        <div style="background:#fdeae6;border-radius:8px;padding:10px 12px;font-size:12px;color:#5a2a1a;line-height:1.7">
+          <strong>What actually helps:</strong> complex carbohydrates paired with protein rather than simple sugar. The protein slows glucose absorption and reduces the insulin spike while still addressing the metabolic demand. Sweet potato with Greek yogurt, oats with eggs, rice with fish.
+        </div>
+        <div style="font-size:11px;color:#9a6058;margin-top:8px;line-height:1.5">Source: Mauvais-Jarvis F et al. Journal of Clinical Investigation 2013. Estrogen receptors on muscle and pancreatic beta cells and the estrogen-insulin sensitivity mechanism.</div>
+      </div>
+    </div>
+
+    <!-- Symptom relief tab -->
+    <div class="tab-pane" id="tabSymptoms">
+      <div class="section-label">Find relief for</div>
+
+      <!-- Cramping -->
+      <div class="symptom-card" id="crampCard">
+        <div class="symptom-header" onclick="toggleSymptom('crampCard')">
+          <div class="symptom-header-left">
+            <div class="symptom-icon-wrap">&#129354;</div>
+            <div>
+              <div class="symptom-title">Cramping</div>
+              <div class="symptom-sub">Dysmenorrhea and pelvic pain</div>
+            </div>
+          </div>
+          <i class="ti ti-chevron-down symptom-chevron"></i>
+        </div>
+        <div class="symptom-body">
+          <div class="remedy-item">
+            <div class="remedy-icon">&#x1F41F;</div>
+            <div class="remedy-content">
+              <div class="remedy-name">Fatty fish (salmon, mackerel, sardines)</div>
+              <div class="remedy-desc">Rich in EPA and DHA omega-3 fatty acids. Dietary omega-3s may reduce prostaglandin production, which drives uterine contractions and cramping. Aim for 2 to 3 servings per week, particularly in the week before your period.</div>
+              <div class="remedy-source">Source: Harel Z et al. Am J Obstet Gynecol. 1996;174(4):1335-1338 (n=42 adolescents, omega-3 supplementation significantly reduced dysmenorrhea severity vs placebo)</div>
+            </div>
+          </div>
+          <div class="remedy-item">
+            <div class="remedy-icon">&#x1F36B;</div>
+            <div class="remedy-content">
+              <div class="remedy-name">Pumpkin seeds and dark chocolate (70%+)</div>
+              <div class="remedy-desc">Both are high in magnesium. Magnesium may reduce uterine muscle contractions and inhibit prostaglandin synthesis. Pumpkin seeds provide approximately 150mg magnesium per 30g serving.</div>
+              <div class="remedy-source">Source: Seifert B et al. Zentralbl Gynakol. 1989;111(11):755-760 -- magnesium supplementation reduced dysmenorrhea; Altura BM, Altura BT. Magnesium. 1985;4(5-6):175-194 -- magnesium and smooth muscle relaxation</div>
+            </div>
+          </div>
+          <div class="remedy-item">
+            <div class="remedy-icon">&#x1FAD6;</div>
+            <div class="remedy-content">
+              <div class="remedy-name">Fresh ginger</div>
+              <div class="remedy-desc">Ginger contains gingerols and shogaols, compounds with anti-inflammatory and prostaglandin-inhibiting properties. One small RCT found ginger may be as effective as ibuprofen for period pain when taken from day 1 of menstruation.</div>
+              <div class="remedy-source">Source: Ozgoli G et al. J Midwifery Womens Health. 2009;54(2):74-78 (n=150 women, ginger 250mg 4x/day vs ibuprofen 400mg 4x/day; no significant difference in pain relief at day 3)</div>
+            </div>
+          </div>
+          <div class="remedy-item">
+            <div class="remedy-icon">&#x1F9C4;</div>
+            <div class="remedy-content">
+              <div class="remedy-name">Walnuts and flaxseed</div>
+              <div class="remedy-desc">Plant-based sources of ALA omega-3s. While less potent than EPA/DHA from fish, regular consumption supports an anti-inflammatory dietary pattern. Add to oats, yogurt, or salads.</div>
+              <div class="remedy-source">Source: Calder PC. Biochim Biophys Acta. 2011;1812(7):791-800 -- omega-3 fatty acids and inflammation pathways</div>
+            </div>
+          </div>
+          <div class="symptom-avoid">
+            <div class="symptom-avoid-label">Minimize during menstruation</div>
+            <div class="symptom-avoid-text">Trans fats and refined vegetable oils (may increase pro-inflammatory prostaglandins) -- red meat in excess -- alcohol (may increase prostaglandin activity) -- excess caffeine (may increase uterine tension in some women; individual responses vary)</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bloating -->
+      <div class="symptom-card" id="bloatCard">
+        <div class="symptom-header" onclick="toggleSymptom('bloatCard')">
+          <div class="symptom-header-left">
+            <div class="symptom-icon-wrap">&#129703;</div>
+            <div>
+              <div class="symptom-title">Bloating</div>
+              <div class="symptom-sub">Luteal-phase GI changes</div>
+            </div>
+          </div>
+          <i class="ti ti-chevron-down symptom-chevron"></i>
+        </div>
+        <div class="symptom-body">
+          <div class="remedy-item">
+            <div class="remedy-icon">&#x1F9C0;</div>
+            <div class="remedy-content">
+              <div class="remedy-name">Probiotic foods (yogurt, kefir, kimchi)</div>
+              <div class="remedy-desc">Progesterone slows gut motility in the luteal phase, which can cause bloating and constipation. Probiotic-rich foods support gut microbiome balance and may help maintain regularity. Look for live active cultures on the label.</div>
+              <div class="remedy-source">Source: Wald A et al. Gastroenterology. 1981;80(6):1497-1500 -- progesterone slows gastrointestinal transit; Bharadwaj S et al. J Clin Gastroenterol. 2015;49(4):270-277 -- sex hormones and GI motility</div>
+            </div>
+          </div>
+          <div class="remedy-item">
+            <div class="remedy-icon">&#x1F96C;</div>
+            <div class="remedy-content">
+              <div class="remedy-name">Cooked vegetables over raw</div>
+              <div class="remedy-desc">When gut motility is slower in the luteal phase, cooked vegetables (zucchini, carrots, spinach) are easier to digest than raw cruciferous veg. Steaming or roasting breaks down fiber and reduces gas production without removing nutrients.</div>
+              <div class="remedy-source">Source: Guidance consistent with USDA Dietary Guidelines 2020-2025 and Health Canada; applied here in context of Wald et al. 1981 GI motility findings</div>
+            </div>
+          </div>
+          <div class="remedy-item">
+            <div class="remedy-icon">&#x1F3F5;</div>
+            <div class="remedy-content">
+              <div class="remedy-name">Fennel (seeds or bulb)</div>
+              <div class="remedy-desc">Fennel has a long history as a carminative (gas-reducing) herb. Animal and limited human studies suggest fennel may relax intestinal muscles and reduce bloating. Brew as tea or slice raw into salads.</div>
+              <div class="remedy-source">Source: Alexandrovich I et al. Altern Ther Health Med. 2003;9(4):58-61 -- fennel seed oil reduced intestinal spasm; evidence in women specifically is limited; individual results may vary</div>
+            </div>
+          </div>
+          <div class="remedy-item">
+            <div class="remedy-icon">&#x1F4A7;</div>
+            <div class="remedy-content">
+              <div class="remedy-name">Increase water intake</div>
+              <div class="remedy-desc">Counterintuitively, adequate hydration reduces water retention rather than causing it. Aim for at least 2L daily. Herbal teas (peppermint, ginger) may also support digestion.</div>
+              <div class="remedy-source">Source: Dietary fluid recommendations consistent with Health Canada Dietary Reference Intakes; USDA Dietary Guidelines 2020-2025</div>
+            </div>
+          </div>
+          <div class="symptom-avoid">
+            <div class="symptom-avoid-label">Minimize to reduce bloating</div>
+            <div class="symptom-avoid-text">High-sodium processed foods (drive water retention) -- carbonated drinks -- alcohol (disrupts GI function and worsens water retention) -- large quantities of raw brassicas (broccoli, cabbage, Brussels sprouts) if you are sensitive -- sugar alcohols (sorbitol, mannitol in sugar-free products)</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Brain fog -->
+      <div class="symptom-card" id="fogCard">
+        <div class="symptom-header" onclick="toggleSymptom('fogCard')">
+          <div class="symptom-header-left">
+            <div class="symptom-icon-wrap">&#129504;</div>
+            <div>
+              <div class="symptom-title">Brain fog</div>
+              <div class="symptom-sub">Focus, concentration and energy</div>
+            </div>
+          </div>
+          <i class="ti ti-chevron-down symptom-chevron"></i>
+        </div>
+        <div class="symptom-body">
+          <div class="remedy-item">
+            <div class="remedy-icon">&#x1F969;</div>
+            <div class="remedy-content">
+              <div class="remedy-name">Iron-rich foods (red meat, lentils, spinach)</div>
+              <div class="remedy-desc">Iron loss during menstruation can reduce cognitive performance and increase fatigue. Even mild iron depletion without clinical anaemia may impair attention and working memory in women of reproductive age. Pairing plant iron sources with vitamin C increases absorption.</div>
+              <div class="remedy-source">Source: Angeli A et al. Eur J Sport Sci. 2016 -- iron loss during menstruation impacts exercise performance and energy; Bruner AB et al. Lancet. 1996;348(9033):992-996 -- iron repletion improved attention and learning in non-anaemic iron-deficient adolescent girls</div>
+            </div>
+          </div>
+          <div class="remedy-item">
+            <div class="remedy-icon">&#x1F9E0;</div>
+            <div class="remedy-content">
+              <div class="remedy-name">Oily fish and walnuts (DHA omega-3)</div>
+              <div class="remedy-desc">DHA is a structural component of brain cell membranes. Adequate omega-3 intake is associated with better cognitive function and mood regulation. Research suggests DHA may support working memory and reduce inflammatory signalling in the brain.</div>
+              <div class="remedy-source">Source: Yurko-Mauro K et al. Alzheimers Dement. 2010;6(6):456-464 -- DHA supplementation improved memory; Calder PC. Biochim Biophys Acta. 2011;1812(7):791-800 -- omega-3 and neuro-inflammation</div>
+            </div>
+          </div>
+          <div class="remedy-item">
+            <div class="remedy-icon">&#x1F360;</div>
+            <div class="remedy-content">
+              <div class="remedy-name">Complex carbohydrates (oats, sweet potato, brown rice)</div>
+              <div class="remedy-desc">The brain runs on glucose. Slow-releasing complex carbohydrates maintain stable blood glucose throughout the day, avoiding the energy crashes that worsen brain fog. Avoid skipping meals, especially during menstruation when energy demand may be higher.</div>
+              <div class="remedy-source">Source: Consistent with USDA Dietary Guidelines 2020-2025 and Health Canada guidelines for carbohydrate quality; blood glucose and cognitive function evidence: Nilsson A et al. Appetite. 2012;58(1):200-207</div>
+            </div>
+          </div>
+          <div class="remedy-item">
+            <div class="remedy-icon">&#x1F95A;</div>
+            <div class="remedy-content">
+              <div class="remedy-name">Eggs and dark leafy greens (choline, folate)</div>
+              <div class="remedy-desc">Choline (eggs, liver) is an essential nutrient for acetylcholine synthesis, a neurotransmitter involved in attention and memory. Folate (leafy greens, legumes) supports neural methylation and may reduce fatigue-related cognitive slowing.</div>
+              <div class="remedy-source">Source: Poly C et al. Am J Clin Nutr. 2011;94(6):1584-1591 -- choline and cognitive performance; Penland JG. Magnes Res. 1995 -- B-vitamin status and cognition in women</div>
+            </div>
+          </div>
+          <div class="symptom-avoid">
+            <div class="symptom-avoid-label">Minimize for better focus</div>
+            <div class="symptom-avoid-text">Ultra-processed foods and refined sugar (blood glucose spikes cause energy crashes) -- excessive alcohol (disrupts sleep quality, worsening next-day cognition) -- skipping meals (allows blood glucose to drop)</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PMS and mood -->
+      <div class="symptom-card" id="pmsCard">
+        <div class="symptom-header" onclick="toggleSymptom('pmsCard')">
+          <div class="symptom-header-left">
+            <div class="symptom-icon-wrap">&#128149;</div>
+            <div>
+              <div class="symptom-title">PMS and mood</div>
+              <div class="symptom-sub">Late luteal phase support</div>
+            </div>
+          </div>
+          <i class="ti ti-chevron-down symptom-chevron"></i>
+        </div>
+        <div class="symptom-body">
+          <div class="remedy-item">
+            <div class="remedy-icon">&#x1F9C5;</div>
+            <div class="remedy-content">
+              <div class="remedy-name">Dairy, fortified foods and sunlight (calcium and vitamin D)</div>
+              <div class="remedy-desc">Calcium is the best-studied dietary intervention for PMS. In the largest RCT to date, 1200mg/day calcium carbonate over three menstrual cycles reduced total PMS symptom scores by 48% compared to placebo. Vitamin D is required for calcium absorption and may independently reduce PMS risk. Aim for calcium-rich foods daily: yogurt, milk, fortified plant milks, hard cheese, sardines with bones.</div>
+              <div class="remedy-source">Source: Thys-Jacobs S et al. Am J Obstet Gynecol. 1998;179(2):444-452 (n=466 women, multicentre RCT, calcium significantly reduced PMS symptoms at cycle 3); Bertone-Johnson ER et al. Am J Clin Nutr. 2005;81(4):971-978 (n=3025 women, high calcium and vitamin D intake associated with 40% lower PMS risk)</div>
+            </div>
+          </div>
+          <div class="remedy-item">
+            <div class="remedy-icon">&#x1F330;</div>
+            <div class="remedy-content">
+              <div class="remedy-name">Magnesium-rich foods (pumpkin seeds, almonds, dark chocolate, legumes)</div>
+              <div class="remedy-desc">Magnesium may reduce anxiety, irritability, and fluid retention associated with PMS. Several small studies suggest magnesium is lower in women with PMS compared to symptom-free controls. Dietary magnesium may not be sufficient alone; food sources are worth prioritizing regardless.</div>
+              <div class="remedy-source">Source: Facchinetti F et al. Obstet Gynecol. 1991;78(2):177-181 (n=32 women, magnesium oxide reduced late luteal phase dysphoric symptoms vs placebo); De Souza MC et al. J Womens Health Gend Based Med. 2000;9(2):131-139 -- magnesium and PMS anxiety</div>
+            </div>
+          </div>
+          <div class="remedy-item">
+            <div class="remedy-icon">&#x1F357;</div>
+            <div class="remedy-content">
+              <div class="remedy-name">Vitamin B6 (chicken, turkey, fish, banana, potatoes)</div>
+              <div class="remedy-desc">B6 (pyridoxine) is a cofactor in serotonin and dopamine synthesis. A systematic review of nine trials found B6 may be twice as effective as placebo for PMS mood symptoms. Dietary sources are preferable to high-dose supplementation, which can cause nerve damage in excess.</div>
+              <div class="remedy-source">Source: Wyatt KM et al. BMJ. 1999;318(7195):1375-1381 (systematic review and meta-analysis, 9 RCTs, n=940 women; B6 up to 100mg/day appeared beneficial for mood symptoms of PMS)</div>
+            </div>
+          </div>
+          <div class="remedy-item">
+            <div class="remedy-icon">&#x1F35A;</div>
+            <div class="remedy-content">
+              <div class="remedy-name">Complex carbohydrates throughout the day</div>
+              <div class="remedy-desc">Carbohydrate intake supports tryptophan uptake into the brain, where it converts to serotonin. Research suggests women with PMS may eat more carbohydrates in the luteal phase as a natural serotonin-seeking behaviour. Prioritizing complex carbs (not refined sugar) over this period may stabilize mood.</div>
+              <div class="remedy-source">Source: Fernstrom JD. J Nutr. 1994;124(8 Suppl):1503S-1508S -- carbohydrate intake and serotonin synthesis; Wurtman JJ et al. Obes Res. 1995;3 Suppl 4:477S-480S -- carbohydrate craving and mood in PMS</div>
+            </div>
+          </div>
+          <div class="symptom-avoid">
+            <div class="symptom-avoid-label">Minimize in late luteal phase</div>
+            <div class="symptom-avoid-text">Alcohol (disrupts GABA and serotonin signalling, worsens mood instability and sleep) -- excess caffeine (may worsen anxiety and breast tenderness; individual responses vary) -- refined sugar (blood glucose spikes and crashes amplify mood swings) -- high-sodium foods (worsen fluid retention and bloating)</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Iron note for menstrual phase -->
+      <div class="symptom-card" id="ironCard">
+        <div class="symptom-header" onclick="toggleSymptom('ironCard')">
+          <div class="symptom-header-left">
+            <div class="symptom-icon-wrap">&#129354;</div>
+            <div>
+              <div class="symptom-title">Fatigue and low energy</div>
+              <div class="symptom-sub">Especially during and after menstruation</div>
+            </div>
+          </div>
+          <i class="ti ti-chevron-down symptom-chevron"></i>
+        </div>
+        <div class="symptom-body">
+          <div class="remedy-item">
+            <div class="remedy-icon">&#x1F969;</div>
+            <div class="remedy-content">
+              <div class="remedy-name">Red meat, liver, dark poultry (haem iron)</div>
+              <div class="remedy-desc">Haem iron from animal sources is absorbed at 15 to 35%, significantly higher than non-haem iron from plants (2 to 20%). Women lose 30 to 80ml of blood per cycle on average, making iron replenishment an important priority during and after menstruation.</div>
+              <div class="remedy-source">Source: Angeli A et al. Eur J Sport Sci. 2016 -- iron loss during menstruation; Hallberg L et al. Scand J Gastroenterol. 1979;14(7):769-779 -- haem vs non-haem iron absorption rates</div>
+            </div>
+          </div>
+          <div class="remedy-item">
+            <div class="remedy-icon">&#x1F33F;</div>
+            <div class="remedy-content">
+              <div class="remedy-name">Lentils, spinach, tofu with vitamin C</div>
+              <div class="remedy-desc">Plant-based iron paired with vitamin C (bell pepper, citrus, kiwi) can increase non-haem absorption by up to 6-fold. This combination is especially important for women who eat little or no meat. Black tea, coffee, and calcium consumed at the same meal reduce iron absorption.</div>
+              <div class="remedy-source">Source: Hallberg L et al. Am J Clin Nutr. 1989;49(1):140-144 -- ascorbic acid and iron absorption; Cook JD, Reddy MB. Am J Clin Nutr. 2001;73(1):93-98 -- enhancers and inhibitors of non-haem iron absorption</div>
+            </div>
+          </div>
+          <div class="remedy-item">
+            <div class="remedy-icon">&#x1F373;</div>
+            <div class="remedy-content">
+              <div class="remedy-name">B12 (eggs, fish, dairy, fortified foods)</div>
+              <div class="remedy-desc">B12 deficiency is a common and under-recognized cause of fatigue in women, particularly those following plant-heavy diets. B12 is required for red blood cell formation. Deficiency mimics iron-deficiency fatigue and often goes undetected unless specifically tested.</div>
+              <div class="remedy-source">Source: Health Canada dietary reference intakes for B12; Allen LH. Am J Clin Nutr. 2008;89(2):693S-696S -- B12 deficiency epidemiology and consequences</div>
+            </div>
+          </div>
+          <div class="symptom-avoid">
+            <div class="symptom-avoid-label">Avoid at the same meal as iron-rich foods</div>
+            <div class="symptom-avoid-text">Black tea and coffee (polyphenols inhibit iron absorption by up to 60%) -- dairy in large quantities at the same meal (calcium competes with iron absorption) -- take these 1 to 2 hours before or after iron-rich meals where possible</div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- end tabSymptoms -->
+
+    <div class="disclaimer">
+      This information is for general wellness guidance only and is not medical advice. Nutrition affects individuals differently. If you have a medical condition, are pregnant, or are taking medication, consult a registered dietitian or your doctor before making dietary changes.
+    </div>
+
+  </div><!-- end mainContent -->
+
+  <div class="bottom-nav">
+    <a href="dashboard.html" class="nav-item">
+      <i class="ti ti-home"></i><span>Home</span>
+    </a>
+    <a href="workout.html" class="nav-item">
+      <i class="ti ti-barbell"></i><span>Workout</span>
+    </a>
+    <a href="log.html" class="nav-item">
+      <i class="ti ti-pencil"></i><span>Log</span>
+    </a>
+    <a href="nutrition.html" class="nav-item active">
+      <i class="ti ti-salad"></i><span>Nutrition</span>
+    </a>
+    <a href="learn.html" class="nav-item">
+      <i class="ti ti-book-2"></i><span>Learn</span>
+    </a>
+  </div>
+
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
+    import { getTodayStatus } from './hormoneSync.js'
+
+    const supabase = createClient(
+      'https://imgujppjvffbubnsscge.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImltZ3VqcHBqdmZmYnVibnNzY2dlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2MDQzNzIsImV4cCI6MjA5NjE4MDM3Mn0.TpjycdiHLl5iI1G8u07mVmStKZWU2fzEsuw1dUi6diU'
+    )
+
+    const { data: { session: _s } } = await supabase.auth.getSession()
+    if (!_s) { window.location.href = 'login.html' }
+    supabase.auth.onAuthStateChange((event, session) => {
+      if (!session) { window.location.href = 'login.html' }
+    })
+
+    // Phase-specific food data
+    // All claims sourced as indicated in each card above; this object drives dynamic rendering
+    const PHASE_DATA = {
+      Menstrual: {
+        bannerClass: 'menstrual',
+        desc: 'Your body is working hard. Focus on iron replenishment, anti-inflammatory foods, and nutrients that may ease discomfort. Energy needs may be slightly lower but nutrient density matters most right now.',
+        science: 'Iron loss during menstruation may impact energy and exercise performance (Angeli et al. 2016). Omega-3 fatty acids may reduce prostaglandin-driven cramping (Harel et al. AJOG 1996).',
+        sectionLabel: 'Power foods during menstruation',
+        foods: [
+          { icon: '&#x1F969;', name: 'Salmon and sardines', why: 'Omega-3s EPA and DHA may reduce prostaglandin production and cramping severity', source: 'Harel et al. AJOG 1996' },
+          { icon: '&#x1F33F;', name: 'Spinach and lentils', why: 'High non-haem iron to replace losses; pair with vitamin C to triple absorption rate', source: 'Hallberg et al. AJCN 1989' },
+          { icon: '&#x1FAD6;', name: 'Fresh ginger', why: 'Gingerols may inhibit prostaglandin synthesis; evidence suggests effects comparable to ibuprofen in some women', source: 'Ozgoli et al. JMWH 2009' },
+          { icon: '&#x1F36B;', name: 'Dark chocolate (70%+)', why: 'Rich in magnesium which may reduce uterine contractions; also provides a small iron boost', source: 'Seifert et al. 1989; Altura and Altura 1985' },
+          { icon: '&#x1F330;', name: 'Pumpkin seeds', why: 'Excellent magnesium source (~150mg per 30g); also provides zinc and plant-based iron', source: 'USDA FoodData Central' },
+          { icon: '&#x1F360;', name: 'Sweet potato', why: 'Vitamin A, complex carbohydrates, and vitamin C (supports iron absorption); gentle on digestion', source: 'Health Canada dietary guidelines' }
+        ],
+        avoid: [
+          { text: 'Trans fats and highly processed seed oils', reason: 'may increase pro-inflammatory prostaglandins' },
+          { text: 'Excess alcohol', reason: 'may increase prostaglandin activity and worsen cramps' },
+          { text: 'Tea and coffee with iron-rich meals', reason: 'polyphenols inhibit iron absorption by up to 60%' },
+          { text: 'Very high sodium foods', reason: 'worsens water retention and bloating' }
+        ]
+      },
+      Follicular: {
+        bannerClass: 'follicular',
+        desc: 'Rising estrogen supports insulin sensitivity, making your body particularly efficient at using carbohydrates for fuel and muscle building. This is an excellent phase to focus on high-quality protein and varied whole foods.',
+        science: 'Follicular phase resistance training may produce superior strength gains (Kissow et al. Sports Medicine 2022). Protein intake supports muscle protein synthesis alongside rising anabolic hormones (ISSN 2023 position stand).',
+        sectionLabel: 'Power foods in the follicular phase',
+        foods: [
+          { icon: '&#x1F95A;', name: 'Eggs', why: 'Complete protein with all essential amino acids; choline supports neurotransmitter production', source: 'ISSN 2023; Poly et al. AJCN 2011' },
+          { icon: '&#x1F357;', name: 'Chicken and turkey', why: 'Lean complete protein supports muscle protein synthesis alongside rising estrogen', source: 'ISSN 2023 position stand' },
+          { icon: '&#x1F953;', name: 'Greek yogurt', why: 'High protein with probiotics; calcium supports bone health and is linked to reduced PMS later in cycle', source: 'ISSN 2023; Thys-Jacobs et al. AJOG 1998' },
+          { icon: '&#x1F966;', name: 'Broccoli and cauliflower', why: 'Cruciferous vegetables contain DIM and I3C which research suggests may support healthy estrogen metabolism', source: 'Fahey JW et al. PNAS 1997; note: clinical evidence in women is limited -- individual effects may vary' },
+          { icon: '&#x1FAD0;', name: 'Blueberries and mixed berries', why: 'Antioxidants reduce oxidative stress; fibre supports gut health and hormone clearance', source: 'Liu RH. Am J Clin Nutr. 2003;78(3 Suppl):517S' },
+          { icon: '&#x1F360;', name: 'Oats and sweet potato', why: 'Complex carbohydrates maintain stable energy; enhanced carbohydrate utilisation in follicular phase due to estrogen effect on insulin sensitivity', source: 'Toth MJ et al. J Clin Endocrinol Metab. 2000;85(6):2186-2190' }
+        ],
+        avoid: [
+          { text: 'Skipping meals or under-fuelling', reason: 'limits muscle protein synthesis during this anabolic window' },
+          { text: 'Ultra-processed foods', reason: 'displace nutrient-dense foods needed for recovery and adaptation' }
+        ]
+      },
+      Ovulatory: {
+        bannerClass: 'ovulatory',
+        desc: 'Peak estrogen and a surge in LH drive your highest energy and performance window. Fuel well to take advantage. Digestion is typically smooth, making this a good time for varied, fibre-rich foods.',
+        science: 'Peak estrogen may improve muscle protein synthesis and exercise performance (Sarwar et al. Journal of Physiology 1996). High fibre intake supports estrogen clearance via gut microbiome activity (general evidence, SOURCE NEEDED: specific citation being verified).',
+        sectionLabel: 'Power foods around ovulation',
+        foods: [
+          { icon: '&#x1F41F;', name: 'Fatty fish (salmon, trout)', why: 'Omega-3s support anti-inflammatory status; DHA supports cognitive performance at peak estrogen', source: 'Calder PC. Biochim Biophys Acta 2011' },
+          { icon: '&#x1F966;', name: 'Variety of colourful vegetables', why: 'Phytonutrients and fibre support oestrogen clearance via the gut; aim for 5 to 7 colours per day', source: 'Liu RH. AJCN 2003; USDA Dietary Guidelines 2020-2025' },
+          { icon: '&#x1F95C;', name: 'Edamame and legumes', why: 'Plant protein plus fibre; zinc in legumes is associated with reproductive health', source: 'ISSN 2023; Tian X, Diaz FJ. Endocrinology 2012 -- zinc and reproductive function' },
+          { icon: '&#x1F34B;', name: 'Citrus and bell peppers', why: 'High vitamin C supports collagen synthesis; peak estrogen is associated with higher ACL injury risk, and connective tissue support is relevant', source: 'Hewett TE et al. J Bone Joint Surg Am. 2016 -- hormonal fluctuations and ACL risk' },
+          { icon: '&#x1F9C0;', name: 'Kefir and fermented foods', why: 'Supports gut microbiome which plays a role in oestrogen recycling and clearance (the estrobolome)', source: 'Plottel CS, Blaser MJ. Sci Transl Med. 2011;3(112):112ps14 -- estrobolome hypothesis' },
+          { icon: '&#x1F95A;', name: 'Eggs with leafy greens', why: 'Choline and folate both support the methylation cycle, which is involved in hormone synthesis and clearance', source: 'Poly et al. AJCN 2011; Penland JG 1995' }
+        ],
+        avoid: [
+          { text: 'Heavily processed soy in large quantities', reason: 'phytoestrogens at high doses may compete with oestrogen receptors; moderate whole food soy (edamame, tofu) is fine' },
+          { text: 'Very high fibre if new to it', reason: 'can cause bloating; increase gradually' }
+        ]
+      },
+      Luteal: {
+        bannerClass: 'luteal',
+        desc: 'Progesterone rises and your calorie and protein needs increase. Research suggests your body uses more amino acids for fuel in this phase, meaning you need more protein to maintain muscle. This is also the phase where food choices have the biggest impact on how you feel.',
+        science: 'Progesterone increases protein catabolism; luteal phase protein target is 1.8 to 2.2g per kg bodyweight (ISSN 2023 position stand). Energy intake naturally higher by 200 to 300 kcal (Lariviere et al. Am J Physiol 2006). Calcium 1200mg/day reduces total PMS symptom scores by 48% (Thys-Jacobs et al. AJOG 1998, n=466).',
+        sectionLabel: 'Power foods in the luteal phase',
+        foods: [
+          { icon: '&#x1F357;', name: 'Chicken, turkey, fish', why: 'Protein target rises to 1.8 to 2.2g/kg bodyweight; lean protein sources preserve muscle as progesterone increases catabolism', source: 'ISSN 2023 position stand; Lariviere et al. Am J Physiol 2006' },
+          { icon: '&#x1F330;', name: 'Pumpkin seeds', why: 'Magnesium for cramping and mood; zinc for immune support; plant protein top-up; add to oats or yogurt', source: 'Facchinetti et al. Obstet Gynecol 1991; USDA FoodData Central' },
+          { icon: '&#x1F9C0;', name: 'Dairy and fortified plant milk', why: 'Calcium 1200mg/day is the best-studied dietary intervention for PMS; vitamin D required for absorption', source: 'Thys-Jacobs et al. AJOG 1998 (n=466, RCT); Bertone-Johnson et al. AJCN 2005 (n=3025)' },
+          { icon: '&#x1F96A;', name: 'Banana and potato', why: 'Vitamin B6 supports serotonin and dopamine synthesis; may reduce PMS mood symptoms', source: 'Wyatt KM et al. BMJ 1999 (systematic review, 9 RCTs, n=940)' },
+          { icon: '&#x1F36B;', name: 'Dark chocolate (70%+)', why: 'Magnesium plus small amounts of phenylethylamine; may support mood; also satisfies cravings without a blood sugar spike', source: 'Seifert et al. 1989; general clinical nutrition guidance' },
+          { icon: '&#x1F35A;', name: 'Oats and brown rice', why: 'Complex carbs support serotonin synthesis via tryptophan uptake; stable blood glucose reduces mood swings and cravings', source: 'Fernstrom JD. J Nutr. 1994;124(8 Suppl):1503S-1508S; Wurtman JJ et al. Obes Res 1995' }
+        ],
+        avoid: [
+          { text: 'Alcohol', reason: 'disrupts GABA and serotonin, worsens mood instability, impairs sleep quality' },
+          { text: 'Refined sugar', reason: 'blood glucose spikes amplify mood swings and worsen cravings' },
+          { text: 'High-sodium processed foods', reason: 'worsens bloating and fluid retention common in late luteal phase' },
+          { text: 'Excess caffeine', reason: 'may worsen breast tenderness and anxiety; individual responses vary' }
+        ]
+      },
+      Observation: {
+        bannerClass: 'observation',
+        desc: 'While your cycle is being established, focus on a nutrient-dense anti-inflammatory baseline. Consistent protein intake, adequate iron, and calcium-rich foods support your overall hormonal health regardless of phase.',
+        science: 'Evidence-based nutritional foundations for hormonal health: ISSN 2023 protein targets, Thys-Jacobs et al. 1998 calcium research, Angeli et al. 2016 iron recommendations.',
+        sectionLabel: 'Foundation foods for hormonal health',
+        foods: [
+          { icon: '&#x1F41F;', name: 'Fatty fish 2 to 3x weekly', why: 'Omega-3s support anti-inflammatory status, reduce dysmenorrhea risk, and support brain health', source: 'Harel et al. AJOG 1996; Calder PC 2011' },
+          { icon: '&#x1F957;', name: 'Varied vegetables daily', why: 'Fibre supports gut microbiome and oestrogen clearance; phytonutrients reduce oxidative stress', source: 'USDA Dietary Guidelines 2020-2025; Liu RH. AJCN 2003' },
+          { icon: '&#x1F953;', name: 'Greek yogurt or dairy', why: 'Calcium and protein; daily calcium intake associated with significantly lower PMS risk', source: 'Thys-Jacobs et al. AJOG 1998; Bertone-Johnson et al. AJCN 2005' },
+          { icon: '&#x1F957;', name: 'Lentils and legumes', why: 'Plant protein, iron, folate, and magnesium -- nutrients active women are most likely to under-consume', source: 'Health Canada dietary guidelines; ISSN 2023' },
+          { icon: '&#x1F330;', name: 'Mixed seeds (pumpkin, flax)', why: 'Magnesium, zinc, and plant omega-3s; important for mood, muscle function, and cycle regularity', source: 'Facchinetti et al. 1991; De Souza et al. 2000' },
+          { icon: '&#x1F360;', name: 'Sweet potato and oats', why: 'Complex carbohydrates with vitamins A, C, and B6; supports blood glucose stability and serotonin synthesis', source: 'Fernstrom JD 1994; Health Canada 2020' }
+        ],
+        avoid: [
+          { text: 'Under-eating protein', reason: 'women of reproductive age often under-consume protein relative to activity levels' },
+          { text: 'Alcohol', reason: 'disrupts hormonal signalling across all phases' },
+          { text: 'Very low fat diets', reason: 'sex hormones are synthesized from cholesterol; dietary fat is required for hormonal health' }
+        ]
+      }
+    }
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      const status = await getTodayStatus(supabase, user.id)
+
+      const phase = status.phase || 'Observation'
+      const data = PHASE_DATA[phase] || PHASE_DATA.Observation
+
+      // Profile stats bar
+      const bw = status.bodyWeight || parseFloat(localStorage.getItem('hsync_weight_kg')) || null
+      const heightCm = parseFloat(localStorage.getItem('hsync_height_cm')) || null
+      const fitnessLevel = status.profile?.fitness_level || null
+      const fitnessLabels = { beginner: 'Beginner', intermediate: 'Intermediate', active: 'Active', athlete: 'Athlete' }
+
+      if (bw) {
+        document.getElementById('profileWeightDisplay').textContent = bw + ' kg'
+        document.getElementById('profileStatsBar').style.display = 'flex'
+      }
+      if (heightCm) {
+        document.getElementById('profileHeightDisplay').textContent = heightCm + ' cm'
+        document.getElementById('profileHeightWrap').style.display = 'block'
+      }
+      if (fitnessLevel) {
+        document.getElementById('profileFitnessDisplay').textContent = fitnessLabels[fitnessLevel] || fitnessLevel
+        document.getElementById('profileBmiWrap').style.display = 'block'
+      }
+
+      // Phase chip and banner
+      document.getElementById('topPhaseChip').textContent = status.subPhase || phase
+      const banner = document.getElementById('phaseBanner')
+      banner.className = 'phase-banner ' + data.bannerClass
+      document.getElementById('bannerPhase').textContent = status.subPhase || phase
+      document.getElementById('bannerDesc').textContent = data.desc
+      document.getElementById('bannerScience').textContent = data.science
+
+      // Targets — all calculated from user's actual body weight via getTodayStatus
+      const nt = status.nutritionTargets
+      if (nt) {
+        document.getElementById('targetProtein').textContent = nt.proteinG ? Math.round(nt.proteinG) : '--'
+        document.getElementById('targetCalsNum').textContent = nt.extraCalories || '--'
+        document.getElementById('targetProteinNote').textContent = nt.headline || ''
+        const weightNote = bw ? ' Based on your ' + bw + ' kg.' : ''
+        document.getElementById('targetCalsNote').textContent = (phase === 'Luteal' ? 'Natural luteal increase.' : 'Baseline phase.') + weightNote
+        document.getElementById('targetsSource').textContent = nt.source || 'Source: ISSN 2023 position stand'
+      }
+
+      // Foods tab
+      document.getElementById('foodsSectionLabel').textContent = data.sectionLabel
+      const grid = document.getElementById('foodGrid')
+      grid.innerHTML = data.foods.map(f => `
+        <div class="food-card">
+          <div class="food-icon">${f.icon}</div>
+          <div class="food-name">${f.name}</div>
+          <div class="food-why">${f.why}</div>
+          <div class="food-source">${f.source}</div>
+        </div>
+      `).join('')
+
+      const avoidCard = document.getElementById('avoidCard')
+      avoidCard.innerHTML = `
+        <div class="avoid-title"><i class="ti ti-minus-circle" style="font-size:14px"></i> Minimize this phase</div>
+        ${data.avoid.map(a => `<div class="avoid-item"><strong>${a.text}</strong> -- ${a.reason}</div>`).join('')}
+      `
+
+      // Show carb cravings note only in Menstrual phase
+      // Source: Mauvais-Jarvis et al. JCI 2013 — estrogen and insulin sensitivity
+      document.getElementById('carbCravingsNote').style.display = phase === 'Menstrual' ? 'block' : 'none'
+
+      document.getElementById('spinnerWrap').style.display = 'none'
+      document.getElementById('mainContent').style.display = 'block'
+
+    } catch (err) {
+      document.getElementById('spinnerWrap').innerHTML =
+        '<p style="color:#8a4a4a;padding:20px;font-size:14px">Could not load your nutrition data. <a href="dashboard.html">Go back</a>.</p>'
+    }
+
+    window.switchTab = function(tab, btn) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'))
+      document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'))
+      document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active')
+      btn.classList.add('active')
+    }
+
+    window.toggleSymptom = function(id) {
+      const card = document.getElementById(id)
+      card.classList.toggle('open')
+    }
+  </script>
+</body>
+</html>

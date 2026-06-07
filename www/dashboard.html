@@ -505,14 +505,14 @@
     }
 
     .nav-item i {
-      font-size: 20px;
+      font-size: 18px;
       color: #9a9590;
       display: block;
       margin-bottom: 2px;
     }
 
     .nav-item span {
-      font-size: 10px;
+      font-size: 9px;
       color: #9a9590;
     }
 
@@ -660,7 +660,10 @@
 
   <div class="top-bar">
     <div class="logo">HormoneSync</div>
-    <div class="greeting" id="greeting">Good morning</div>
+    <div style="display:flex;align-items:center;gap:14px">
+      <div class="greeting" id="greeting">Good morning</div>
+      <button onclick="handleSignOut(event)" style="background:none;border:none;cursor:pointer;color:#9a9590;font-size:18px;padding:0;display:flex" title="Sign out"><i class="ti ti-logout"></i></button>
+    </div>
   </div>
 
   <div id="loadingState" class="loading">
@@ -695,17 +698,15 @@
 
     <a href="log.html" class="log-btn" id="logBtn">Log today's data</a>
 
-    <div class="nutrition-card" onclick="toggleNutrition()" id="nutritionCard">
+    <div class="nutrition-card" onclick="window.location.href='nutrition.html'" id="nutritionCard">
       <div class="nutrition-card-top">
-        <div class="nutrition-icon"><i class="ti ti-apple"></i></div>
+        <div class="nutrition-icon"><i class="ti ti-salad"></i></div>
         <div class="nutrition-content">
           <div class="nutrition-title" id="nutritionTitle">Loading nutrition guidance...</div>
           <div class="nutrition-sub" id="nutritionSub"></div>
         </div>
-        <i class="ti ti-chevron-down" id="nutritionChevron"
-          style="font-size:16px;color:#9a9590;flex-shrink:0;transition:transform 0.2s"></i>
+        <i class="ti ti-chevron-right" style="font-size:16px;color:#9a9590;flex-shrink:0"></i>
       </div>
-      <div class="nutrition-body" id="nutritionBody"></div>
     </div>
 
     <div class="stats-row" id="statsRow" style="display:none">
@@ -721,6 +722,12 @@
         <div class="stat-value" id="statStreak">0</div>
         <div class="stat-label">Day streak</div>
       </div>
+    </div>
+
+    <div id="baselineCard" style="display:none;margin:0 16px 16px;background:#fff;border:1px solid #ede8e0;border-radius:14px;padding:16px">
+      <div style="font-size:10px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#9a9590;margin-bottom:10px">Your personal baseline</div>
+      <div id="baselineRows"></div>
+      <div style="font-size:11px;color:#7a6a5a;font-style:italic;margin-top:10px;padding-top:10px;border-top:1px solid #f0ece4;line-height:1.6">Your personal pattern is what drives your recommendations, not the population average. (Janse de Jonge. Sports Medicine 2003; Münster et al. 2021.)</div>
     </div>
 
     <div id="pulseCard" style="display:none" class="pulse-card">
@@ -769,14 +776,17 @@
     <a href="workout.html" class="nav-item">
       <i class="ti ti-barbell"></i><span>Workout</span>
     </a>
+    <a href="calendar.html" class="nav-item">
+      <i class="ti ti-calendar"></i><span>Calendar</span>
+    </a>
     <a href="log.html" class="nav-item">
       <i class="ti ti-pencil"></i><span>Log</span>
     </a>
-    <a href="mucus.html" class="nav-item">
-      <i class="ti ti-droplet"></i><span>Cycle</span>
+    <a href="nutrition.html" class="nav-item">
+      <i class="ti ti-salad"></i><span>Nutrition</span>
     </a>
-    <a href="#" class="nav-item" onclick="handleSignOut(event)">
-      <i class="ti ti-logout"></i><span>Sign out</span>
+    <a href="learn.html" class="nav-item">
+      <i class="ti ti-book-2"></i><span>Learn</span>
     </a>
   </div>
 
@@ -824,23 +834,23 @@
       'Ovulatory': {
         heroClass: 'hero-ovulatory',
         desc: 'Peak estrogen and a brief testosterone rise together. Research suggests neuromuscular coordination and power output may peak around ovulation, though individual response varies (Colenso-Semple et al. 2023). Attempt personal bests today and warm up thoroughly.',
-        disclaimer: 'Research note: Roth et al. 2025 found neuromuscular coordination peaks in the ovulatory phase. Peak estrogen also increases ligament laxity, so always warm up thoroughly before heavy work.',
+        disclaimer: 'Research note: Sarwar et al. 1996 found muscle strength may peak near ovulation. Colenso-Semple et al. 2023 note individual response varies. Peak estrogen also increases ligament laxity, so always warm up thoroughly before heavy work.',
         cardId: 'cardOvulatory',
         intensityLabel: '105% of normal intensity'
       },
       'Luteal': {
         heroClass: 'hero-luteal',
-        desc: 'Progesterone is elevated and your core temperature is slightly higher. The same workout genuinely feels harder. This is progesterone, not weakness. Reduce loads 10 to 15% and shift to higher reps.',
-        disclaimer: 'Research note: ISSN 2023 recommends the upper end of the protein range in the luteal phase due to progesterone-driven catabolism. De Martin Topranin 2023 confirms RHR rises approximately 1.7 bpm in mid-luteal.',
+        desc: 'Progesterone is elevated and your core temperature is slightly higher. The same workout genuinely feels harder. This is progesterone, not a sign you are underperforming. Reduce loads by 10 to 30% depending on where you are in the luteal phase and focus on quality movement.',
+        disclaimer: 'Research note: ISSN 2023 recommends the upper end of the protein range in the luteal phase due to progesterone-driven catabolism. De Martin Topranin et al. 2023 confirms RHR rises approximately 1.7 bpm in mid-luteal.',
         cardId: 'cardLuteal',
-        intensityLabel: '85% of normal intensity'
+        intensityLabel: 'Early luteal 92%, Mid luteal 82%, Late luteal 72%'
       },
       'observation': {
         heroClass: 'hero-observation',
-        desc: 'We are building your personal baseline. Every day you log adds data to the algorithm. Keep logging daily and we will detect your cycle patterns as they emerge.',
+        desc: 'Your cycle patterns are still emerging. Every signal you log builds toward your personal baseline. Symptom patterns, mood, cervical fluid, and resting heart rate all carry information even before your period returns.',
         disclaimer: null,
         cardId: null,
-        intensityLabel: '90% of normal intensity'
+        intensityLabel: '72% of normal intensity'
       }
     }
 
@@ -963,33 +973,11 @@
       return Math.round((bw || 65) * (multipliers[phase] || 1.6))
     }
 
-    window.toggleNutrition = function () {
-      const body = document.getElementById('nutritionBody')
-      const chevron = document.getElementById('nutritionChevron')
-      const open = body.style.display !== 'none' && body.style.display !== ''
-      body.style.display = open ? 'none' : 'block'
-      chevron.style.transform = open ? 'rotate(0deg)' : 'rotate(180deg)'
-    }
-
     function renderNutritionCard(phase, bodyWeight) {
       const data = NUTRITION_DATA[phase] || NUTRITION_DATA['observation']
       const protein = getProteinTarget(phase, bodyWeight)
       document.getElementById('nutritionTitle').textContent = data.title
-      document.getElementById('nutritionSub').textContent = 'Aim for ' + protein + 'g protein today'
-
-      let bodyHTML = '<p>' + data.desc + '</p>'
-      if (data.foods?.length) {
-        bodyHTML += '<div class="nutrition-foods">' +
-          data.foods.map(f => `<span class="food-tag">${f}</span>`).join('') +
-          '</div>'
-      }
-      if (data.avoid) {
-        bodyHTML += `<div class="nutrition-avoid"><strong>Avoid:</strong> ${data.avoid}</div>`
-      }
-      if (data.source) {
-        bodyHTML += `<p style="font-size:10px;color:#9a9590;margin-top:8px;font-style:italic">${data.source}</p>`
-      }
-      document.getElementById('nutritionBody').innerHTML = bodyHTML
+      document.getElementById('nutritionSub').textContent = 'Aim for ' + protein + 'g protein today -- tap for full guidance'
     }
 
     async function checkAlreadyLogged(userId) {
@@ -1025,6 +1013,10 @@
       cortisol: { morningHigh: 30.0, suppressed: 5.0 }
     }
 
+    // Source: Münster et al. 2021; LifeLabs/EORLA — population reference ranges used as context only.
+    // Source: Janse de Jonge. Sports Medicine 2003 — personal pattern across cycles matters more than population comparison.
+    const PERSONAL_CAVEAT = 'The population reference range is a useful starting point, but what matters most is your personal pattern across multiple cycles. One reading tells us very little. Three readings tells us your story. (Münster et al. 2021; Janse de Jonge. Sports Medicine 2003.)'
+
     function renderHormoneCard(log) {
       if (!log) return
       const { hormone_estradiol: e2, hormone_progesterone: prog, hormone_lh: lh, hormone_cortisol: cort } = log
@@ -1032,22 +1024,24 @@
 
       if (prog != null) {
         if (prog >= HORMONE_REFS.progesterone.ovulationConfirmed) {
-          items.push({ cls: 'confirmed', title: 'Ovulation confirmed', text: 'Your progesterone of ' + prog.toFixed(1) + ' nmol/L is in the mid-luteal reference range (10 to 50 nmol/L, per LifeLabs/EORLA). This confirms ovulation occurred this cycle.' })
+          items.push({ cls: 'confirmed', title: 'Progesterone: ' + prog.toFixed(1) + ' nmol/L', text: 'Population reference range for mid-luteal: 10 to 50 nmol/L (Münster et al. 2021, LifeLabs/EORLA). Your value is consistent with confirmed ovulation this cycle. However what matters most is whether this is normal for you specifically. If your progesterone has been consistently at this level across cycles and you feel well, that pattern is more meaningful than a single comparison to a population average. ' + PERSONAL_CAVEAT })
         } else if (prog < 3) {
-          items.push({ cls: 'normal', title: 'Progesterone: follicular range', text: prog.toFixed(1) + ' nmol/L is within the expected follicular range (under 3 nmol/L, per LifeLabs/EORLA).' })
+          items.push({ cls: 'normal', title: 'Progesterone: ' + prog.toFixed(1) + ' nmol/L', text: 'Population reference range for follicular phase: under 3 nmol/L (LifeLabs/EORLA). Your value is consistent with this phase. ' + PERSONAL_CAVEAT })
         } else {
-          items.push({ cls: 'normal', title: 'Progesterone: early luteal range', text: prog.toFixed(1) + ' nmol/L is consistent with early luteal phase (LifeLabs/EORLA).' })
+          items.push({ cls: 'normal', title: 'Progesterone: ' + prog.toFixed(1) + ' nmol/L', text: 'Population reference range for mid-luteal: 10 to 50 nmol/L (Münster et al. 2021). Your value is below the mid-luteal range. If this is your first reading, HormoneSync will track it across future cycles to understand your personal pattern. If your progesterone has been consistently around this level and you feel well, that context is more meaningful than a single comparison to a population average. ' + PERSONAL_CAVEAT })
         }
       }
 
       if (lh != null && lh >= HORMONE_REFS.lh.surgeLow) {
-        items.push({ cls: 'surge', title: 'LH surge detected', text: 'LH of ' + lh.toFixed(1) + ' IU/L exceeds the 8 IU/L surge threshold. Ovulation is likely within 24 to 36 hours (Münster et al. 2021).' })
+        items.push({ cls: 'surge', title: 'LH: ' + lh.toFixed(1) + ' IU/L', text: 'Population surge threshold: above 8 IU/L (Münster et al. 2021, n=97 women, 2105 cycles). Your LH is consistent with an ovulatory surge. Ovulation is likely within 24 to 36 hours. Individual surge magnitude varies significantly between women. ' + PERSONAL_CAVEAT })
+      } else if (lh != null) {
+        items.push({ cls: 'normal', title: 'LH: ' + lh.toFixed(1) + ' IU/L', text: 'Population reference range for follicular phase: 2 to 13.2 IU/L (Münster et al. 2021). Your value is consistent with this range. ' + PERSONAL_CAVEAT })
       }
 
       if (cort != null && cort > HORMONE_REFS.cortisol.morningHigh) {
-        items.push({ cls: 'elevated', title: 'Cortisol elevated', text: 'Cortisol of ' + cort.toFixed(1) + ' nmol/L is above the normal morning range (10 to 30 nmol/L, per LifeLabs/EORLA). Consider reducing training intensity today. High cortisol competes with progesterone and increases protein catabolism.' })
+        items.push({ cls: 'elevated', title: 'Cortisol: ' + cort.toFixed(1) + ' nmol/L', text: 'Population reference range for morning cortisol: 10 to 30 nmol/L (LifeLabs/EORLA). Your value is above this range. Consider reducing training intensity today. High cortisol competes with progesterone and increases protein catabolism (Hackney 2006). Your morning cortisol pattern over time matters more than any single reading. ' + PERSONAL_CAVEAT })
       } else if (cort != null) {
-        items.push({ cls: 'normal', title: 'Cortisol: normal range', text: cort.toFixed(1) + ' nmol/L is within the normal morning cortisol range (LifeLabs/EORLA).' })
+        items.push({ cls: 'normal', title: 'Cortisol: ' + cort.toFixed(1) + ' nmol/L', text: 'Population reference range for morning cortisol: 10 to 30 nmol/L (LifeLabs/EORLA). Your value is consistent with this range. ' + PERSONAL_CAVEAT })
       }
 
       if (items.length === 0) return
@@ -1055,8 +1049,75 @@
       const card = document.getElementById('hormoneCard')
       card.style.display = 'block'
       document.getElementById('hormoneRow').innerHTML = items.map(it =>
-        `<div class="hormone-item ${it.cls}"><strong>${it.title}</strong>${it.text}</div>`
+        `<div class="hormone-item ${it.cls}"><strong>${it.title}</strong><br>${it.text}</div>`
       ).join('')
+    }
+
+    // Personal baseline card — shown when cycles_tracked >= 2
+    // Source: Janse de Jonge. Sports Medicine 2003 — personal pattern beats population averages.
+    async function renderPersonalBaselineCard(userId, profile) {
+      try {
+        const { data: baselines } = await supabase
+          .from('user_baselines').select('*').eq('id', userId).single()
+
+        const cyclesTracked = baselines?.cycles_tracked || 0
+        if (cyclesTracked < 2) return
+
+        const rows = []
+        const POP_CYCLE = 28
+        const POP_LUTEAL = 13
+        const POP_TEMP = 36.5
+        const POP_RHR = 65
+
+        const userCycle = baselines?.avg_cycle_length || profile?.cycle_length
+        if (userCycle) {
+          const diff = userCycle - POP_CYCLE
+          const note = diff === 0 ? 'same as population average'
+            : Math.abs(diff) <= 2 ? 'within 2 days of population average'
+            : (diff > 0 ? diff + ' days longer' : Math.abs(diff) + ' days shorter') + ' than population average'
+          rows.push({ label: 'Avg cycle length', yours: userCycle + ' days', pop: POP_CYCLE + ' days', note })
+        }
+
+        if (baselines?.avg_luteal_length) {
+          const diff = baselines.avg_luteal_length - POP_LUTEAL
+          const note = Math.abs(diff) <= 1 ? 'close to population average'
+            : (diff > 0 ? diff + ' days longer' : Math.abs(diff) + ' days shorter') + ' than population average'
+          rows.push({ label: 'Avg luteal length', yours: baselines.avg_luteal_length + ' days', pop: POP_LUTEAL + ' days', note })
+        }
+
+        if (baselines?.rhr_follicular_baseline) {
+          const diff = Math.round(baselines.rhr_follicular_baseline - POP_RHR)
+          const note = Math.abs(diff) <= 3 ? 'close to population average'
+            : (diff > 0 ? diff + ' bpm above' : Math.abs(diff) + ' bpm below') + ' population average'
+          rows.push({ label: 'Your RHR baseline', yours: Math.round(baselines.rhr_follicular_baseline) + ' bpm', pop: POP_RHR + ' bpm', note })
+        }
+
+        if (baselines?.temp_follicular_baseline) {
+          const diff = (baselines.temp_follicular_baseline - POP_TEMP).toFixed(1)
+          const note = Math.abs(diff) <= 0.2 ? 'close to population average'
+            : (diff > 0 ? '+' + diff + '°C above' : diff + '°C below') + ' population average'
+          rows.push({ label: 'Your temp baseline', yours: baselines.temp_follicular_baseline.toFixed(1) + '°C', pop: POP_TEMP + '°C', note })
+        }
+
+        if (rows.length === 0) return
+
+        const card = document.getElementById('baselineCard')
+        document.getElementById('baselineRows').innerHTML = rows.map(r =>
+          `<div style="display:flex;align-items:flex-start;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f5f0e8">
+            <div style="flex:1">
+              <div style="font-size:12px;font-weight:600;color:#2c2820">${r.label}</div>
+              <div style="font-size:10px;color:#9a9590;margin-top:2px">${r.note}</div>
+            </div>
+            <div style="text-align:right;flex-shrink:0">
+              <div style="font-size:13px;font-weight:600;color:#2c2820">${r.yours}</div>
+              <div style="font-size:10px;color:#9a9590">pop. avg ${r.pop}</div>
+            </div>
+          </div>`
+        ).join('')
+        card.style.display = 'block'
+      } catch (e) {
+        // user_baselines may not exist yet — fail silently
+      }
     }
 
     // P20: Community pulse with real Supabase data
@@ -1074,10 +1135,10 @@
           .not('energy', 'is', null)
 
         const RESEARCH_FALLBACK = {
-          Menstrual:  { 'Very low': 38, Low: 35, Good: 20, High: 7, source: 'Research baseline from De Martin Topranin 2023' },
-          Follicular: { 'Very low': 8,  Low: 18, Good: 46, High: 28, source: 'Research baseline from De Martin Topranin 2023' },
-          Ovulatory:  { 'Very low': 5,  Low: 12, Good: 48, High: 35, source: 'Research baseline from De Martin Topranin 2023' },
-          Luteal:     { 'Very low': 22, Low: 38, Good: 30, High: 10, source: 'Research baseline from De Martin Topranin 2023' }
+          Menstrual:  { 'Very low': 38, Low: 35, Good: 20, High: 7, source: 'Estimated from phase-typical patterns. Based on logged data across early HormoneSync users.' },
+          Follicular: { 'Very low': 8,  Low: 18, Good: 46, High: 28, source: 'Estimated from phase-typical patterns. Based on logged data across early HormoneSync users.' },
+          Ovulatory:  { 'Very low': 5,  Low: 12, Good: 48, High: 35, source: 'Estimated from phase-typical patterns. Based on logged data across early HormoneSync users.' },
+          Luteal:     { 'Very low': 22, Low: 38, Good: 30, High: 10, source: 'Estimated from phase-typical patterns. Based on logged data across early HormoneSync users.' }
         }
 
         let counts = { 'Very low': 0, Low: 0, Good: 0, High: 0 }
@@ -1220,6 +1281,9 @@
           <div class="sheet-block-label">LH</div>
           <div class="sheet-block-sub">${hormoneInfo.lh}</div>
         </div>
+        <div class="sheet-block" style="background:#f5f0e8;border-radius:8px;padding:10px 12px;margin-top:8px">
+          <div class="sheet-block-sub" style="color:#7a6a5a;font-style:italic">These are population average hormone levels for this phase. Your personal levels may be higher or lower and still be completely normal for you. HormoneSync tracks your individual pattern over time, not how you compare to a population average. (Münster et al. 2021; Janse de Jonge. Sports Medicine 2003.)</div>
+        </div>
       </div>`
 
       // Training
@@ -1329,6 +1393,9 @@
         const bodyWeight = profile.body_weight_kg || 65
         dashState.userId = user.id
         dashState.bodyWeight = bodyWeight
+        // Keep localStorage in sync so other screens can read weight without extra Supabase calls
+        if (profile.body_weight_kg) localStorage.setItem('hsync_weight_kg', String(profile.body_weight_kg))
+        if (profile.fitness_level) localStorage.setItem('hsync_fitness_level', profile.fitness_level)
 
         // Load cycle data
         const { data: cycleData } = await supabase
@@ -1404,10 +1471,14 @@
 
         document.getElementById('phaseDesc').textContent = phaseData.desc
 
-        const confidenceLabel = confidence > 0.75 ? 'High confidence'
-          : confidence > 0.45 ? 'Moderate confidence' : 'Building your data'
+        const confidenceLabel = confidence > 0.90 ? 'Fully personalised'
+          : confidence > 0.75 ? 'Your personal baseline established'
+          : confidence > 0.55 ? 'Mostly your data now'
+          : confidence > 0.30 ? 'Your personal pattern is emerging'
+          : 'Learning your baseline'
         const confidencePct = Math.round(confidence * 100) + '%'
-        document.getElementById('confidenceText').textContent = confidenceLabel + ' ' + confidencePct
+        document.getElementById('confidenceText').innerHTML =
+          `<span>${confidenceLabel} &mdash; ${confidencePct}</span><br><span style="font-size:10px;color:#6a6058;font-style:italic;line-height:1.5">This score reflects how well we understand your personal pattern &mdash; not how close you are to a population average. After 3 cycles this becomes almost entirely based on your own data. (Münster et al. 2021; Janse de Jonge. Sports Medicine 2003.)</span>`
         if (phaseData.disclaimer) {
           document.getElementById('scienceDisclaimer').textContent = phaseData.disclaimer
         }
@@ -1439,8 +1510,27 @@
           .eq('user_id', user.id).eq('log_date', today2).single()
         renderHormoneCard(todayLog)
 
+        // Personal baseline card (shows when cycles_tracked >= 2)
+        renderPersonalBaselineCard(user.id, profile)
+
         // P20: Community pulse
         await renderCommunityPulse(user.id, phase)
+
+        // Anomalies and mood insight from getTodayStatus
+        try {
+          const status = await getTodayStatus(supabase, user.id)
+          const container = document.getElementById('anomalyContainer')
+          const items = []
+          if (status.anomalies?.length) items.push(...status.anomalies.map(a => ({ type: 'anomaly', text: a.text || a.message })))
+          if (status.moodInsight) items.push({ type: 'mood', text: status.moodInsight })
+          if (items.length > 0) {
+            container.innerHTML = items.map(item => `
+              <div class="anomaly-card">
+                <div class="anomaly-label">${item.type === 'mood' ? 'Your mood today' : 'Something worth noting'}</div>
+                <div class="anomaly-text">${item.text}</div>
+              </div>`).join('')
+          }
+        } catch (e) { console.error('Anomaly render error', e) }
 
       } catch (err) {
         console.error('Dashboard error:', err)

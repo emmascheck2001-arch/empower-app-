@@ -106,7 +106,7 @@
       <div class="top-bar">
         <div class="day-label" id="todayLabel">Today</div>
         <div class="phase-name" id="phaseName">Loading...</div>
-        <span class="phase-tag" id="phaseTag">—</span>
+        <span class="phase-tag" id="phaseTag"></span>
       </div>
 
       <div class="quick-card">
@@ -154,21 +154,35 @@
           <div class="section-why">RHR rises ~1.7 bpm in mid-luteal phase (De Martin Topranin et al. 2023).</div>
           <div class="btn-row" id="rhrRow">
             <div class="opt-btn" onclick="selectOne('rhrRow', this, 'resting_hr', 'Under 55')">Under 55</div>
-            <div class="opt-btn" onclick="selectOne('rhrRow', this, 'resting_hr', '55–65')">55–65</div>
-            <div class="opt-btn" onclick="selectOne('rhrRow', this, 'resting_hr', '65–75')">65–75</div>
+            <div class="opt-btn" onclick="selectOne('rhrRow', this, 'resting_hr', '55 to 65')">55 to 65</div>
+            <div class="opt-btn" onclick="selectOne('rhrRow', this, 'resting_hr', '65 to 75')">65 to 75</div>
             <div class="opt-btn" onclick="selectOne('rhrRow', this, 'resting_hr', 'Over 75')">Over 75</div>
           </div>
         </div>
 
+        <div class="section">
+          <div class="section-title">How are you feeling mentally?</div>
+          <div class="section-why">Mood patterns are a genuine phase signal — each phase has a distinct neurochemical fingerprint. Select all that apply. (Backstrom et al. 2008.)</div>
+          <div class="btn-row" id="moodRow">
+            <div class="opt-btn" onclick="toggleMood(this, 'Energised')">Energised</div>
+            <div class="opt-btn" onclick="toggleMood(this, 'Happy')">Happy</div>
+            <div class="opt-btn" onclick="toggleMood(this, 'Calm')">Calm</div>
+            <div class="opt-btn" onclick="toggleMood(this, 'Focused')">Focused</div>
+            <div class="opt-btn" onclick="toggleMood(this, 'Tired')">Tired</div>
+            <div class="opt-btn" onclick="toggleMood(this, 'Anxious')">Anxious</div>
+            <div class="opt-btn" onclick="toggleMood(this, 'Irritable')">Irritable</div>
+            <div class="opt-btn" onclick="toggleMood(this, 'Low')">Low</div>
+          </div>
+        </div>
+
         <div class="section" style="border-bottom:none">
-          <div class="section-title">Any symptoms today?</div>
+          <div class="section-title">Any physical symptoms?</div>
           <div class="section-why">Optional. Select all that apply.</div>
           <div class="btn-row" id="symptomsRow">
             <div class="opt-btn" onclick="toggleSymptom(this, 'Cramps')">Cramps</div>
             <div class="opt-btn" onclick="toggleSymptom(this, 'Bloating')">Bloating</div>
             <div class="opt-btn" onclick="toggleSymptom(this, 'Headache')">Headache</div>
             <div class="opt-btn" onclick="toggleSymptom(this, 'Fatigue')">Fatigue</div>
-            <div class="opt-btn" onclick="toggleSymptom(this, 'Mood changes')">Mood changes</div>
             <div class="opt-btn" onclick="toggleSymptom(this, 'Breast tenderness')">Breast tenderness</div>
           </div>
         </div>
@@ -183,6 +197,10 @@
       <div class="feedback-title" id="feedbackTitle">Check-in saved</div>
       <div class="feedback-body" id="feedbackBody"></div>
       <div class="feedback-conf" id="feedbackConf"></div>
+      <div id="moodContextBlock" style="display:none;background:#f5f0e8;border-radius:10px;padding:12px;margin-bottom:12px;text-align:left">
+        <div id="moodContextHeadline" style="font-size:13px;font-weight:600;color:#2c2820;margin-bottom:5px"></div>
+        <div id="moodContextBody" style="font-size:12px;color:#5a4838;line-height:1.6"></div>
+      </div>
       <div class="feedback-tap">Tap anywhere to go to dashboard →</div>
     </div>
   </div>
@@ -190,6 +208,7 @@
   <script type="module">
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
     import { getTodayStatus } from './hormoneSync.js'
+    import { getMoodContextFeedback } from './algorithm_v3.js'
 
     const SUPABASE_URL = 'https://imgujppjvffbubnsscge.supabase.co'
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImltZ3VqcHBqdmZmYnVibnNzY2dlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2MDQzNzIsImV4cCI6MjA5NjE4MDM3Mn0.TpjycdiHLl5iI1G8u07mVmStKZWU2fzEsuw1dUi6diU'
@@ -203,7 +222,7 @@
     })
 
     const today = new Date().toISOString().split('T')[0]
-    const logData = { energy: null, mucus_quick: null, sleep_quality: null, resting_hr: null, symptoms: [] }
+    const logData = { energy: null, mucus_quick: null, sleep_quality: null, resting_hr: null, symptoms: [], mood: [] }
     let todayStatus = null
 
     // P15: Show spinner until data loaded
@@ -236,6 +255,15 @@
       }
     }
 
+    window.toggleMood = function (el, value) {
+      el.classList.toggle('selected-soft')
+      if (el.classList.contains('selected-soft')) {
+        logData.mood.push(value)
+      } else {
+        logData.mood = logData.mood.filter(m => m !== value)
+      }
+    }
+
     window.saveCheckin = async function () {
       const btn = document.getElementById('saveBtn')
       btn.disabled = true; btn.textContent = 'Saving...'
@@ -252,28 +280,49 @@
           energy: logData.energy,
           sleep_quality: logData.sleep_quality,
           resting_hr: logData.resting_hr,
-          symptoms: logData.symptoms.length > 0 ? logData.symptoms : null
+          symptoms: logData.symptoms.length > 0 ? logData.symptoms : null,
+          mood: logData.mood.length > 0 ? logData.mood : null
         }
         await supabase.from('daily_logs').upsert(payload, { onConflict: 'user_id,log_date' })
 
-        const signalMessages = {
-          energy: 'Energy signal added',
-          sleep_quality: 'Sleep signal added',
-          resting_hr: 'Resting HR signal added',
-          mucus_quick: 'Mucus signal added. Your strongest non-wearable ovulation indicator (Bigelow et al. 2004).'
+        // Save mucus observation to mucus_logs if provided
+        if (logData.mucus_quick) {
+          await supabase.from('mucus_logs').upsert({
+            user_id: user.id,
+            log_date: today,
+            discharge_type: logData.mucus_quick
+          }, { onConflict: 'user_id,log_date' })
         }
+
         const logged = ['energy', 'sleep_quality', 'resting_hr', 'mucus_quick'].filter(k => logData[k] && logData[k] !== 'No data')
+        if (logData.mood.length > 0) logged.push('mood')
         const prevConf = todayStatus ? todayStatus.confidencePct : 20
         const gain = logged.length * 5
         const newConf = Math.min(95, prevConf + gain)
 
         const headline = logged.includes('mucus_quick')
-          ? `Confidence up ${gain}%. Mucus signal added. Egg white discharge is your strongest non-wearable ovulation signal.`
+          ? `Confidence up ${gain}%. Mucus signal added. Egg white discharge is a strong signal for your fertile window (Bigelow et al. 2004).`
           : `Confidence up ${gain}%. ${logged.length} signal${logged.length !== 1 ? 's' : ''} logged.`
 
         document.getElementById('feedbackTitle').textContent = 'Check-in saved'
         document.getElementById('feedbackBody').textContent = headline
         document.getElementById('feedbackConf').textContent = `Algorithm confidence now ${newConf}%`
+
+        // Show neurotransmitter context if mood was logged
+        // Source: Backstrom et al. 2008; getMoodContextFeedback in algorithm_v3.js
+        if (logData.mood.length > 0 && todayStatus) {
+          const moodFeedback = getMoodContextFeedback(
+            { mood: logData.mood, energy: logData.energy },
+            todayStatus.phase,
+            todayStatus.subPhase
+          )
+          if (moodFeedback) {
+            document.getElementById('moodContextHeadline').textContent = moodFeedback.headline
+            document.getElementById('moodContextBody').textContent = moodFeedback.body
+            document.getElementById('moodContextBlock').style.display = 'block'
+          }
+        }
+
         document.getElementById('feedbackOverlay').classList.add('show')
 
         setTimeout(() => goToDashboard(), 2500)

@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HormoneSync — Cycle Calendar</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #faf8f5; color: #2c2820; padding-bottom: 100px;
+    }
+    .screen { max-width: 420px; margin: 0 auto; }
+
+    .spinner { width: 32px; height: 32px; border: 3px solid #ede8e0; border-top-color: #c8b89a; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 60px auto; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #spinnerWrap { text-align: center; padding: 60px 20px; }
+
+    .top-bar { background: #f5f0e8; padding: 14px 16px 12px; border-bottom: 1px solid #ede8e0; display: flex; align-items: center; justify-content: space-between; }
+    .top-bar-title { font-size: 16px; font-weight: 500; color: #2c2820; }
+    .top-bar-sub { font-size: 11px; color: #8a7a6a; margin-top: 2px; }
+    .back-btn { font-size: 20px; color: #6a5a4a; text-decoration: none; padding: 4px; }
+
+    /* Calendar strip */
+    .cal-strip-wrap { padding: 14px 0 0; }
+    .cal-strip-label { font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: #9a9590; padding: 0 16px; margin-bottom: 10px; }
+    .cal-strip { display: flex; gap: 6px; overflow-x: auto; padding: 0 16px 12px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+    .cal-strip::-webkit-scrollbar { display: none; }
+
+    .day-btn {
+      display: flex; flex-direction: column; align-items: center; gap: 3px;
+      min-width: 44px; cursor: pointer; position: relative; flex-shrink: 0;
+    }
+    .day-circle {
+      width: 38px; height: 38px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 500;
+      border: 2px solid transparent;
+      transition: all 0.15s;
+      position: relative;
+    }
+    .day-circle.today { border-color: #c8a87a; }
+    .day-circle.phase-menstrual { background: #f0d8d8; color: #5a2a28; }
+    .day-circle.phase-follicular { background: #d8f0d8; color: #1a4a1a; }
+    .day-circle.phase-ovulatory { background: #fff0c0; color: #4a3800; }
+    .day-circle.phase-luteal { background: #e0d8f0; color: #3a2060; }
+    .day-circle.phase-observation { background: #e8e5e0; color: #4a4540; }
+    .day-circle.selected { box-shadow: 0 0 0 3px #c8a87a; }
+    .day-circle.has-mood::after {
+      content: '';
+      position: absolute; bottom: 1px; right: 1px;
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #c8a87a; border: 1px solid white;
+    }
+    .day-label { font-size: 9px; color: #8a7a6a; }
+    .brain-dot { font-size: 10px; line-height: 1; }
+
+    /* Expanded day card */
+    #dayDetail {
+      display: none; margin: 0 16px 12px;
+      background: #fff; border: 1px solid #ede8e0; border-radius: 14px;
+      overflow: hidden;
+    }
+    .detail-header { padding: 14px 16px 10px; border-bottom: 1px solid #f0ece4; }
+    .detail-date { font-size: 11px; color: #9a9590; margin-bottom: 4px; }
+    .detail-phase { font-size: 16px; font-weight: 500; color: #2c2820; margin-bottom: 8px; }
+    .brain-pill {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 4px 10px; border-radius: 99px;
+      font-size: 11px; font-weight: 600;
+    }
+    .detail-why { padding: 12px 16px; font-size: 13px; color: #4a3828; line-height: 1.75; border-bottom: 1px solid #f0ece4; }
+    .detail-training { padding: 10px 16px; font-size: 12px; color: #5a4a38; line-height: 1.6; border-bottom: 1px solid #f0ece4; }
+    .detail-training strong { color: #2c2820; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 3px; }
+
+    /* Mood logger */
+    .mood-section { padding: 14px 16px; }
+    .mood-section-title { font-size: 12px; font-weight: 600; color: #2c2820; margin-bottom: 10px; }
+    .mood-chips { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 14px; }
+    .mood-chip {
+      padding: 7px 14px; border-radius: 99px;
+      border: 1px solid #ede8e0; background: #fff;
+      font-size: 13px; color: #4a3828; cursor: pointer;
+      transition: all 0.12s;
+      user-select: none;
+    }
+    .mood-chip.selected { background: #f5e8d0; border-color: #c8a87a; color: #2c1810; font-weight: 500; }
+    .intensity-row { margin-bottom: 12px; }
+    .intensity-label { font-size: 11px; color: #7a7268; margin-bottom: 6px; display: flex; justify-content: space-between; }
+    .intensity-slider { width: 100%; -webkit-appearance: none; appearance: none; height: 4px; border-radius: 2px; background: #ede8e0; outline: none; }
+    .intensity-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #c8a87a; cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,0.15); }
+    .save-mood-btn {
+      width: 100%; padding: 12px; border-radius: 10px;
+      background: #2c2820; color: #fff; font-size: 14px; font-weight: 500;
+      border: none; cursor: pointer;
+    }
+    .save-mood-btn:disabled { background: #c8c0b4; cursor: default; }
+
+    /* Mood context card — shown after saving */
+    .mood-context-card { display: none; padding: 14px 16px; background: #f5f0e8; border-top: 1px solid #ede8e0; }
+    .mood-context-headline { font-size: 13px; font-weight: 600; color: #2c2820; margin-bottom: 6px; }
+    .mood-context-body { font-size: 12px; color: #5a4838; line-height: 1.7; }
+
+    /* Saved indicator */
+    .mood-saved-row { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px; }
+    .mood-saved-chip { padding: 4px 10px; border-radius: 99px; background: #f5e8d0; border: 1px solid #d8c0a0; font-size: 12px; color: #4a2810; }
+
+    /* Bottom nav */
+    .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; max-width: 420px; margin: 0 auto; background: #fff; border-top: 1px solid #ede8e0; display: flex; padding: 8px 0 12px; }
+    .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; text-decoration: none; color: #9a9590; font-size: 10px; }
+    .nav-item i { font-size: 18px; }
+    .nav-item.active { color: #2c2820; }
+    .section-label { font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: #9a9590; padding: 0 16px; margin: 12px 0 8px; }
+  </style>
+</head>
+<body>
+<div class="screen">
+  <div id="spinnerWrap"><div class="spinner"></div></div>
+
+  <div id="mainContent" style="display:none">
+    <div class="top-bar">
+      <a href="dashboard.html" class="back-btn"><i class="ti ti-chevron-left"></i></a>
+      <div>
+        <div class="top-bar-title">Cycle calendar</div>
+        <div class="top-bar-sub" id="cycleSubLabel">Loading...</div>
+      </div>
+      <div style="width:28px"></div>
+    </div>
+
+    <div class="cal-strip-wrap">
+      <div class="cal-strip-label">This cycle, tap any day</div>
+      <div class="cal-strip" id="calStrip"></div>
+    </div>
+
+    <div id="dayDetail"></div>
+
+    <div class="section-label">Neurotransmitter guide</div>
+    <div id="brainLegend" style="padding:0 16px 16px;display:flex;flex-wrap:wrap;gap:7px"></div>
+  </div>
+
+  <div class="bottom-nav">
+    <a href="dashboard.html" class="nav-item"><i class="ti ti-home"></i><span>Home</span></a>
+    <a href="workout.html" class="nav-item"><i class="ti ti-barbell"></i><span>Workout</span></a>
+    <a href="calendar.html" class="nav-item active"><i class="ti ti-calendar"></i><span>Calendar</span></a>
+    <a href="log.html" class="nav-item"><i class="ti ti-pencil"></i><span>Log</span></a>
+    <a href="nutrition.html" class="nav-item"><i class="ti ti-salad"></i><span>Nutrition</span></a>
+    <a href="learn.html" class="nav-item"><i class="ti ti-book-2"></i><span>Learn</span></a>
+  </div>
+</div>
+
+<script type="module">
+  import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
+  import { getPhase, getLutealSubPhase } from './hormoneSync.js'
+  import { PHASE_PREDICTIONS, BRAIN_STATE_STYLES, getMoodContextFeedback } from './algorithm_v3.js'
+
+  const supabase = createClient(
+    'https://imgujppjvffbubnsscge.supabase.co',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImltZ3VqcHBqdmZmYnVibnNzY2dlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2MDQzNzIsImV4cCI6MjA5NjE4MDM3Mn0.TpjycdiHLl5iI1G8u07mVmStKZWU2fzEsuw1dUi6diU'
+  )
+
+  const { data: { session: _s } } = await supabase.auth.getSession()
+  if (!_s) { window.location.href = 'login.html' }
+  supabase.auth.onAuthStateChange((event, session) => {
+    if (!session) window.location.href = 'login.html'
+  })
+
+  const MOOD_OPTIONS = ['Energised', 'Happy', 'Calm', 'Focused', 'Tired', 'Anxious', 'Irritable', 'Low']
+
+  // Phase to CSS class map
+  function phaseClass(phase) {
+    if (!phase || phase === 'observation') return 'phase-observation'
+    return 'phase-' + phase.toLowerCase().replace(' ', '-')
+  }
+
+  function getSubPhaseKey(cycleDay, cycleLen) {
+    const phase = getPhase(cycleDay, cycleLen)
+    if (phase === 'Luteal') return getLutealSubPhase(cycleDay, cycleLen)
+    if (phase === 'Follicular') {
+      return cycleDay <= 9 ? 'Early follicular' : 'Late follicular'
+    }
+    return phase
+  }
+
+  function getPhasePrediction(cycleDay, cycleLen) {
+    if (!cycleDay) return PHASE_PREDICTIONS.observation
+    const subPhaseKey = getSubPhaseKey(cycleDay, cycleLen)
+    return PHASE_PREDICTIONS[subPhaseKey] || PHASE_PREDICTIONS[getPhase(cycleDay, cycleLen)] || PHASE_PREDICTIONS.observation
+  }
+
+  let selectedDay = null
+  let cycleLen = 28
+  let userId = null
+  let logsByDate = {}
+
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { window.location.href = 'login.html' }
+    userId = user.id
+
+    const [cycleRes, profileRes, logsRes] = await Promise.all([
+      supabase.from('cycle_data').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(1).single(),
+      supabase.from('profiles').select('cycle_length').eq('id', userId).single(),
+      supabase.from('daily_logs').select('log_date,mood,energy').eq('user_id', userId).order('log_date', { ascending: false }).limit(60)
+    ])
+
+    const cycleData = cycleRes.data
+    cycleLen = cycleData?.cycle_length || profileRes.data?.cycle_length || 28
+
+    // Index logs by date
+    for (const log of (logsRes.data || [])) {
+      logsByDate[log.log_date] = log
+    }
+
+    const today = new Date(); today.setHours(0, 0, 0, 0)
+    let cycleDay = null
+    let lastPeriodDate = null
+
+    if (cycleData?.last_period_date) {
+      lastPeriodDate = new Date(cycleData.last_period_date + 'T00:00:00')
+      const diffDays = Math.floor((today - lastPeriodDate) / 86400000)
+      cycleDay = diffDays + 1
+    }
+
+    document.getElementById('cycleSubLabel').textContent = cycleDay
+      ? `Day ${cycleDay} of ${cycleLen}`
+      : 'Building baseline'
+
+    // Build the strip
+    const strip = document.getElementById('calStrip')
+    const totalDays = cycleLen
+
+    for (let d = 1; d <= totalDays; d++) {
+      const phase = cycleDay ? getPhase(d, cycleLen) : 'observation'
+      const pred = getPhasePrediction(d, cycleLen)
+      const isToday = cycleDay !== null && d === cycleDay
+
+      // Get the actual date for this cycle day
+      let dateStr = null
+      if (lastPeriodDate) {
+        const dayDate = new Date(lastPeriodDate)
+        dayDate.setDate(dayDate.getDate() + d - 1)
+        dateStr = dayDate.toISOString().split('T')[0]
+      }
+
+      const hasLog = dateStr && logsByDate[dateStr]?.mood?.length > 0
+
+      const btn = document.createElement('div')
+      btn.className = 'day-btn'
+      btn.innerHTML = `
+        <div class="day-circle ${phaseClass(phase)}${isToday ? ' today' : ''}${hasLog ? ' has-mood' : ''}" data-day="${d}" data-date="${dateStr || ''}">
+          ${d}
+        </div>
+        <div class="day-label">${isToday ? 'Today' : 'D' + d}</div>
+        <div class="brain-dot" title="${pred.brain_state}">&#129504;</div>
+      `
+      btn.addEventListener('click', () => showDayDetail(d, dateStr, phase, pred, isToday))
+      strip.appendChild(btn)
+    }
+
+    // Scroll to today
+    if (cycleDay) {
+      setTimeout(() => {
+        const todayEl = strip.querySelector(`[data-day="${cycleDay}"]`)
+        todayEl?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
+      }, 100)
+    }
+
+    // Brain state legend
+    renderLegend()
+
+  } catch (err) {
+    console.error('Calendar error:', err)
+  } finally {
+    document.getElementById('spinnerWrap').style.display = 'none'
+    document.getElementById('mainContent').style.display = 'block'
+  }
+
+  function renderLegend() {
+    const legend = document.getElementById('brainLegend')
+    for (const [state, style] of Object.entries(BRAIN_STATE_STYLES)) {
+      const pill = document.createElement('span')
+      pill.className = 'brain-pill'
+      pill.style.background = style.bg
+      pill.style.color = style.text
+      pill.style.padding = '4px 10px'
+      pill.style.borderRadius = '99px'
+      pill.style.fontSize = '11px'
+      pill.style.fontWeight = '500'
+      pill.textContent = state
+      legend.appendChild(pill)
+    }
+  }
+
+  function showDayDetail(dayNum, dateStr, phase, pred, isToday) {
+    // Deselect previous
+    document.querySelectorAll('.day-circle.selected').forEach(el => el.classList.remove('selected'))
+    const circle = document.querySelector(`.day-circle[data-day="${dayNum}"]`)
+    circle?.classList.add('selected')
+
+    selectedDay = { dayNum, dateStr, phase, pred, isToday }
+    const brainStyle = BRAIN_STATE_STYLES[pred.brain_state] || { bg: '#e8e5e0', text: '#4a4540' }
+    const savedLog = dateStr ? logsByDate[dateStr] : null
+    const savedMoods = savedLog?.mood || []
+
+    let formattedDate = 'Day ' + dayNum
+    if (dateStr) {
+      const d = new Date(dateStr + 'T00:00:00')
+      formattedDate = d.toLocaleDateString('en-CA', { weekday: 'short', month: 'short', day: 'numeric' }) + ' — Day ' + dayNum
+    }
+
+    const detail = document.getElementById('dayDetail')
+    detail.style.display = 'block'
+    detail.innerHTML = `
+      <div class="detail-header">
+        <div class="detail-date">${formattedDate}${isToday ? ' (Today)' : ''}</div>
+        <div class="detail-phase">${pred.label}</div>
+        <span class="brain-pill" style="background:${brainStyle.bg};color:${brainStyle.text}">
+          &#129504; ${pred.brain_state}
+        </span>
+      </div>
+      <div class="detail-why">${pred.why}</div>
+      <div class="detail-training">
+        <strong>Training</strong>${pred.training}
+      </div>
+      <div class="mood-section">
+        <div class="mood-section-title">How did you feel?</div>
+        ${savedMoods.length > 0 ? `
+          <div class="mood-saved-row">${savedMoods.map(m => `<span class="mood-saved-chip">${m}</span>`).join('')}</div>
+          <div style="font-size:11px;color:#8a7a6a;margin-bottom:10px">Tap to update</div>
+        ` : ''}
+        <div class="mood-chips" id="moodChips">
+          ${MOOD_OPTIONS.map(m => `
+            <div class="mood-chip${savedMoods.includes(m) ? ' selected' : ''}" data-mood="${m}" onclick="this.classList.toggle('selected')">${m}</div>
+          `).join('')}
+        </div>
+        <div class="intensity-row">
+          <div class="intensity-label">
+            <span>Overall mood intensity</span>
+            <span id="intensityVal">3</span>
+          </div>
+          <input type="range" min="1" max="5" value="3" class="intensity-slider" id="moodIntensity"
+            oninput="document.getElementById('intensityVal').textContent=this.value">
+        </div>
+        <button class="save-mood-btn" onclick="saveMood()">Save mood</button>
+        <div class="mood-context-card" id="moodContextCard">
+          <div class="mood-context-headline" id="moodContextHeadline"></div>
+          <div class="mood-context-body" id="moodContextBody"></div>
+        </div>
+      </div>
+    `
+
+    detail.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  }
+
+  window.saveMood = async function() {
+    if (!selectedDay || !userId) return
+    const btn = document.querySelector('.save-mood-btn')
+    if (btn) { btn.disabled = true; btn.textContent = 'Saving...' }
+
+    const chips = document.querySelectorAll('#moodChips .mood-chip.selected')
+    const moods = Array.from(chips).map(c => c.dataset.mood)
+    const intensity = parseInt(document.getElementById('moodIntensity')?.value || '3')
+    const dateStr = selectedDay.dateStr || new Date().toISOString().split('T')[0]
+
+    try {
+      await supabase.from('daily_logs').upsert({
+        user_id: userId,
+        log_date: dateStr,
+        mood: moods.length > 0 ? moods : null
+      }, { onConflict: 'user_id,log_date' })
+
+      // Update local cache
+      logsByDate[dateStr] = { ...(logsByDate[dateStr] || {}), mood: moods }
+
+      // Update has-mood dot
+      const circle = document.querySelector(`.day-circle[data-day="${selectedDay.dayNum}"]`)
+      if (moods.length > 0 && circle) circle.classList.add('has-mood')
+
+      // Show neurotransmitter context
+      const moodFeedback = getMoodContextFeedback(
+        { mood: moods, energy: logsByDate[dateStr]?.energy },
+        selectedDay.phase,
+        selectedDay.pred.label
+      )
+      const contextCard = document.getElementById('moodContextCard')
+      if (moodFeedback && contextCard) {
+        document.getElementById('moodContextHeadline').textContent = moodFeedback.headline
+        document.getElementById('moodContextBody').textContent = moodFeedback.body
+        contextCard.style.display = 'block'
+      }
+
+      if (btn) { btn.textContent = 'Saved'; btn.disabled = false }
+    } catch (err) {
+      console.error('Mood save error:', err)
+      if (btn) { btn.disabled = false; btn.textContent = 'Save mood' }
+    }
+  }
+</script>
+</body>
+</html>
