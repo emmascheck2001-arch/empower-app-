@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>HormoneSync — Setup</title>
+    <title>Em~power — Setup</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css" />
     <style>
         * {
@@ -518,15 +518,20 @@
             font-size: 12px; color: #9a9590; cursor: pointer; text-decoration: underline;
         }
     </style>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Em~power">
+  <meta name="theme-color" content="#2c2820">
 </head>
 
 <body>
     <div id="setupSpinner"><div class="spinner"></div></div>
     <div class="screen" id="setupContent" style="display:none">
         <div class="top-bar">
-            <div class="logo">HormoneSync</div>
+            <div class="logo">Em~power</div>
             <h1>Welcome.</h1>
-            <p>You have probably been dismissed before. Maybe your pain was called normal. Maybe your symptoms were called anxiety. Maybe you were told to come back if it got worse. HormoneSync is not that. Your body sends signals every single day. This app learns to read them and takes every single one seriously.</p>
+            <p>You have probably been dismissed before. Maybe your pain was called normal. Maybe your symptoms were called anxiety. Maybe you were told to come back if it got worse. Em~power is not that. Your body sends signals every single day. This app learns to read them and takes every single one seriously.</p>
         </div>
 
         <div style="margin:16px;padding:14px 16px;background:#f5f0e8;border-radius:12px;border:1px solid #ede8e0">
@@ -536,7 +541,7 @@
 
         <div style="margin:0 16px 16px;padding:14px 16px;background:#fff;border-radius:12px;border:1px solid #ede8e0">
             <div style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#8a7a6a;margin-bottom:6px">Built on research about women</div>
-            <div style="font-size:13px;color:#4a4540;line-height:1.65">Almost everything you have been told about exercise and nutrition was researched on men and generalised to women. Women were not required to be included in research studies until 1993 (NIH Revitalization Act). HormoneSync is built on research conducted on women.</div>
+            <div style="font-size:13px;color:#4a4540;line-height:1.65">Almost everything you have been told about exercise and nutrition was researched on men and generalised to women. Women were not required to be included in research studies until 1993 (NIH Revitalization Act). Em~power is built on research conducted on women.</div>
         </div>
 
         <div class="path-section">
@@ -665,7 +670,7 @@
                 </div>
             </div>
             <div class="info-box warm">
-                <div class="info-box-label">How HormoneSync helps you right now</div>
+                <div class="info-box-label">How Em~power helps you right now</div>
                 <div class="info-box-text">We will put you in observation mode. Daily logging of your discharge,
                     temperature, energy, and mood gives the algorithm the signals it needs to detect when your natural
                     cycle returns.</div>
@@ -694,7 +699,7 @@
             <div class="info-box blue">
                 <div class="info-box-label">Irregular cycles are more common than you think</div>
                 <div class="info-box-text">Stress, weight changes, thyroid issues, PCOS, and many other factors can make
-                    cycles unpredictable. HormoneSync reads your body's real-time signals to find your phase even when
+                    cycles unpredictable. Em~power reads your body's real-time signals to find your phase even when
                     the dates are unreliable.</div>
             </div>
             <div class="field">
@@ -723,41 +728,87 @@
 
         <!-- Path 4 -->
         <div class="form-panel" id="panel4">
-            <div class="info-box pink">
-                <div class="info-box-label">Your body, your plan</div>
-                <div class="info-box-text">Perimenopause and menopause bring a different hormonal landscape. HormoneSync
-                    adapts its recommendations to this phase of life. Workouts, nutrition, and tracking all shift to
-                    match where you are.</div>
+            <!-- Card 1: Validation -->
+            <div style="background:linear-gradient(135deg,#352c20,#2c2415);border-radius:14px;padding:20px;margin-bottom:12px">
+                <div style="font-size:10px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#c8b89a;margin-bottom:12px">You are not imagining it</div>
+                <div style="font-size:17px;font-weight:500;font-family:Georgia,serif;font-style:italic;line-height:1.5;margin-bottom:12px;color:#f5f0e8">The sleep disruption, the mood changes, the brain fog, the weight that seems to shift no matter what you do.</div>
+                <div style="font-size:13px;line-height:1.7;color:#d8d0c4">These are real hormonal effects. Not stress. Not aging gracefully. Not something to just push through.</div>
+                <div style="font-size:13px;line-height:1.7;color:#d8d0c4;margin-top:10px">Perimenopause is one of the most significant hormonal transitions a woman goes through and it is almost entirely ignored by the fitness and health industry. Em~power is built for this.</div>
+                <div style="font-size:10px;color:#c8b89a;margin-top:12px;font-style:italic">Source: Freeman EW et al. Archives of General Psychiatry 2004.</div>
             </div>
+
+            <!-- Card 2: Timeline -->
+            <div class="info-box warm" style="margin-bottom:12px">
+                <div class="info-box-label">When does perimenopause begin?</div>
+                <div class="info-box-text">Perimenopause can begin as early as age 35. The average age of the final menstrual period in Canada is 51. Perimenopause typically begins 4 to 10 years before that.</div>
+                <div class="info-box-text" style="margin-top:6px">The single most predictive factor for when you will reach menopause is when your mother did.</div>
+                <div style="font-size:10px;color:#9a9590;margin-top:8px">Source: Harlow SD et al. Climacteric 2012. STRAW+10 staging.</div>
+            </div>
+
+            <!-- Card 3: Stage selector -->
             <div class="field">
                 <label class="field-label">Where are you in this transition?</label>
                 <div style="display:flex;flex-direction:column;gap:8px">
-                    <div class="preset-btn" style="text-align:left;border-radius:10px;padding:10px 14px"
-                        onclick="selectPreset(this, 'menopauseStage', 'peri-early')">Early perimenopause, cycles still
-                        happening but changing</div>
-                    <div class="preset-btn" style="text-align:left;border-radius:10px;padding:10px 14px"
-                        onclick="selectPreset(this, 'menopauseStage', 'peri-late')">Late perimenopause, cycles very
-                        irregular or mostly gone</div>
-                    <div class="preset-btn" style="text-align:left;border-radius:10px;padding:10px 14px"
-                        onclick="selectPreset(this, 'menopauseStage', 'menopause')">Menopause, no period for 12 or more
-                        months</div>
+                    <div class="preset-btn" style="text-align:left;border-radius:10px;padding:12px 14px" onclick="selectPreset(this,'menopauseStage','peri-early')">
+                        <div style="font-weight:500;font-size:13px">Early perimenopause</div>
+                        <div style="font-size:11px;color:#7a7268;margin-top:3px">Cycles becoming irregular, some symptoms starting</div>
+                    </div>
+                    <div class="preset-btn" style="text-align:left;border-radius:10px;padding:12px 14px" onclick="selectPreset(this,'menopauseStage','peri-late')">
+                        <div style="font-weight:500;font-size:13px">Late perimenopause</div>
+                        <div style="font-size:11px;color:#7a7268;margin-top:3px">Cycles very irregular or mostly stopped, significant symptoms</div>
+                    </div>
+                    <div class="preset-btn" style="text-align:left;border-radius:10px;padding:12px 14px" onclick="selectPreset(this,'menopauseStage','menopause')">
+                        <div style="font-weight:500;font-size:13px">Postmenopause</div>
+                        <div style="font-size:11px;color:#7a7268;margin-top:3px">No period for 12 or more months</div>
+                    </div>
+                    <div class="preset-btn" style="text-align:left;border-radius:10px;padding:12px 14px" onclick="selectPreset(this,'menopauseStage','not-sure')">
+                        <div style="font-weight:500;font-size:13px">Not sure</div>
+                        <div style="font-size:11px;color:#7a7268;margin-top:3px">Help me figure it out through tracking</div>
+                    </div>
                 </div>
             </div>
-            <div style="padding:4px 0 16px">
+
+            <!-- Card 4: Symptom checker -->
+            <div class="field">
+                <label class="field-label">Which symptoms are you experiencing?</label>
+                <p class="field-why">Select all that apply. This personalises your tracking from day one.</p>
+                <div style="display:flex;flex-wrap:wrap;gap:8px" id="periSymptomsWrap">
+                    <div class="preset-btn" style="border-radius:99px" onclick="togglePeriSymptom(this,'irregular-cycles')">Irregular cycles</div>
+                    <div class="preset-btn" style="border-radius:99px" onclick="togglePeriSymptom(this,'hot-flashes')">Hot flashes or night sweats</div>
+                    <div class="preset-btn" style="border-radius:99px" onclick="togglePeriSymptom(this,'sleep')">Sleep disruption</div>
+                    <div class="preset-btn" style="border-radius:99px" onclick="togglePeriSymptom(this,'mood')">Mood changes or irritability</div>
+                    <div class="preset-btn" style="border-radius:99px" onclick="togglePeriSymptom(this,'brain-fog')">Brain fog or memory issues</div>
+                    <div class="preset-btn" style="border-radius:99px" onclick="togglePeriSymptom(this,'weight')">Weight changes, especially abdomen</div>
+                    <div class="preset-btn" style="border-radius:99px" onclick="togglePeriSymptom(this,'joint-pain')">Joint pain or stiffness</div>
+                    <div class="preset-btn" style="border-radius:99px" onclick="togglePeriSymptom(this,'libido')">Reduced libido</div>
+                    <div class="preset-btn" style="border-radius:99px" onclick="togglePeriSymptom(this,'palpitations')">Heart palpitations</div>
+                    <div class="preset-btn" style="border-radius:99px" onclick="togglePeriSymptom(this,'headaches')">Headaches</div>
+                    <div class="preset-btn" style="border-radius:99px" onclick="togglePeriSymptom(this,'fatigue')">Fatigue</div>
+                </div>
+            </div>
+
+            <!-- Card 5: HRT awareness -->
+            <div class="info-box" style="margin-bottom:16px">
+                <div class="info-box-label">About hormone replacement therapy</div>
+                <div class="info-box-text">In 2002 a study caused panic about HRT. Headlines said it caused cancer and heart attacks. Millions of women stopped treatment overnight. The study was later found to have been significantly misinterpreted.</div>
+                <div class="info-box-text" style="margin-top:8px">Current evidence shows HRT started within 10 years of menopause or before age 60 is associated with reduced risk of osteoporosis, cardiovascular disease, and dementia and significantly improved quality of life.</div>
+                <div class="info-box-text" style="margin-top:8px">Em~power is not a substitute for medical advice. If you are experiencing significant symptoms please find a doctor who is current on the evidence.</div>
+                <div style="font-size:10px;color:#9a9590;margin-top:8px">Source: Manson JE et al. New England Journal of Medicine 2013.</div>
+            </div>
+
+            <!-- What the app does for you -->
+            <div style="padding:0 0 16px">
                 <div class="check-item">
-                    <div class="check-icon"><i class="ti ti-activity"></i></div>
-                    <div class="check-text"><strong>Exercise recommendations adapt.</strong> Lower estrogen affects
-                        muscle recovery, bone density, and how your body uses fuel.</div>
+                    <div class="check-icon"><i class="ti ti-barbell"></i></div>
+                    <div class="check-text"><strong>Resistance training prioritised.</strong> Bone density, muscle mass, insulin sensitivity, and mood all respond to strength training. Em~power puts this first for you.</div>
                 </div>
                 <div class="check-item">
-                    <div class="check-icon"><i class="ti ti-moon"></i></div>
-                    <div class="check-text"><strong>Sleep and mood tracking matter more here.</strong> Hot flashes,
-                        night sweats, and anxiety are hormonal signals worth logging.</div>
+                    <div class="check-icon"><i class="ti ti-flame"></i></div>
+                    <div class="check-text"><strong>Hot flash and symptom tracking.</strong> Log daily symptoms, night sweats, brain fog, and joint pain. Em~power finds your patterns.</div>
                 </div>
                 <div class="check-item">
                     <div class="check-icon"><i class="ti ti-test-pipe"></i></div>
-                    <div class="check-text"><strong>Hormone+ is especially valuable.</strong> Salivary cortisol and
-                        testosterone testing gives real data on what your body is actually producing.</div>
+                    <div class="check-text"><strong>Hormone+ is especially valuable here.</strong> Estradiol, FSH, LH, and progesterone give you real data on where you are in the transition.</div>
                 </div>
             </div>
         </div>
@@ -830,9 +881,9 @@
         </div>
 
         <div style="background:#f5f0e8;border-radius:12px;padding:16px;margin-bottom:20px">
-          <div style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#9a6a3a;margin-bottom:8px">How HormoneSync works for you</div>
-          <div style="font-size:13px;color:#2c2820;line-height:1.7">HormoneSync does not compare you to other women. It learns what is normal for you specifically.</div>
-          <div style="font-size:12px;color:#7a6a5a;line-height:1.7;margin-top:8px">Population averages are built from research that often excluded women entirely. Your personal pattern across your own cycles is the only benchmark that matters for your health. The longer you use HormoneSync, the more personal and accurate your recommendations become.</div>
+          <div style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#9a6a3a;margin-bottom:8px">How Em~power works for you</div>
+          <div style="font-size:13px;color:#2c2820;line-height:1.7">Em~power does not compare you to other women. It learns what is normal for you specifically.</div>
+          <div style="font-size:12px;color:#7a6a5a;line-height:1.7;margin-top:8px">Population averages are built from research that often excluded women entirely. Your personal pattern across your own cycles is the only benchmark that matters for your health. The longer you use Em~power, the more personal and accurate your recommendations become.</div>
           <div style="font-size:10px;color:#9a9590;margin-top:8px;font-style:italic">Source: Münster et al. 2021; Janse de Jonge. Sports Medicine 2003; Sims ST. ROAR. 2024.</div>
         </div>
         <button class="next-btn" id="finishBtn" onclick="finishSetup()">Finish setup</button>
@@ -872,6 +923,13 @@
 
         let currentPath = null
         const selections = {}
+        const periSelectedSymptoms = []
+
+        window.togglePeriSymptom = function (el, key) {
+            const idx = periSelectedSymptoms.indexOf(key)
+            if (idx >= 0) { periSelectedSymptoms.splice(idx, 1); el.classList.remove('selected') }
+            else { periSelectedSymptoms.push(key); el.classList.add('selected') }
+        }
 
         window.selectPath = function (n, event) {
             currentPath = n
@@ -1027,9 +1085,18 @@
                 if (heightCm) localStorage.setItem('hsync_height_cm', String(heightCm))
                 if (bodyWeightKg) localStorage.setItem('hsync_weight_kg', String(bodyWeightKg))
 
+                // For Path 4, store menopause stage in bc_type field
+                const bcTypeValue = currentPath === 4
+                    ? (selections.menopauseStage || null)
+                    : (selections.bcType || null)
+
+                if (currentPath === 4 && periSelectedSymptoms.length > 0) {
+                    localStorage.setItem('peri_symptoms', JSON.stringify(periSelectedSymptoms))
+                }
+
                 await supabase.from('profiles').update({
                     user_path: String(currentPath),
-                    bc_type: selections.bcType || null,
+                    bc_type: bcTypeValue,
                     cycle_length: cycleLen,
                     onboarding_complete: true,
                     body_weight_kg: bodyWeightKg,
@@ -1052,6 +1119,27 @@
             }
         }
     </script>
+<script>
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js')
+  ;(function () {
+    var isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent)
+    var isStandalone = window.navigator.standalone === true
+    if (!isIOS || isStandalone || localStorage.getItem('pwa-prompt-dismissed')) return
+    var b = document.createElement('div')
+    b.style.cssText = 'position:fixed;bottom:80px;left:16px;right:16px;background:#2c2820;color:#faf8f5;font-size:13px;padding:12px 14px;border-radius:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.18)'
+    var msg = document.createElement('span')
+    msg.style.lineHeight = '1.4'
+    msg.textContent = 'Add Em~power to your home screen for the full experience'
+    var x = document.createElement('button')
+    x.textContent = '\u2715'
+    x.setAttribute('aria-label', 'Dismiss')
+    x.style.cssText = 'background:none;border:none;color:#faf8f5;font-size:18px;cursor:pointer;flex-shrink:0;padding:0 2px;line-height:1'
+    x.onclick = function () { b.remove(); localStorage.setItem('pwa-prompt-dismissed', '1') }
+    b.appendChild(msg)
+    b.appendChild(x)
+    document.body.appendChild(b)
+  })()
+</script>
 </body>
 
 </html>

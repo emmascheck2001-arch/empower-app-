@@ -153,6 +153,8 @@ NEVER use `return` after redirect at module top level (causes SyntaxError in ES 
 
 ### CHECKIN.HTML — Morning check-in
 
+**Path 4 science note adaptation (permanent):** After getTodayStatus loads, if `todayStatus.profile?.user_path === '4'`, two science notes are updated via JS: (1) mucus question note changes from "80% sensitivity for detecting your fertile window" to estrogen-level framing — cervical fluid still tracked but context is estrogen signals not ovulation. (2) Sleep question note changes to perimenopause-specific. These updates happen in the `try` block after getTodayStatus resolves. Never remove this adaptation.
+
 **Title in browser:** "Em~power — Morning Check-in"
 
 **Top bar:** Phase name (large, centered) + day label + phase tag pill (e.g. "Day 14")
@@ -186,14 +188,16 @@ NEVER use `return` after redirect at module top level (causes SyntaxError in ES 
 
 ### LOG.HTML — Full daily log
 
+**Path 4 science note adaptation (permanent):** When `userPath === '4'` is confirmed in `loadPhase()`, two science note elements are updated via JS: (1) `#cervicalFluidWhy` changes from "One of the strongest ovulation indicators" to estrogen-level framing. (2) `#lhTestWhy` changes from "strongest single ovulation signal" to "Ovulation becomes unpredictable in perimenopause. A positive LH test may still occur. Log it if you test." The `id` attributes on these elements must never be removed.
+
 **Title:** Standard top bar with back button.
 
 **Default mode:** Full log (NOT the 5-question check-in; checkin.html is the separate 5-question version).
 
 **Field order in the card (exact, permanent):**
 
-1. **Cervical fluid** (single-select pills) — None or dry / Sticky or crumbly / Creamy or lotion-like / Watery / Egg white / Spotting
-2. **LH test** (single-select pills) — No test / Negative / Positive
+1. **Cervical fluid** (single-select pills) — None or dry / Sticky or crumbly / Creamy or lotion-like / Watery / Egg white / Spotting. Science note element `id="cervicalFluidWhy"`.
+2. **LH test** (single-select pills) — No test / Negative / Positive. Science note element `id="lhTestWhy"`.
 3. **Energy** (4-button grid) — Very low / Low / Normal / High. Note: "Normal" not "Good" (different from checkin.html).
 4. **Mood positive** (`#moodRow`, multi-select pills) — Energetic / Motivated / Confident / Social / Calm / Focused
 5. **Mood challenging** (`#moodRowB`, multi-select pills) — Tired / Irritable / Anxious / Sad / Brain fog / Low mood
@@ -230,7 +234,7 @@ NEVER use `return` after redirect at module top level (causes SyntaxError in ES 
 10. Allostatic load card — hidden
 11. Wearable readiness warning card — hidden
 12. Pattern flag container — hidden
-13. "Your cycle phases" section label + 4 phase cards (Follicular, Ovulatory, Luteal, Menstrual)
+13. "Your cycle phases" section label (`id="cyclePhasesSectionLabel"`) + phase cards. For Path 4 users the label changes to "Your hormonal phases" via JS, a Perimenopause card appears at the top (`id="cardPerimenopause"`, hidden by default, shown via Path 4 JS block), and a context note (`id="periCycleNote"`) appears below the 4 standard cards: "If you are still cycling, the phase cards above still apply to your irregular cycles."
 14. Share feedback link: `<a href="feedback.html">` — `font-size:12px; color:#9a9590`
 15. Bottom nav (6 items: Home / Workout / Calendar / Log / Nutrition / Learn)
 
@@ -241,6 +245,13 @@ NEVER use `return` after redirect at module top level (causes SyntaxError in ES 
 - `hormones.estrogen/progesterone/lh.ranges`: numbers HERE ONLY, hidden behind "View reference ranges" toggle
 - The `toggleRanges()` function reveals the ranges div. This toggle must always exist.
 - Run `grep -n "pmol\|nmol\|IU/L" dashboard.html` after every edit and confirm every match is inside a `ranges:` string.
+- The Perimenopause card uses `fsh` as the hormone key (not `lh`) — `hormoneNames` in `openPhaseSheet` maps `fsh: 'FSH'`. Do not remove this mapping.
+
+**Path 4 (perimenopause/menopause) dashboard rules — permanent:**
+- PCOS pattern flag must always have `profile.user_path !== '4'` guard. Irregular cycles in perimenopause are expected — showing PCOS flag would be actively misleading.
+- Endometriosis pain flag must always have `profile.user_path !== '4'` guard. Path 4 logs use `joint_pain_rating` not `pain_rating`.
+- Community pulse (`renderCommunityPulse`) skips Path 4 — returns early if `phase === 'Perimenopause'`. Community pulse compares energy by cycle phase which does not apply.
+- Wearable warning card only shows for `phase === 'Luteal'` — correctly excluded from Path 4.
 
 **Phase bullet lists (exact current values):**
 - Menstrual: 'Estrogen and progesterone are at their lowest' / 'Serotonin is at its lowest point of the cycle' / 'Prostaglandins are elevated' / 'Iron is being lost through bleeding'
@@ -536,13 +547,31 @@ if (cell.inMonth) {
 
 **Every file edit must also update www/ and ios/App/App/public/:** After changing any HTML/JS file, the same change goes to `www/[filename]` and `ios/App/App/public/[filename]`. Both must always be in sync with the root directory.
 
+**After every session — deploy to production:** Run from `/Users/emmascheck/Desktop/hormone app`:
+```
+netlify deploy --dir . --site 11d125ac-cd81-4060-8dc1-2b6b580265ed --prod
+```
+The local Netlify link points to the wrong site (scintillating-phoenix). Always pass `--site 11d125ac-cd81-4060-8dc1-2b6b580265ed` explicitly. Production site is empowerhealth.com.
+
 **Tabler icons only:** Never use emoji as icons where a ti class exists. Emoji only where no tabler icon equivalent exists (e.g. 🧘‍♀️ for yoga, 🌿 for complete screen).
 
 **Georgia serif italic used for:** Phase names in banners (workout, dashboard, nutrition), exercise names in player, hero titles in feedback/success screens, section headers in setup.
 
 **Supabase CDN import:** Always `from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'`. Never npm import.
 
-**getTodayStatus:** Always imported from `./hormoneSync.js`. Never re-implemented in any screen. Returns: phase, subPhase, cycleDay, cycleLen, daysUntilPeriod, confidence, confidenceLabel, confidencePct, intensityModifier, intensityLabel, nutritionTargets, immediateFeedback, anomalies, predictions, symptomInference.
+**getTodayStatus:** Always imported from `./hormoneSync.js`. Never re-implemented in any screen. Returns: phase, subPhase, cycleDay, cycleLen, daysUntilPeriod, confidence, confidenceLabel, confidencePct, intensityModifier, intensityLabel, nutritionTargets, immediateFeedback, anomalies, predictions, symptomInference, moodInsight, bodyWeight, profile.
+
+**Path 4 early exit in getTodayStatus — permanent rule:** The very first thing getTodayStatus does after loading data is check `profile?.user_path === '4'`. If true it immediately returns a perimenopause status object with `phase: 'Perimenopause'` and skips ALL cycle phase calculations. This is critical — Path 4 users may have a `last_period_date` in cycle_data from before they chose Path 4, and without this guard they would receive regular cycle phase calculations. NEVER remove this early exit. The perimenopause return object includes: perimenopause nutrition targets (1.8g/kg protein), intensity modifier 0.82, perimenopause-specific anomaly detection (fatigue and sleep patterns, not cycle patterns), empty predictions array, and the stage label (Early perimenopause / Late perimenopause / Postmenopause) as subPhase.
+
+**getNutritionTargets — Perimenopause key:** `targets.Perimenopause` exists with multiplier 1.8, extra 0, focus on protein and bone protection. Never remove this key.
+
+**getIntensityModifier — Perimenopause:** Returns 0.82. Added before the observation fallback. Never remove.
+
+**detectAnomalies — Path 4 guard:** If `flagStats?.userPath === '4'`, runs perimenopause-specific checks (persistent low energy, repeated poor sleep) and returns early — skips all cycle-based anomaly logic. Never remove this guard.
+
+**algorithm_v3.js PHASE_PREDICTIONS — Perimenopause key:** Exists with brain_state 'Fluctuating estrogen', training and nutrition guidance specific to perimenopause. Never remove.
+
+**getMoodContextFeedback — perimenopause branch:** Checks `phase === 'Perimenopause'` FIRST, before all cycle-based branches. Returns estrogen-variability framing for low mood, estrogen-surge framing for high energy. Never move this branch below the cycle-based branches.
 
 **Podcast sources:** Never reference any podcast (including Diary of a CEO) in user-visible text. All science claims must cite peer-reviewed sources by name.
 
@@ -1214,46 +1243,71 @@ Never stop. There is always something that can be improved, verified, or made mo
 
 ---
 
-## Trial user feedback system — check and process this every session
+## Trial user feedback system — autonomous processing
 
-Check user_feedback table at the start of every session. Process pending feedback before anything else.
+**This runs at the start of every session without being asked. No exceptions.**
 
-```javascript
-const { data: feedback } = await supabase
-  .from('user_feedback')
-  .select('*')
-  .eq('status', 'pending')
-  .order('frustration_rating', { ascending: false })
+### Step 1 — Fetch pending feedback using the service role key
+
+```bash
+SERVICE_KEY=$(grep SUPABASE_SERVICE_ROLE_KEY /Users/emmascheck/Desktop/hormone\ app/.env.local | cut -d= -f2)
+curl -s "https://imgujppjvffbubnsscge.supabase.co/rest/v1/user_feedback?status=eq.pending&order=frustration_rating.desc,created_at.desc" \
+  -H "apikey: $SERVICE_KEY" \
+  -H "Authorization: Bearer $SERVICE_KEY"
 ```
 
-For each pending item present to Emma in this format:
+The service role key is in `.env.local` (gitignored). Never use the anon key for this — it cannot read other users' rows.
 
----
-FEEDBACK #[id] — [priority]
-User reported: "[exact words]"
-Screen: [screen] — Frustration: [rating]/5
-What they want: [one sentence]
+### Step 2 — Process each item autonomously using this judgment framework
 
-OPTION A — [simple fix]
-What: [description] | Files: [list] | Risk: [level and why]
+| Category | Action |
+|----------|--------|
+| Bug / crash / broken button | Fix it immediately. No approval needed. |
+| Missing feature that is clearly vital (e.g. can't log period) | Add it, keeping it minimal and consistent with existing design. |
+| Missing feature that is nice-to-have | Add it if it takes under 30 minutes and doesn't risk breaking anything. |
+| Confusing UX | Rewrite the copy or restructure the flow. |
+| Science concern | Verify against Research Foundation. Fix if wrong, add source if missing. |
+| Something they love | Note it, no action needed. |
+| Ambiguous or unclear | Use best judgment. If truly impossible to interpret, skip and flag for Emma. |
 
-OPTION B — [complete fix]
-What: [description] | Files: [list] | Risk: [level and why]
+Never wait for approval. Never ask clarifying questions. Make a decision and do it.
 
-My recommendation: Option [A/B] because [one sentence]
-Reply YES A, YES B, or NO.
----
+### Step 3 — After fixing each item
 
-Do not implement anything until Emma replies. When she says yes implement immediately, mark resolved in Supabase, run full audit on affected files.
-
-Watch for patterns: 3+ users reporting same issue = systemic problem. Present to Emma separately.
-
-Add subtle feedback link to dashboard.html:
-```html
-<div style="text-align:center;padding:12px 0;margin-bottom:8px">
-  <a href="feedback.html" style="font-size:12px;color:#9a9590;text-decoration:none;display:inline-flex;align-items:center;gap:6px">
-    <i class="ti ti-message-circle" style="font-size:14px"></i>
-    Share feedback
-  </a>
-</div>
+1. Mark resolved in Supabase:
+```bash
+SERVICE_KEY=$(grep SUPABASE_SERVICE_ROLE_KEY /Users/emmascheck/Desktop/hormone\ app/.env.local | cut -d= -f2)
+curl -s -X PATCH "https://imgujppjvffbubnsscge.supabase.co/rest/v1/user_feedback?id=eq.ITEM_ID" \
+  -H "apikey: $SERVICE_KEY" \
+  -H "Authorization: Bearer $SERVICE_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"status":"resolved","resolved_at":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'","developer_notes":"[one sentence describing the fix]"}'
 ```
+
+2. Add an entry to `CHANGES.md` in the project root (create if it doesn't exist) in this format:
+```
+## [DATE] — Feedback fix
+**User said:** "[exact words from feedback]"
+**What was done:** [plain English, 2-3 sentences max]
+**Files changed:** [list]
+```
+
+3. Sync to www/ and deploy to production.
+
+### Step 4 — Flag session summary to Emma
+
+The VERY FIRST thing in your response each session must be a summary block if any feedback was processed OR any fixes were made. Format:
+
+---
+**What I did before you got here:**
+- [fix 1 in plain English, one line]
+- [fix 2 in plain English, one line]
+
+Check [CHANGES.md](CHANGES.md) for full details.
+---
+
+If nothing was done, skip the block entirely. Do not say "no feedback found" or "nothing to do."
+
+### Pattern detection
+
+If 3 or more users report the same issue, surface it as a systemic problem in the session summary with a suggested fix. Do not wait for Emma to notice the pattern.

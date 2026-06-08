@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>HormoneSync</title>
+  <title>Em~power</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css" />
   <style>
     * {
@@ -654,12 +654,17 @@
       background: #f5f0e8; border-radius: 10px; margin-top: 4px;
     }
   </style>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Em~power">
+  <meta name="theme-color" content="#2c2820">
 </head>
 
 <body>
 
   <div class="top-bar">
-    <div class="logo">HormoneSync</div>
+    <div class="logo">Em~power</div>
     <div style="display:flex;align-items:center;gap:14px">
       <div class="greeting" id="greeting">Good morning</div>
       <button onclick="handleSignOut(event)" style="background:none;border:none;cursor:pointer;color:#9a9590;font-size:18px;padding:0;display:flex" title="Sign out"><i class="ti ti-logout"></i></button>
@@ -739,12 +744,41 @@
     <div id="allostaticCard" style="display:none;margin:0 16px 12px;border-radius:14px;padding:16px;border:1px solid #ede8e0;background:#fff"></div>
     <div id="wearableCard" style="display:none;margin:0 16px 12px;background:#f0f4ff;border:1px solid #c8d4f0;border-radius:14px;padding:14px 16px">
       <div style="font-size:10px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#6878a8;margin-bottom:8px">Wearable readiness score</div>
-      <div style="font-size:14px;color:#2c2820;line-height:1.6">Your readiness score may appear lower than expected. Wearable algorithms were calibrated on male physiology. Elevated core temperature and RHR in the luteal phase looks like poor recovery to a device that treats male physiology as the default. Your HormoneSync recommendations already account for this. <span style="font-size:11px;color:#6878a8">(Sims ST. ROAR 2024; De Martin Topranin et al. 2023)</span></div>
+      <div style="font-size:14px;color:#2c2820;line-height:1.6">Your readiness score may appear lower than expected. Wearable algorithms were calibrated on male physiology. Elevated core temperature and RHR in the luteal phase looks like poor recovery to a device that treats male physiology as the default. Your Em~power recommendations already account for this. <span style="font-size:11px;color:#6878a8">(Sims ST. ROAR 2024; De Martin Topranin et al. 2023)</span></div>
     </div>
     <div id="patternFlagContainer" style="display:none;margin:0 16px 12px"></div>
 
-    <div class="section-label">Your cycle phases</div>
+    <!-- Path 4: Perimenopause specific cards -->
+    <div id="perioBoneCard" style="display:none;margin:0 16px 12px;background:#fff;border:1px solid #ede8e0;border-radius:14px;padding:16px">
+      <div style="font-size:10px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#9a9590;margin-bottom:10px">Bone health — your priority right now</div>
+      <div style="font-size:13px;color:#2c2820;line-height:1.7">Estrogen loss during the menopausal transition accelerates bone density loss. The perimenopausal window is critical — bone can still be built and protected now before estrogen drops further.</div>
+      <div style="font-size:13px;color:#2c2820;line-height:1.7;margin-top:8px">What helps most: resistance training with progressive load, impact exercise like brisk walking, calcium 1000mg daily, vitamin D 800 to 1000 IU daily.</div>
+      <div style="font-size:13px;font-weight:500;color:#2c2820;margin-top:10px">Every strength session you log is protecting your bones.</div>
+      <div style="font-size:10px;color:#9a9590;margin-top:8px;font-style:italic">Source: Kohrt WM et al. Medicine and Science in Sports and Exercise 2004.</div>
+    </div>
+
+    <div id="perioMetabolicCard" style="display:none;margin:0 16px 12px;background:#fff;border:1px solid #ede8e0;border-radius:14px;padding:16px">
+      <div style="font-size:10px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#9a9590;margin-bottom:10px">Metabolism and the menopausal transition</div>
+      <div style="font-size:13px;color:#2c2820;line-height:1.7">Estrogen loss changes where your body stores fat — from hips and thighs toward the abdomen. This increases insulin resistance. This is not a willpower problem. It is a direct hormonal effect.</div>
+      <div style="font-size:13px;color:#2c2820;line-height:1.7;margin-top:8px">What helps: resistance training, protein at every meal, consistent sleep, not skipping meals.</div>
+      <div style="font-size:10px;color:#9a9590;margin-top:8px;font-style:italic">Source: Carr MC. Journal of Clinical Endocrinology and Metabolism 2003. Mauvais-Jarvis et al. Journal of Clinical Investigation 2013.</div>
+    </div>
+
+    <div id="perioMentalCard" style="display:none;margin:0 16px 12px;background:#fce8e8;border:1px solid #e8b8b8;border-radius:14px;padding:16px">
+      <div style="font-size:10px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#8a3020;margin-bottom:10px">The hormonal transition and mood</div>
+      <div style="font-size:13px;color:#2c2820;line-height:1.7">The menopausal transition is associated with the highest rates of depression across the female lifespan. This is a hormonal shift, not a psychological weakness. Estrogen directly regulates serotonin and dopamine.</div>
+      <div style="font-size:13px;color:#2c2820;line-height:1.7;margin-top:8px">If you are experiencing significant depression or anxiety please speak to a doctor who understands hormonal mental health. This is treatable.</div>
+      <div style="background:#fff8f8;border-radius:10px;padding:10px 12px;margin-top:10px;font-size:12px;color:#5a3030;line-height:1.6">If you are in crisis right now please contact Crisis Services Canada at 1-833-456-4566 or text 45645.</div>
+      <div style="font-size:10px;color:#9a9590;margin-top:8px;font-style:italic">Source: Freeman EW et al. Archives of General Psychiatry 2004. Bromberger and Epperson. Depression and Anxiety 2018.</div>
+    </div>
+
+    <div class="section-label" id="cyclePhasesSectionLabel">Your cycle phases</div>
     <div class="cards">
+      <div class="card" id="cardPerimenopause" onclick="openPhaseSheet('Perimenopause')" style="display:none">
+        <div class="card-icon" style="background:#f0e8f8;color:#8a5a9a;border-radius:12px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:20px"><i class="ti ti-wave-sine"></i></div>
+        <div class="card-title">Perimenopause</div>
+        <div class="card-sub">Hormones, training and nutrition now</div>
+      </div>
       <div class="card" id="cardFollicular" onclick="openPhaseSheet('Follicular')">
         <div class="card-icon ci-tan"><i class="ti ti-bolt"></i></div>
         <div class="card-title">Follicular</div>
@@ -766,6 +800,7 @@
         <div class="card-sub">Rest, restore and replenish iron</div>
       </div>
     </div>
+    <div id="periCycleNote" style="display:none;font-size:12px;color:#9a9590;text-align:center;padding:4px 0 8px;line-height:1.5">If you are still cycling, the phase cards above still apply to your irregular cycles.</div>
 
   </div>
 
@@ -833,22 +868,22 @@
       },
       'Follicular': {
         heroClass: 'hero-follicular',
-        desc: 'Estrogen is rising and your muscles may respond better to progressive overload in this phase. Research suggests this may be your strongest training window (Kissow et al. 2022, Sports Medicine). Push harder and attempt load increases, though individual response varies.',
-        disclaimer: 'Research note: Kissow et al. 2022 suggest follicular phase resistance training may be superior for strength gains. Individual response varies, so listen to your body.',
+        desc: 'Estrogen is rising and many women find this phase responds well to progressive overload. Research suggests some women may experience improved training adaptations during this phase (Kissow et al. 2022 Sports Medicine). Individual response varies significantly.',
+        disclaimer: 'Research note: Kissow et al. 2022 Sports Medicine found follicular phase resistance training may produce improved adaptations for some women. Colenso-Semple et al. 2023 noted no consistent evidence strength outcomes differ by phase. Individual response varies.',
         cardId: 'cardFollicular',
         intensityLabel: '100% of normal intensity'
       },
       'Ovulatory': {
         heroClass: 'hero-ovulatory',
-        desc: 'Peak estrogen and a brief testosterone rise together. Research suggests neuromuscular coordination and power output may peak around ovulation, though individual response varies (Colenso-Semple et al. 2023). Attempt personal bests today and warm up thoroughly.',
-        disclaimer: 'Research note: Sarwar et al. 1996 found muscle strength may peak near ovulation. Colenso-Semple et al. 2023 note individual response varies. Peak estrogen also increases ligament laxity, so always warm up thoroughly before heavy work.',
+        desc: 'Peak estrogen and a brief testosterone rise. Many women find this their strongest training window, though individual response varies significantly (Colenso-Semple et al. 2023). Warm up thoroughly before heavy loading.',
+        disclaimer: 'Research note: Sarwar et al. 1996 found muscle strength may peak near ovulation. Colenso-Semple et al. 2023 emphasised individual variation. Peak estrogen may increase ligament laxity, so always warm up thoroughly before heavy work.',
         cardId: 'cardOvulatory',
         intensityLabel: '105% of normal intensity'
       },
       'Luteal': {
         heroClass: 'hero-luteal',
-        desc: 'Progesterone is elevated and your core temperature is slightly higher. The same workout genuinely feels harder. This is progesterone, not a sign you are underperforming. Reduce loads by 10 to 30% depending on where you are in the luteal phase and focus on quality movement.',
-        disclaimer: 'Research note: ISSN 2023 recommends the upper end of the protein range in the luteal phase due to progesterone-driven catabolism. De Martin Topranin et al. 2023 confirms RHR rises approximately 1.7 bpm in mid-luteal.',
+        desc: 'Progesterone is elevated and core temperature rises slightly. The same workout may feel harder. This is real physiology, not underperformance. Adjusting intensity is intelligent training, not giving up.',
+        disclaimer: 'Research note: ISSN 2023 recommends higher protein in the luteal phase due to progesterone-driven catabolism. De Martin Topranin et al. 2023 found RHR rises approximately 1.7 bpm in mid-luteal.',
         cardId: 'cardLuteal',
         intensityLabel: 'Early luteal 92%, Mid luteal 82%, Late luteal 72%'
       },
@@ -867,101 +902,345 @@
       'Menstrual': {
         title: 'Iron day. Your body needs replenishing.',
         desc: 'You are losing iron through bleeding. Iron carries oxygen to your muscles, and low iron means fatigue and slower recovery. Progesterone and estrogen are both low and appetite may be variable.',
-        foods: ['Red meat', 'Spinach', 'Lentils', 'Pumpkin seeds', 'Citrus (for iron absorption)'],
+        foodCategories: [
+          { label: 'Protein', foods: ['Red meat', 'Lentils', 'Eggs'] },
+          { label: 'Iron priority', foods: ['Spinach', 'Dark chocolate', 'Pumpkin seeds'] },
+          { label: 'Vitamin C for absorption', foods: ['Citrus', 'Bell peppers', 'Strawberries'] }
+        ],
         avoid: 'Limit caffeine above 200mg as it may worsen prostaglandin-driven cramps. Avoid alcohol.',
-        source: 'Source: Angeli et al. 2016, European Journal of Sport Science. Iron loss during menstruation impacts performance.'
+        source: 'Source: Angeli et al. 2016, European Journal of Sport Science. Vitamin C improves iron absorption by up to 67%.'
       },
       'Follicular': {
         title: 'Your body is ready to build. Feed it.',
         desc: 'Estrogen may enhance insulin sensitivity and carbohydrate metabolism (ISSN 2023). This phase is often the best window to fuel harder training. Prioritise carbohydrates around your sessions as your muscles tend to use them more efficiently here.',
-        foods: ['Eggs', 'Chicken', 'Oats', 'Whole grains', 'Leafy greens', 'Pumpkin seeds'],
+        foodCategories: [
+          { label: 'Protein', foods: ['Chicken', 'Eggs', 'Greek yogurt'] },
+          { label: 'Training fuel', foods: ['Oats', 'Whole grains', 'Sweet potato'] },
+          { label: 'Micronutrients', foods: ['Leafy greens', 'Pumpkin seeds', 'Berries'] }
+        ],
         avoid: null,
         source: 'Source: ISSN 2023. Estrogen improves carbohydrate metabolism. Eat within 45 minutes of training.'
       },
       'Ovulatory': {
         title: 'Peak output needs peak fuel.',
-        desc: 'Keep carbohydrates high today for maximum fuel and maximum effort. Zinc supports the LH surge happening right now. Antioxidants from berries and leafy greens support follicle health.',
-        foods: ['Beef', 'Chickpeas', 'Berries', 'Dark leafy greens', 'Avocado', 'Salmon'],
+        desc: 'Keep carbohydrates high today for maximum fuel and maximum effort. Antioxidants from berries and leafy greens support follicle health.',
+        foodCategories: [
+          { label: 'Protein', foods: ['Salmon', 'Chicken', 'Eggs'] },
+          { label: 'Anti-inflammatory', foods: ['Berries', 'Turmeric', 'Oily fish'] },
+          { label: 'Energy', foods: ['Whole grains', 'Sweet potato', 'Oats'] }
+        ],
         avoid: null,
-        source: 'Source: Larivière et al. 2006. Zinc supports the LH surge. Antioxidants from berries support follicle health.'
+        source: 'Source: Lariviere et al. 2006. Antioxidants from berries support follicle health.'
       },
       'Luteal': {
         title: 'Your body needs more today. That is biology.',
         desc: 'Progesterone increases protein catabolism and raises resting metabolic rate by 150 to 300 kcal (ISSN 2023). Your protein needs are genuinely higher this week. Carbohydrate cravings are physiological.',
-        foods: ['Sweet potato', 'Oats', 'Dark chocolate', 'Salmon', 'Eggs', 'Pumpkin seeds'],
+        foodCategories: [
+          { label: 'Protein', foods: ['Salmon', 'Chicken', 'Greek yogurt', 'Eggs'] },
+          { label: 'Magnesium', foods: ['Dark chocolate', 'Pumpkin seeds', 'Leafy greens'] },
+          { label: 'Blood sugar', foods: ['Whole grains', 'Legumes', 'Nuts'] }
+        ],
         avoid: 'Avoid alcohol and high-sugar processed foods which worsen luteal phase inflammation.',
         source: 'Source: ISSN 2023 position stand. Luteal phase protein 1.8 to 2.2g per kg due to progesterone catabolism. Add 200 to 300 kcal above follicular phase intake.'
       },
       'observation': {
         title: 'Consistent nutrition builds your baseline.',
         desc: 'Regular meals, quality protein, and adequate carbohydrates give the algorithm the best environment to detect your returning cycle. Avoid fasting and under-eating as these disrupt hormonal signals.',
-        foods: ['Protein source each meal', 'Complex carbohydrates', 'Healthy fats', 'Leafy greens'],
+        foodCategories: [
+          { label: 'Protein', foods: ['Chicken', 'Eggs', 'Greek yogurt'] },
+          { label: 'Energy', foods: ['Oats', 'Sweet potato', 'Whole grains'] },
+          { label: 'Micronutrients', foods: ['Leafy greens', 'Berries', 'Nuts'] }
+        ],
         avoid: null,
         source: null
+      },
+      Perimenopause: {
+        title: 'Your nutrition needs are changing. Protein matters most.',
+        desc: 'Declining estrogen reduces anabolic signalling, meaning your body is less efficient at building and maintaining muscle. Higher protein intake helps offset this. Calcium and vitamin D are essential for bone protection as estrogen declines. (ISSN 2023; Bea et al. Menopause 2010)',
+        foodCategories: [
+          { label: 'Protein priority', foods: ['Salmon', 'Chicken', 'Eggs', 'Greek yogurt'] },
+          { label: 'Bone protection', foods: ['Sardines', 'Dark leafy greens', 'Almonds', 'Low-fat dairy'] },
+          { label: 'Blood sugar stability', foods: ['Whole grains', 'Legumes', 'Nuts', 'Non-starchy vegetables'] }
+        ],
+        avoid: 'Limit alcohol — it worsens hot flashes, disrupts sleep, and increases breast cancer risk independently. Limit ultra-processed foods and refined sugar which worsen insulin resistance.',
+        source: 'Source: ISSN 2023. Protein 1.6 to 2.0g per kg bodyweight. Mozaffarian et al. JAMA 2006 for omega-3 cardiovascular benefits.'
       }
     }
 
     // ── Phase sheet data ────────────────────────────────────────────────────
 
+    // PERMANENT RULE: direction and bullets fields must NEVER contain pmol/L, nmol/L, or IU/L values.
+    // Numbers belong ONLY in the ranges field, which is hidden behind "View reference ranges" by default.
+    // Do not move numbers from ranges into direction or bullets under any circumstances.
     const PHASE_HORMONE_INFO = {
       Menstrual: {
-        summary: 'Estrogen and progesterone have both dropped to their lowest levels of your cycle, triggering shedding of the uterine lining. Prostaglandins are elevated and these drive cramping. FSH begins rising again toward the end of this phase to recruit the next follicle.',
-        estrogen: 'Low, in the early follicular range of 77 to 330 pmol/L (Münster et al. 2021). Likely at the lower end of this range as both hormones are at their lowest point.',
-        progesterone: 'Below 3 nmol/L, which is the follicular baseline. Withdrawal from luteal progesterone levels triggered menstruation (LifeLabs/EORLA).',
-        lh: 'Between 2 and 13.2 IU/L, which is the follicular baseline. LH is quiet and FSH is beginning to rise to stimulate follicle development (Münster et al. 2021).'
+        bullets: [
+          'Estrogen and progesterone are at their lowest',
+          'Serotonin is at its lowest point of the cycle',
+          'Prostaglandins are elevated',
+          'Iron is being lost through bleeding'
+        ],
+        hormones: {
+          estrogen: {
+            direction: 'At its lowest point',
+            patterns: ['Mood, motivation, and energy are all affected by this drop', 'Will begin rising again as the follicular phase begins'],
+            ranges: 'Early follicular range: 77 to 330 pmol/L, likely at the lower end. (Munster et al. 2021)'
+          },
+          progesterone: {
+            direction: 'At its lowest point',
+            patterns: ['Withdrawal from luteal levels triggered menstruation', 'No core temperature elevation or elevated RHR right now'],
+            ranges: 'Below 3 nmol/L, the follicular baseline. (LifeLabs/EORLA)'
+          },
+          lh: {
+            direction: 'Low and quiet',
+            patterns: ['Quiet after the previous cycle completed', 'FSH is beginning to rise to recruit the next follicle'],
+            ranges: 'Between 2 and 13.2 IU/L, the follicular baseline. (Munster et al. 2021)'
+          }
+        }
       },
       Follicular: {
-        summary: 'Estrogen rises steadily as the dominant follicle develops. Rising estrogen improves insulin sensitivity, accelerates muscle protein synthesis, and enhances neuromuscular coordination. Progesterone remains low, keeping core temperature and resting heart rate at baseline.',
-        estrogen: 'Rising from 77 to 330 pmol/L early in the phase toward the pre-ovulatory peak of 222 to 1959 pmol/L (Münster et al. 2021). Higher estrogen supports faster muscle recovery and better protein synthesis.',
-        progesterone: 'Below 3 nmol/L, which is the typical follicular baseline (LifeLabs/EORLA). Low progesterone means no core temperature elevation and no RHR rise.',
-        lh: 'Between 2 and 13.2 IU/L, steady in the follicular range and building toward the ovulatory surge (Münster et al. 2021).'
+        bullets: [
+          'Estrogen is rising',
+          'Progesterone remains low',
+          'Energy and recovery often improve',
+          'Body temperature stays near baseline'
+        ],
+        hormones: {
+          estrogen: {
+            direction: 'Rising steadily toward ovulation',
+            patterns: ['Driving improvements in mood, motivation, and insulin sensitivity', 'Supporting muscle protein synthesis and faster recovery between sessions'],
+            ranges: 'Rising from the early follicular range toward the pre-ovulatory peak. (Munster et al. 2021) — tap "View reference ranges" to see values.'
+          },
+          progesterone: {
+            direction: 'Low — no temperature or RHR elevation',
+            patterns: ['Core temperature and resting heart rate remain at your personal baseline', 'No progesterone-driven fatigue or elevated stress response to training'],
+            ranges: 'Below 3 nmol/L, the typical follicular baseline. (LifeLabs/EORLA)'
+          },
+          lh: {
+            direction: 'Building steadily toward the ovulatory surge',
+            patterns: ['Steady in the follicular range', 'Will surge sharply at ovulation to trigger egg release'],
+            ranges: 'Between 2 and 13.2 IU/L, steady in the follicular range. (Munster et al. 2021)'
+          }
+        }
       },
       Ovulatory: {
-        summary: 'Estrogen reaches its cycle peak, triggering a sharp LH surge that causes follicle rupture and egg release. A brief testosterone rise accompanies this window, contributing to peak neuromuscular performance. This is the shortest phase, typically 1 to 3 days.',
-        estrogen: 'At its cycle peak, between 222 and 1959 pmol/L (Münster et al. 2021). This concentration triggers the LH surge. Peak estrogen also increases ligament laxity, so warm up thoroughly before heavy loading.',
-        progesterone: 'Beginning to rise above 3 nmol/L as the corpus luteum forms after ovulation. Still below the confirmed luteal range at the start of ovulation (LifeLabs/EORLA).',
-        lh: 'In surge, above 8 IU/L and peaking up to 90 IU/L. This spike triggers ovulation within 24 to 36 hours of the surge beginning (Münster et al. 2021, n=97 women, 2105 cycles).'
+        bullets: [
+          'Estrogen peaks before egg release',
+          'LH surges triggering ovulation',
+          'Brief testosterone rise alongside estrogen',
+          'Your most fertile window'
+        ],
+        hormones: {
+          estrogen: {
+            direction: 'At its peak',
+            patterns: ['Triggering the LH surge that causes egg release', 'Peak estrogen also slightly increases ligament laxity — a thorough warmup is especially important before heavy loading'],
+            ranges: 'At its cycle peak, between 222 and 1959 pmol/L. (Munster et al. 2021)'
+          },
+          progesterone: {
+            direction: 'Beginning to rise after ovulation',
+            patterns: ['Starting to climb as the corpus luteum forms', 'Calming GABA effect will build as progesterone rises'],
+            ranges: 'Beginning to rise above the follicular baseline. Still below the mid-luteal confirmed range. (LifeLabs/EORLA)'
+          },
+          lh: {
+            direction: 'Surging — this triggers egg release',
+            patterns: ['A sharp spike that causes follicle rupture and egg release within 24 to 36 hours', 'This is what a positive LH test detects'],
+            ranges: 'In surge, above the surge threshold. (Munster et al. 2021, n=97 women, 2105 cycles) — tap "View reference ranges" to see values.'
+          }
+        }
+      },
+      'Early luteal': {
+        bullets: [
+          'Progesterone rising with calming GABA effect',
+          'Energy often still good',
+          'Core temperature begins to rise slightly',
+          'Good phase for focused steady work'
+        ],
+        hormones: {
+          estrogen: {
+            direction: 'Beginning to drop',
+            patterns: ['Secondary estrogen peak then beginning to fall', 'Mood may start to feel less stable as estrogen declines'],
+            ranges: 'Luteal range: 95 to 854 pmol/L. (Munster et al. 2021)'
+          },
+          progesterone: {
+            direction: 'Rising — bringing a calming effect',
+            patterns: ['Converting to allopregnanolone in the brain, which has a calming GABA effect', 'Core temperature begins to rise and protein breakdown rate increases'],
+            ranges: 'Rising toward the mid-luteal confirmed range. Values above the ovulation threshold confirm ovulation occurred. (Munster et al. 2021) — tap "View reference ranges" to see values.'
+          },
+          lh: {
+            direction: 'Dropping back to baseline',
+            patterns: ['Falling after the ovulatory surge', 'Signals the corpus luteum to begin producing progesterone'],
+            ranges: 'Returning to follicular baseline of 2 to 13.2 IU/L. (Munster et al. 2021)'
+          }
+        }
+      },
+      'Mid luteal': {
+        bullets: [
+          'Progesterone at its peak',
+          'Core temperature and RHR measurably elevated',
+          'Serotonin becoming less stable',
+          'Recovery slower than follicular'
+        ],
+        hormones: {
+          estrogen: {
+            direction: 'Dropping',
+            patterns: ['Declining from its secondary peak', 'As estrogen drops, serotonin activity decreases'],
+            ranges: 'Luteal range: 95 to 854 pmol/L, declining toward the lower end. (Munster et al. 2021)'
+          },
+          progesterone: {
+            direction: 'At its peak',
+            patterns: ['Raising core temperature 0.3 to 0.5 degrees Celsius above your baseline', 'Competing with cortisol for the same receptors, making training stress hit harder'],
+            ranges: 'Mid-luteal range: 10 to 50 nmol/L, median 28.8 nmol/L. Values above 10 confirm ovulation occurred. (Munster et al. 2021)'
+          },
+          lh: {
+            direction: 'Low and quiet',
+            patterns: ['Back to follicular baseline', 'No significant activity'],
+            ranges: 'Follicular baseline: 2 to 13.2 IU/L. (Munster et al. 2021)'
+          }
+        }
+      },
+      'Late luteal': {
+        bullets: [
+          'Both hormones dropping sharply',
+          'Serotonin at its lowest since menstruation',
+          'PMS symptoms most likely here',
+          'Resolves when menstruation begins'
+        ],
+        hormones: {
+          estrogen: {
+            direction: 'Dropping sharply',
+            patterns: ['Sharp decline driving lower serotonin and dopamine', 'The hormonal cause of pre-menstrual mood changes'],
+            ranges: 'Declining toward the lower end of the luteal range: 95 to 854 pmol/L. (Munster et al. 2021)'
+          },
+          progesterone: {
+            direction: 'Dropping sharply',
+            patterns: ['Rapid drop reduces the calming GABA effect, often causing a rebound of anxiety or low mood', 'Signals the uterus to shed its lining, starting menstruation'],
+            ranges: 'Dropping from mid-luteal peak back toward the follicular baseline. (Munster et al. 2021) — tap "View reference ranges" to see values.'
+          },
+          lh: {
+            direction: 'Low and quiet',
+            patterns: ['Low and quiet', 'Will begin building again after menstruation'],
+            ranges: 'Follicular baseline: 2 to 13.2 IU/L. (Munster et al. 2021)'
+          }
+        }
       },
       Luteal: {
-        summary: 'The corpus luteum secretes progesterone, which rises to its cycle peak of 10 to 50 nmol/L in mid-luteal. Progesterone raises core temperature, increases protein catabolism, and causes a characteristic RHR rise of approximately 1.7 bpm. Estrogen has a secondary peak then falls. Both decline in late luteal if fertilisation has not occurred, triggering the next menstrual phase.',
-        estrogen: 'A secondary peak then declining, in the luteal range of 95 to 854 pmol/L (Münster et al. 2021). The late-luteal estrogen drop is associated with mood and sleep changes.',
-        progesterone: 'Between 10 and 50 nmol/L in mid-luteal, with a median of 28.8 nmol/L (Münster et al. 2021). Values above 10 nmol/L confirm that ovulation occurred. Progesterone competes with cortisol for glucocorticoid receptors, making high-intensity exercise more stressful this week (Hackney 2006).',
-        lh: 'Returns to the follicular baseline of 2 to 13.2 IU/L after the ovulatory surge. Falling LH signals corpus luteum regression in late luteal (Münster et al. 2021).'
+        bullets: [
+          'Progesterone is elevated and core temperature rises slightly',
+          'Resting heart rate measurably higher than in follicular',
+          'Serotonin stability decreases through this phase',
+          'The same workout genuinely feels harder — this is real physiology'
+        ],
+        hormones: {
+          estrogen: {
+            direction: 'Secondary peak then declining',
+            patterns: ['A secondary estrogen rise after ovulation, then falling toward late luteal', 'The late-luteal drop drives mood and sleep changes'],
+            ranges: 'Luteal range: 95 to 854 pmol/L. (Munster et al. 2021)'
+          },
+          progesterone: {
+            direction: 'Rising to peak, then dropping sharply toward period',
+            patterns: ['Raises core temperature and resting heart rate throughout the phase', 'Competes with cortisol for glucocorticoid receptors, making training stress higher'],
+            ranges: 'Mid-luteal range: 10 to 50 nmol/L, median 28.8 nmol/L. Values above 10 confirm ovulation occurred. (Munster et al. 2021; Hackney 2006)'
+          },
+          lh: {
+            direction: 'Low and quiet after ovulatory surge',
+            patterns: ['Returns to follicular baseline after the ovulatory surge', 'Falling LH signals corpus luteum regression in late luteal'],
+            ranges: 'Follicular baseline: 2 to 13.2 IU/L. (Munster et al. 2021)'
+          }
+        }
+      },
+      Perimenopause: {
+        bullets: [
+          'Estrogen fluctuates unpredictably rather than following a steady cycle',
+          'Progesterone is declining overall as ovulation becomes less frequent',
+          'FSH is rising as the pituitary works harder to stimulate the ovaries',
+          'Symptoms are driven by variability, not just low levels'
+        ],
+        hormones: {
+          estrogen: {
+            direction: 'Fluctuating — sometimes high, sometimes low, often unpredictable',
+            patterns: [
+              'Surges can cause breast tenderness, bloating, and heavier periods',
+              'Drops can cause hot flashes, brain fog, sleep disruption, and low mood'
+            ],
+            ranges: 'Perimenopause estradiol is highly variable and standard cycle reference ranges no longer apply. Blood tests are most useful for ruling out other causes and tracking FSH trends over time. (Harlow et al. Climacteric 2012 STRAW+10)'
+          },
+          progesterone: {
+            direction: 'Declining overall as ovulation becomes less reliable',
+            patterns: [
+              'Cycles without ovulation produce no progesterone rise in the luteal phase',
+              'Lower progesterone means less of the calming GABA effect you may have felt mid-cycle'
+            ],
+            ranges: 'A luteal phase reading in the follicular range suggests an anovulatory cycle, which becomes increasingly common in perimenopause. (LifeLabs/EORLA; Harlow et al. Climacteric 2012)'
+          },
+          fsh: {
+            direction: 'Rising — the clearest hormonal marker of the menopausal transition',
+            patterns: [
+              'An elevated early-cycle FSH reading suggests declining ovarian reserve',
+              'Two elevated readings more than 4 weeks apart, combined with symptoms, is consistent with perimenopause'
+            ],
+            ranges: 'Premenopausal day 2 to 3 FSH: 3 to 10 IU/L. Perimenopause: 10 to 25 IU/L. Postmenopause: above 25 to 40 IU/L. Single readings vary widely — trends matter more than one-off values. (LifeLabs/EORLA; Harlow et al. Climacteric 2012)'
+          }
+        }
       }
     }
 
     const PHASE_TRAINING_INFO = {
       Menstrual: {
         modifier: '70% of normal training load',
-        activities: 'Walking, yoga, pilates, light resistance training, swimming',
-        expect: 'Estrogen and progesterone are at their lowest. You may feel less coordinated and your muscles may feel heavier than usual. Prostaglandins are associated with fatigue and cramping. Every session you complete helps maintain your training pattern for the follicular phase (Colenso-Semple et al. 2023).',
-        tip: 'Reduce load by 30%. Focus on movement quality and mobility. Swimming is particularly well suited as the horizontal position reduces pelvic pressure and the low-impact nature preserves movement without high cortisol cost.'
+        activities: ['Gentle movement and walking', 'Light resistance training if energy allows', 'Yoga or pilates', 'Rest without guilt — your body is working hard'],
+        expect: 'Estrogen and progesterone are at their lowest. You may feel less coordinated and your muscles may feel heavier than usual. Prostaglandins are associated with fatigue and cramping. Every session you complete during this phase helps maintain your training base. (Colenso-Semple et al. 2023)'
       },
       Follicular: {
         modifier: 'Full to slightly above normal training load',
-        activities: 'Heavy resistance training, HIIT, running, cycling and strength sport at full intensity',
-        expect: 'Rising estrogen improves muscle protein synthesis and accelerates recovery between sessions. You may notice weights feeling lighter and coordination improving across the phase. Research suggests follicular phase resistance training may produce superior strength gains (Kissow et al. 2022, Sports Medicine).',
-        tip: 'Push for progressive overload. Attempt load increases on your main lifts. Recovery between sessions is faster here than at any other phase, so you can train harder and more frequently.'
+        activities: ['Strength training and progressive overload', 'Higher intensity workouts if energy allows', 'Speed work and interval training', 'Attempting heavier loads than previous sessions'],
+        expect: 'Rising estrogen supports muscle protein synthesis and recovery between sessions. Many women report weights feeling lighter and coordination improving through this phase. Research suggests some women may experience improved recovery and training adaptations during this phase. (Kissow et al. 2022 Sports Medicine; Colenso-Semple et al. 2023)'
       },
       Ovulatory: {
         modifier: '5% above normal training load',
-        activities: 'Peak strength training, power work, HIIT, competitive events',
-        expect: 'Peak estrogen and a brief testosterone rise create conditions for optimal neuromuscular coordination and power output. Research suggests this may be your strongest training window, though individual response varies (Colenso-Semple et al. 2023). Peak estrogen also increases ligament laxity, so a thorough warmup is non-negotiable before loading.',
-        tip: 'Attempt personal bests on your main lifts. Complete every warmup exercise before adding load. Ligament laxity is at its highest this week and warmup reduces injury risk significantly.'
+        activities: ['Your most demanding training sessions', 'Attempting personal bests if feeling strong', 'High intensity or competitive activity', 'Important: warm up thoroughly — ligament laxity is higher now'],
+        expect: 'Peak estrogen and a brief testosterone rise may create conditions for optimal performance. Many women find this their strongest training window, though individual response varies significantly. (Colenso-Semple et al. 2023)'
+      },
+      'Early luteal': {
+        modifier: '92% of normal training load',
+        activities: ['Steady strength training at moderate load', 'Moderate cardio', 'Skill-based or technical work', 'Enjoying the calm focused energy of this sub-phase'],
+        expect: 'Progesterone is rising but the calming GABA effect often makes this phase feel settled and focused. A good time for quality, controlled training at moderate loads.'
+      },
+      'Mid luteal': {
+        modifier: '82% of normal training load',
+        activities: ['Reducing load by 10 to 15% from follicular', 'Steady state cardio over high intensity', 'Higher reps, lower weight', 'Prioritising recovery between sessions'],
+        expect: 'Core temperature and resting heart rate are measurably elevated. The same workout may feel harder. This is real physiology. Progesterone competes with cortisol, making high-intensity training more stressful than it appears. (De Martin Topranin et al. 2023; Hackney 2006)'
+      },
+      'Late luteal': {
+        modifier: '72% of normal training load',
+        activities: ['Gentle movement — walking, yoga, pilates', 'Reducing training expectations without guilt', 'Focusing on recovery nutrition', 'Rest if needed — this phase ends soon'],
+        expect: 'Both estrogen and progesterone are dropping sharply. Mood, sleep, and physical performance are all affected by this withdrawal. This is the physiological basis of PMS, not a reflection of your character or fitness.'
       },
       Luteal: {
         modifier: 'Early luteal 92%, Mid luteal 82%, Late luteal 72% of normal training load',
-        activities: 'Early luteal: moderate strength training. Mid luteal: lower intensity, tempo cardio and yoga. Late luteal: yoga, pilates and walking. These are pharmacologically optimal, not a consolation.',
-        expect: 'Progesterone raises your core temperature and resting heart rate by approximately 1.7 bpm (De Martin Topranin et al. 2023). The same workout genuinely feels harder. This is real physiology, not lack of effort. Progesterone also competes with cortisol for glucocorticoid receptors, making high-intensity training significantly more stressful than the calorie burn suggests (Hackney 2006).',
-        tip: 'Reduce loads by 8 to 28% depending on your sub-phase. Avoid HIIT in mid and late luteal. Progesterone in the luteal phase enhances the calming effect of breathwork and slow movement through GABA-A receptor interaction, making yoga genuinely most effective right now.'
+        activities: ['Early luteal: steady strength training at moderate load', 'Mid luteal: lower intensity, tempo cardio and yoga', 'Late luteal: yoga, pilates and walking'],
+        expect: 'Progesterone raises your core temperature and resting heart rate by approximately 1.7 bpm. The same workout may feel harder. This is real physiology. Progesterone competes with cortisol for glucocorticoid receptors, making high-intensity training more stressful than the calorie burn suggests. (De Martin Topranin et al. 2023; Hackney 2006)'
+      },
+      Perimenopause: {
+        modifier: 'Train to how you feel — your cycle is no longer a reliable guide',
+        activities: [
+          'Strength training 2 to 3 times per week — non-negotiable for bone and muscle',
+          'Weight-bearing cardio over high-impact if joint pain is present',
+          'Yoga or pilates for sleep, stress, and joint mobility',
+          'Rest when you need it — fatigue in perimenopause is physiological, not weakness'
+        ],
+        expect: 'Muscle mass is one of the most important things you can build right now. It improves insulin sensitivity, supports healthy estrogen metabolism, and directly affects how you move through this transition. Every resistance training session also stimulates bone formation. The window before estrogen drops further is a critical bone-building opportunity. (Kohrt et al. MSSE 2004; ISSN 2023)'
       }
     }
 
     const PHASE_SCIENCE_NOTES = {
       Menstrual: 'Sources: Colenso-Semple et al. 2023 (Frontiers in Physiology) found no consistent evidence strength outcomes differ by phase. Angeli et al. 2016 (European Journal of Sport Science) documented that iron loss during menstruation impacts exercise performance. Charkoudian and Stachenfeld 2014 described progesterone thermoregulation effects.',
-      Follicular: 'Sources: Kissow et al. 2022 (Sports Medicine) found follicular phase resistance training may produce superior strength gains. Colenso-Semple et al. 2023 noted no consistent evidence strength outcomes differ by phase. Münster et al. 2021 established the hormone reference values used here.',
-      Ovulatory: 'Sources: Münster et al. 2021 (n=97 women, 2105 cycles) established the LH surge threshold above 8 IU/L and ovulatory estradiol range of 222 to 1959 pmol/L. Bigelow et al. 2004 (Human Reproduction) reported egg white mucus has 80% sensitivity for the fertile window. Sarwar et al. 1996 found muscle strength peaks near ovulation.',
-      Luteal: 'Sources: De Martin Topranin et al. 2023 (IJSPP) found RHR is 1.7 bpm higher in mid-luteal and sleep quality is impaired. Hackney 2006 described progesterone and cortisol competition for glucocorticoid receptors. ISSN 2023 recommends luteal phase protein of 1.8 to 2.2g per kg due to progesterone catabolism. Münster et al. 2021 established mid-luteal progesterone at 10 to 50 nmol/L with a median of 28.8.'
+      Follicular: 'Sources: Kissow et al. 2022 (Sports Medicine) found follicular phase resistance training may produce improved adaptations for some women. Colenso-Semple et al. 2023 noted no consistent evidence strength outcomes differ by phase and emphasised individual variation. Munster et al. 2021 established the hormone reference values used here.',
+      Ovulatory: 'Sources: Munster et al. 2021 (n=97 women, 2105 cycles) established the LH surge threshold above 8 IU/L and ovulatory estradiol range of 222 to 1959 pmol/L. Bigelow et al. 2004 (Human Reproduction) reported egg white mucus has 80% sensitivity for the fertile window. Sarwar et al. 1996 found muscle strength may peak near ovulation.',
+      'Early luteal': 'Sources: Backstrom et al. 2014 described allopregnanolone and the calming GABA effect in early luteal. De Martin Topranin et al. 2023 (IJSPP) found core temperature and RHR rise in mid-luteal. Hackney 2006 described progesterone and cortisol competition.',
+      'Mid luteal': 'Sources: De Martin Topranin et al. 2023 (IJSPP) found RHR is 1.7 bpm higher in mid-luteal and sleep quality is impaired. Hackney 2006 described progesterone and cortisol competition for glucocorticoid receptors. ISSN 2023 recommends luteal phase protein of 1.8 to 2.2g per kg.',
+      'Late luteal': 'Sources: Backstrom et al. 2014 described allopregnanolone withdrawal and rebound anxiety in late luteal. Lokuge et al. 2011 documented the link between falling estrogen and serotonin decline. Osborn et al. 2025 described PMDD as a neurological sensitivity to normal progesterone fluctuations.',
+      Luteal: 'Sources: De Martin Topranin et al. 2023 (IJSPP) found RHR is 1.7 bpm higher in mid-luteal and sleep quality is impaired. Hackney 2006 described progesterone and cortisol competition for glucocorticoid receptors. ISSN 2023 recommends luteal phase protein of 1.8 to 2.2g per kg due to progesterone catabolism. Munster et al. 2021 established mid-luteal progesterone at 10 to 50 nmol/L with a median of 28.8.',
+      Perimenopause: 'Sources: Harlow SD et al. Climacteric 2012 (STRAW+10) — gold standard staging for the menopausal transition, perimenopause onset as early as the mid-30s. Kohrt WM et al. MSSE 2004 — ACSM position stand on exercise and bone health, resistance training stimulates bone formation at any age. Freeman EW et al. Archives of General Psychiatry 2004 and 2006 — depression risk across the menopausal transition. ISSN 2023 — protein recommendations for women through hormonal transitions. Manson JE et al. NEJM 2013 — HRT timing hypothesis reanalysis, benefit when started within 10 years of menopause.'
     }
 
     // ── Module-level state accessible to sheet functions ────────────────────
@@ -984,7 +1263,7 @@
       const data = NUTRITION_DATA[phase] || NUTRITION_DATA['observation']
       const protein = getProteinTarget(phase, bodyWeight)
       document.getElementById('nutritionTitle').textContent = data.title
-      document.getElementById('nutritionSub').textContent = 'Aim for ' + protein + 'g protein today -- tap for full guidance'
+      document.getElementById('nutritionSub').textContent = 'Aim for ' + protein + 'g protein today, tap for full guidance'
     }
 
     async function checkAlreadyLogged(userId) {
@@ -1035,7 +1314,7 @@
         } else if (prog < 3) {
           items.push({ cls: 'normal', title: 'Progesterone: ' + prog.toFixed(1) + ' nmol/L', text: 'Population reference range for follicular phase: under 3 nmol/L (LifeLabs/EORLA). Your value is consistent with this phase. ' + PERSONAL_CAVEAT })
         } else {
-          items.push({ cls: 'normal', title: 'Progesterone: ' + prog.toFixed(1) + ' nmol/L', text: 'Population reference range for mid-luteal: 10 to 50 nmol/L (Münster et al. 2021). Your value is below the mid-luteal range. If this is your first reading, HormoneSync will track it across future cycles to understand your personal pattern. If your progesterone has been consistently around this level and you feel well, that context is more meaningful than a single comparison to a population average. ' + PERSONAL_CAVEAT })
+          items.push({ cls: 'normal', title: 'Progesterone: ' + prog.toFixed(1) + ' nmol/L', text: 'Population reference range for mid-luteal: 10 to 50 nmol/L (Münster et al. 2021). Your value is below the mid-luteal range. If this is your first reading, Em~power will track it across future cycles to understand your personal pattern. If your progesterone has been consistently around this level and you feel well, that context is more meaningful than a single comparison to a population average. ' + PERSONAL_CAVEAT })
         }
       }
 
@@ -1130,7 +1409,7 @@
     // P20: Community pulse with real Supabase data
     // Falls back to De Martin Topranin 2023 population values if < 10 users logged
     async function renderCommunityPulse(userId, phase) {
-      if (phase === 'observation') return
+      if (phase === 'observation' || phase === 'Perimenopause') return
       const today3 = new Date().toISOString().split('T')[0]
 
       try {
@@ -1142,10 +1421,10 @@
           .not('energy', 'is', null)
 
         const RESEARCH_FALLBACK = {
-          Menstrual:  { 'Very low': 38, Low: 35, Good: 20, High: 7, source: 'Estimated from phase-typical patterns. Based on logged data across early HormoneSync users.' },
-          Follicular: { 'Very low': 8,  Low: 18, Good: 46, High: 28, source: 'Estimated from phase-typical patterns. Based on logged data across early HormoneSync users.' },
-          Ovulatory:  { 'Very low': 5,  Low: 12, Good: 48, High: 35, source: 'Estimated from phase-typical patterns. Based on logged data across early HormoneSync users.' },
-          Luteal:     { 'Very low': 22, Low: 38, Good: 30, High: 10, source: 'Estimated from phase-typical patterns. Based on logged data across early HormoneSync users.' }
+          Menstrual:  { 'Very low': 38, Low: 35, Good: 20, High: 7, source: 'Estimated from phase-typical patterns. Based on logged data across early Em~power users.' },
+          Follicular: { 'Very low': 8,  Low: 18, Good: 46, High: 28, source: 'Estimated from phase-typical patterns. Based on logged data across early Em~power users.' },
+          Ovulatory:  { 'Very low': 5,  Low: 12, Good: 48, High: 35, source: 'Estimated from phase-typical patterns. Based on logged data across early Em~power users.' },
+          Luteal:     { 'Very low': 22, Low: 38, Good: 30, High: 10, source: 'Estimated from phase-typical patterns. Based on logged data across early Em~power users.' }
         }
 
         let counts = { 'Very low': 0, Low: 0, Good: 0, High: 0 }
@@ -1256,75 +1535,102 @@
       }
     }
 
+    window.toggleRanges = function (el) {
+      const rangesDiv = el.nextElementSibling
+      if (!rangesDiv) return
+      const open = rangesDiv.style.display === 'block'
+      rangesDiv.style.display = open ? 'none' : 'block'
+      el.textContent = open ? 'View reference ranges' : 'Hide reference ranges'
+    }
+
+    const PROTEIN_MULTIPLIERS = {
+      'Menstrual': 1.5, 'Follicular': 1.7, 'Ovulatory': 1.8,
+      'Early luteal': 1.8, 'Mid luteal': 2.0, 'Late luteal': 2.0,
+      'Luteal': 2.0, 'observation': 1.6, 'Perimenopause': 1.8
+    }
+
     window.openPhaseSheet = async function (phase) {
-      const isCurrentPhase = dashState.phase === phase
-      const hormoneInfo  = PHASE_HORMONE_INFO[phase]
-      const trainingInfo = PHASE_TRAINING_INFO[phase]
-      const nutritionInfo = NUTRITION_DATA[phase] || NUTRITION_DATA['observation']
-      const scienceNote  = PHASE_SCIENCE_NOTES[phase]
-      const protein = getProteinTarget(phase, dashState.bodyWeight)
+      const isCurrentPhase = dashState.phase === phase || dashState.subPhase === phase
+      // Use sub-phase data if available, fall back to main phase
+      const hormoneInfo = PHASE_HORMONE_INFO[phase] || PHASE_HORMONE_INFO[dashState.phase] || PHASE_HORMONE_INFO['Follicular']
+      const trainingInfo = PHASE_TRAINING_INFO[phase] || PHASE_TRAINING_INFO[dashState.phase] || PHASE_TRAINING_INFO['Follicular']
+      const nutritionInfo = NUTRITION_DATA[phase] || NUTRITION_DATA[dashState.phase] || NUTRITION_DATA['observation']
+      const scienceNote = PHASE_SCIENCE_NOTES[phase] || PHASE_SCIENCE_NOTES[dashState.phase] || ''
+      const bw = dashState.bodyWeight || 65
+      const multiplier = PROTEIN_MULTIPLIERS[phase] || PROTEIN_MULTIPLIERS[dashState.phase] || 1.7
+      const protein = Math.round(bw * multiplier)
 
       let html = ''
 
-      // Header
+      // Header with 4-bullet "What is happening" list
       html += `<div class="sheet-phase-header">`
       if (isCurrentPhase) html += `<div class="sheet-you-are-here">You are here</div>`
       html += `<div class="sheet-phase-name">${phase}</div>`
-      html += `<div class="sheet-phase-tagline">${hormoneInfo.summary}</div>`
+      html += `<div style="font-size:12px;font-weight:600;color:#8a7a6a;text-transform:uppercase;letter-spacing:0.08em;margin:12px 0 8px">What is happening</div>`
+      if (hormoneInfo.bullets) {
+        html += `<ul style="padding-left:18px;margin:0">`
+        hormoneInfo.bullets.forEach(b => {
+          html += `<li style="font-size:13px;color:#4a4540;line-height:1.7;margin-bottom:4px">${b}</li>`
+        })
+        html += `</ul>`
+      }
       html += `</div>`
 
-      // Hormones
-      html += `<div class="sheet-section">
-        <div class="sheet-section-title">What is happening hormonally</div>
-        <div class="sheet-block">
-          <div class="sheet-block-label">Estrogen</div>
-          <div class="sheet-block-sub">${hormoneInfo.estrogen}</div>
-        </div>
-        <div class="sheet-block">
-          <div class="sheet-block-label">Progesterone</div>
-          <div class="sheet-block-sub">${hormoneInfo.progesterone}</div>
-        </div>
-        <div class="sheet-block">
-          <div class="sheet-block-label">LH</div>
-          <div class="sheet-block-sub">${hormoneInfo.lh}</div>
-        </div>
-        <div class="sheet-block" style="background:#f5f0e8;border-radius:8px;padding:10px 12px;margin-top:8px">
-          <div class="sheet-block-sub" style="color:#7a6a5a;font-style:italic">These are population average hormone levels for this phase. Your personal levels may be higher or lower and still be completely normal for you. HormoneSync tracks your individual pattern over time, not how you compare to a population average. (Münster et al. 2021; Janse de Jonge. Sports Medicine 2003.)</div>
-        </div>
-      </div>`
+      // Hormones — direction + patterns, expandable reference ranges
+      html += `<div class="sheet-section"><div class="sheet-section-title">Your hormones this phase</div>`
+      const hormoneNames = { estrogen: 'Estrogen', progesterone: 'Progesterone', lh: 'LH', fsh: 'FSH' }
+      if (hormoneInfo.hormones) {
+        Object.entries(hormoneInfo.hormones).forEach(([key, h], idx) => {
+          html += `<div class="sheet-block">
+            <div class="sheet-block-label">${hormoneNames[key] || key}</div>
+            <div style="font-size:13px;color:#5a4a3a;font-weight:500;margin-bottom:6px">${h.direction}</div>
+            <ul style="padding-left:16px;margin:0 0 8px">
+              ${h.patterns.map(p => `<li style="font-size:13px;color:#6a5a4a;line-height:1.6;margin-bottom:3px">${p}</li>`).join('')}
+            </ul>
+            <a href="#" onclick="toggleRanges(this);return false" style="font-size:11px;color:#9a9590;text-decoration:underline;display:inline-block">View reference ranges</a>
+            <div style="display:none;margin-top:8px;padding:8px 10px;background:#f5f0e8;border-radius:6px;font-size:12px;color:#7a6a5a;line-height:1.5;font-style:italic">${h.ranges}</div>
+          </div>`
+        })
+      }
+      html += `<div style="padding:10px 12px;background:#f5f0e8;border-radius:8px;margin-top:4px;font-size:12px;color:#7a6a5a;line-height:1.5;font-style:italic">These are population averages. Your personal levels may be higher or lower and still be completely normal for you. What matters most is your pattern across multiple cycles, not a single value against a population average. (Munster et al. 2021; Janse de Jonge. Sports Medicine 2003.)</div>`
+      html += `</div>`
 
       // Training
-      html += `<div class="sheet-section">
-        <div class="sheet-section-title">Training in this phase</div>
-        <div class="sheet-block">
-          <div class="sheet-block-label">Intensity modifier</div>
-          <div class="sheet-block-val">${trainingInfo.modifier}</div>
-        </div>
-        <div class="sheet-block">
-          <div class="sheet-block-label">Recommended activities</div>
-          <div class="sheet-block-sub">${trainingInfo.activities}</div>
-        </div>
-        <div class="sheet-block">
-          <div class="sheet-block-label">What to expect</div>
-          <div class="sheet-block-sub">${trainingInfo.expect}</div>
-        </div>
-        <div class="sheet-block">
-          <div class="sheet-block-label">Key tip</div>
-          <div class="sheet-block-sub">${trainingInfo.tip}</div>
-        </div>
-      </div>`
+      html += `<div class="sheet-section"><div class="sheet-section-title">Training in this phase</div>`
+      html += `<div class="sheet-block"><div class="sheet-block-label">Intensity</div><div class="sheet-block-val">${trainingInfo.modifier}</div></div>`
+      if (trainingInfo.activities) {
+        html += `<div class="sheet-block"><div class="sheet-block-label">Often a good time for</div><ul style="padding-left:16px;margin:6px 0 0">`
+        trainingInfo.activities.forEach(a => {
+          html += `<li style="font-size:13px;color:#6a5a4a;line-height:1.6;margin-bottom:3px">${a}</li>`
+        })
+        html += `</ul></div>`
+      }
+      if (trainingInfo.expect) {
+        html += `<div class="sheet-block"><div class="sheet-block-label">What to expect</div><div class="sheet-block-sub">${trainingInfo.expect}</div></div>`
+      }
+      html += `<div style="padding:10px 12px;background:#f5f0e8;border-radius:8px;margin-top:4px;font-size:12px;color:#7a6a5a;line-height:1.5;font-style:italic">Individual responses vary significantly. Listen to your body above all else.</div>`
+      html += `</div>`
 
-      // Nutrition
-      html += `<div class="sheet-section">
-        <div class="sheet-section-title">Nutrition in this phase</div>
-        <div class="sheet-block">
-          <div class="sheet-block-label">Protein target</div>
-          <div class="sheet-block-val">${protein}g per day</div>
-          <div class="sheet-block-sub">${nutritionInfo.desc}</div>
-          <div class="sheet-food-row">${nutritionInfo.foods.map(f=>`<span class="sheet-food-tag">${f}</span>`).join('')}</div>
-          ${nutritionInfo.avoid ? `<div class="sheet-avoid">${nutritionInfo.avoid}</div>` : ''}
-        </div>
-      </div>`
+      // Nutrition with categories
+      const phaseNutrLabel = phase.toLowerCase().includes('luteal') ? 'luteal' : phase.toLowerCase()
+      const nutMult = PROTEIN_MULTIPLIERS[phase] || PROTEIN_MULTIPLIERS[dashState.phase] || 1.7
+      html += `<div class="sheet-section"><div class="sheet-section-title">Nutrition in this phase</div>`
+      html += `<div class="sheet-block"><div class="sheet-block-label">Protein target</div>
+        <div class="sheet-block-val">${protein}g per day</div>
+        <div style="font-size:12px;color:#9a9590;margin-top:3px;margin-bottom:8px">${protein}g per day — based on your weight of ${bw}kg and ${phaseNutrLabel} phase needs of ${nutMult}g per kg (ISSN 2023)</div>
+        <div class="sheet-block-sub">${nutritionInfo.desc}</div>`
+      if (nutritionInfo.foodCategories) {
+        nutritionInfo.foodCategories.forEach(cat => {
+          html += `<div style="margin-top:10px"><div style="font-size:11px;font-weight:600;color:#8a7a6a;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px">${cat.label}</div>`
+          html += `<div style="display:flex;flex-wrap:wrap;gap:6px">`
+          cat.foods.forEach(f => html += `<span class="sheet-food-tag">${f}</span>`)
+          html += `</div></div>`
+        })
+      }
+      if (nutritionInfo.avoid) {
+        html += `<div class="sheet-avoid" style="margin-top:12px">${nutritionInfo.avoid}</div>`
+      }
+      html += `</div></div>`
 
       // Personal data — show loading placeholder, replace after query
       html += `<div class="sheet-section" id="sheetPersonalSection">
@@ -1335,7 +1641,7 @@
       </div>`
 
       // Science note
-      html += `<div class="sheet-science-note">${scienceNote}</div>`
+      if (scienceNote) html += `<div class="sheet-science-note">${scienceNote}</div>`
 
       document.getElementById('sheetScroll').innerHTML = html
       document.getElementById('sheetScroll').scrollTop = 0
@@ -1347,12 +1653,29 @@
       const personalEl = document.getElementById('sheetPersonalContent')
       if (!personalEl) return
 
+      const EMPTY_STATE = `<div class="sheet-personal-empty">
+        <div style="font-size:13px;font-weight:600;color:#5a5550;margin-bottom:10px">Your personal patterns will appear here</div>
+        <div style="font-size:12px;color:#7a7268;margin-bottom:8px">Once you have logged:</div>
+        <ul style="padding-left:16px;margin:0 0 10px;font-size:12px;color:#7a7268;line-height:1.7">
+          <li>14 or more daily check-ins</li>
+          <li>2 complete cycles</li>
+        </ul>
+        <div style="font-size:12px;color:#7a7268;margin-bottom:6px">You will see:</div>
+        <ul style="padding-left:16px;margin:0 0 10px;font-size:12px;color:#7a7268;line-height:1.7">
+          <li>Your personal energy pattern by phase</li>
+          <li>Your most common symptoms and when they appear</li>
+          <li>Your ovulation indicators and timing</li>
+          <li>Your recovery and performance trends</li>
+        </ul>
+        <div style="font-size:12px;color:#9a9590;font-style:italic">Every day you log brings this closer.</div>
+      </div>`
+
       if (!personal || !dashState.lastPeriodDate) {
-        personalEl.innerHTML = `<div class="sheet-personal-empty">Not enough data yet. Keep logging to see your personal patterns here.</div>`
+        personalEl.innerHTML = EMPTY_STATE
         return
       }
       if (personal.tooFew) {
-        personalEl.innerHTML = `<div class="sheet-personal-empty">Not enough data yet. Keep logging to see your personal patterns here.</div>`
+        personalEl.innerHTML = EMPTY_STATE
         return
       }
 
@@ -1590,8 +1913,9 @@
         }
 
         // PCOS pattern flag (Source: Teede et al. 2018; Crawford N.)
+        // Not shown to Path 4 users — irregular cycles in perimenopause are expected, not a PCOS indicator
         try {
-          if (cycleLen > 35 && profile.cycles_tracked >= 3) {
+          if (profile.user_path !== '4' && cycleLen > 35 && profile.cycles_tracked >= 3) {
             const flagEl = document.getElementById('patternFlagContainer')
             flagEl.style.display = 'block'
             flagEl.innerHTML = `<div style="background:#fef4e4;border:1px solid #f0d498;border-radius:14px;padding:14px 16px">
@@ -1602,25 +1926,64 @@
         } catch (e) { console.error('Pattern flag error', e) }
 
         // Endometriosis pain flag (Source: Nnoaham et al. Fertility and Sterility 2011)
+        // Not shown to Path 4 users — pain_rating field is not used in Path 4 logs (joint_pain_rating is)
         try {
-          const { data: painLogs } = await supabase
-            .from('daily_logs')
-            .select('pain_rating, log_date')
-            .eq('user_id', user.id)
-            .gte('pain_rating', 4)
-            .order('log_date', { ascending: false })
-            .limit(14)
+          if (profile.user_path !== '4') {
+            const { data: painLogs } = await supabase
+              .from('daily_logs')
+              .select('pain_rating, log_date')
+              .eq('user_id', user.id)
+              .gte('pain_rating', 4)
+              .order('log_date', { ascending: false })
+              .limit(14)
 
-          if (painLogs?.length >= 3) {
-            const flagEl = document.getElementById('patternFlagContainer')
-            const existing = flagEl.innerHTML
-            flagEl.style.display = 'block'
-            flagEl.innerHTML = existing + `<div style="background:#fce8e0;border:1px solid #f0b8a0;border-radius:14px;padding:14px 16px;margin-top:8px">
-              <div style="font-size:10px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#8a3020;margin-bottom:8px">Period pain pattern</div>
-              <div style="font-size:13px;color:#2c2820;line-height:1.6">Severe period pain is not something you have to accept. Pain that disrupts daily life can indicate endometriosis, adenomyosis, or uterine fibroids. Women wait an average of 7 to 10 years for a diagnosis because pain is often dismissed. If your pain consistently affects your daily life, please pursue a proper investigation. (Nnoaham et al. Fertility and Sterility 2011)</div>
-            </div>`
+            if (painLogs?.length >= 3) {
+              const flagEl = document.getElementById('patternFlagContainer')
+              const existing = flagEl.innerHTML
+              flagEl.style.display = 'block'
+              flagEl.innerHTML = existing + `<div style="background:#fce8e0;border:1px solid #f0b8a0;border-radius:14px;padding:14px 16px;margin-top:8px">
+                <div style="font-size:10px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#8a3020;margin-bottom:8px">Period pain pattern</div>
+                <div style="font-size:13px;color:#2c2820;line-height:1.6">Severe period pain is not something you have to accept. Pain that disrupts daily life can indicate endometriosis, adenomyosis, or uterine fibroids. Women wait an average of 7 to 10 years for a diagnosis because pain is often dismissed. If your pain consistently affects your daily life, please pursue a proper investigation. (Nnoaham et al. Fertility and Sterility 2011)</div>
+              </div>`
+            }
           }
         } catch (e) { console.error('Endo flag error', e) }
+
+        // Path 4: Perimenopause-specific dashboard
+        if (profile.user_path === '4') {
+          try {
+            // Update hero to show perimenopause stage
+            const stage = profile.bc_type || 'peri-early'
+            const stageLabel = stage === 'menopause' ? 'Postmenopause'
+              : stage === 'peri-late' ? 'Late perimenopause' : 'Perimenopause'
+            document.getElementById('currentPhase').textContent = stageLabel
+            document.getElementById('currentDay').textContent = 'Tracking your symptoms and patterns'
+            document.getElementById('statsRow').style.display = 'none'
+
+            // Always show bone and metabolic cards for Path 4
+            document.getElementById('perioBoneCard').style.display = 'block'
+            document.getElementById('perioMetabolicCard').style.display = 'block'
+
+            // Show perimenopause phase card and update section label
+            document.getElementById('cardPerimenopause').style.display = 'block'
+            document.getElementById('cyclePhasesSectionLabel').textContent = 'Your hormonal phases'
+            document.getElementById('periCycleNote').style.display = 'block'
+
+            // Mental health card — show if 5+ low mood/sleep days in recent 7
+            const { data: moodLogs7 } = await supabase
+              .from('daily_logs').select('energy, sleep_quality, mood')
+              .eq('user_id', user.id).order('log_date', { ascending: false }).limit(7)
+            if (moodLogs7?.length >= 5) {
+              const lowDays = moodLogs7.filter(l =>
+                l.energy === 'Very low' || l.sleep_quality === 'Poor' ||
+                (Array.isArray(l.mood) && (l.mood.includes('Anxious') || l.mood.includes('Low')))
+              ).length
+              if (lowDays >= 5) {
+                document.getElementById('perioMentalCard').style.display = 'block'
+              }
+            }
+          } catch (e) { console.error('Peri card error', e) }
+        }
 
       } catch (err) {
         console.error('Dashboard error:', err)
@@ -1637,6 +2000,27 @@
 
     loadDashboard()
   </script>
+<script>
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js')
+  ;(function () {
+    var isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent)
+    var isStandalone = window.navigator.standalone === true
+    if (!isIOS || isStandalone || localStorage.getItem('pwa-prompt-dismissed')) return
+    var b = document.createElement('div')
+    b.style.cssText = 'position:fixed;bottom:80px;left:16px;right:16px;background:#2c2820;color:#faf8f5;font-size:13px;padding:12px 14px;border-radius:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.18)'
+    var msg = document.createElement('span')
+    msg.style.lineHeight = '1.4'
+    msg.textContent = 'Add Em~power to your home screen for the full experience'
+    var x = document.createElement('button')
+    x.textContent = '\u2715'
+    x.setAttribute('aria-label', 'Dismiss')
+    x.style.cssText = 'background:none;border:none;color:#faf8f5;font-size:18px;cursor:pointer;flex-shrink:0;padding:0 2px;line-height:1'
+    x.onclick = function () { b.remove(); localStorage.setItem('pwa-prompt-dismissed', '1') }
+    b.appendChild(msg)
+    b.appendChild(x)
+    document.body.appendChild(b)
+  })()
+</script>
 </body>
 
 </html>

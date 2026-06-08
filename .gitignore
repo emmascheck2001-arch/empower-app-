@@ -1,1 +1,7 @@
 node_modules/
+
+# Local Netlify folder
+.netlify
+
+# Local secrets — never commit
+.env.local

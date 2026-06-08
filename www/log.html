@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>HormoneSync — Daily Log</title>
+  <title>Em~power — Daily Log</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css" />
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -83,16 +83,6 @@
     .disruptor-btn:hover { border-color: #c8b89a; }
     .disruptor-btn.selected-soft { background: #fce8e8; color: #8a2a2a; border-color: #e8b8b8; }
 
-    .more-btn {
-      display: block; width: calc(100% - 32px); margin: 12px 16px 0;
-      padding: 12px; border-radius: 10px; border: 1px dashed #c8b89a;
-      background: #fdf9f4; font-size: 13px; color: #7a6a5a;
-      cursor: pointer; text-align: center; transition: all 0.15s;
-    }
-    .more-btn:hover { background: #f5f0e8; }
-
-    .detail-section { display: none; }
-    .detail-section.open { display: block; }
 
     .hormone-section {
       margin: 12px 16px 0;
@@ -156,6 +146,11 @@
     }
     .number-input:focus { border-color: #c8b89a; }
   </style>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Em~power">
+  <meta name="theme-color" content="#2c2820">
 </head>
 
 <body>
@@ -168,56 +163,39 @@
       <span class="phase-tag" id="phaseTag">Tracking</span>
     </div>
 
-    <!-- Quick 5-question check-in -->
+    <!-- Priority note -->
+    <div style="margin:12px 16px 0;padding:12px 14px;background:#f5f0e8;border-radius:10px;border:1px solid #ede8e0">
+      <p style="font-size:12px;color:#6a5a4a;line-height:1.5">The fields at the top of this log are the strongest hormone signals. Even completing just the first three makes a meaningful difference to your predictions.</p>
+    </div>
+
+    <!-- Main log card -->
     <div class="quick-card">
       <div class="quick-header">
-        <div class="quick-header-title">Morning check-in</div>
-        <div class="quick-header-sub">Under 60 seconds. Every signal improves your phase detection.</div>
+        <div class="quick-header-title">Daily log</div>
+        <div class="quick-header-sub">Log what applies today. Every signal improves your phase detection.</div>
+      </div>
+      <div id="periodStartRow" style="text-align:right;padding:0 0 4px">
+        <a href="#" id="periodStartLink" onclick="logPeriodStart();return false" style="font-size:12px;color:#9a9590;text-decoration:none">Period started today?</a>
       </div>
 
-      <div class="section">
-        <div class="section-title">How is your energy today?</div>
-        <div class="energy-row" id="energyRow">
-          <div class="energy-btn" onclick="selectOne('energyRow', this, 'energy', 'Very low')">Very low</div>
-          <div class="energy-btn" onclick="selectOne('energyRow', this, 'energy', 'Low')">Low</div>
-          <div class="energy-btn" onclick="selectOne('energyRow', this, 'energy', 'Good')">Good</div>
-          <div class="energy-btn" onclick="selectOne('energyRow', this, 'energy', 'High')">High</div>
-        </div>
-      </div>
-
-      <div class="section">
-        <div class="section-title">How are you feeling?</div>
-        <div class="section-why">Mood patterns are one of the strongest phase signals. Select all that apply.</div>
-        <div class="btn-row" id="moodRow">
-          <div class="opt-btn" onclick="selectMulti(this, 'mood')">Energetic</div>
-          <div class="opt-btn" onclick="selectMulti(this, 'mood')">Motivated</div>
-          <div class="opt-btn" onclick="selectMulti(this, 'mood')">Confident</div>
-          <div class="opt-btn" onclick="selectMulti(this, 'mood')">Calm</div>
-          <div class="opt-btn" onclick="selectMulti(this, 'mood')">Social</div>
-          <div class="opt-btn" onclick="selectMulti(this, 'mood')">Tired</div>
-          <div class="opt-btn" onclick="selectMulti(this, 'mood')">Irritable</div>
-          <div class="opt-btn" onclick="selectMulti(this, 'mood')">Anxious</div>
-          <div class="opt-btn" onclick="selectMulti(this, 'mood')">Sad</div>
-          <div class="opt-btn" onclick="selectMulti(this, 'mood')">Low</div>
-        </div>
-      </div>
-
+      <!-- 1. Cervical fluid — strongest ovulation indicator -->
       <div class="section">
         <div class="section-title">Cervical fluid</div>
-        <div class="section-why">Your most accurate non-wearable ovulation signal. Check when you use the bathroom (Bigelow et al. 2004, 80% sensitivity for fertile window).</div>
+        <div class="section-why" id="cervicalFluidWhy">One of the strongest ovulation indicators. Check when you use the bathroom (Bigelow et al. 2004, 80% sensitivity for fertile window).</div>
         <div class="btn-row" id="fluidRow">
-          <div class="opt-btn" onclick="selectFluid(this, 'None')">🌵 None or dry</div>
-          <div class="opt-btn" onclick="selectFluid(this, 'Sticky')">🍯 Sticky or crumbly</div>
-          <div class="opt-btn" onclick="selectFluid(this, 'Creamy')">🫧 Creamy or lotion-like</div>
-          <div class="opt-btn" onclick="selectFluid(this, 'Watery')">💦 Watery</div>
-          <div class="opt-btn" onclick="selectFluid(this, 'Egg white')">🥚 Egg white</div>
-          <div class="opt-btn" onclick="selectFluid(this, 'Spotting')">🩸 Spotting</div>
+          <div class="opt-btn" onclick="selectFluid(this, 'None')">None or dry</div>
+          <div class="opt-btn" onclick="selectFluid(this, 'Sticky')">Sticky or crumbly</div>
+          <div class="opt-btn" onclick="selectFluid(this, 'Creamy')">Creamy or lotion-like</div>
+          <div class="opt-btn" onclick="selectFluid(this, 'Watery')">Watery</div>
+          <div class="opt-btn" onclick="selectFluid(this, 'Egg white')">Egg white</div>
+          <div class="opt-btn" onclick="selectFluid(this, 'Spotting')">Spotting</div>
         </div>
       </div>
 
+      <!-- 2. LH test -->
       <div class="section">
-        <div class="section-title">LH strip today?</div>
-        <div class="section-why">A positive LH surge is the strongest single ovulation signal. Münster et al. 2021 set the threshold above 8 IU/L.</div>
+        <div class="section-title">LH test today?</div>
+        <div class="section-why" id="lhTestWhy">A positive LH surge is the strongest single ovulation signal. Threshold above 8 IU/L (Munster et al. 2021).</div>
         <div class="btn-row" id="lhRow">
           <div class="opt-btn" onclick="selectLH(this, null)">No test</div>
           <div class="opt-btn" onclick="selectLH(this, 'Negative')">Negative</div>
@@ -225,51 +203,133 @@
         </div>
       </div>
 
+      <!-- 3. Energy -->
       <div class="section">
-        <div class="section-title">How was your sleep?</div>
-        <div class="sleep-row" id="sleepRow">
-          <div class="sleep-btn" onclick="selectOne('sleepRow', this, 'sleep_quality', 'Poor')">Poor</div>
-          <div class="sleep-btn" onclick="selectOne('sleepRow', this, 'sleep_quality', 'Okay')">Okay</div>
-          <div class="sleep-btn" onclick="selectOne('sleepRow', this, 'sleep_quality', 'Good')">Good</div>
-          <div class="sleep-btn" onclick="selectOne('sleepRow', this, 'sleep_quality', 'Great')">Great</div>
+        <div class="section-title">How is your energy today?</div>
+        <div class="energy-row" id="energyRow">
+          <div class="energy-btn" onclick="selectOne('energyRow', this, 'energy', 'Very low')">Very low</div>
+          <div class="energy-btn" onclick="selectOne('energyRow', this, 'energy', 'Low')">Low</div>
+          <div class="energy-btn" onclick="selectOne('energyRow', this, 'energy', 'Normal')">Normal</div>
+          <div class="energy-btn" onclick="selectOne('energyRow', this, 'energy', 'High')">High</div>
         </div>
       </div>
 
+      <!-- 4. Mood — two groups -->
       <div class="section">
-        <div class="section-title">Resting heart rate range?</div>
-        <div class="section-why" style="margin-bottom:10px">Rises approximately 1.7 bpm in mid-luteal phase (De Martin Topranin 2023). Track yours to see your personal pattern.</div>
-        <div class="btn-row" id="hrRow">
+        <div class="section-title">How are you feeling?</div>
+        <div class="section-why">Mood patterns are strong phase signals. Select all that apply.</div>
+        <p style="font-size:11px;font-weight:600;color:#8a7a6a;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px">Positive moods</p>
+        <div class="btn-row" id="moodRow" style="margin-bottom:12px">
+          <div class="opt-btn" onclick="selectMulti(this, 'mood')">Energetic</div>
+          <div class="opt-btn" onclick="selectMulti(this, 'mood')">Motivated</div>
+          <div class="opt-btn" onclick="selectMulti(this, 'mood')">Confident</div>
+          <div class="opt-btn" onclick="selectMulti(this, 'mood')">Social</div>
+          <div class="opt-btn" onclick="selectMulti(this, 'mood')">Calm</div>
+          <div class="opt-btn" onclick="selectMulti(this, 'mood')">Focused</div>
+        </div>
+        <p style="font-size:11px;font-weight:600;color:#8a7a6a;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px">Challenging moods</p>
+        <div class="btn-row" id="moodRowB">
+          <div class="opt-btn" onclick="selectMulti(this, 'mood')">Tired</div>
+          <div class="opt-btn" onclick="selectMulti(this, 'mood')">Irritable</div>
+          <div class="opt-btn" onclick="selectMulti(this, 'mood')">Anxious</div>
+          <div class="opt-btn" onclick="selectMulti(this, 'mood')">Sad</div>
+          <div class="opt-btn" onclick="selectMulti(this, 'mood')">Brain fog</div>
+          <div class="opt-btn" onclick="selectMulti(this, 'mood')">Low mood</div>
+        </div>
+      </div>
+
+      <!-- 5. Wrist temperature -->
+      <div class="section">
+        <div class="section-title">Wrist temperature in degrees Celsius — optional</div>
+        <div class="section-why">A rise of 0.3 to 0.5 degrees above your baseline is consistent with ovulation having occurred (Zhu et al. 2021, 86.2% accuracy).</div>
+        <input type="number" class="number-input" id="wristTempInput" placeholder="e.g. 36.2" step="0.1" min="34" max="40" oninput="logData.wrist_temp = parseFloat(this.value) || null" />
+      </div>
+
+      <!-- 6. Resting heart rate -->
+      <div class="section">
+        <div class="section-title">Resting heart rate</div>
+        <div class="section-why" style="margin-bottom:10px">Resting heart rate may rise after ovulation due to progesterone (De Martin Topranin 2023).</div>
+        <div class="btn-row" id="hrRow" style="margin-bottom:10px">
           <div class="opt-btn" onclick="selectOne('hrRow', this, 'resting_hr', 'Under 55')">Under 55</div>
           <div class="opt-btn" onclick="selectOne('hrRow', this, 'resting_hr', '55 to 65')">55 to 65</div>
           <div class="opt-btn" onclick="selectOne('hrRow', this, 'resting_hr', '65 to 75')">65 to 75</div>
           <div class="opt-btn" onclick="selectOne('hrRow', this, 'resting_hr', 'Over 75')">Over 75</div>
           <div class="opt-btn" onclick="selectOne('hrRow', this, 'resting_hr', 'No data')">No data</div>
         </div>
+        <p style="font-size:12px;color:#7a7268;margin-bottom:6px">Or enter your exact RHR</p>
+        <input type="number" class="number-input" id="rhrExactInput" placeholder="e.g. 62" min="30" max="120" oninput="logData.resting_hr_exact = parseInt(this.value) || null; if (this.value) { document.querySelectorAll('#hrRow .opt-btn').forEach(b => b.classList.remove('selected-soft')); logData.resting_hr = null; }" />
       </div>
 
-      <div class="section" style="border-bottom:none">
+      <!-- 7. Symptoms -->
+      <div class="section">
         <div class="section-title">Any symptoms today?</div>
         <div class="section-why">Select all that apply.</div>
         <div class="btn-row" id="symptomsRow">
-          <div class="opt-btn" onclick="selectMulti(this, 'symptoms')">Bloating</div>
-          <div class="opt-btn" onclick="selectMulti(this, 'symptoms')">Cramps</div>
-          <div class="opt-btn" onclick="selectMulti(this, 'symptoms')">Back pain</div>
-          <div class="opt-btn" onclick="selectMulti(this, 'symptoms')">Sore breasts</div>
-          <div class="opt-btn" onclick="selectMulti(this, 'symptoms')">Cravings</div>
-          <div class="opt-btn" onclick="selectMulti(this, 'symptoms')">Mood swings</div>
-          <div class="opt-btn" onclick="selectMulti(this, 'symptoms')">Headache</div>
-          <div class="opt-btn" onclick="selectMulti(this, 'symptoms')">Fatigue</div>
-          <div class="opt-btn" onclick="selectMulti(this, 'symptoms')">None</div>
+          <div class="opt-btn" onclick="selectSymptom(this, 'Bloating')">Bloating</div>
+          <div class="opt-btn" onclick="selectSymptom(this, 'Cramping')">Cramping</div>
+          <div class="opt-btn" onclick="selectSymptom(this, 'Breast tenderness')">Breast tenderness</div>
+          <div class="opt-btn" onclick="selectSymptom(this, 'Headache')">Headache</div>
+          <div class="opt-btn" onclick="selectSymptom(this, 'Back pain')">Back pain</div>
+          <div class="opt-btn" onclick="selectSymptom(this, 'Fatigue')">Fatigue</div>
+          <div class="opt-btn" onclick="selectSymptom(this, 'Cravings')">Cravings</div>
+          <div class="opt-btn" onclick="selectSymptom(this, 'Mood swings')">Mood swings</div>
+          <div class="opt-btn" onclick="selectSymptom(this, 'Acne')">Acne</div>
+          <div class="opt-btn" onclick="selectSymptom(this, 'None')">None</div>
         </div>
       </div>
-    </div>
 
-    <!-- Expand full log -->
-    <button class="more-btn" onclick="toggleDetail(this)" id="detailToggle">+ Log more detail</button>
+      <!-- 8. Sleep -->
+      <div class="section">
+        <div class="section-title">How was your sleep?</div>
+        <div class="sleep-row" id="sleepRow">
+          <div class="sleep-btn" onclick="selectOne('sleepRow', this, 'sleep_quality', 'Poor')">Poor</div>
+          <div class="sleep-btn" onclick="selectOne('sleepRow', this, 'sleep_quality', 'Fair')">Fair</div>
+          <div class="sleep-btn" onclick="selectOne('sleepRow', this, 'sleep_quality', 'Good')">Good</div>
+          <div class="sleep-btn" onclick="selectOne('sleepRow', this, 'sleep_quality', 'Excellent')">Excellent</div>
+        </div>
+      </div>
 
-    <div class="detail-section" id="detailSection">
+      <!-- 9. Workout performance -->
+      <div class="section">
+        <div class="section-title">Workout performance today</div>
+        <div class="section-why">Hormones can influence exercise performance and recovery.</div>
+        <div class="btn-row" id="workoutRow">
+          <div class="opt-btn" onclick="selectOne('workoutRow', this, 'workout_feel', 'Rest day')">Rest day</div>
+          <div class="opt-btn" onclick="selectOne('workoutRow', this, 'workout_feel', 'Weaker than usual')">Weaker than usual</div>
+          <div class="opt-btn" onclick="selectOne('workoutRow', this, 'workout_feel', 'Average')">Average</div>
+          <div class="opt-btn" onclick="selectOne('workoutRow', this, 'workout_feel', 'Stronger than usual')">Stronger than usual</div>
+          <div class="opt-btn" onclick="selectOne('workoutRow', this, 'workout_feel', 'Skipped')">Skipped</div>
+        </div>
+      </div>
 
-      <div class="section" id="flowSection" style="margin-top:4px;display:none">
+      <!-- 10. Disruptors -->
+      <div class="section">
+        <div class="section-title">Anything that might affect today's data?</div>
+        <div class="section-why">Helps prevent false hormone predictions.</div>
+        <div class="disruptor-row" id="disruptorRow">
+          <div class="disruptor-btn" onclick="selectMulti(this, 'disruptors')">
+            <i class="ti ti-wine" style="font-size:16px"></i> Alcohol
+          </div>
+          <div class="disruptor-btn" onclick="selectMulti(this, 'disruptors')">
+            <i class="ti ti-thermometer" style="font-size:16px"></i> Illness
+          </div>
+          <div class="disruptor-btn" onclick="selectMulti(this, 'disruptors')">
+            <i class="ti ti-plane" style="font-size:16px"></i> Travel
+          </div>
+          <div class="disruptor-btn" onclick="selectMulti(this, 'disruptors')">
+            <i class="ti ti-zzz" style="font-size:16px"></i> Very poor sleep
+          </div>
+          <div class="disruptor-btn" onclick="selectMulti(this, 'disruptors')">
+            <i class="ti ti-flame" style="font-size:16px"></i> High stress
+          </div>
+          <div class="disruptor-btn" onclick="selectMulti(this, 'disruptors')">
+            <i class="ti ti-circle-check" style="font-size:16px"></i> None of these
+          </div>
+        </div>
+      </div>
+
+      <!-- Flow volume and pain — menstrual phase only -->
+      <div class="section" id="flowSection" style="display:none">
         <div class="section-title">Flow volume today</div>
         <div class="section-why">Flow volume is clinical information. Lighter than usual bleeding may indicate lower estrogen exposure. Track your personal pattern across cycles.</div>
         <div class="btn-row" id="flowVolumeRow">
@@ -281,7 +341,7 @@
         </div>
       </div>
 
-      <div class="section" id="painSection" style="display:none">
+      <div class="section" id="painSection" style="display:none;border-bottom:none">
         <div class="section-title">Pain level today</div>
         <div class="section-why">Pain that disrupts your daily life is not normal. Log it here so we can track the pattern across cycles.</div>
         <div class="btn-row" id="painRow">
@@ -293,76 +353,110 @@
         </div>
       </div>
 
-      <div class="section" style="margin-top:4px">
-        <div class="section-title">How did your workout feel?</div>
-        <div class="section-why">Effort perception differs by phase. A strong workout in the follicular phase is a key signal.</div>
-        <div class="btn-row" id="workoutRow">
-          <div class="opt-btn" onclick="selectOne('workoutRow', this, 'workout_feel', 'Rest day')">Rest day</div>
-          <div class="opt-btn" onclick="selectOne('workoutRow', this, 'workout_feel', 'Strong')">Strong</div>
-          <div class="opt-btn" onclick="selectOne('workoutRow', this, 'workout_feel', 'Average')">Average</div>
-          <div class="opt-btn" onclick="selectOne('workoutRow', this, 'workout_feel', 'Hard')">Hard</div>
-          <div class="opt-btn" onclick="selectOne('workoutRow', this, 'workout_feel', 'Skipped')">Skipped</div>
-        </div>
-      </div>
+    </div><!-- end main log card -->
 
-      <div class="section">
-        <div class="section-title">Wrist temperature (°C)</div>
-        <div class="section-why">A rise of 0.3 to 0.5°C above your baseline indicates ovulation has occurred (Zhu et al. 2021, 86.2% accuracy).</div>
-        <input type="number" class="number-input" id="wristTempInput" placeholder="e.g. 36.2" step="0.1" min="34" max="40" oninput="logData.wrist_temp = this.value || null" />
-      </div>
-
-      <div class="section">
-        <div class="section-title">Anything that might affect today's data?</div>
-        <div class="section-why">Flags data the algorithm should discount rather than misread as phase signals.</div>
-        <div class="disruptor-row" id="disruptorRow">
-          <div class="disruptor-btn" onclick="selectMulti(this, 'disruptors')">
-            <i class="ti ti-wine" style="font-size:16px"></i> Had alcohol
-          </div>
-          <div class="disruptor-btn" onclick="selectMulti(this, 'disruptors')">
-            <i class="ti ti-thermometer" style="font-size:16px"></i> Feeling unwell
-          </div>
-          <div class="disruptor-btn" onclick="selectMulti(this, 'disruptors')">
-            <i class="ti ti-plane" style="font-size:16px"></i> Travelled recently
-          </div>
-          <div class="disruptor-btn" onclick="selectMulti(this, 'disruptors')">
-            <i class="ti ti-zzz" style="font-size:16px"></i> Very poor sleep
-          </div>
-          <div class="disruptor-btn" onclick="selectMulti(this, 'disruptors')">
-            <i class="ti ti-circle-check" style="font-size:16px"></i> None of these
+    <!-- 11. Hormone results — collapsed by default -->
+    <div style="margin:10px 16px 0">
+      <button onclick="toggleHormones(this)" style="width:100%;padding:14px 16px;text-align:left;cursor:pointer;display:flex;align-items:center;justify-content:space-between;background:#fff;border:1px solid #ede8e0;border-radius:14px;font-size:14px;font-weight:500;color:#2c2820" id="hormoneToggleBtn">
+        <span>Hormone test results — optional</span>
+        <i class="ti ti-chevron-down" id="hormoneChevron" style="font-size:16px;color:#9a9590;transition:transform 0.2s"></i>
+      </button>
+      <div id="hormoneSection" style="display:none">
+        <div class="hormone-section" style="margin:0;border-radius:0 0 14px 14px;border-top:none">
+          <div class="hormone-note">Enter values from a Mira device or blood test. Reference ranges from LifeLabs/EORLA Canadian standards and Munster et al. 2021. These are population averages. Your personal normal may be different. What matters most is your pattern across multiple cycles. (Munster et al. 2021; Janse de Jonge. Sports Medicine 2003.)</div>
+          <div class="hormone-grid">
+            <div class="hormone-field">
+              <label>Estradiol (pmol/L)</label>
+              <div class="ref">Follicular 77 to 330 | Ovulatory 222 to 1959</div>
+              <input type="number" id="hEstradiol" placeholder="e.g. 450" min="0" max="5000" oninput="logData.hormone_estradiol = parseFloat(this.value) || null" />
+            </div>
+            <div class="hormone-field">
+              <label>Progesterone (nmol/L)</label>
+              <div class="ref">Follicular under 3 | Mid-luteal 10 to 50</div>
+              <input type="number" id="hProgesterone" placeholder="e.g. 28.5" step="0.1" min="0" max="200" oninput="logData.hormone_progesterone = parseFloat(this.value) || null" />
+            </div>
+            <div class="hormone-field">
+              <label>LH (IU/L)</label>
+              <div class="ref">Follicular 2 to 13.2 | Surge above 8</div>
+              <input type="number" id="hLH" placeholder="e.g. 12.0" step="0.1" min="0" max="200" oninput="logData.hormone_lh = parseFloat(this.value) || null" />
+            </div>
+            <div class="hormone-field">
+              <label>Cortisol (nmol/L)</label>
+              <div class="ref">Morning normal 10 to 30</div>
+              <input type="number" id="hCortisol" placeholder="e.g. 18.0" step="0.1" min="0" max="1000" oninput="logData.hormone_cortisol = parseFloat(this.value) || null" />
+            </div>
           </div>
         </div>
       </div>
+    </div>
 
-      <!-- Hormone+ section -->
-      <div class="hormone-section" id="hormoneSection">
-        <div class="hormone-label">Optional</div>
-        <div class="hormone-title">Hormone test results</div>
-        <div class="hormone-note">Enter values from a Mira device or blood test. Population reference ranges shown below are from LifeLabs/EORLA Canadian standards and Münster et al. 2021. These are averages across many women. Your personal normal may be different. What matters most is your pattern across multiple cycles, not a single value against a population average. (Münster et al. 2021; Janse de Jonge. Sports Medicine 2003.)</div>
-        <div class="hormone-grid">
-          <div class="hormone-field">
-            <label>Estradiol (pmol/L)</label>
-            <div class="ref">Population ref: Follicular 77 to 330 | Ovulatory 222 to 1959</div>
-            <input type="number" id="hEstradiol" placeholder="e.g. 450" min="0" max="5000" oninput="logData.hormone_estradiol = parseFloat(this.value) || null" />
-          </div>
-          <div class="hormone-field">
-            <label>Progesterone (nmol/L)</label>
-            <div class="ref">Population ref: Follicular under 3 | Mid-luteal 10 to 50</div>
-            <input type="number" id="hProgesterone" placeholder="e.g. 28.5" step="0.1" min="0" max="200" oninput="logData.hormone_progesterone = parseFloat(this.value) || null" />
-          </div>
-          <div class="hormone-field">
-            <label>LH (IU/L)</label>
-            <div class="ref">Population ref: Follicular 2 to 13.2 | Surge above 8</div>
-            <input type="number" id="hLH" placeholder="e.g. 12.0" step="0.1" min="0" max="200" oninput="logData.hormone_lh = parseFloat(this.value) || null" />
-          </div>
-          <div class="hormone-field">
-            <label>Cortisol (nmol/L)</label>
-            <div class="ref">Population ref: Morning normal 10 to 30</div>
-            <input type="number" id="hCortisol" placeholder="e.g. 18.0" step="0.1" min="0" max="1000" oninput="logData.hormone_cortisol = parseFloat(this.value) || null" />
+    <!-- Path 4: perimenopause / menopause specific fields — hidden until loadPhase confirms path 4 -->
+    <div id="path4Section" style="display:none;margin:0 0 12px">
+      <div style="background:#fff;border:1px solid #ede8e0;border-radius:14px;padding:16px">
+        <div style="font-size:11px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#9a9590;margin-bottom:14px">Perimenopause tracking</div>
+
+        <!-- Hot flashes -->
+        <div style="margin-bottom:16px">
+          <div style="font-size:14px;font-weight:500;color:#2c2820;margin-bottom:8px">Hot flashes today?</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap" id="hotFlashRow">
+            <button class="opt-btn" onclick="selectOne('hotFlashRow',this,'hot_flash_count','none')">None</button>
+            <button class="opt-btn" onclick="selectOne('hotFlashRow',this,'hot_flash_count','mild')">Mild (1 to 2)</button>
+            <button class="opt-btn" onclick="selectOne('hotFlashRow',this,'hot_flash_count','moderate')">Moderate (3 to 5)</button>
+            <button class="opt-btn" onclick="selectOne('hotFlashRow',this,'hot_flash_count','severe')">Severe (6 or more)</button>
           </div>
         </div>
-      </div>
 
-    </div><!-- end detailSection -->
+        <!-- Night sweats -->
+        <div style="margin-bottom:16px">
+          <div style="font-size:14px;font-weight:500;color:#2c2820;margin-bottom:8px">Night sweats last night?</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap" id="nightSweatsRow">
+            <button class="opt-btn" onclick="selectOne('nightSweatsRow',this,'night_sweats_severity','none')">None</button>
+            <button class="opt-btn" onclick="selectOne('nightSweatsRow',this,'night_sweats_severity','mild')">Mild, woke once</button>
+            <button class="opt-btn" onclick="selectOne('nightSweatsRow',this,'night_sweats_severity','moderate')">Moderate, woke several times</button>
+            <button class="opt-btn" onclick="selectOne('nightSweatsRow',this,'night_sweats_severity','severe')">Severe, drenched</button>
+          </div>
+        </div>
+
+        <!-- Joint pain rating -->
+        <div style="margin-bottom:12px">
+          <div style="font-size:14px;font-weight:500;color:#2c2820;margin-bottom:4px">Joint pain today?</div>
+          <div style="font-size:12px;color:#9a9590;margin-bottom:8px">Estrogen supports joint lubrication. Joint pain is a recognised perimenopause symptom. (Mauvais-Jarvis et al. JCI 2013)</div>
+          <div style="display:flex;gap:8px" id="jointPainRow">
+            <button class="opt-btn" onclick="selectOne('jointPainRow',this,'joint_pain_rating',1)" style="flex:1">1 None</button>
+            <button class="opt-btn" onclick="selectOne('jointPainRow',this,'joint_pain_rating',2)" style="flex:1">2 Mild</button>
+            <button class="opt-btn" onclick="selectOne('jointPainRow',this,'joint_pain_rating',3)" style="flex:1">3 Moderate</button>
+            <button class="opt-btn" onclick="selectOne('jointPainRow',this,'joint_pain_rating',4)" style="flex:1">4 Severe</button>
+          </div>
+        </div>
+
+        <!-- Joint pain location -->
+        <div id="jointLocationWrap" style="margin-bottom:16px;display:none">
+          <div style="font-size:13px;color:#7a7268;margin-bottom:8px">Where?</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="opt-btn" onclick="toggleJointLocation(this,'Knees')">Knees</button>
+            <button class="opt-btn" onclick="toggleJointLocation(this,'Hips')">Hips</button>
+            <button class="opt-btn" onclick="toggleJointLocation(this,'Hands')">Hands</button>
+            <button class="opt-btn" onclick="toggleJointLocation(this,'Shoulders')">Shoulders</button>
+            <button class="opt-btn" onclick="toggleJointLocation(this,'Back')">Back</button>
+            <button class="opt-btn" onclick="toggleJointLocation(this,'Multiple')">Multiple</button>
+          </div>
+        </div>
+
+        <!-- Brain fog -->
+        <div>
+          <div style="font-size:14px;font-weight:500;color:#2c2820;margin-bottom:4px">Brain fog today?</div>
+          <div style="font-size:12px;color:#9a9590;margin-bottom:8px">Estrogen supports serotonin and dopamine. Cognitive changes are hormonal, not a sign of decline. (Lokuge et al. J Psychiatry Neurosci 2011)</div>
+          <div style="display:flex;gap:8px" id="brainFogRow">
+            <button class="opt-btn" onclick="selectOne('brainFogRow',this,'brain_fog_rating',1)" style="flex:1">1 None</button>
+            <button class="opt-btn" onclick="selectOne('brainFogRow',this,'brain_fog_rating',2)" style="flex:1">2 Mild</button>
+            <button class="opt-btn" onclick="selectOne('brainFogRow',this,'brain_fog_rating',3)" style="flex:1">3 Moderate</button>
+            <button class="opt-btn" onclick="selectOne('brainFogRow',this,'brain_fog_rating',4)" style="flex:1">4 Severe</button>
+            <button class="opt-btn" onclick="selectOne('brainFogRow',this,'brain_fog_rating',5)" style="flex:1">5 Debilitating</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
 
   </div><!-- end mainContent -->
 
@@ -384,7 +478,7 @@
 
   <script type="module">
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
-    import { getPhase, getTodayStatus } from './hormoneSync.js'
+    import { getTodayStatus } from './hormoneSync.js'
 
     const SUPABASE_URL = 'https://imgujppjvffbubnsscge.supabase.co'
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImltZ3VqcHBqdmZmYnVibnNzY2dlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2MDQzNzIsImV4cCI6MjA5NjE4MDM3Mn0.TpjycdiHLl5iI1G8u07mVmStKZWU2fzEsuw1dUi6diU'
@@ -396,15 +490,15 @@
       if (!session) { window.location.href = 'login.html'; return }
     })
 
-    const todayISO = new Date().toISOString().split('T')[0]
-
     const logData = {
       energy: null, symptoms: [], cervical_fluid: null,
       lh_result: null, workout_feel: null, mood: [], sleep_quality: null,
-      resting_hr: null, disruptors: [], wrist_temp: null,
+      resting_hr: null, resting_hr_exact: null, disruptors: [], wrist_temp: null,
       hormone_estradiol: null, hormone_progesterone: null,
       hormone_lh: null, hormone_cortisol: null,
-      flow_volume: null, pain_rating: null
+      flow_volume: null, pain_rating: null,
+      hot_flash_count: null, night_sweats_severity: null,
+      joint_pain_rating: null, joint_pain_location: [], brain_fog_rating: null
     }
 
     let prevConfidence = 0.05
@@ -414,6 +508,23 @@
       row.querySelectorAll('.energy-btn, .sleep-btn, .opt-btn').forEach(b => b.classList.remove('selected-soft'))
       el.classList.add('selected-soft')
       logData[field] = value
+      if (field === 'resting_hr') {
+        logData.resting_hr_exact = null
+        const exactInput = document.getElementById('rhrExactInput')
+        if (exactInput) exactInput.value = ''
+      }
+      if (field === 'joint_pain_rating') {
+        const wrap = document.getElementById('jointLocationWrap')
+        if (wrap) wrap.style.display = value >= 2 ? 'block' : 'none'
+        if (value < 2) { logData.joint_pain_location = [] }
+      }
+    }
+
+    window.toggleJointLocation = function (el, loc) {
+      el.classList.toggle('selected-soft')
+      const idx = logData.joint_pain_location.indexOf(loc)
+      if (idx >= 0) { logData.joint_pain_location.splice(idx, 1) }
+      else { logData.joint_pain_location.push(loc) }
     }
 
     window.selectFluid = function (el, value) {
@@ -429,16 +540,54 @@
     }
 
     window.selectMulti = function (el, field) {
+      if (field === 'disruptors') {
+        const label = el.textContent.trim()
+        const row = el.closest('.disruptor-row')
+        if (label.includes('None of these')) {
+          row.querySelectorAll('.disruptor-btn').forEach(b => b.classList.remove('selected-soft'))
+          el.classList.add('selected-soft')
+          logData.disruptors = ['None of these']
+          return
+        }
+        const noneBtn = Array.from(row.querySelectorAll('.disruptor-btn')).find(b => b.textContent.includes('None of these'))
+        if (noneBtn) noneBtn.classList.remove('selected-soft')
+        el.classList.toggle('selected-soft')
+        logData.disruptors = Array.from(row.querySelectorAll('.selected-soft')).map(b => b.textContent.trim())
+        return
+      }
       el.classList.toggle('selected-soft')
-      const row = el.closest('.btn-row, .disruptor-row')
-      const selected = Array.from(row.querySelectorAll('.selected-soft')).map(b => b.textContent.trim())
-      logData[field] = selected
+      if (field === 'mood') {
+        const allMoodBtns = document.querySelectorAll('#moodRow .opt-btn, #moodRowB .opt-btn')
+        logData.mood = Array.from(allMoodBtns).filter(b => b.classList.contains('selected-soft')).map(b => b.textContent.trim())
+      } else {
+        const row = el.closest('.btn-row, .disruptor-row')
+        const selected = Array.from(row.querySelectorAll('.selected-soft')).map(b => b.textContent.trim())
+        logData[field] = selected
+      }
     }
 
-    window.toggleDetail = function (btn) {
-      const sec = document.getElementById('detailSection')
-      const open = sec.classList.toggle('open')
-      btn.textContent = open ? '− Less detail' : '+ Log more detail'
+    window.selectSymptom = function (el, value) {
+      if (value === 'None') {
+        // Deselect all others
+        document.querySelectorAll('#symptomsRow .opt-btn').forEach(b => b.classList.remove('selected-soft'))
+        el.classList.add('selected-soft')
+        logData.symptoms = ['None']
+      } else {
+        // Deselect "None" if selecting a real symptom
+        const noneBtn = Array.from(document.querySelectorAll('#symptomsRow .opt-btn')).find(b => b.textContent.trim() === 'None')
+        if (noneBtn) noneBtn.classList.remove('selected-soft')
+        el.classList.toggle('selected-soft')
+        const selected = Array.from(document.querySelectorAll('#symptomsRow .selected-soft')).map(b => b.textContent.trim())
+        logData.symptoms = selected
+      }
+    }
+
+    window.toggleHormones = function (btn) {
+      const sec = document.getElementById('hormoneSection')
+      const chevron = document.getElementById('hormoneChevron')
+      const open = sec.style.display === 'none'
+      sec.style.display = open ? 'block' : 'none'
+      chevron.style.transform = open ? 'rotate(180deg)' : ''
     }
 
     window.goToDashboard = function () {
@@ -479,36 +628,71 @@
       setTimeout(goToDashboard, 2500)
     }
 
+    window.logPeriodStart = async function () {
+      const link = document.getElementById('periodStartLink')
+      link.textContent = 'Saving...'
+      link.style.pointerEvents = 'none'
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
+        const today = new Date().toISOString().split('T')[0]
+        const { data: existing } = await supabase
+          .from('cycle_data').select('id, cycle_length').eq('user_id', user.id)
+          .order('created_at', { ascending: false }).limit(1).single()
+        await supabase.from('cycle_data').upsert({
+          ...(existing?.id ? { id: existing.id } : {}),
+          user_id: user.id,
+          last_period_date: today,
+          cycle_length: existing?.cycle_length || 28
+        }, { onConflict: 'user_id' })
+        document.getElementById('flowSection').style.display = 'block'
+        document.getElementById('painSection').style.display = 'block'
+        document.getElementById('periodStartRow').style.display = 'none'
+        document.getElementById('phaseName').textContent = 'Menstrual'
+        document.getElementById('phaseTag').textContent = 'Day 1'
+      } catch (e) {
+        console.error('Period start error', e)
+        link.textContent = 'Period started today?'
+        link.style.pointerEvents = 'auto'
+      }
+    }
+
     async function loadPhase() {
       try {
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) return
 
-        const status = await getTodayStatus(supabase, user.id)
+        const [statusResult, profileResult] = await Promise.all([
+          getTodayStatus(supabase, user.id),
+          supabase.from('profiles').select('user_path').eq('id', user.id).single()
+        ])
+        const status = statusResult
         prevConfidence = status.confidence
 
         const today = new Date()
         const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
         document.getElementById('dayLabel').textContent = 'Today, ' + days[today.getDay()]
 
-        if (status.phase !== 'observation') {
+        const userPath = profileResult.data?.user_path
+        if (userPath === '4') {
+          document.getElementById('phaseName').textContent = 'Perimenopause tracking'
+          document.getElementById('phaseTag').textContent = 'Log your symptoms'
+          document.getElementById('path4Section').style.display = 'block'
+          document.getElementById('periodStartRow').style.display = 'none'
+          // Adapt ovulation-specific science notes — cervical fluid and LH still useful but framing changes
+          document.getElementById('cervicalFluidWhy').textContent = 'Cervical fluid reflects estrogen levels even in perimenopause. Egg white and watery fluid can signal an estrogen surge. Still worth tracking.'
+          document.getElementById('lhTestWhy').textContent = 'Ovulation becomes unpredictable in perimenopause. A positive LH test may still occur. Log it if you test.'
+        } else if (status.phase !== 'observation') {
           document.getElementById('phaseName').textContent = status.subPhase || status.phase
           document.getElementById('phaseTag').textContent = 'Day ' + status.cycleDay + ' of ' + status.cycleLen
         } else {
           document.getElementById('phaseName').textContent = 'Observation mode'
           document.getElementById('phaseTag').textContent = 'Building your baseline'
         }
-        // Show flow and pain sections during menstrual phase
-        if (status.phase === 'Menstrual' || (status.cycleDay && status.cycleDay <= 7)) {
+        // Show flow and pain sections during menstrual phase (non-path 4)
+        if (userPath !== '4' && (status.phase === 'Menstrual' || (status.cycleDay && status.cycleDay <= 7))) {
           document.getElementById('flowSection').style.display = 'block'
           document.getElementById('painSection').style.display = 'block'
-          // Auto-open detail section to show these
-          const detailSec = document.getElementById('detailSection')
-          const detailBtn = document.getElementById('detailToggle')
-          if (!detailSec.classList.contains('open')) {
-            detailSec.classList.add('open')
-            detailBtn.textContent = '- Less detail'
-          }
         }
       } catch (e) {
         console.error(e)
@@ -534,7 +718,10 @@
         workout_feel: logData.workout_feel,
         mood: logData.mood,
         sleep_quality: logData.sleep_quality,
-        resting_hr: logData.resting_hr,
+        resting_hr: logData.resting_hr_exact
+          ? String(logData.resting_hr_exact)
+          : logData.resting_hr,
+        resting_hr_exact: logData.resting_hr_exact,
         disruptors: logData.disruptors,
         wrist_temp: logData.wrist_temp,
         hormone_estradiol: logData.hormone_estradiol,
@@ -542,7 +729,12 @@
         hormone_lh: logData.hormone_lh,
         hormone_cortisol: logData.hormone_cortisol,
         flow_volume: logData.flow_volume,
-        pain_rating: logData.pain_rating
+        pain_rating: logData.pain_rating,
+        hot_flash_count: logData.hot_flash_count,
+        night_sweats_severity: logData.night_sweats_severity,
+        joint_pain_rating: logData.joint_pain_rating,
+        joint_pain_location: logData.joint_pain_location.length ? logData.joint_pain_location : null,
+        brain_fog_rating: logData.brain_fog_rating
       }
 
       try {
@@ -557,7 +749,7 @@
         }
       } catch (e) {
         console.error('Save error', e)
-        const btn = document.getElementById('saveBtn')
+        const btn = document.querySelector('.next-btn')
         if (btn) { btn.disabled = false; btn.textContent = 'Save failed. Tap to retry.' }
         return
       }
@@ -577,6 +769,27 @@
 
     loadPhase()
   </script>
+<script>
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js')
+  ;(function () {
+    var isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent)
+    var isStandalone = window.navigator.standalone === true
+    if (!isIOS || isStandalone || localStorage.getItem('pwa-prompt-dismissed')) return
+    var b = document.createElement('div')
+    b.style.cssText = 'position:fixed;bottom:80px;left:16px;right:16px;background:#2c2820;color:#faf8f5;font-size:13px;padding:12px 14px;border-radius:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.18)'
+    var msg = document.createElement('span')
+    msg.style.lineHeight = '1.4'
+    msg.textContent = 'Add Em~power to your home screen for the full experience'
+    var x = document.createElement('button')
+    x.textContent = '\u2715'
+    x.setAttribute('aria-label', 'Dismiss')
+    x.style.cssText = 'background:none;border:none;color:#faf8f5;font-size:18px;cursor:pointer;flex-shrink:0;padding:0 2px;line-height:1'
+    x.onclick = function () { b.remove(); localStorage.setItem('pwa-prompt-dismissed', '1') }
+    b.appendChild(msg)
+    b.appendChild(x)
+    document.body.appendChild(b)
+  })()
+</script>
 </body>
 
 </html>

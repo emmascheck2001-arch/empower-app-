@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>HormoneSync — Login</title>
+  <title>Em~power — Login</title>
   <style>
     * {
       margin: 0;
@@ -162,11 +162,16 @@
       gap: 10px;
     }
   </style>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Em~power">
+  <meta name="theme-color" content="#2c2820">
 </head>
 
 <body>
   <div class="card">
-    <div class="logo">HormoneSync</div>
+    <div class="logo">Em~power</div>
     <h1>Welcome.</h1>
     <p class="sub">Sign in or create an account to start tracking.</p>
 
@@ -306,6 +311,27 @@
       btn.disabled = false; btn.textContent = 'Create account'
     }
   </script>
+<script>
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js')
+  ;(function () {
+    var isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent)
+    var isStandalone = window.navigator.standalone === true
+    if (!isIOS || isStandalone || localStorage.getItem('pwa-prompt-dismissed')) return
+    var b = document.createElement('div')
+    b.style.cssText = 'position:fixed;bottom:80px;left:16px;right:16px;background:#2c2820;color:#faf8f5;font-size:13px;padding:12px 14px;border-radius:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.18)'
+    var msg = document.createElement('span')
+    msg.style.lineHeight = '1.4'
+    msg.textContent = 'Add Em~power to your home screen for the full experience'
+    var x = document.createElement('button')
+    x.textContent = '\u2715'
+    x.setAttribute('aria-label', 'Dismiss')
+    x.style.cssText = 'background:none;border:none;color:#faf8f5;font-size:18px;cursor:pointer;flex-shrink:0;padding:0 2px;line-height:1'
+    x.onclick = function () { b.remove(); localStorage.setItem('pwa-prompt-dismissed', '1') }
+    b.appendChild(msg)
+    b.appendChild(x)
+    document.body.appendChild(b)
+  })()
+</script>
 </body>
 
 </html>

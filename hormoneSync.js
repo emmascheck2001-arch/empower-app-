@@ -19,6 +19,22 @@ export function getLutealSubPhase(cycleDay, cycleLen) {
   return 'Late luteal'
 }
 
+// Source: CLAUDE.md canonical period prediction — export so all screens use same logic
+export const predictNextPeriod = (lastPeriodDate, avgCycleLength, cyclesTracked) => {
+  const lastPeriod = new Date(lastPeriodDate + 'T00:00:00')
+  const predictedDate = new Date(lastPeriod)
+  predictedDate.setDate(predictedDate.getDate() + Math.round(avgCycleLength))
+  const windowStart = new Date(predictedDate)
+  windowStart.setDate(windowStart.getDate() - 2)
+  const windowEnd = new Date(predictedDate)
+  windowEnd.setDate(windowEnd.getDate() + 2)
+  const confidence = cyclesTracked >= 3 ? 'high'
+    : cyclesTracked === 2 ? 'moderate'
+    : cyclesTracked === 1 ? 'low'
+    : 'none'
+  return { predictedDate, windowStart, windowEnd, confidence }
+}
+
 function getFollicularSubPhase(cycleDay) {
   // Early follicular: days 6-9, late follicular: day 10+
   return cycleDay <= 9 ? 'Early follicular' : 'Late follicular'
@@ -37,6 +53,7 @@ export function getIntensityModifier(phase, subPhase) {
     if (subPhase === 'Mid luteal') return 0.82
     return 0.72
   }
+  if (phase === 'Perimenopause') return 0.82 // moderate — train to how you feel, symptom-driven
   return 0.72 // observation — mirrors menstrual/low-estrogen environment
 }
 
@@ -57,7 +74,8 @@ export function getNutritionTargets(phase, bodyWeight) {
     Follicular:   { multiplier: 1.7, extra: 0,   headline: 'Build phase. Fuel hard training.', keyFoods: ['Eggs', 'Chicken', 'Oats', 'Whole grains', 'Leafy greens'], avoid: null, source: 'ISSN 2023. Estrogen improves carbohydrate metabolism in the follicular phase.' },
     Ovulatory:    { multiplier: 1.8, extra: 0,   headline: 'Peak output needs peak fuel.', keyFoods: ['Beef', 'Chickpeas', 'Berries', 'Dark leafy greens', 'Salmon'], avoid: null, source: 'ISSN 2023; Larivière et al. 2006. Zinc supports the LH surge.' },
     Luteal:       { multiplier: 2.0, extra: 250, headline: 'Your body needs more today. That is biology.', keyFoods: ['Sweet potato', 'Oats', 'Dark chocolate', 'Salmon', 'Eggs', 'Pumpkin seeds'], avoid: 'Avoid alcohol and high-sugar processed foods which worsen luteal phase inflammation.', source: 'ISSN 2023. Luteal phase protein 1.8 to 2.2g per kg due to progesterone catabolism. Add 200 to 300 kcal above follicular phase intake.' },
-    observation:  { multiplier: 1.6, extra: 0,   headline: 'Consistent nutrition builds your baseline', keyFoods: ['Protein source each meal', 'Complex carbohydrates', 'Healthy fats', 'Leafy greens'], avoid: null, source: null }
+    observation:  { multiplier: 1.6, extra: 0,   headline: 'Consistent nutrition builds your baseline', keyFoods: ['Protein source each meal', 'Complex carbohydrates', 'Healthy fats', 'Leafy greens'], avoid: null, source: null },
+    Perimenopause: { multiplier: 1.8, extra: 0, headline: 'Protein first. Bone protection second.', keyFoods: ['Salmon', 'Chicken', 'Eggs', 'Sardines', 'Dark leafy greens', 'Almonds'], avoid: 'Limit alcohol — worsens hot flashes, disrupts sleep, and increases breast cancer risk. Limit ultra-processed foods which worsen insulin resistance.', source: 'ISSN 2023. Protein 1.6 to 2.0g per kg for women in hormonal transition. Kohrt et al. MSSE 2004 for calcium and vitamin D in bone protection.' }
   }
   const t = targets[phase] || targets.observation
   return {
@@ -120,6 +138,19 @@ function detectAnomalies(recentLogs, phase, cycleLen, flagStats) {
 
   const latest = recentLogs[0]
   if (!latest) return anomalies
+
+  // Path 4 perimenopause: skip cycle-based anomaly detection entirely, run peri-specific checks
+  if (flagStats?.userPath === '4') {
+    const lowEnergyDays = recentLogs.filter(l => l.energy === 'Very low' || l.energy === 'Low').length
+    if (recentLogs.length >= 5 && lowEnergyDays >= 4) {
+      anomalies.push({ type: 'peri_fatigue', text: 'You have logged low energy for most of the past week. Persistent fatigue is one of the most common perimenopause symptoms. It is worth ruling out anaemia, thyroid function, and vitamin D deficiency with your doctor if this has been ongoing. (Harlow et al. Climacteric 2012)' })
+    }
+    const poorSleepDays = recentLogs.filter(l => l.sleep_quality === 'Poor').length
+    if (recentLogs.length >= 5 && poorSleepDays >= 3) {
+      anomalies.push({ type: 'peri_sleep', text: 'Sleep quality has been poor over several nights this week. Disrupted sleep in perimenopause is often driven by night sweats and progesterone decline. Keeping your room cool, reducing alcohol, and regular exercise all have evidence behind them. If it is persistent please discuss with a doctor. (Harlow et al. 2012; Freeman et al. 2004)' })
+    }
+    return anomalies
+  }
 
   // pattern_observation threshold required for most anomaly observations
   const canObserve = checkFlag('pattern_observation', flagStats)
@@ -346,6 +377,44 @@ export async function getTodayStatus(supabase, userId) {
   const mucusLogs = mucusResult.data || []
 
   const today = new Date(); today.setHours(0, 0, 0, 0)
+
+  // Path 4: perimenopause/menopause — skip all cycle phase calculations
+  // Cycle data may exist from before they chose Path 4 but must not drive phase logic
+  if (profile?.user_path === '4') {
+    const stage = profile?.bc_type || 'peri-early'
+    const subPhasePeri = stage === 'menopause' ? 'Postmenopause'
+      : stage === 'peri-late' ? 'Late perimenopause' : 'Early perimenopause'
+    const periConfidence = Math.min(0.75, 0.30 + (recentLogs.length * 0.05))
+    const bodyWeightPeri = profile?.body_weight_kg || 65
+    const periAnomalies = detectAnomalies(recentLogs, 'Perimenopause', null, {
+      daysLogged: recentLogs.length,
+      confidence: periConfidence,
+      cyclesTracked: 0,
+      userPath: '4',
+      bcType: profile?.bc_type
+    })
+    return {
+      phase: 'Perimenopause',
+      subPhase: subPhasePeri,
+      cycleDay: null,
+      cycleLen: null,
+      daysUntilPeriod: null,
+      confidence: periConfidence,
+      confidenceLabel: periConfidence > 0.55 ? 'Your symptom pattern is becoming clear'
+        : 'Building your perimenopause baseline',
+      confidencePct: Math.round(periConfidence * 100),
+      intensityModifier: getIntensityModifier('Perimenopause', null),
+      intensityLabel: 'Train to how you feel — listen to your body above all else.',
+      nutritionTargets: getNutritionTargets('Perimenopause', bodyWeightPeri),
+      immediateFeedback: getImmediateFeedback(recentLogs[0], 'Perimenopause', subPhasePeri, periConfidence),
+      anomalies: periAnomalies,
+      predictions: [],
+      symptomInference: null,
+      moodInsight: interpretMoodSignal(recentLogs[0], recentLogs, 'Perimenopause', subPhasePeri).insight,
+      bodyWeight: bodyWeightPeri,
+      profile: profile || {}
+    }
+  }
 
   let phase = 'observation'
   let subPhase = null

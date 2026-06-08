@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>HormoneSync — Morning Check-in</title>
+  <title>Em~power — Morning Check-in</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -93,6 +93,11 @@
     .feedback-conf { font-size: 13px; font-weight: 500; color: #c8a87a; margin-bottom: 16px; }
     .feedback-tap { font-size: 12px; color: #9a9590; text-align: center; }
   </style>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Em~power">
+  <meta name="theme-color" content="#2c2820">
 </head>
 
 <body>
@@ -234,6 +239,13 @@
         document.getElementById('todayLabel').textContent = dayLabel
         document.getElementById('phaseName').textContent = todayStatus.subPhase || todayStatus.phase || 'Observation mode'
         document.getElementById('phaseTag').textContent = todayStatus.cycleDay ? `Day ${todayStatus.cycleDay}` : 'Building baseline'
+        // Adapt science notes for Path 4 — cervical fluid still tracked but framing changes
+        if (todayStatus.profile?.user_path === '4') {
+          const mucusWhy = document.querySelector('#mucusRow')?.closest('.section')?.querySelector('.section-why')
+          if (mucusWhy) mucusWhy.textContent = 'Cervical fluid reflects estrogen levels even in perimenopause. Egg white and watery fluid can indicate estrogen surges.'
+          const sleepWhy = document.querySelector('#sleepRow')?.closest('.section')?.querySelector('.section-why')
+          if (sleepWhy) sleepWhy.textContent = 'Sleep disruption is one of the most common perimenopause symptoms. Tracking it helps identify patterns. (Freeman et al. Archives of General Psychiatry 2004)'
+        }
       }
     } finally {
       document.getElementById('spinnerWrap').style.display = 'none'
@@ -336,6 +348,27 @@
       window.location.href = 'dashboard.html'
     }
   </script>
+<script>
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js')
+  ;(function () {
+    var isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent)
+    var isStandalone = window.navigator.standalone === true
+    if (!isIOS || isStandalone || localStorage.getItem('pwa-prompt-dismissed')) return
+    var b = document.createElement('div')
+    b.style.cssText = 'position:fixed;bottom:80px;left:16px;right:16px;background:#2c2820;color:#faf8f5;font-size:13px;padding:12px 14px;border-radius:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.18)'
+    var msg = document.createElement('span')
+    msg.style.lineHeight = '1.4'
+    msg.textContent = 'Add Em~power to your home screen for the full experience'
+    var x = document.createElement('button')
+    x.textContent = '\u2715'
+    x.setAttribute('aria-label', 'Dismiss')
+    x.style.cssText = 'background:none;border:none;color:#faf8f5;font-size:18px;cursor:pointer;flex-shrink:0;padding:0 2px;line-height:1'
+    x.onclick = function () { b.remove(); localStorage.setItem('pwa-prompt-dismissed', '1') }
+    b.appendChild(msg)
+    b.appendChild(x)
+    document.body.appendChild(b)
+  })()
+</script>
 </body>
 
 </html>

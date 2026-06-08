@@ -155,7 +155,7 @@ export const PHASE_PREDICTIONS = {
     brain_state: 'Serotonin dropping',
     intensity: 0.82,
     why: 'Estrogen is declining and serotonin stability is reducing with it. Progesterone is at its peak which continues the GABA-calming effect, but dropping estrogen means less serotonin support. This creates a mixed neurochemical environment — some calming from progesterone, less mood stability from falling serotonin. The mildly unpredictable mood that characterises mid-luteal has this specific chemical cause. Source: Backstrom et al. 2008. Osborn et al. 2025.',
-    training: 'Perceived effort will feel higher at the same load. This is physiological — resting heart rate rises about 1.7 bpm in this phase (De Martin Topranin 2023). Adjust expectations, not effort.',
+    training: 'Perceived effort may feel higher at the same load. This is physiological — resting heart rate rises about 1.7 bpm in this phase (De Martin Topranin 2023). Adjust expectations, not effort.',
     nutrition: 'Energy intake naturally increases by 200 to 300 kcal in this phase (ISSN 2023). This is biological — not a failure of willpower. Honour it with nutrient-dense food.'
   },
   'Late luteal': {
@@ -171,7 +171,7 @@ export const PHASE_PREDICTIONS = {
     brain_state: 'Serotonin dropping',
     intensity: 0.82,
     why: 'Progesterone is rising and estrogen is beginning to decline. This combination — progesterone calming the GABA system while serotonin support starts to reduce — creates the mixed neurochemical environment of the luteal phase. Source: Backstrom et al. 2008.',
-    training: 'Moderate intensity. Perceived effort will feel higher at the same load as resting heart rate elevates slightly.',
+    training: 'Moderate intensity. Perceived effort may feel higher at the same load as resting heart rate elevates slightly.',
     nutrition: 'Protein needs are higher in the luteal phase due to progesterone-driven catabolism (ISSN 2023). Eat at the higher end of your protein range and add 200 to 300 extra calories from whole foods.'
   },
   Follicular: {
@@ -189,6 +189,14 @@ export const PHASE_PREDICTIONS = {
     why: 'Without a confirmed cycle the low-estrogen environment of Depo recovery or hypothalamic amenorrhea means reduced serotonin and dopamine support. The brain chemistry in this state is similar to the menstrual phase — the mood effects of low estrogen are present without the cyclical relief of a returning follicular phase. This is temporary. When your cycle returns your neurochemistry will cycle with it. Source: Sims ST. ROAR 2024.',
     training: 'Low to moderate intensity. Prioritise recovery. Resistance training actively supports hormonal recovery in this phase.',
     nutrition: 'Consistent, adequate nutrition is the foundation. Do not under-eat. Your body is working to restore hormonal function and needs consistent energy and protein.'
+  },
+  Perimenopause: {
+    label: 'Perimenopause',
+    brain_state: 'Fluctuating estrogen',
+    intensity: 0.82,
+    why: 'Estrogen is no longer cycling predictably. Estrogen directly drives serotonin production and receptor sensitivity — when estrogen fluctuates unpredictably, so does the neurochemistry that depends on it. Hot flashes, sleep disruption, brain fog, and mood changes are neurological effects of estrogen variability, not just hormonal inconvenience. The days that feel harder have a measurable chemical cause. Source: Osborn et al. Frontiers in Pharmacology 2025. Backstrom et al. Archives of Women\'s Mental Health 2008.',
+    training: 'Train to how you feel. Strength training 2 to 3 times per week is the single most protective thing you can do for bone density, muscle mass, and insulin sensitivity through this transition. Every resistance session stimulates bone formation. (Kohrt et al. MSSE 2004)',
+    nutrition: 'Protein 1.8g per kg per day supports muscle maintenance as anabolic signalling declines. Calcium and vitamin D every day for bone protection. Limit alcohol — it worsens hot flashes and disrupts sleep independently. Source: ISSN 2023; Kohrt et al. 2004.'
   }
 }
 
@@ -329,9 +337,33 @@ export function getMoodContextFeedback(latestLog, phase, subPhase) {
   const energy = latestLog.energy
   const effectivePhase = subPhase || phase
 
-  const isLateLuteal = effectivePhase === 'Late luteal' || effectivePhase === 'Mid luteal'
   const isLow = ['Irritable', 'Anxious', 'Low', 'Overwhelmed'].some(m => mood.includes(m))
   const isVeryLow = energy === 'Very low' || energy === 'Low'
+  const isHighEnergy = ['Energised', 'Energetic', 'Happy', 'Motivated'].some(m => mood.includes(m))
+
+  // Perimenopause: estrogen variability drives mood, not cycle phases
+  const isPeri = phase === 'Perimenopause'
+  if (isPeri) {
+    if (isLow || isVeryLow) {
+      return {
+        type: 'mood_context',
+        icon: 'brain',
+        headline: 'This is estrogen variability, not you',
+        body: 'The irritability, anxiety, or low mood you are feeling right now has a direct neurological cause. Estrogen drives serotonin production and receptor sensitivity. When estrogen fluctuates unpredictably in perimenopause, serotonin stability goes with it. This is a measurable neurochemical effect of estrogen variability — not anxiety, not weakness, not ageing. It has a biological explanation and there are effective approaches. Source: Osborn et al. Frontiers in Pharmacology 2025. Backstrom et al. 2008.'
+      }
+    }
+    if (isHighEnergy) {
+      return {
+        type: 'mood_context',
+        icon: 'brain',
+        headline: 'Estrogen surge — make the most of it',
+        body: 'Good mood and high energy in perimenopause often signal an estrogen surge. Estrogen drives dopamine and serotonin — when it peaks, mood, motivation, and mental clarity peak with it. These windows are worth planning around for training and demanding work. Source: Backstrom et al. Archives of Women\'s Mental Health 2008.'
+      }
+    }
+    return null
+  }
+
+  const isLateLuteal = effectivePhase === 'Late luteal' || effectivePhase === 'Mid luteal'
 
   if (isLateLuteal && isLow && isVeryLow) {
     return {
@@ -342,7 +374,6 @@ export function getMoodContextFeedback(latestLog, phase, subPhase) {
     }
   }
 
-  const isHighEnergy = ['Energised', 'Energetic', 'Happy', 'Motivated'].some(m => mood.includes(m))
   const isPositivePhase = phase === 'Follicular' || phase === 'Ovulatory'
 
   if (isHighEnergy && isPositivePhase) {

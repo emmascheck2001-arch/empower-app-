@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Nutrition — HormoneSync</title>
+  <title>Nutrition — Em~power</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css" />
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -65,6 +65,7 @@
     .phase-banner.ovulatory  { background: linear-gradient(135deg, #2c3035 0%, #1f252c 100%); }
     .phase-banner.luteal     { background: linear-gradient(135deg, #352c20 0%, #2c2415 100%); }
     .phase-banner.observation{ background: linear-gradient(135deg, #2c2820 0%, #1f1e18 100%); }
+    .phase-banner.perimenopause { background: linear-gradient(135deg, #2c2030 0%, #1f1828 100%); }
     .banner-label {
       font-size: 10px; font-weight: 600; letter-spacing: 0.1em;
       text-transform: uppercase; color: #8a8078; margin-bottom: 6px;
@@ -242,6 +243,11 @@
     .nav-item.active i,
     .nav-item.active span { color: #2c2820; }
   </style>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Em~power">
+  <meta name="theme-color" content="#2c2820">
 </head>
 
 <body>
@@ -729,14 +735,38 @@
           { text: 'Alcohol', reason: 'disrupts hormonal signalling across all phases' },
           { text: 'Very low fat diets', reason: 'sex hormones are synthesized from cholesterol; dietary fat is required for hormonal health' }
         ]
+      },
+      Perimenopause: {
+        bannerClass: 'perimenopause',
+        desc: 'Declining estrogen changes how your body uses protein, stores fat, and absorbs calcium. Targeted nutrition now directly supports your muscle mass, bone density, metabolic health, and mood through this transition.',
+        science: 'Protein targets: ISSN 2023 position stand. Calcium and vitamin D: Kohrt WM et al. MSSE 2004. Phytoestrogens: Messina M et al. Nutrients 2021. Omega-3: Mozaffarian D et al. JAMA 2006.',
+        sectionLabel: 'Priority nutrients for perimenopause',
+        foods: [
+          { icon: '&#x1F969;', name: 'Protein 1.6 to 2.0g per kg bodyweight daily', why: 'Declining estrogen reduces anabolic signalling. Higher protein intake preserves muscle mass, supports metabolism, and improves body composition through perimenopause', source: 'ISSN 2023 position stand; Bea JW et al. Menopause 2010' },
+          { icon: '&#x1F9C0;', name: 'Calcium 1000mg daily (dairy, sardines, almonds, leafy greens)', why: 'Estrogen actively protects bone. As estrogen declines, calcium intake becomes the primary dietary bone protection strategy. Split across two meals for absorption', source: 'Kohrt WM et al. MSSE 2004; NIH Calcium fact sheet 2022' },
+          { icon: '&#x2600;&#xFE0F;', name: 'Vitamin D 800 to 1000 IU daily', why: 'Required for calcium absorption. Deficiency is common in women over 40 and directly worsens bone loss risk. Many women need a supplement', source: 'Kohrt WM et al. MSSE 2004; Endocrine Society Vitamin D guidelines 2011' },
+          { icon: '&#x1F33F;', name: 'Phytoestrogens (edamame, tofu, flaxseed, tempeh)', why: 'Isoflavones in soy bind weakly to estrogen receptors and may reduce hot flash frequency and intensity in some women. Effect varies by individual gut microbiome', source: 'Messina M et al. Nutrients 2021; Lethaby A et al. Cochrane 2007' },
+          { icon: '&#x1F41F;', name: 'Fatty fish 2 to 3x weekly', why: 'EPA and DHA omega-3s reduce systemic inflammation, support brain health, and may reduce cardiovascular risk as estrogen protection declines after menopause', source: 'Mozaffarian D et al. JAMA 2006; AHA dietary guidelines 2021' },
+          { icon: '&#x1F330;', name: 'Magnesium 300 to 400mg daily (dark chocolate, pumpkin seeds, spinach)', why: 'Supports sleep quality, mood regulation, and muscle function. Magnesium deficiency is associated with worse hot flash severity and insomnia in perimenopause', source: 'Abbasi B et al. J Res Med Sci 2012; Facchinetti F et al. 1991' }
+        ],
+        avoid: [
+          { text: 'Excess caffeine', reason: 'can worsen hot flashes and increase urinary calcium excretion -- two cups maximum daily' },
+          { text: 'Excess alcohol', reason: 'worsens sleep quality, hot flashes, and mood instability; increases breast cancer risk even at moderate intake' },
+          { text: 'Ultra-processed foods', reason: 'drive insulin resistance, which worsens metabolic changes already accelerated by declining estrogen' },
+          { text: 'High sodium', reason: 'increases calcium excretion in urine, worsening bone loss risk when estrogen is no longer protecting bone' }
+        ]
       }
     }
 
     try {
       const { data: { user } } = await supabase.auth.getUser()
-      const status = await getTodayStatus(supabase, user.id)
+      const [status, profileResult] = await Promise.all([
+        getTodayStatus(supabase, user.id),
+        supabase.from('profiles').select('user_path').eq('id', user.id).single()
+      ])
 
-      const phase = status.phase || 'Observation'
+      const isPath4 = profileResult.data?.user_path === '4'
+      const phase = isPath4 ? 'Perimenopause' : (status.phase || 'Observation')
       const data = PHASE_DATA[phase] || PHASE_DATA.Observation
 
       // Profile stats bar
@@ -759,10 +789,11 @@
       }
 
       // Phase chip and banner
-      document.getElementById('topPhaseChip').textContent = status.subPhase || phase
+      const phaseLabel = isPath4 ? 'Perimenopause' : (status.subPhase || phase)
+      document.getElementById('topPhaseChip').textContent = phaseLabel
       const banner = document.getElementById('phaseBanner')
       banner.className = 'phase-banner ' + data.bannerClass
-      document.getElementById('bannerPhase').textContent = status.subPhase || phase
+      document.getElementById('bannerPhase').textContent = phaseLabel
       document.getElementById('bannerDesc').textContent = data.desc
       document.getElementById('bannerScience').textContent = data.science
 
@@ -773,7 +804,8 @@
         document.getElementById('targetCalsNum').textContent = nt.extraCalories || '--'
         document.getElementById('targetProteinNote').textContent = nt.headline || ''
         const weightNote = bw ? ' Based on your ' + bw + ' kg.' : ''
-        document.getElementById('targetCalsNote').textContent = (phase === 'Luteal' ? 'Natural luteal increase.' : 'Baseline phase.') + weightNote
+        const calsLabel = isPath4 ? 'Perimenopause baseline.' : (phase === 'Luteal' ? 'Natural luteal increase.' : 'Baseline phase.')
+        document.getElementById('targetCalsNote').textContent = calsLabel + weightNote
         document.getElementById('targetsSource').textContent = nt.source || 'Source: ISSN 2023 position stand'
       }
 
@@ -819,5 +851,26 @@
       card.classList.toggle('open')
     }
   </script>
+<script>
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js')
+  ;(function () {
+    var isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent)
+    var isStandalone = window.navigator.standalone === true
+    if (!isIOS || isStandalone || localStorage.getItem('pwa-prompt-dismissed')) return
+    var b = document.createElement('div')
+    b.style.cssText = 'position:fixed;bottom:80px;left:16px;right:16px;background:#2c2820;color:#faf8f5;font-size:13px;padding:12px 14px;border-radius:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.18)'
+    var msg = document.createElement('span')
+    msg.style.lineHeight = '1.4'
+    msg.textContent = 'Add Em~power to your home screen for the full experience'
+    var x = document.createElement('button')
+    x.textContent = '\u2715'
+    x.setAttribute('aria-label', 'Dismiss')
+    x.style.cssText = 'background:none;border:none;color:#faf8f5;font-size:18px;cursor:pointer;flex-shrink:0;padding:0 2px;line-height:1'
+    x.onclick = function () { b.remove(); localStorage.setItem('pwa-prompt-dismissed', '1') }
+    b.appendChild(msg)
+    b.appendChild(x)
+    document.body.appendChild(b)
+  })()
+</script>
 </body>
 </html>
