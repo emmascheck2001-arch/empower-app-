@@ -127,6 +127,11 @@
             color: #8a4a6a;
         }
 
+        .path-icon.p5 {
+            background: #e8f0f5;
+            color: #2a5a7a;
+        }
+
         .path-right {
             flex: 1;
         }
@@ -519,6 +524,8 @@
         }
     </style>
   <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="icon" href="/icon-192.png" type="image/png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Em~power">
@@ -579,6 +586,14 @@
                 <div class="path-right">
                     <div class="path-name">I am in perimenopause or menopause</div>
                     <div class="path-desc">My cycles are changing significantly or have stopped</div>
+                </div>
+            </div>
+
+            <div class="path-option" onclick="selectPath(5, event)">
+                <div class="path-icon p5"><i class="ti ti-pill"></i></div>
+                <div class="path-right">
+                    <div class="path-name">I am currently on birth control</div>
+                    <div class="path-desc">I use hormonal contraception and want to track how I feel</div>
                 </div>
             </div>
         </div>
@@ -814,6 +829,47 @@
         </div>
     </div>
 
+        <!-- Path 5 -->
+        <div class="form-panel" id="panel5">
+            <div class="info-box blue">
+                <div class="info-box-label">You can still get a lot from this app</div>
+                <div class="info-box-text">Hormonal birth control suppresses your natural cycle, but your body still sends daily signals about energy, mood, sleep quality, and workout performance. Em~power tracks these and builds your personal patterns over time.</div>
+                <div class="info-box-text" style="margin-top:8px">When you stop birth control in the future, your data is already here and your baseline is already built.</div>
+            </div>
+            <div class="field">
+                <label class="field-label">Which method are you on?</label>
+                <p class="field-why">This helps us understand what signals to look for and what to expect from your body.</p>
+                <div id="bcTypeRowCurrent" style="display:flex;flex-direction:column;gap:8px">
+                    <div class="preset-btn" style="text-align:left;border-radius:10px;padding:11px 14px"
+                        onclick="selectBCCurrent(this, 'pill')">Combined pill (estrogen and progestin)</div>
+                    <div class="preset-btn" style="text-align:left;border-radius:10px;padding:11px 14px"
+                        onclick="selectBCCurrent(this, 'minipill')">Mini pill (progestin only)</div>
+                    <div class="preset-btn" style="text-align:left;border-radius:10px;padding:11px 14px"
+                        onclick="selectBCCurrent(this, 'patch')">Patch</div>
+                    <div class="preset-btn" style="text-align:left;border-radius:10px;padding:11px 14px"
+                        onclick="selectBCCurrent(this, 'ring')">Vaginal ring</div>
+                    <div class="preset-btn" style="text-align:left;border-radius:10px;padding:11px 14px"
+                        onclick="selectBCCurrent(this, 'hormonal-iud')">Hormonal IUD (Mirena, Kyleena)</div>
+                    <div class="preset-btn" style="text-align:left;border-radius:10px;padding:11px 14px"
+                        onclick="selectBCCurrent(this, 'copper-iud')">Copper IUD (non-hormonal)</div>
+                    <div class="preset-btn" style="text-align:left;border-radius:10px;padding:11px 14px"
+                        onclick="selectBCCurrent(this, 'implant')">Implant (Nexplanon)</div>
+                    <div class="preset-btn" style="text-align:left;border-radius:10px;padding:11px 14px"
+                        onclick="selectBCCurrent(this, 'depo')">Depo-Provera injection</div>
+                    <div class="preset-btn" style="text-align:left;border-radius:10px;padding:11px 14px"
+                        onclick="selectBCCurrent(this, 'unsure')">Not sure or prefer not to say</div>
+                </div>
+            </div>
+            <div class="info-box warm">
+                <div class="info-box-label">What Em~power tracks for you</div>
+                <div class="info-box-text">Energy, mood, sleep, workout performance, symptoms, and stress signals. Over time Em~power learns what your normal looks like so any changes stand out.</div>
+            </div>
+            <div class="info-box" style="border-color:#ede8e0;background:#fafaf8">
+                <div class="info-box-label">A note on the copper IUD</div>
+                <div class="info-box-text">If you chose copper IUD, your natural cycle is not suppressed. We will set you up in cycle tracking mode instead. Your period date may be helpful to enter if you know it.</div>
+            </div>
+        </div>
+
     </div><!-- /setupContent -->
 
     <div class="next-bar" id="setupNextBar" style="display:none">
@@ -906,13 +962,14 @@
             if (!session) { window.location.href = 'login.html'; return }
         })
 
-        // Guard: redirect if already set up; show content once confirmed new user
+        // Guard: redirect if already set up, unless ?change=1 is in the URL
+        const allowChange = new URLSearchParams(window.location.search).get('change') === '1'
         ;(async () => {
             try {
                 const { data: { user } } = await supabase.auth.getUser()
                 if (!user) { window.location.href = 'login.html'; return }
                 const { data: profile } = await supabase.from('profiles').select('user_path, onboarding_complete').eq('id', user.id).single()
-                if (profile?.user_path && profile?.onboarding_complete) { window.location.href = 'dashboard.html'; return }
+                if (profile?.user_path && profile?.onboarding_complete && !allowChange) { window.location.href = 'dashboard.html'; return }
             } catch (e) {
                 console.error('Setup guard error:', e)
             }
@@ -941,6 +998,9 @@
             if (n === 1) {
                 btn.disabled = true
                 btn.textContent = 'Enter your last period date to continue'
+            } else if (n === 5) {
+                btn.disabled = true
+                btn.textContent = 'Select your method to continue'
             } else {
                 btn.disabled = false
                 btn.textContent = getButtonText(n)
@@ -951,6 +1011,7 @@
             if (n === 2) return 'Start in observation mode'
             if (n === 3) return 'Start with symptom tracking'
             if (n === 4) return 'Start in menopause mode'
+            if (n === 5) return 'Start tracking'
             return 'Continue'
         }
 
@@ -1021,6 +1082,15 @@
             selections.bcType = type
         }
 
+        window.selectBCCurrent = function (el, type) {
+            document.querySelectorAll('#bcTypeRowCurrent .preset-btn').forEach(b => b.classList.remove('selected'))
+            el.classList.add('selected')
+            selections.bcTypeCurrent = type
+            const btn = document.getElementById('nextBtn')
+            btn.disabled = false
+            btn.textContent = 'Start tracking'
+        }
+
         let weightUnit = 'kg'
         let heightUnit = 'cm'
         let selectedFitness = null
@@ -1059,7 +1129,8 @@
                 const { data: { user } } = await supabase.auth.getUser()
                 if (!user) { window.location.href = 'login.html'; return }
 
-                const cycleLen = parseInt(document.getElementById('cycleLength')?.value) || 28
+                const rawCycleLen = parseInt(document.getElementById('cycleLength')?.value) || 28
+                const cycleLen = Math.min(45, Math.max(21, rawCycleLen))
                 const lastPeriodDate = document.getElementById('lastPeriod')?.value || null
                 const lastPeriodIrreg = document.getElementById('lastPeriodIrreg')?.value || null
 
@@ -1085,16 +1156,18 @@
                 if (heightCm) localStorage.setItem('hsync_height_cm', String(heightCm))
                 if (bodyWeightKg) localStorage.setItem('hsync_weight_kg', String(bodyWeightKg))
 
-                // For Path 4, store menopause stage in bc_type field
+                // For Path 4, store menopause stage in bc_type field; Path 5 stores current BC type
                 const bcTypeValue = currentPath === 4
                     ? (selections.menopauseStage || null)
-                    : (selections.bcType || null)
+                    : currentPath === 5
+                        ? (selections.bcTypeCurrent || null)
+                        : (selections.bcType || null)
 
                 if (currentPath === 4 && periSelectedSymptoms.length > 0) {
                     localStorage.setItem('peri_symptoms', JSON.stringify(periSelectedSymptoms))
                 }
 
-                await supabase.from('profiles').update({
+                const { error: profileErr } = await supabase.from('profiles').update({
                     user_path: String(currentPath),
                     bc_type: bcTypeValue,
                     cycle_length: cycleLen,
@@ -1102,13 +1175,15 @@
                     body_weight_kg: bodyWeightKg,
                     fitness_level: skip ? null : (selectedFitness || null)
                 }).eq('id', user.id)
+                if (profileErr) throw profileErr
 
                 if (lastPeriodDate || lastPeriodIrreg) {
-                    await supabase.from('cycle_data').insert({
+                    const { error: cycleErr } = await supabase.from('cycle_data').insert({
                         user_id: user.id,
                         last_period_date: lastPeriodDate || lastPeriodIrreg,
                         cycle_length: cycleLen
                     })
+                    if (cycleErr) throw cycleErr
                 }
 
                 window.location.href = 'dashboard.html'
@@ -1121,24 +1196,10 @@
     </script>
 <script>
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js')
-  ;(function () {
-    var isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent)
-    var isStandalone = window.navigator.standalone === true
-    if (!isIOS || isStandalone || localStorage.getItem('pwa-prompt-dismissed')) return
-    var b = document.createElement('div')
-    b.style.cssText = 'position:fixed;bottom:80px;left:16px;right:16px;background:#2c2820;color:#faf8f5;font-size:13px;padding:12px 14px;border-radius:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.18)'
-    var msg = document.createElement('span')
-    msg.style.lineHeight = '1.4'
-    msg.textContent = 'Add Em~power to your home screen for the full experience'
-    var x = document.createElement('button')
-    x.textContent = '\u2715'
-    x.setAttribute('aria-label', 'Dismiss')
-    x.style.cssText = 'background:none;border:none;color:#faf8f5;font-size:18px;cursor:pointer;flex-shrink:0;padding:0 2px;line-height:1'
-    x.onclick = function () { b.remove(); localStorage.setItem('pwa-prompt-dismissed', '1') }
-    b.appendChild(msg)
-    b.appendChild(x)
-    document.body.appendChild(b)
-  })()
+    navigator.serviceWorker.addEventListener('message', e => {
+      if (e.data?.type === 'SW_UPDATED') window.location.reload()
+    })
+  
 </script>
 </body>
 

@@ -4,6 +4,40 @@ Changes made autonomously from user feedback. Most recent first.
 
 ---
 
+## 2026-06-08 — Fix mood showing as [object Object] on dashboard
+
+**User said:** "It says mood [object,object] I'm not sure what that means"
+**What was done:** `status.moodInsight` is an object with a `.message` property — the dashboard was rendering the whole object as a string which JavaScript coerced to `[object Object]`. Fixed to use `status.moodInsight.message` instead.
+**Files changed:** dashboard.html, www/dashboard.html
+
+---
+
+## 2026-06-07 — Citation audit fixes
+
+**What was found:** Four misattributed citations across three files.
+**What was done:**
+1. hormoneSync.js — Ovulatory phase source removed the Larivière et al. 2006 reference (that paper is about luteal amino acid utilisation, not zinc or the LH surge). Replaced with an accurate ISSN 2023 statement.
+2. dashboard.html — Ovulatory nutrition card source removed the same misplaced Larivière 2006 reference. Replaced with ISSN 2023 and Liu RH Am J Clin Nutr 2003 (the correct source for phytonutrients in whole foods).
+3. dashboard.html — Luteal progesterone reference ranges removed Hackney 2006 (which is about cortisol/progesterone receptor competition, not lab reference ranges). Ranges now cite Munster et al. 2021 only, which is the correct lab reference source.
+4. learn.html — PCOS paragraph split so the birth control-suppresses-symptoms claim now cites Teede HJ et al. Human Reproduction 2018 (the correct PCOS guideline source), while the resistance training/insulin claim continues to cite Woodward 2019 and Fica 2008.
+
+**Files changed:** hormoneSync.js, dashboard.html, learn.html, www/ copies of all three.
+
+---
+
+## 2026-06-08 — Algorithm: Path 5 split by BC method
+**What was done:** The algorithm now treats women on different types of birth control differently rather than lumping all into generic observation mode. Combined pill, patch, and ring users (synthetic estrogen present) get phase 'bc-combined' with intensity modifier 0.90 and consistent-training messaging — they are not in a low-estrogen state and should not be told to reduce intensity. Progestin-only users (mini pill, implant, Depo, hormonal IUD) get phase 'bc-progestin' with intensity 0.85 and calcium/vitamin D emphasis since estrogen is lower. Copper IUD users fall through to natural cycle tracking since that method has no hormones. getMoodContextFeedback now handles both BC phases with method-appropriate messaging about mood, citing Skovlund et al. JAMA Psychiatry 2016. Both phases have their own PHASE_PREDICTIONS entries and nutrition targets in the algorithm.
+**Files changed:** algorithm_v3.js, hormoneSync.js, www/algorithm_v3.js, www/hormoneSync.js
+
+---
+
+## 2026-06-08 — Feedback fix: birth control users excluded from onboarding
+**User said:** "you can only use the app if you aren't on birth control but there used to be options when you first create your account for birth control users"
+**What was done:** Added a fifth onboarding path "I am currently on birth control" with a BC type selector (same 9 options as the post-BC path), an explanation of what the app tracks while natural cycle is suppressed, and a copper IUD note clarifying it is non-hormonal. Path 5 users go into observation mode in hormoneSync.js, tracking energy, mood, sleep, and workouts to build a personal baseline. If they stop birth control later, their data is already there.
+**Files changed:** setup.html, hormoneSync.js, www/setup.html, www/hormoneSync.js
+
+---
+
 ## 2026-06-08 — Feedback fix
 **User said:** "There should be a place I can put period started"
 **What was done:** Added a quiet "Period started today?" link at the top-right of the daily log card. Tapping it updates cycle_data with today as the period start date, immediately reveals the flow volume and pain fields, and updates the phase display to Menstrual Day 1. Hidden for Path 4 (perimenopause) users. Feedback marked resolved in Supabase.
@@ -16,3 +50,8 @@ Changes made autonomously from user feedback. Most recent first.
 **Files changed:** hormoneSync.js, algorithm_v3.js, dashboard.html, checkin.html, log.html, www/ mirrors
 
 ---
+
+## 2026-06-08 — Algorithm pipeline wiring + bug fix
+
+**What was done:** Wired all 8 previously unsaved fields (wrist_temp, flow_volume, disruptors, pain_rating, brain_fog_rating, hot_flash_count, night_sweats_severity, joint_pain_rating) into the algorithm. These were saving to the database but not being read by hormoneSync.js or algorithm_v3.js. Now: wrist temperature boosts confidence and phase inference; flow volume confirms menstrual phase; disruptors reduce signal reliability and trigger luteal allostatic load warning; pain_rating ≥4 during menstrual triggers endometriosis-awareness card; Path 4 fields (hot_flash_count, night_sweats_severity, joint_pain_rating, brain_fog_rating) now drive perimenopause-specific anomaly cards. Confirmed all 27 daily_logs columns accept upsert successfully via test insert. Fixed em-dash in log.html visible text ("Hormone test results (optional)").
+**Files changed:** hormoneSync.js, log.html, www/log.html, www/hormoneSync.js, ios/App/App/public/hormoneSync.js, ios/App/App/public/log.html

@@ -72,9 +72,11 @@ export function getNutritionTargets(phase, bodyWeight) {
   const targets = {
     Menstrual:    { multiplier: 1.5, extra: 0,   headline: 'Iron day. Your body is replenishing.', keyFoods: ['Red meat', 'Spinach', 'Lentils', 'Pumpkin seeds', 'Citrus'], avoid: 'Limit caffeine above 200mg as it may worsen prostaglandin-driven cramps.', source: 'ISSN 2023; Angeli et al. 2016. Iron loss during menstruation impacts performance.' },
     Follicular:   { multiplier: 1.7, extra: 0,   headline: 'Build phase. Fuel hard training.', keyFoods: ['Eggs', 'Chicken', 'Oats', 'Whole grains', 'Leafy greens'], avoid: null, source: 'ISSN 2023. Estrogen improves carbohydrate metabolism in the follicular phase.' },
-    Ovulatory:    { multiplier: 1.8, extra: 0,   headline: 'Peak output needs peak fuel.', keyFoods: ['Beef', 'Chickpeas', 'Berries', 'Dark leafy greens', 'Salmon'], avoid: null, source: 'ISSN 2023; Larivière et al. 2006. Zinc supports the LH surge.' },
-    Luteal:       { multiplier: 2.0, extra: 250, headline: 'Your body needs more today. That is biology.', keyFoods: ['Sweet potato', 'Oats', 'Dark chocolate', 'Salmon', 'Eggs', 'Pumpkin seeds'], avoid: 'Avoid alcohol and high-sugar processed foods which worsen luteal phase inflammation.', source: 'ISSN 2023. Luteal phase protein 1.8 to 2.2g per kg due to progesterone catabolism. Add 200 to 300 kcal above follicular phase intake.' },
+    Ovulatory:    { multiplier: 1.8, extra: 0,   headline: 'Peak output needs peak fuel.', keyFoods: ['Beef', 'Chickpeas', 'Berries', 'Dark leafy greens', 'Salmon'], avoid: null, source: 'ISSN 2023. Peak training output requires peak protein intake. Zinc from beef and seeds supports enzymatic processes around ovulation.' },
+    Luteal:       { multiplier: 1.8, extra: 250, headline: 'Your body needs more today. That is biology.', keyFoods: ['Sweet potato', 'Oats', 'Dark chocolate', 'Salmon', 'Eggs', 'Pumpkin seeds'], avoid: 'Avoid alcohol and high-sugar processed foods which worsen luteal phase inflammation.', source: 'ISSN 2023. Luteal phase protein 1.8 to 2.2g per kg due to progesterone catabolism. Add 200 to 300 kcal above follicular phase intake.' },
     observation:  { multiplier: 1.6, extra: 0,   headline: 'Consistent nutrition builds your baseline', keyFoods: ['Protein source each meal', 'Complex carbohydrates', 'Healthy fats', 'Leafy greens'], avoid: null, source: null },
+    'bc-combined': { multiplier: 1.6, extra: 0, headline: 'Consistent protein. No cycle-based adjustments needed.', keyFoods: ['Chicken', 'Eggs', 'Greek yogurt', 'Lentils', 'Oats', 'Leafy greens'], avoid: null, source: 'ISSN 2023. Standard 1.6g per kg supports muscle maintenance. No luteal phase protein increase needed as natural progesterone catabolism is absent.' },
+    'bc-progestin': { multiplier: 1.7, extra: 0, headline: 'Protein and bone support are the priority.', keyFoods: ['Salmon', 'Eggs', 'Chicken', 'Sardines', 'Almonds', 'Dark leafy greens'], avoid: null, source: 'ISSN 2023. Calcium and vitamin D especially important when estrogen is low. Protein 1.6 to 1.8g per kg for muscle and bone maintenance.' },
     Perimenopause: { multiplier: 1.8, extra: 0, headline: 'Protein first. Bone protection second.', keyFoods: ['Salmon', 'Chicken', 'Eggs', 'Sardines', 'Dark leafy greens', 'Almonds'], avoid: 'Limit alcohol — worsens hot flashes, disrupts sleep, and increases breast cancer risk. Limit ultra-processed foods which worsen insulin resistance.', source: 'ISSN 2023. Protein 1.6 to 2.0g per kg for women in hormonal transition. Kohrt et al. MSSE 2004 for calcium and vitamin D in bone protection.' }
   }
   const t = targets[phase] || targets.observation
@@ -110,7 +112,25 @@ function calcConfidence(phase, subPhase, recentLogs, mucusLogs) {
     // Mood signal adjustment
     // Source: Backstrom et al. 2008; interpretMoodSignal in algorithm_v3.js
     const moodResult = interpretMoodSignal(recentLogs[0], recentLogs, phase, subPhase)
-    confidence += moodResult.confidenceAdjustment
+    if (moodResult) confidence += moodResult.confidenceAdjustment
+
+    // Wrist temperature elevation confirms luteal phase
+    // Source: Charkoudian & Stachenfeld Comprehensive Physiology 2014; Zhu et al. JMIR 2021
+    const tempData = recentLogs.filter(l => l.wrist_temp).map(l => parseFloat(l.wrist_temp)).filter(n => !isNaN(n))
+    if (tempData.length >= 3) {
+      const baseline = tempData.slice(1).reduce((a, b) => a + b, 0) / (tempData.length - 1)
+      if (tempData[0] - baseline >= 0.2 && phase === 'Luteal') confidence += 0.10
+      if (tempData[0] - baseline < 0.1 && phase === 'Follicular') confidence += 0.06
+    }
+
+    // Flow volume confirms menstrual phase
+    if (recentLogs[0]?.flow_volume && recentLogs[0].flow_volume !== 'None' && phase === 'Menstrual') {
+      confidence += 0.08
+    }
+
+    // Disruptors (alcohol, illness, travel, poor sleep) reduce signal reliability slightly
+    const disruptorCount = (recentLogs[0]?.disruptors || []).filter(d => d !== 'None of these').length
+    if (disruptorCount >= 2) confidence -= 0.05
   }
 
   if (mucusLogs?.length) {
@@ -149,6 +169,26 @@ function detectAnomalies(recentLogs, phase, cycleLen, flagStats) {
     if (recentLogs.length >= 5 && poorSleepDays >= 3) {
       anomalies.push({ type: 'peri_sleep', text: 'Sleep quality has been poor over several nights this week. Disrupted sleep in perimenopause is often driven by night sweats and progesterone decline. Keeping your room cool, reducing alcohol, and regular exercise all have evidence behind them. If it is persistent please discuss with a doctor. (Harlow et al. 2012; Freeman et al. 2004)' })
     }
+    // Hot flash and night sweat burden
+    // Source: Harlow et al. Climacteric 2012 STRAW+10; Freeman et al. Archives of General Psychiatry 2004
+    const totalHotFlashes = recentLogs.reduce((sum, l) => sum + (l.hot_flash_count || 0), 0)
+    if (recentLogs.length >= 3 && totalHotFlashes >= 15) {
+      anomalies.push({ type: 'peri_hotflash', text: 'You have been logging frequent hot flashes this week. High vasomotor symptom burden has good evidence-based treatments including HRT and CBT. If hot flashes are disrupting your sleep or daily life it is worth a conversation with a doctor who specialises in hormonal health. (Freeman et al. 2004)' })
+    }
+    const severeNightSweats = recentLogs.filter(l => l.night_sweats_severity === 'Severe' || l.night_sweats_severity === 'Moderate').length
+    if (recentLogs.length >= 3 && severeNightSweats >= 2) {
+      anomalies.push({ type: 'peri_nightsweats', text: 'Night sweats logged several times this week. These are directly driven by estrogen decline affecting the hypothalamic temperature control centre. Sleeping in a cooler room, moisture-wicking bedding, and avoiding alcohol before bed have the best evidence. (Harlow et al. 2012)' })
+    }
+    // Joint pain tracking for perimenopause
+    const highJointPain = recentLogs.filter(l => (l.joint_pain_rating || 0) >= 3).length
+    if (recentLogs.length >= 3 && highJointPain >= 2) {
+      anomalies.push({ type: 'peri_joint', text: 'Joint pain flagged over several days this week. Estrogen has anti-inflammatory effects — its decline in perimenopause can cause or worsen joint symptoms. Resistance training, omega-3 fatty acids, and maintaining a healthy weight are all supported by evidence. Worth mentioning to your doctor if it is limiting your activity.' })
+    }
+    // Brain fog tracking
+    const highBrainFog = recentLogs.filter(l => (l.brain_fog_rating || 0) >= 3).length
+    if (recentLogs.length >= 3 && highBrainFog >= 2) {
+      anomalies.push({ type: 'peri_brainfog', text: 'Brain fog noted over several days. Cognitive changes during perimenopause are real and driven by fluctuating estrogen — estrogen directly supports serotonin and dopamine activity in the brain. Strength training, sleep, and omega-3 fatty acids are among the most evidence-backed interventions. (Osborn et al. Frontiers in Pharmacology 2025)' })
+    }
     return anomalies
   }
 
@@ -171,6 +211,19 @@ function detectAnomalies(recentLogs, phase, cycleLen, flagStats) {
   const cortisol = parseFloat(latest.hormone_cortisol)
   if (canObserve && !isNaN(cortisol) && cortisol > 30) {
     anomalies.push({ type: 'cortisol_elevated', text: 'Your cortisol reading this morning is above the typical range (above 30 nmol/L, LifeLabs/EORLA). High cortisol and progesterone compete directly in the body, which can affect how well you recover from training. Consider a lighter session today. (Source: Hackney 2006.)' })
+  }
+
+  // Severe period pain — potential flag for investigation
+  // Source: Nnoaham et al. Fertility and Sterility 2011 (diagnostic delay)
+  if (canObserve && (latest.pain_rating >= 4) && phase === 'Menstrual') {
+    anomalies.push({ type: 'pain_high', text: 'You logged significant pain today. Pain that disrupts your daily life during your period is not something you have to accept. It can indicate endometriosis, adenomyosis, or fibroids. Women wait an average of 7 to 10 years for an endometriosis diagnosis because severe pain is routinely dismissed. If this is a recurring pattern please pursue a proper investigation. (Nnoaham et al. Fertility and Sterility 2011)' })
+  }
+
+  // High disruptors in luteal phase amplify stress response
+  // Source: Hackney 2006 — cortisol competes with progesterone in luteal phase
+  const activeDisruptors = (latest.disruptors || []).filter(d => d !== 'None of these')
+  if (canObserve && activeDisruptors.length >= 2 && (phase === 'Luteal' || phase === 'Late luteal')) {
+    anomalies.push({ type: 'luteal_load', text: 'You have logged multiple stressors today in your luteal phase. Alcohol, poor sleep, illness, and high stress all compound the cortisol load that is already elevated in the luteal phase. Your body is working harder than usual right now. Rest, eat enough protein, and consider dropping training intensity by 20% today. (Hackney 2006)' })
   }
 
   // PMDD pattern: requires 3 cycles of data before flagging
@@ -203,6 +256,16 @@ function getImmediateFeedback(latestLog, phase, subPhase, confidence) {
   }
   if (latestLog.sleep_quality) {
     feedback.push({ signal: 'Sleep', text: 'Sleep quality logged. Sleep disruption is most common in mid-luteal phase (De Martin Topranin 2023). Patterns here flag the phase boundary early.' })
+  }
+  if (latestLog.wrist_temp) {
+    feedback.push({ signal: 'Temperature', text: 'Wrist temperature logged. Progesterone elevates core temperature by 0.3 to 0.5°C in the luteal phase. Consistent temperature data is one of the strongest phase signals available. (Charkoudian & Stachenfeld 2014; Zhu et al. 2021)' })
+  }
+  if (latestLog.flow_volume) {
+    feedback.push({ signal: 'Flow', text: 'Flow logged. This helps calibrate your menstrual phase length and flag changes over time. Lighter than usual flow can indicate lower estrogen exposure.' })
+  }
+  const activeDisruptors = (latestLog.disruptors || []).filter(d => d !== 'None of these')
+  if (activeDisruptors.length > 0) {
+    feedback.push({ signal: 'Disruptors', text: 'Disruptors noted. Alcohol, illness, and poor sleep create noise in the hormonal signal. The algorithm accounts for these when they are logged.' })
   }
 
   // Mood context feedback — connects logged mood to neurotransmitter explanation
@@ -262,11 +325,18 @@ export function inferPhaseFromSymptoms(recentLogs, mucusLogs = []) {
   const rhrBaseline = rhrValues.length > 1
     ? rhrValues.slice(1).reduce((a, b) => a + b, 0) / (rhrValues.length - 1)
     : null
+  const tempValues = logs.map(l => parseFloat(l.wrist_temp)).filter(n => !isNaN(n))
+  const tempBaseline = tempValues.length > 1
+    ? tempValues.slice(1).reduce((a, b) => a + b, 0) / (tempValues.length - 1)
+    : null
 
   const scores = { Menstrual: 0, Follicular: 0, Ovulatory: 0, Luteal: 0 }
   const signals = []
 
   // ── MENSTRUAL signals (2 points each) ──────────────────────────────────────
+  if (latestLog.flow_volume && latestLog.flow_volume !== 'None') {
+    scores.Menstrual += 3; signals.push('menstrual flow logged')
+  }
   if (allSymptoms.some(s => ['Cramps', 'Bloating', 'Fatigue', 'Back pain'].includes(s))) {
     scores.Menstrual += 2; signals.push('cramping or fatigue symptoms')
   }
@@ -314,6 +384,18 @@ export function inferPhaseFromSymptoms(recentLogs, mucusLogs = []) {
     scores.Ovulatory += 3; signals.push('heart rate elevated above baseline')
     // Also counts for Luteal — RHR elevated in both phases
     scores.Luteal += 2
+  }
+
+  // ── TEMPERATURE signals — wrist temp elevation confirms luteal ──────────────
+  // Source: Charkoudian & Stachenfeld Comprehensive Physiology 2014; Zhu et al. JMIR 2021
+  if (tempValues.length >= 2 && tempBaseline) {
+    const latestTemp = tempValues[0]
+    if (latestTemp - tempBaseline >= 0.2) {
+      scores.Luteal += 3; signals.push('wrist temperature elevated above baseline')
+    }
+    if (latestTemp - tempBaseline < 0.05 && tempBaseline > 0) {
+      scores.Follicular += 2; signals.push('wrist temperature at baseline')
+    }
   }
 
   // ── LUTEAL signals (2 points each) ─────────────────────────────────────────
@@ -377,6 +459,53 @@ export async function getTodayStatus(supabase, userId) {
   const mucusLogs = mucusResult.data || []
 
   const today = new Date(); today.setHours(0, 0, 0, 0)
+
+  // Path 5: currently on birth control
+  // Hormonal environment depends on method — do not treat all BC the same
+  if (profile?.user_path === '5') {
+    const bcType = profile?.bc_type
+    const isCombined = ['pill', 'patch', 'ring'].includes(bcType)
+    const isCopper = bcType === 'copper-iud'
+    // Copper IUD has no hormones — natural cycle intact, fall through to normal cycle logic below
+    if (!isCopper) {
+      const bcPhase = isCombined ? 'bc-combined' : 'bc-progestin'
+      const bcConfidence = Math.min(0.65, 0.25 + (recentLogs.length * 0.04))
+      const bodyWeightBC = profile?.body_weight_kg || 65
+      // Combined pill: stable synthetic estrogen, intensity closer to follicular
+      // Progestin-only: lower estrogen influence, moderate intensity
+      const bcIntensity = isCombined ? 0.90 : 0.85
+      const bcIntensityLabel = isCombined
+        ? 'Consistent training window. Your energy is more stable than a naturally cycling woman.'
+        : 'Moderate to good intensity. Tune in to how you feel each day.'
+      const bcNutritionMultiplier = isCombined ? 1.6 : 1.7
+      const bcSubPhase = isCombined ? 'Combined pill' : (bcType === 'minipill' ? 'Mini pill'
+        : bcType === 'implant' ? 'Implant' : bcType === 'depo' ? 'Depo-Provera'
+        : bcType === 'hormonal-iud' ? 'Hormonal IUD' : 'Progestin-only')
+      return {
+        phase: bcPhase,
+        subPhase: bcSubPhase,
+        cycleDay: null,
+        cycleLen: null,
+        daysUntilPeriod: null,
+        confidence: bcConfidence,
+        confidenceLabel: bcConfidence > 0.45
+          ? 'Your personal pattern is emerging'
+          : 'Building your baseline. Tracking energy, mood, sleep, and workouts.',
+        confidencePct: Math.round(bcConfidence * 100),
+        intensityModifier: bcIntensity,
+        intensityLabel: bcIntensityLabel,
+        nutritionTargets: getNutritionTargets(bcPhase, bodyWeightBC),
+        immediateFeedback: [],
+        anomalies: [],
+        predictions: [],
+        symptomInference: null,
+        moodInsight: null,
+        bodyWeight: bodyWeightBC,
+        profile: profile || {}
+      }
+    }
+    // Copper IUD: falls through to natural cycle calculation below
+  }
 
   // Path 4: perimenopause/menopause — skip all cycle phase calculations
   // Cycle data may exist from before they chose Path 4 but must not drive phase logic

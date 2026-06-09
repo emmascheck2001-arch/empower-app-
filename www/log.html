@@ -147,6 +147,8 @@
     .number-input:focus { border-color: #c8b89a; }
   </style>
   <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="icon" href="/icon-192.png" type="image/png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Em~power">
@@ -157,10 +159,14 @@
   <div id="spinnerWrap"><div class="spinner"></div></div>
 
   <div class="screen" id="mainContent" style="display:none">
-    <div class="top-bar">
-      <div class="day-label" id="dayLabel">Today</div>
-      <div class="phase-name" id="phaseName">Loading...</div>
-      <span class="phase-tag" id="phaseTag">Tracking</span>
+    <div class="top-bar" style="display:flex;align-items:center">
+      <a href="dashboard.html" style="color:#2c2820;text-decoration:none;font-size:20px;flex-shrink:0;line-height:1"><i class="ti ti-arrow-left"></i></a>
+      <div style="flex:1;text-align:center">
+        <div class="day-label" id="dayLabel">Today</div>
+        <div class="phase-name" id="phaseName">Loading...</div>
+        <span class="phase-tag" id="phaseTag">Tracking</span>
+      </div>
+      <div style="width:20px;flex-shrink:0"></div>
     </div>
 
     <!-- Priority note -->
@@ -176,10 +182,11 @@
       </div>
       <div id="periodStartRow" style="text-align:right;padding:0 0 4px">
         <a href="#" id="periodStartLink" onclick="logPeriodStart();return false" style="font-size:12px;color:#9a9590;text-decoration:none">Period started today?</a>
+        <a href="#" id="periodUndoLink" onclick="undoPeriodStart();return false" style="font-size:12px;color:#c05858;text-decoration:none;display:none">Not your period? Undo</a>
       </div>
 
-      <!-- 1. Cervical fluid — strongest ovulation indicator -->
-      <div class="section">
+      <!-- 1. Cervical fluid — strongest ovulation indicator, hidden during menstrual phase -->
+      <div class="section" id="cervicalSection">
         <div class="section-title">Cervical fluid</div>
         <div class="section-why" id="cervicalFluidWhy">One of the strongest ovulation indicators. Check when you use the bathroom (Bigelow et al. 2004, 80% sensitivity for fertile window).</div>
         <div class="btn-row" id="fluidRow">
@@ -289,19 +296,6 @@
         </div>
       </div>
 
-      <!-- 9. Workout performance -->
-      <div class="section">
-        <div class="section-title">Workout performance today</div>
-        <div class="section-why">Hormones can influence exercise performance and recovery.</div>
-        <div class="btn-row" id="workoutRow">
-          <div class="opt-btn" onclick="selectOne('workoutRow', this, 'workout_feel', 'Rest day')">Rest day</div>
-          <div class="opt-btn" onclick="selectOne('workoutRow', this, 'workout_feel', 'Weaker than usual')">Weaker than usual</div>
-          <div class="opt-btn" onclick="selectOne('workoutRow', this, 'workout_feel', 'Average')">Average</div>
-          <div class="opt-btn" onclick="selectOne('workoutRow', this, 'workout_feel', 'Stronger than usual')">Stronger than usual</div>
-          <div class="opt-btn" onclick="selectOne('workoutRow', this, 'workout_feel', 'Skipped')">Skipped</div>
-        </div>
-      </div>
-
       <!-- 10. Disruptors -->
       <div class="section">
         <div class="section-title">Anything that might affect today's data?</div>
@@ -358,7 +352,7 @@
     <!-- 11. Hormone results — collapsed by default -->
     <div style="margin:10px 16px 0">
       <button onclick="toggleHormones(this)" style="width:100%;padding:14px 16px;text-align:left;cursor:pointer;display:flex;align-items:center;justify-content:space-between;background:#fff;border:1px solid #ede8e0;border-radius:14px;font-size:14px;font-weight:500;color:#2c2820" id="hormoneToggleBtn">
-        <span>Hormone test results — optional</span>
+        <span>Hormone test results (optional)</span>
         <i class="ti ti-chevron-down" id="hormoneChevron" style="font-size:16px;color:#9a9590;transition:transform 0.2s"></i>
       </button>
       <div id="hormoneSection" style="display:none">
@@ -492,7 +486,7 @@
 
     const logData = {
       energy: null, symptoms: [], cervical_fluid: null,
-      lh_result: null, workout_feel: null, mood: [], sleep_quality: null,
+      lh_result: null, mood: [], sleep_quality: null,
       resting_hr: null, resting_hr_exact: null, disruptors: [], wrist_temp: null,
       hormone_estradiol: null, hormone_progesterone: null,
       hormone_lh: null, hormone_cortisol: null,
@@ -628,6 +622,11 @@
       setTimeout(goToDashboard, 2500)
     }
 
+    let _prevPeriodDate = null
+    let _prevCycleId = null
+    let _prevPhaseName = ''
+    let _prevPhaseTag = ''
+
     window.logPeriodStart = async function () {
       const link = document.getElementById('periodStartLink')
       link.textContent = 'Saving...'
@@ -637,17 +636,32 @@
         if (!user) return
         const today = new Date().toISOString().split('T')[0]
         const { data: existing } = await supabase
-          .from('cycle_data').select('id, cycle_length').eq('user_id', user.id)
-          .order('created_at', { ascending: false }).limit(1).single()
-        await supabase.from('cycle_data').upsert({
-          ...(existing?.id ? { id: existing.id } : {}),
-          user_id: user.id,
-          last_period_date: today,
-          cycle_length: existing?.cycle_length || 28
-        }, { onConflict: 'user_id' })
+          .from('cycle_data').select('id, cycle_length, last_period_date').eq('user_id', user.id)
+          .order('created_at', { ascending: false }).limit(1).maybeSingle()
+        _prevPeriodDate = existing?.last_period_date || null
+        _prevCycleId = existing?.id || null
+        _prevPhaseName = document.getElementById('phaseName').textContent
+        _prevPhaseTag = document.getElementById('phaseTag').textContent
+        if (existing?.id) {
+          const { error: updErr } = await supabase.from('cycle_data').update({
+            last_period_date: today,
+            cycle_length: existing.cycle_length || 28
+          }).eq('id', existing.id)
+          if (updErr) throw updErr
+        } else {
+          const { data: inserted, error: insErr } = await supabase.from('cycle_data').insert({
+            user_id: user.id,
+            last_period_date: today,
+            cycle_length: 28
+          }).select('id').single()
+          if (insErr) throw insErr
+          _prevCycleId = inserted?.id || null
+        }
         document.getElementById('flowSection').style.display = 'block'
         document.getElementById('painSection').style.display = 'block'
-        document.getElementById('periodStartRow').style.display = 'none'
+        document.getElementById('cervicalSection').style.display = 'none'
+        link.style.display = 'none'
+        document.getElementById('periodUndoLink').style.display = 'inline'
         document.getElementById('phaseName').textContent = 'Menstrual'
         document.getElementById('phaseTag').textContent = 'Day 1'
       } catch (e) {
@@ -655,6 +669,175 @@
         link.textContent = 'Period started today?'
         link.style.pointerEvents = 'auto'
       }
+    }
+
+    window.undoPeriodStart = async function () {
+      const undoLink = document.getElementById('periodUndoLink')
+      undoLink.textContent = 'Undoing...'
+      undoLink.style.pointerEvents = 'none'
+      try {
+        if (_prevCycleId) {
+          const { error: undoErr } = await supabase.from('cycle_data').update({
+            last_period_date: _prevPeriodDate
+          }).eq('id', _prevCycleId)
+          if (undoErr) throw undoErr
+        }
+        document.getElementById('flowSection').style.display = 'none'
+        document.getElementById('painSection').style.display = 'none'
+        document.getElementById('cervicalSection').style.display = 'block'
+        undoLink.style.display = 'none'
+        const link = document.getElementById('periodStartLink')
+        link.textContent = 'Period started today?'
+        link.style.display = 'inline'
+        link.style.pointerEvents = 'auto'
+        document.getElementById('phaseName').textContent = _prevPhaseName
+        document.getElementById('phaseTag').textContent = _prevPhaseTag
+      } catch (e) {
+        console.error('Undo period error', e)
+        undoLink.textContent = 'Not your period? Undo'
+        undoLink.style.pointerEvents = 'auto'
+      }
+    }
+
+    async function loadExistingLog(userId, today) {
+      try {
+        const [{ data: existing }, { data: mucus }] = await Promise.all([
+          supabase.from('daily_logs').select('*').eq('user_id', userId).eq('log_date', today).maybeSingle(),
+          supabase.from('mucus_logs').select('discharge_type').eq('user_id', userId).eq('log_date', today).maybeSingle()
+        ])
+        if (!existing && !mucus) return
+
+        if (existing) {
+          Object.assign(logData, {
+            energy: existing.energy || null,
+            sleep_quality: existing.sleep_quality || null,
+            resting_hr: existing.resting_hr || null,
+            resting_hr_exact: existing.resting_hr_exact || null,
+            lh_result: existing.lh_result || null,
+            mood: existing.mood || [],
+            symptoms: existing.symptoms || [],
+            disruptors: existing.disruptors || [],
+            wrist_temp: existing.wrist_temp || null,
+            flow_volume: existing.flow_volume || null,
+            pain_rating: existing.pain_rating || null,
+            hormone_estradiol: existing.hormone_estradiol || null,
+            hormone_progesterone: existing.hormone_progesterone || null,
+            hormone_lh: existing.hormone_lh || null,
+            hormone_cortisol: existing.hormone_cortisol || null,
+            hot_flash_count: existing.hot_flash_count || null,
+            night_sweats_severity: existing.night_sweats_severity || null,
+            joint_pain_rating: existing.joint_pain_rating || null,
+            joint_pain_location: existing.joint_pain_location || [],
+            brain_fog_rating: existing.brain_fog_rating || null
+          })
+        }
+        if (mucus?.discharge_type) logData.cervical_fluid = mucus.discharge_type
+
+        prefillForm()
+
+        const note = document.querySelector('.save-note')
+        const btn = document.querySelector('.next-btn')
+        if (note) note.textContent = 'You have already logged today. Tap Update to change anything.'
+        if (btn) btn.textContent = 'Update log →'
+      } catch (e) {
+        console.error('Error loading existing log', e)
+      }
+    }
+
+    function prefillForm() {
+      function highlightOne(rowId, value, selector) {
+        if (value === null || value === undefined) return
+        const row = document.getElementById(rowId)
+        if (!row) return
+        const valLower = String(value).toLowerCase()
+        row.querySelectorAll(selector || '.opt-btn, .energy-btn, .sleep-btn').forEach(b => {
+          const t = b.textContent.trim().toLowerCase()
+          if (t === valLower || t.startsWith(valLower)) b.classList.add('selected-soft')
+        })
+      }
+
+      function highlightMulti(rowIds, values) {
+        if (!values?.length) return
+        const valSet = new Set(values)
+        rowIds.forEach(id => {
+          const row = document.getElementById(id)
+          if (!row) return
+          row.querySelectorAll('.opt-btn').forEach(b => {
+            if (valSet.has(b.textContent.trim())) b.classList.add('selected-soft')
+          })
+        })
+      }
+
+      function highlightNth(rowId, value) {
+        if (!value) return
+        const btns = document.querySelectorAll('#' + rowId + ' .opt-btn')
+        const btn = btns[value - 1]
+        if (btn) btn.classList.add('selected-soft')
+      }
+
+      highlightOne('energyRow', logData.energy, '.energy-btn')
+      highlightOne('sleepRow', logData.sleep_quality, '.sleep-btn')
+
+      if (logData.resting_hr_exact) {
+        const inp = document.getElementById('rhrExactInput')
+        if (inp) inp.value = logData.resting_hr_exact
+      } else {
+        highlightOne('hrRow', logData.resting_hr, '.opt-btn')
+      }
+
+      if (logData.cervical_fluid) {
+        document.querySelectorAll('#fluidRow .opt-btn').forEach(b => {
+          if (b.textContent.trim() === logData.cervical_fluid) b.classList.add('selected-soft')
+        })
+      }
+
+      if (logData.lh_result) {
+        document.querySelectorAll('#lhRow .opt-btn').forEach(b => {
+          if (b.textContent.trim() === logData.lh_result) b.classList.add('selected-soft')
+        })
+      }
+
+      highlightMulti(['moodRow', 'moodRowB'], logData.mood)
+      highlightMulti(['symptomsRow'], logData.symptoms)
+
+      if (logData.wrist_temp) {
+        const inp = document.getElementById('wristTempInput')
+        if (inp) inp.value = logData.wrist_temp
+      }
+
+      if (logData.disruptors?.length) {
+        const valSet = new Set(logData.disruptors)
+        document.querySelectorAll('#disruptorRow .disruptor-btn').forEach(b => {
+          if (valSet.has(b.textContent.trim())) b.classList.add('selected-soft')
+        })
+      }
+
+      if (logData.flow_volume) highlightOne('flowVolumeRow', logData.flow_volume, '.opt-btn')
+      highlightNth('painRow', logData.pain_rating)
+
+      if (logData.hormone_estradiol) { const e = document.getElementById('hEstradiol'); if (e) e.value = logData.hormone_estradiol }
+      if (logData.hormone_progesterone) { const e = document.getElementById('hProgesterone'); if (e) e.value = logData.hormone_progesterone }
+      if (logData.hormone_lh) { const e = document.getElementById('hLH'); if (e) e.value = logData.hormone_lh }
+      if (logData.hormone_cortisol) { const e = document.getElementById('hCortisol'); if (e) e.value = logData.hormone_cortisol }
+      if (logData.hormone_estradiol || logData.hormone_progesterone || logData.hormone_lh || logData.hormone_cortisol) {
+        document.getElementById('hormoneSection').style.display = 'block'
+        document.getElementById('hormoneChevron').style.transform = 'rotate(180deg)'
+      }
+
+      highlightOne('hotFlashRow', logData.hot_flash_count, '.opt-btn')
+      highlightOne('nightSweatsRow', logData.night_sweats_severity, '.opt-btn')
+      highlightNth('jointPainRow', logData.joint_pain_rating)
+      if (logData.joint_pain_rating >= 2) {
+        const wrap = document.getElementById('jointLocationWrap')
+        if (wrap) wrap.style.display = 'block'
+        if (logData.joint_pain_location?.length) {
+          const valSet = new Set(logData.joint_pain_location)
+          document.querySelectorAll('#jointLocationWrap .opt-btn').forEach(b => {
+            if (valSet.has(b.textContent.trim())) b.classList.add('selected-soft')
+          })
+        }
+      }
+      highlightNth('brainFogRow', logData.brain_fog_rating)
     }
 
     async function loadPhase() {
@@ -669,9 +852,10 @@
         const status = statusResult
         prevConfidence = status.confidence
 
-        const today = new Date()
+        const todayDate = new Date()
+        const today = todayDate.toISOString().split('T')[0]
         const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-        document.getElementById('dayLabel').textContent = 'Today, ' + days[today.getDay()]
+        document.getElementById('dayLabel').textContent = 'Today, ' + days[todayDate.getDay()]
 
         const userPath = profileResult.data?.user_path
         if (userPath === '4') {
@@ -679,21 +863,30 @@
           document.getElementById('phaseTag').textContent = 'Log your symptoms'
           document.getElementById('path4Section').style.display = 'block'
           document.getElementById('periodStartRow').style.display = 'none'
-          // Adapt ovulation-specific science notes — cervical fluid and LH still useful but framing changes
           document.getElementById('cervicalFluidWhy').textContent = 'Cervical fluid reflects estrogen levels even in perimenopause. Egg white and watery fluid can signal an estrogen surge. Still worth tracking.'
           document.getElementById('lhTestWhy').textContent = 'Ovulation becomes unpredictable in perimenopause. A positive LH test may still occur. Log it if you test.'
-        } else if (status.phase !== 'observation') {
+        } else if (userPath === '5') {
+          const bcPhaseLabel = status.subPhase || 'On birth control'
+          document.getElementById('phaseName').textContent = bcPhaseLabel
+          document.getElementById('phaseTag').textContent = 'Log your symptoms'
+          // Always show flow and pain — many BC users still bleed (withdrawal bleeds, irregular bleeding)
+          document.getElementById('flowSection').style.display = 'block'
+          document.getElementById('painSection').style.display = 'block'
+        } else if (status.phase !== 'observation' && status.phase !== 'bc-combined' && status.phase !== 'bc-progestin') {
           document.getElementById('phaseName').textContent = status.subPhase || status.phase
           document.getElementById('phaseTag').textContent = 'Day ' + status.cycleDay + ' of ' + status.cycleLen
         } else {
           document.getElementById('phaseName').textContent = 'Observation mode'
           document.getElementById('phaseTag').textContent = 'Building your baseline'
         }
-        // Show flow and pain sections during menstrual phase (non-path 4)
-        if (userPath !== '4' && (status.phase === 'Menstrual' || (status.cycleDay && status.cycleDay <= 7))) {
+        // During menstrual phase: show flow + pain, hide cervical fluid (blood masks mucus)
+        if (userPath !== '4' && userPath !== '5' && (status.phase === 'Menstrual' || (status.cycleDay && status.cycleDay <= 7))) {
           document.getElementById('flowSection').style.display = 'block'
           document.getElementById('painSection').style.display = 'block'
+          document.getElementById('cervicalSection').style.display = 'none'
         }
+
+        await loadExistingLog(user.id, today)
       } catch (e) {
         console.error(e)
         document.getElementById('spinnerWrap').innerHTML = '<p style="color:#8a4a4a;padding:20px;font-size:14px">Could not load your data. Check your connection and <a href="log.html">try again</a>.</p>'
@@ -715,7 +908,6 @@
         energy: logData.energy,
         symptoms: logData.symptoms,
         lh_result: logData.lh_result,
-        workout_feel: logData.workout_feel,
         mood: logData.mood,
         sleep_quality: logData.sleep_quality,
         resting_hr: logData.resting_hr_exact
@@ -733,24 +925,26 @@
         hot_flash_count: logData.hot_flash_count,
         night_sweats_severity: logData.night_sweats_severity,
         joint_pain_rating: logData.joint_pain_rating,
-        joint_pain_location: logData.joint_pain_location.length ? logData.joint_pain_location : null,
+        joint_pain_location: logData.joint_pain_location?.length ? logData.joint_pain_location : null,
         brain_fog_rating: logData.brain_fog_rating
       }
 
       try {
-        await supabase.from('daily_logs').upsert(payload, { onConflict: 'user_id,log_date' })
+        const { error: saveError } = await supabase.from('daily_logs').upsert(payload, { onConflict: 'user_id,log_date' })
+        if (saveError) throw saveError
 
         if (logData.cervical_fluid) {
-          await supabase.from('mucus_logs').upsert({
+          const { error: mucusError } = await supabase.from('mucus_logs').upsert({
             user_id: user.id,
             log_date: today,
             discharge_type: logData.cervical_fluid
           }, { onConflict: 'user_id,log_date' })
+          if (mucusError) throw mucusError
         }
       } catch (e) {
         console.error('Save error', e)
         const btn = document.querySelector('.next-btn')
-        if (btn) { btn.disabled = false; btn.textContent = 'Save failed. Tap to retry.' }
+        if (btn) { btn.disabled = false; btn.textContent = 'Save failed — tap to retry' }
         return
       }
 
@@ -769,26 +963,14 @@
 
     loadPhase()
   </script>
+
+
 <script>
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js')
-  ;(function () {
-    var isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent)
-    var isStandalone = window.navigator.standalone === true
-    if (!isIOS || isStandalone || localStorage.getItem('pwa-prompt-dismissed')) return
-    var b = document.createElement('div')
-    b.style.cssText = 'position:fixed;bottom:80px;left:16px;right:16px;background:#2c2820;color:#faf8f5;font-size:13px;padding:12px 14px;border-radius:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.18)'
-    var msg = document.createElement('span')
-    msg.style.lineHeight = '1.4'
-    msg.textContent = 'Add Em~power to your home screen for the full experience'
-    var x = document.createElement('button')
-    x.textContent = '\u2715'
-    x.setAttribute('aria-label', 'Dismiss')
-    x.style.cssText = 'background:none;border:none;color:#faf8f5;font-size:18px;cursor:pointer;flex-shrink:0;padding:0 2px;line-height:1'
-    x.onclick = function () { b.remove(); localStorage.setItem('pwa-prompt-dismissed', '1') }
-    b.appendChild(msg)
-    b.appendChild(x)
-    document.body.appendChild(b)
-  })()
+    navigator.serviceWorker.addEventListener('message', e => {
+      if (e.data?.type === 'SW_UPDATED') window.location.reload()
+    })
+  
 </script>
 </body>
 

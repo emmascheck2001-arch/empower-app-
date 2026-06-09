@@ -23,7 +23,7 @@ Anon key: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6I
 ## Database tables
 - profiles — id, email, name, user_path, bc_type, bc_stop_date, cycle_length, body_weight_kg, fitness_level, onboarding_complete
 - cycle_data — id, user_id, last_period_date, cycle_length, notes
-- daily_logs — id, user_id, log_date, energy, symptoms[], workout_feel, mood[], sleep_quality, resting_hr, disruptors[], wrist_temp, lh_result, hormone_estradiol, hormone_progesterone, hormone_lh, hormone_cortisol, flow_volume, pain_rating, notes. Unique constraint on (user_id, log_date).
+- daily_logs — id, user_id, log_date, energy, symptoms[], workout_feel, mood[], sleep_quality, resting_hr, resting_hr_exact, disruptors[], wrist_temp, temp_deviation, lh_result, hormone_estradiol, hormone_progesterone, hormone_lh, hormone_cortisol, flow_volume, pain_rating, hot_flash_count, night_sweats_severity, joint_pain_rating, joint_pain_location[], brain_fog_rating, notes, created_at. Unique constraint on (user_id, log_date).
 - mucus_logs — id, user_id, log_date, discharge_type, spotting_type, notes. Unique constraint on (user_id, log_date).
 - cycle_summaries — id, user_id, cycle_number, cycle dates, phase lengths, ovulation data
 - user_baselines — id, avg_cycle_length, avg_luteal_length, temp_follicular_baseline, rhr_follicular_baseline, pms_days_before, peak_energy_day, cycles_tracked, model_confidence
@@ -269,8 +269,8 @@ NEVER use `return` after redirect at module top level (causes SyntaxError in ES 
 **Screen flow:** screenActivity → screenGymFocus (gym only) → screenSummary → screenWarmup → screenPlayer → screenCooldown → screenComplete
 
 **Activity picker grid (3x3, exact order):** Walk / Run / Cycle / Swim / Gym / Yoga / Pilates / HIIT / Rest day
-Icons: ti ti-walk / ti ti-run / ti ti-bike / ti ti-swimming / ti ti-barbell / 🧘 emoji / ti ti-accessible / ti ti-flame / ti ti-zzz
-Note: Yoga uses 🧘 emoji (font-size:28px;line-height:1) — ti-yoga does not exist in the Tabler Icons webfont. Never change this back to a ti class.
+Icons: ti ti-walk / ti ti-run / ti ti-bike / ti ti-swimming / ti ti-barbell / ti ti-leaf / ti ti-accessible / ti ti-flame / ti ti-zzz
+Note: Yoga uses ti ti-leaf — ti-yoga does not exist in the Tabler Icons webfont.
 "Build me a plan" button below grid (`.plan-btn`).
 
 **Gym muscle group picker (screenGymFocus) — PERMANENT LAYOUT, NEVER CHANGE:**
@@ -551,7 +551,7 @@ if (cell.inMonth) {
 ```
 netlify deploy --dir . --site 11d125ac-cd81-4060-8dc1-2b6b580265ed --prod
 ```
-The local Netlify link points to the wrong site (scintillating-phoenix). Always pass `--site 11d125ac-cd81-4060-8dc1-2b6b580265ed` explicitly. Production site is empowerhealth.com.
+The local Netlify link points to the wrong site (scintillating-phoenix). Always pass `--site 11d125ac-cd81-4060-8dc1-2b6b580265ed` explicitly. Production site is https://empowerhealth.netlify.app — empowerhealth.com is a different company's website and is NOT this app.
 
 **Tabler icons only:** Never use emoji as icons where a ti class exists. Emoji only where no tabler icon equivalent exists (e.g. 🧘‍♀️ for yoga, 🌿 for complete screen).
 

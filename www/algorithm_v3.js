@@ -190,6 +190,22 @@ export const PHASE_PREDICTIONS = {
     training: 'Low to moderate intensity. Prioritise recovery. Resistance training actively supports hormonal recovery in this phase.',
     nutrition: 'Consistent, adequate nutrition is the foundation. Do not under-eat. Your body is working to restore hormonal function and needs consistent energy and protein.'
   },
+  'bc-combined': {
+    label: 'On combined hormonal contraception',
+    brain_state: 'Stable synthetic hormones',
+    intensity: 0.90,
+    why: 'Combined hormonal contraception (pill, patch, or ring) delivers synthetic estrogen and progestin at steady levels throughout the month. Your natural cycle is suppressed — there is no LH surge, no ovulation, no natural progesterone rise. The result is a more consistent hormonal environment with no PMS, no luteal phase fatigue, and no cycle-driven dips. Research suggests training adaptation may be slightly different on OCs. Natural testosterone is reduced, which can affect strength progress, and the anabolic effect of peak natural estrogen in the follicular phase is absent. This does not mean you cannot build strength — you can, and consistently. It just means the dramatic week-to-week variability that naturally cycling women experience does not apply to you in the same way. Source: Elliott-Sale KJ et al. Sports Medicine 2020. Wikstrom-Frisen L et al. JSCR 2017.',
+    training: 'Your energy and recovery are more consistent than naturally cycling women. You can train at good intensity year-round without phase-based adjustments. Focus on progressive overload across weeks rather than cycle-based periodisation. Strength training remains the most important thing you can do for long-term hormonal health.',
+    nutrition: 'Consistent protein intake is the priority. No luteal phase protein increase is needed because there is no natural progesterone surge driving protein catabolism. Standard 1.6g per kg bodyweight supports muscle maintenance and performance. Eating enough total calories matters more than timing or cycling macros.'
+  },
+  'bc-progestin': {
+    label: 'On progestin-only contraception',
+    brain_state: 'Progestin dominant',
+    intensity: 0.85,
+    why: 'Progestin-only methods (mini pill, implant, Depo-Provera, hormonal IUD) have minimal systemic estrogen. Natural estrogen and testosterone are suppressed to varying degrees. Some women on progestin-only methods still ovulate — particularly those on the hormonal IUD — and may notice residual cyclical patterns. If you do, trust those signals. Progestin without the counterbalancing effect of natural estrogen can affect mood in some women. This is well documented and not psychological. If you notice consistent low mood, fatigue, or reduced libido, it is worth discussing with your doctor. You deserve to feel well. Source: Skovlund CW et al. JAMA Psychiatry 2016.',
+    training: 'Train at moderate to good intensity. Your energy may be somewhat flatter than a naturally cycling woman in her follicular phase. Pay attention to how you feel day to day and adjust accordingly. Resistance training is especially valuable for maintaining muscle mass and bone density when estrogen is low.',
+    nutrition: 'Protein 1.6 to 1.8g per kg bodyweight supports muscle and bone maintenance. Calcium and vitamin D are particularly important when estrogen is low, as estrogen plays a direct role in bone protection. Adequate iron intake matters if you are still having periods.'
+  },
   Perimenopause: {
     label: 'Perimenopause',
     brain_state: 'Fluctuating estrogen',
@@ -340,6 +356,23 @@ export function getMoodContextFeedback(latestLog, phase, subPhase) {
   const isLow = ['Irritable', 'Anxious', 'Low', 'Overwhelmed'].some(m => mood.includes(m))
   const isVeryLow = energy === 'Very low' || energy === 'Low'
   const isHighEnergy = ['Energised', 'Energetic', 'Happy', 'Motivated'].some(m => mood.includes(m))
+
+  // BC-active: mood affected by synthetic hormones, not natural cycle
+  const isBCActive = phase === 'bc-combined' || phase === 'bc-progestin'
+  if (isBCActive) {
+    const isProgestin = phase === 'bc-progestin'
+    if (isLow || isVeryLow) {
+      return {
+        type: 'mood_context',
+        icon: 'brain',
+        headline: isProgestin ? 'Progestin can affect mood in some women' : 'Mood changes on the pill are real',
+        body: isProgestin
+          ? 'Low mood, fatigue, or reduced motivation on progestin-only contraception is well documented and not psychological. Progestin without the counterbalancing effect of natural estrogen can suppress serotonin and dopamine activity in some women. If this is consistent, it is worth discussing with your doctor. A different method or formulation may feel very different. You deserve to feel well. Source: Skovlund CW et al. JAMA Psychiatry 2016.'
+          : 'Some women experience mood changes on combined hormonal contraception. The synthetic progestin component in particular can affect serotonin receptor sensitivity in a way that differs from natural progesterone. If low mood is consistent month to month rather than occasional, it is worth mentioning to your doctor. Different pill formulations and progestin types can have meaningfully different effects. Source: Skovlund CW et al. JAMA Psychiatry 2016.'
+      }
+    }
+    return null
+  }
 
   // Perimenopause: estrogen variability drives mood, not cycle phases
   const isPeri = phase === 'Perimenopause'

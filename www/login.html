@@ -17,16 +17,17 @@
       background: #faf8f5;
       color: #2c2820;
       min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
       max-width: 420px;
       margin: 0 auto;
     }
 
     .card {
       width: 100%;
-      padding: 0 20px;
+      padding: 20px 20px 48px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      min-height: 100vh;
     }
 
     .logo {
@@ -161,8 +162,172 @@
       grid-template-columns: 1fr 1fr;
       gap: 10px;
     }
+
+    .install-card {
+      margin-top: 24px;
+      background: #fff;
+      border: 1px solid #ede8e0;
+      border-radius: 14px;
+      padding: 16px;
+      display: none;
+    }
+
+    .install-card-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #9a9590;
+      margin-bottom: 10px;
+    }
+
+    .install-card-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #2c2820;
+      margin-bottom: 4px;
+    }
+
+    .install-card-sub {
+      font-size: 12px;
+      color: #7a7268;
+      margin-bottom: 14px;
+      line-height: 1.5;
+    }
+
+    .install-btn {
+      width: 100%;
+      background: #2c2820;
+      color: #f5f0e8;
+      border: none;
+      border-radius: 10px;
+      padding: 13px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    /* iOS guide overlay */
+    .ios-guide-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.72);
+      z-index: 9999;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+      padding-bottom: 100px;
+    }
+
+    .ios-guide-overlay.visible {
+      display: flex;
+    }
+
+    .ios-guide-box {
+      background: #fff;
+      border-radius: 18px;
+      padding: 24px 20px 20px;
+      width: calc(100% - 32px);
+      max-width: 388px;
+      text-align: center;
+    }
+
+    .ios-guide-box h3 {
+      font-size: 16px;
+      font-weight: 600;
+      color: #2c2820;
+      margin: 0 0 6px;
+    }
+
+    .ios-guide-box p {
+      font-size: 13px;
+      color: #7a7268;
+      line-height: 1.5;
+      margin: 0 0 20px;
+    }
+
+    .ios-guide-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      text-align: left;
+      margin-bottom: 20px;
+    }
+
+    .ios-guide-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .ios-guide-num {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: #f5f0e8;
+      font-size: 12px;
+      font-weight: 700;
+      color: #5a4a3a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .ios-guide-step-text {
+      font-size: 14px;
+      color: #2c2820;
+      line-height: 1.5;
+    }
+
+    .ios-share-svg {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      vertical-align: middle;
+      position: relative;
+      top: -1px;
+    }
+
+    .ios-guide-close {
+      width: 100%;
+      background: #f5f0e8;
+      color: #2c2820;
+      border: none;
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    /* Animated arrow pointing to Safari share button */
+    .ios-share-arrow {
+      width: 48px;
+      height: 48px;
+      background: #c8b89a;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 12px;
+      animation: bounce 1.2s ease-in-out infinite;
+    }
+
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(8px); }
+    }
   </style>
   <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="icon" href="/icon-192.png" type="image/png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Em~power">
@@ -173,11 +338,10 @@
   <div class="card">
     <div class="logo">Em~power</div>
     <h1>Welcome.</h1>
-    <p class="sub">Sign in or create an account to start tracking.</p>
+    <p class="sub">Sign in to start tracking.</p>
 
     <div class="tabs">
       <div class="tab active" id="tabLogin" onclick="switchTab('login')">Sign in</div>
-      <div class="tab" id="tabSignup" onclick="switchTab('signup')">Create account</div>
     </div>
 
     <div id="loginForm">
@@ -191,6 +355,31 @@
       </div>
       <button class="submit-btn" id="loginBtn" onclick="handleLogin()">Sign in</button>
       <div class="message" id="loginMessage"></div>
+      <div style="text-align:center;margin-top:16px">
+        <a href="#" onclick="showReset();return false" id="forgotLink" style="font-size:14px;color:#c8b89a;text-decoration:underline;font-weight:500">Forgot your password?</a>
+      </div>
+
+      <div id="resetForm" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid #ede8e0">
+        <div style="font-size:13px;color:#5a5550;margin-bottom:12px;line-height:1.5">Enter your email and we will send you a reset link.</div>
+        <div class="field">
+          <label>Email</label>
+          <input type="email" id="resetEmail" placeholder="your@email.com" />
+        </div>
+        <button class="submit-btn" id="resetBtn" onclick="handleReset()">Send reset link</button>
+        <div class="message" id="resetMessage"></div>
+      </div>
+    </div>
+
+    <!-- New password form — shown after clicking reset link in email -->
+    <div id="newPasswordForm" style="display:none">
+      <div style="font-size:15px;font-weight:500;color:#2c2820;margin-bottom:6px">Set a new password</div>
+      <div style="font-size:13px;color:#7a7268;margin-bottom:16px">Choose something you will remember.</div>
+      <div class="field">
+        <label>New password</label>
+        <input type="password" id="newPassword" placeholder="At least 6 characters" />
+      </div>
+      <button class="submit-btn" id="newPasswordBtn" onclick="handleNewPassword()">Update password</button>
+      <div class="message" id="newPasswordMessage"></div>
     </div>
 
     <div id="signupForm" style="display:none">
@@ -215,20 +404,132 @@
       <button class="submit-btn" id="signupBtn" onclick="handleSignup()">Create account</button>
       <div class="message" id="signupMessage"></div>
     </div>
+
+    <!-- Install card — shown only when not already installed -->
+    <div class="install-card" id="installCard">
+      <div class="install-card-label">Get the app</div>
+      <div class="install-card-title">Install Em~power</div>
+      <div class="install-card-sub">Add to your home screen for offline access and the full app experience.</div>
+      <button class="install-btn" id="installBtn">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v13M8 7l4-4 4 4M20 16v3a1 1 0 01-1 1H5a1 1 0 01-1-1v-3"/></svg>
+        Add to Home Screen
+      </button>
+    </div>
+  </div>
+
+  <!-- iOS guide overlay — shown when install button tapped on iOS -->
+  <div class="ios-guide-overlay" id="iosGuideOverlay" onclick="closeIosGuide(event)">
+    <div class="ios-share-arrow">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v13M8 7l4-4 4 4M20 16v3a1 1 0 01-1 1H5a1 1 0 01-1-1v-3"/></svg>
+    </div>
+    <div class="ios-guide-box">
+      <h3>Add to Home Screen</h3>
+      <p>Follow these steps in Safari to install Em~power.</p>
+      <div class="ios-guide-steps">
+        <div class="ios-guide-step">
+          <div class="ios-guide-num">1</div>
+          <div class="ios-guide-step-text">
+            Tap the
+            <svg class="ios-share-svg" viewBox="0 0 24 24" fill="none" stroke="#2c2820" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v13M8 7l4-4 4 4M20 16v3a1 1 0 01-1 1H5a1 1 0 01-1-1v-3"/></svg>
+            <strong>Share button</strong> at the bottom of your screen
+          </div>
+        </div>
+        <div class="ios-guide-step">
+          <div class="ios-guide-num">2</div>
+          <div class="ios-guide-step-text">Scroll down and tap <strong>Add to Home Screen</strong></div>
+        </div>
+        <div class="ios-guide-step">
+          <div class="ios-guide-num">3</div>
+          <div class="ios-guide-step-text">Tap <strong>Add</strong> in the top right corner</div>
+        </div>
+      </div>
+      <button class="ios-guide-close" onclick="closeIosGuide()">Got it</button>
+    </div>
   </div>
 
   <script type="module">
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
     const SUPABASE_URL = 'https://imgujppjvffbubnsscge.supabase.co'
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImltZ3VqcHBqdmZmYnVibnNzY2dlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2MDQzNzIsImV4cCI6MjA5NjE4MDM3Mn0.TpjycdiHLl5iI1G8u07mVmStKZWU2fzEsuw1dUi6diU'
-    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: { flowType: 'pkce' }
+    })
 
-    // Check if already logged in
+    // Check if already logged in, or handle password-reset recovery link
     async function checkSession() {
+      // PKCE flow: Supabase puts ?code=... in URL query params (survives Netlify password protection redirect)
+      // Fallback: also check hash for legacy implicit flow links already sent
+      const params = new URLSearchParams(window.location.search)
+      const code = params.get('code')
+      const hash = window.location.hash
+
+      if (code) {
+        // Exchange code for session — this sets up a recovery session
+        const { error } = await supabase.auth.exchangeCodeForSession(code)
+        if (!error) {
+          document.querySelector('.tabs').style.display = 'none'
+          document.getElementById('loginForm').style.display = 'none'
+          document.getElementById('signupForm').style.display = 'none'
+          document.getElementById('newPasswordForm').style.display = 'block'
+        }
+        return
+      }
+
+      if (hash.includes('type=recovery')) {
+        // Legacy implicit flow fallback (for any reset links already in inboxes)
+        document.querySelector('.tabs').style.display = 'none'
+        document.getElementById('loginForm').style.display = 'none'
+        document.getElementById('signupForm').style.display = 'none'
+        document.getElementById('newPasswordForm').style.display = 'block'
+        return
+      }
+
       const { data: { session } } = await supabase.auth.getSession()
       if (session) window.location.href = 'dashboard.html'
     }
     checkSession()
+
+    window.showReset = function () {
+      const rf = document.getElementById('resetForm')
+      rf.style.display = rf.style.display === 'none' ? 'block' : 'none'
+      if (rf.style.display === 'block') document.getElementById('resetEmail').focus()
+    }
+
+    window.handleReset = async function () {
+      const email = document.getElementById('resetEmail').value.trim()
+      const msg = document.getElementById('resetMessage')
+      const btn = document.getElementById('resetBtn')
+      if (!email) { msg.textContent = 'Please enter your email.'; msg.className = 'message error'; return }
+      btn.disabled = true; btn.textContent = 'Sending...'
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: 'https://empowerhealth.netlify.app/login.html'
+      })
+      if (error) {
+        msg.textContent = error.message; msg.className = 'message error'
+        btn.disabled = false; btn.textContent = 'Send reset link'
+      } else {
+        msg.textContent = 'Check your email for a reset link.'
+        msg.className = 'message success'
+        btn.textContent = 'Email sent'
+      }
+    }
+
+    window.handleNewPassword = async function () {
+      const password = document.getElementById('newPassword').value
+      const msg = document.getElementById('newPasswordMessage')
+      const btn = document.getElementById('newPasswordBtn')
+      if (password.length < 6) { msg.textContent = 'Password must be at least 6 characters.'; msg.className = 'message error'; return }
+      btn.disabled = true; btn.textContent = 'Updating...'
+      const { error } = await supabase.auth.updateUser({ password })
+      if (error) {
+        msg.textContent = error.message; msg.className = 'message error'
+        btn.disabled = false; btn.textContent = 'Update password'
+      } else {
+        msg.textContent = 'Password updated! Taking you to your dashboard...'
+        msg.className = 'message success'
+        setTimeout(() => window.location.href = 'dashboard.html', 1200)
+      }
+    }
 
     window.switchTab = function (tab) {
       document.getElementById('loginForm').style.display = tab === 'login' ? 'block' : 'none'
@@ -313,23 +614,46 @@
   </script>
 <script>
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js')
+    navigator.serviceWorker.addEventListener('message', e => {
+      if (e.data?.type === 'SW_UPDATED') window.location.reload()
+    })
+
   ;(function () {
+    var isStandalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches
+    if (isStandalone) return
+
     var isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent)
-    var isStandalone = window.navigator.standalone === true
-    if (!isIOS || isStandalone || localStorage.getItem('pwa-prompt-dismissed')) return
-    var b = document.createElement('div')
-    b.style.cssText = 'position:fixed;bottom:80px;left:16px;right:16px;background:#2c2820;color:#faf8f5;font-size:13px;padding:12px 14px;border-radius:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.18)'
-    var msg = document.createElement('span')
-    msg.style.lineHeight = '1.4'
-    msg.textContent = 'Add Em~power to your home screen for the full experience'
-    var x = document.createElement('button')
-    x.textContent = '\u2715'
-    x.setAttribute('aria-label', 'Dismiss')
-    x.style.cssText = 'background:none;border:none;color:#faf8f5;font-size:18px;cursor:pointer;flex-shrink:0;padding:0 2px;line-height:1'
-    x.onclick = function () { b.remove(); localStorage.setItem('pwa-prompt-dismissed', '1') }
-    b.appendChild(msg)
-    b.appendChild(x)
-    document.body.appendChild(b)
+    var card = document.getElementById('installCard')
+    var deferredPrompt = null
+
+    // Always show the card on mobile (iOS or Android)
+    if (isIOS) {
+      card.style.display = 'block'
+    }
+
+    // Android \u2014 capture native install prompt
+    window.addEventListener('beforeinstallprompt', function (e) {
+      e.preventDefault()
+      deferredPrompt = e
+      card.style.display = 'block'
+    })
+
+    document.getElementById('installBtn').addEventListener('click', function () {
+      if (deferredPrompt) {
+        // Android: trigger native prompt
+        deferredPrompt.prompt()
+        deferredPrompt.userChoice.then(function () { deferredPrompt = null })
+      } else {
+        // iOS: show the step-by-step guide overlay
+        document.getElementById('iosGuideOverlay').classList.add('visible')
+      }
+    })
+
+    window.closeIosGuide = function (e) {
+      if (!e || e.target === document.getElementById('iosGuideOverlay')) {
+        document.getElementById('iosGuideOverlay').classList.remove('visible')
+      }
+    }
   })()
 </script>
 </body>

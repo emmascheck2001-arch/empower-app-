@@ -3,8 +3,10 @@
 
 <head>
     <meta charset="UTF-8" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="icon" href="/icon-192.png" type="image/png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>HormoneSync. Workout</title>
+    <title>Em~power — Workout</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css" />
     <style>
         * {
@@ -1862,7 +1864,7 @@
                         <div class="activity-name">Gym</div>
                     </div>
                     <div class="activity-tile" onclick="selectActivity('yoga', this)">
-                        <span class="activity-icon" style="font-size:28px;line-height:1">🧘</span>
+                        <i class="ti ti-leaf activity-icon"></i>
                         <div class="activity-name">Yoga</div>
                     </div>
                     <div class="activity-tile" onclick="selectActivity('pilates', this)">
@@ -2048,7 +2050,7 @@
                 <div class="summary-wrap">
                     <div class="summary-card">
                         <div class="summary-card-title">
-                            <i class="ti ti-yoga"></i>
+                            <i class="ti ti-leaf"></i>
                             Cool down
                         </div>
                         <div class="guidance-text" id="cooldownPhaseNote" style="margin-bottom:16px"></div>
@@ -2141,7 +2143,7 @@
                         <div class="phase-note-compact-text" id="phaseNoteText"></div>
                     </div>
                     <div class="weight-suggestion-box" id="weightSuggestionBox" style="margin-bottom:16px">
-                        <div class="weight-suggestion-label">Starting weight guide</div>
+                        <div class="weight-suggestion-label" id="weightSuggestionLabel">Starting weight guide</div>
                         <div class="weight-suggestion-text" id="weightSuggestionText"></div>
                         <div class="weight-science" id="weightScienceText"></div>
                     </div>
@@ -4962,6 +4964,22 @@
             }
         }
 
+        function applyPhaseModifier(rangeString, modifier) {
+            if (!modifier || modifier === 1.0) return { range: rangeString, adjusted: false }
+            if (!rangeString || !/\d/.test(rangeString)) return { range: rangeString, adjusted: false }
+            const lower = rangeString.toLowerCase()
+            if (lower.includes('bodyweight') || lower.includes('band') || lower.includes('assisted')) {
+                return { range: rangeString, adjusted: false }
+            }
+            const adjusted = rangeString.replace(/\d+(?:\.\d+)?/g, match => {
+                const num = parseFloat(match)
+                const result = num * modifier
+                // Round to nearest 1kg under 10, nearest 2.5kg at 10+
+                return result < 10 ? Math.round(result) : Math.round(result / 2.5) * 2.5
+            })
+            return { range: adjusted, adjusted: true }
+        }
+
         function loadExercise(index) {
             const ex = state.exercises[index]
             if (!ex) { showComplete(); return }
@@ -4989,8 +5007,19 @@
             const weightData = weightsByLevel[state.fitnessLevel] && weightsByLevel[state.fitnessLevel][ex.name]
             const weightBox = document.getElementById('weightSuggestionBox')
             if (weightData) {
-                document.getElementById('weightSuggestionText').textContent = weightData.range
+                const { range, adjusted } = applyPhaseModifier(weightData.range, ex.phaseModifier)
+                document.getElementById('weightSuggestionText').textContent = range
                 document.getElementById('weightScienceText').textContent = weightData.science
+                const labelEl = document.getElementById('weightSuggestionLabel')
+                if (adjusted && ex.phaseModifier < 1.0) {
+                    const pct = Math.round((1 - ex.phaseModifier) * 100)
+                    labelEl.textContent = 'Phase-adjusted guide (' + pct + '% lighter for ' + (state.subPhase || state.phase.replace(' phase', '')) + ')'
+                } else if (adjusted && ex.phaseModifier > 1.0) {
+                    const pct = Math.round((ex.phaseModifier - 1) * 100)
+                    labelEl.textContent = 'Phase-adjusted guide (+' + pct + '% — push today)'
+                } else {
+                    labelEl.textContent = 'Starting weight guide'
+                }
                 weightBox.style.display = 'block'
             } else {
                 weightBox.style.display = 'none'
@@ -5133,7 +5162,7 @@
                     const bw = (profile && profile.body_weight_kg) ? profile.body_weight_kg : (state.bodyWeightKg || 65)
                     const phase = state.phase
                     const isLuteal = phase === 'Luteal phase'
-                    const proteinG = Math.round(bw * (isLuteal ? 2.0 : 1.6))
+                    const proteinG = Math.round(bw * (isLuteal ? 1.8 : 1.6))
                     const foodMap = {
                         'Follicular': 'Greek yogurt with berries, chicken with rice, eggs with avocado',
                         'Ovulatory': 'Cottage cheese with fruit, tuna with sweet potato, egg white omelette',
@@ -5164,13 +5193,14 @@
                     const today = new Date().toISOString().split('T')[0]
                     const duration = state.workoutStartTime ? Math.round((Date.now() - state.workoutStartTime) / 60000) : 0
                     const { data: existing } = await supabase.from('daily_logs').select('*').eq('user_id', user.id).eq('log_date', today).maybeSingle()
-                    await supabase.from('daily_logs').upsert({
+                    const { error: wErr1 } = await supabase.from('daily_logs').upsert({
                         ...(existing || {}),
                         user_id: user.id,
                         log_date: today,
                         workout_feel: 'Good',
                         notes: existing?.notes || (duration > 0 ? duration + ' min gym session' : 'gym session')
                     }, { onConflict: 'user_id,log_date' })
+                    if (wErr1) throw wErr1
                 }
             } catch (e) {
                 console.error('Cooldown save error:', e)
@@ -5583,7 +5613,7 @@
                     const bw = (profile && profile.body_weight_kg) ? profile.body_weight_kg : (state.bodyWeightKg || 65)
                     const isLuteal = phase === 'Luteal phase'
                     // ISSN 2023: luteal 1.8 to 2.2g/kg, follicular/general 1.6g/kg
-                    const proteinMultiplier = isLuteal ? 2.0 : 1.6
+                    const proteinMultiplier = isLuteal ? 1.8 : 1.6
                     const proteinG = Math.round(bw * proteinMultiplier)
                     const phaseKey = sub || phase
 
@@ -5605,12 +5635,13 @@
                     // Save workout log
                     const today = new Date().toISOString().split('T')[0]
                     const { data: existing } = await supabase.from('daily_logs').select('id').eq('user_id', user.id).eq('log_date', today).maybeSingle()
-                    await supabase.from('daily_logs').upsert({
+                    const { error: wErr2 } = await supabase.from('daily_logs').upsert({
                         ...(existing || {}),
                         user_id: user.id,
                         log_date: today,
                         workout_feel: 'Good'
                     }, { onConflict: 'user_id,log_date' })
+                    if (wErr2) throw wErr2
                 }
             } catch (e) {
                 console.error('Post-workout Supabase error:', e)
@@ -6003,6 +6034,14 @@
             window.location.href = 'dashboard.html'
         }
     </script>
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js')
+    navigator.serviceWorker.addEventListener('message', e => {
+      if (e.data?.type === 'SW_UPDATED') window.location.reload()
+    })
+  }
+</script>
 </body>
 
 </html>

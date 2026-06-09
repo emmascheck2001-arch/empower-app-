@@ -46,6 +46,10 @@
       flex-direction: column;
       align-items: center;
       transition: background 0.1s;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      -webkit-user-select: none;
     }
     .cal-cell:active { background: rgba(44,40,32,0.05) !important; }
     .cal-cell.other-month { opacity: 0.28; pointer-events: none; }
@@ -156,6 +160,8 @@
     .nav-item.active { color: #2c2820; }
   </style>
   <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="icon" href="/icon-192.png" type="image/png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Em~power">
@@ -588,7 +594,7 @@
         }
 
         // Click handler
-        el.onclick = function() {
+        el.addEventListener('click', function() {
           try {
             if (isFuture) openFutureSheet(cell.date, ds, pi)
             else openPastSheet(cell.date, ds, pi, log, mucusByDate[ds])
@@ -597,7 +603,7 @@
             document.getElementById('pastContent').innerHTML = '<div style="padding:20px;font-size:13px;color:#8a5050">' + err.message + '</div>'
             openSheet('pastSheet')
           }
-        }
+        })
       }
 
       grid.appendChild(el)
@@ -948,25 +954,12 @@
   document.getElementById('futureSheet').addEventListener('click', e => e.stopPropagation())
 </script>
 <script>
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js')
-  ;(function () {
-    var isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent)
-    var isStandalone = window.navigator.standalone === true
-    if (!isIOS || isStandalone || localStorage.getItem('pwa-prompt-dismissed')) return
-    var b = document.createElement('div')
-    b.style.cssText = 'position:fixed;bottom:80px;left:16px;right:16px;background:#2c2820;color:#faf8f5;font-size:13px;padding:12px 14px;border-radius:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.18)'
-    var msg = document.createElement('span')
-    msg.style.lineHeight = '1.4'
-    msg.textContent = 'Add Em~power to your home screen for the full experience'
-    var x = document.createElement('button')
-    x.textContent = '\u2715'
-    x.setAttribute('aria-label', 'Dismiss')
-    x.style.cssText = 'background:none;border:none;color:#faf8f5;font-size:18px;cursor:pointer;flex-shrink:0;padding:0 2px;line-height:1'
-    x.onclick = function () { b.remove(); localStorage.setItem('pwa-prompt-dismissed', '1') }
-    b.appendChild(msg)
-    b.appendChild(x)
-    document.body.appendChild(b)
-  })()
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js')
+    navigator.serviceWorker.addEventListener('message', e => {
+      if (e.data?.type === 'SW_UPDATED') window.location.reload()
+    })
+  }
 </script>
 </body>
 </html>

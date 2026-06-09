@@ -94,6 +94,8 @@
     .feedback-tap { font-size: 12px; color: #9a9590; text-align: center; }
   </style>
   <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="icon" href="/icon-192.png" type="image/png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Em~power">
@@ -295,15 +297,17 @@
           symptoms: logData.symptoms.length > 0 ? logData.symptoms : null,
           mood: logData.mood.length > 0 ? logData.mood : null
         }
-        await supabase.from('daily_logs').upsert(payload, { onConflict: 'user_id,log_date' })
+        const { error: saveError } = await supabase.from('daily_logs').upsert(payload, { onConflict: 'user_id,log_date' })
+        if (saveError) throw saveError
 
         // Save mucus observation to mucus_logs if provided
         if (logData.mucus_quick) {
-          await supabase.from('mucus_logs').upsert({
+          const { error: mucusError } = await supabase.from('mucus_logs').upsert({
             user_id: user.id,
             log_date: today,
             discharge_type: logData.mucus_quick
           }, { onConflict: 'user_id,log_date' })
+          if (mucusError) throw mucusError
         }
 
         const logged = ['energy', 'sleep_quality', 'resting_hr', 'mucus_quick'].filter(k => logData[k] && logData[k] !== 'No data')
@@ -350,24 +354,10 @@
   </script>
 <script>
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js')
-  ;(function () {
-    var isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent)
-    var isStandalone = window.navigator.standalone === true
-    if (!isIOS || isStandalone || localStorage.getItem('pwa-prompt-dismissed')) return
-    var b = document.createElement('div')
-    b.style.cssText = 'position:fixed;bottom:80px;left:16px;right:16px;background:#2c2820;color:#faf8f5;font-size:13px;padding:12px 14px;border-radius:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.18)'
-    var msg = document.createElement('span')
-    msg.style.lineHeight = '1.4'
-    msg.textContent = 'Add Em~power to your home screen for the full experience'
-    var x = document.createElement('button')
-    x.textContent = '\u2715'
-    x.setAttribute('aria-label', 'Dismiss')
-    x.style.cssText = 'background:none;border:none;color:#faf8f5;font-size:18px;cursor:pointer;flex-shrink:0;padding:0 2px;line-height:1'
-    x.onclick = function () { b.remove(); localStorage.setItem('pwa-prompt-dismissed', '1') }
-    b.appendChild(msg)
-    b.appendChild(x)
-    document.body.appendChild(b)
-  })()
+    navigator.serviceWorker.addEventListener('message', e => {
+      if (e.data?.type === 'SW_UPDATED') window.location.reload()
+    })
+  
 </script>
 </body>
 

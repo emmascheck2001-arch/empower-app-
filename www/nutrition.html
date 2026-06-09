@@ -244,6 +244,8 @@
     .nav-item.active span { color: #2c2820; }
   </style>
   <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="icon" href="/icon-192.png" type="image/png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Em~power">
@@ -682,7 +684,7 @@
       Ovulatory: {
         bannerClass: 'ovulatory',
         desc: 'Peak estrogen and a surge in LH drive your highest energy and performance window. Fuel well to take advantage. Digestion is typically smooth, making this a good time for varied, fibre-rich foods.',
-        science: 'Peak estrogen may improve muscle protein synthesis and exercise performance (Sarwar et al. Journal of Physiology 1996). High fibre intake supports estrogen clearance via gut microbiome activity (general evidence, SOURCE NEEDED: specific citation being verified).',
+        science: 'Peak estrogen may improve muscle protein synthesis and exercise performance (Sarwar et al. Journal of Physiology 1996). High fibre intake supports estrogen metabolism via enterohepatic circulation, reducing estrogen reabsorption (Audet et al. Nutrients 2021).',
         sectionLabel: 'Power foods around ovulation',
         foods: [
           { icon: '&#x1F41F;', name: 'Fatty fish (salmon, trout)', why: 'Omega-3s support anti-inflammatory status; DHA supports cognitive performance at peak estrogen', source: 'Calder PC. Biochim Biophys Acta 2011' },
@@ -853,24 +855,10 @@
   </script>
 <script>
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js')
-  ;(function () {
-    var isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent)
-    var isStandalone = window.navigator.standalone === true
-    if (!isIOS || isStandalone || localStorage.getItem('pwa-prompt-dismissed')) return
-    var b = document.createElement('div')
-    b.style.cssText = 'position:fixed;bottom:80px;left:16px;right:16px;background:#2c2820;color:#faf8f5;font-size:13px;padding:12px 14px;border-radius:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.18)'
-    var msg = document.createElement('span')
-    msg.style.lineHeight = '1.4'
-    msg.textContent = 'Add Em~power to your home screen for the full experience'
-    var x = document.createElement('button')
-    x.textContent = '\u2715'
-    x.setAttribute('aria-label', 'Dismiss')
-    x.style.cssText = 'background:none;border:none;color:#faf8f5;font-size:18px;cursor:pointer;flex-shrink:0;padding:0 2px;line-height:1'
-    x.onclick = function () { b.remove(); localStorage.setItem('pwa-prompt-dismissed', '1') }
-    b.appendChild(msg)
-    b.appendChild(x)
-    document.body.appendChild(b)
-  })()
+    navigator.serviceWorker.addEventListener('message', e => {
+      if (e.data?.type === 'SW_UPDATED') window.location.reload()
+    })
+  
 </script>
 </body>
 </html>

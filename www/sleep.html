@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Em~power — Sleep</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Em~power">
+  <meta name="theme-color" content="#2c2820">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #faf8f5; color: #2c2820; padding-bottom: 100px; }
+    .container { max-width: 420px; margin: 0 auto; padding: 0 16px; }
+
+    .top-bar { background: #f5f0e8; padding: 16px 20px; border-bottom: 1px solid #ede8e0; display: flex; align-items: center; gap: 12px; max-width: 420px; margin: 0 auto; }
+    .top-bar-back { font-size: 20px; color: #2c2820; text-decoration: none; }
+    .top-bar-title { flex: 1; }
+    .top-bar-wordmark { font-size: 13px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #2c2820; }
+    .top-bar-sub { font-size: 11px; color: #9a9590; margin-top: 1px; }
+
+    .spinner { width: 32px; height: 32px; border: 3px solid #ede8e0; border-top-color: #c8b89a; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 60px auto; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .phase-banner { border-radius: 14px; padding: 20px; margin: 16px 0 12px; color: #f5f0e8; }
+    .phase-banner.menstrual  { background: linear-gradient(135deg, #3d2830, #2c1f25); }
+    .phase-banner.follicular { background: linear-gradient(135deg, #2c3828, #1f2c20); }
+    .phase-banner.ovulatory  { background: linear-gradient(135deg, #2c3035, #1f252c); }
+    .phase-banner.luteal     { background: linear-gradient(135deg, #352c20, #2c2415); }
+    .phase-banner.perimenopause { background: linear-gradient(135deg, #2c2438, #1f1a2c); }
+    .phase-banner.observation { background: linear-gradient(135deg, #2c2820, #1f1e18); }
+    .banner-label { font-size: 10px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.7; margin-bottom: 6px; }
+    .banner-phase { font-size: 22px; font-style: italic; font-family: Georgia, serif; margin-bottom: 6px; }
+    .banner-desc { font-size: 13px; opacity: 0.85; line-height: 1.55; }
+
+    .section-label { font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: #9a9590; margin: 20px 0 10px; }
+
+    .card { background: #fff; border: 1px solid #ede8e0; border-radius: 14px; padding: 16px; margin-bottom: 12px; }
+    .card-title { font-size: 14px; font-weight: 600; color: #2c2820; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+    .card-title i { color: #c8b89a; font-size: 18px; }
+
+    /* Sleep quality history */
+    .sleep-history { display: flex; align-items: flex-end; gap: 6px; height: 64px; margin-bottom: 8px; }
+    .sleep-bar-wrap { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; }
+    .sleep-bar { width: 100%; border-radius: 4px 4px 0 0; transition: height 0.3s; }
+    .sleep-bar-label { font-size: 9px; color: #9a9590; white-space: nowrap; }
+    .sleep-avg-line { font-size: 12px; color: #7a7268; margin-top: 4px; }
+
+    /* Tips list */
+    .tip-row { display: flex; gap: 12px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid #f0ede8; }
+    .tip-row:last-child { border-bottom: none; }
+    .tip-icon { width: 32px; height: 32px; border-radius: 10px; background: #f5f0e8; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .tip-icon i { font-size: 16px; color: #c8b89a; }
+    .tip-text { flex: 1; }
+    .tip-title { font-size: 13px; font-weight: 600; color: #2c2820; margin-bottom: 2px; }
+    .tip-desc { font-size: 12px; color: #7a7268; line-height: 1.5; }
+
+    /* Avoid list */
+    .avoid-row { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; border-bottom: 1px solid #f0ede8; }
+    .avoid-row:last-child { border-bottom: none; }
+    .avoid-dot { width: 6px; height: 6px; border-radius: 50%; background: #e09898; flex-shrink: 0; margin-top: 6px; }
+    .avoid-text { font-size: 12px; color: #7a7268; line-height: 1.5; }
+
+    /* Science note */
+    .science-note { background: #f5f0e8; border-radius: 10px; padding: 12px; font-size: 11px; color: #7a7268; line-height: 1.6; margin-top: 10px; }
+
+    /* Log button */
+    .log-btn { display: block; background: #2c2820; color: #f5f0e8; border: none; border-radius: 12px; padding: 16px; font-size: 15px; font-weight: 500; width: 100%; text-align: center; text-decoration: none; margin: 16px 0 8px; cursor: pointer; }
+
+    /* Hormone note */
+    .phase-note { font-size: 12px; color: #7a7268; line-height: 1.6; padding: 10px 0; }
+
+    /* What is happening cards */
+    .happening-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .happening-pill { background: #f5f0e8; border-radius: 10px; padding: 10px 12px; }
+    .happening-pill-label { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #9a9590; margin-bottom: 4px; }
+    .happening-pill-value { font-size: 12px; color: #2c2820; line-height: 1.45; }
+
+    /* Bottom nav */
+    nav { position: fixed; bottom: 0; left: 0; right: 0; background: #f5f0e8; border-top: 1px solid #ede8e0; display: flex; justify-content: space-around; padding: 8px 0 20px; z-index: 100; max-width: 420px; margin: 0 auto; }
+    nav a { display: flex; flex-direction: column; align-items: center; gap: 3px; text-decoration: none; color: #9a9590; font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
+    nav a.active { color: #2c2820; }
+    nav a i { font-size: 22px; }
+  </style>
+</head>
+<body>
+
+<div class="top-bar">
+  <a href="dashboard.html" class="top-bar-back"><i class="ti ti-arrow-left"></i></a>
+  <div class="top-bar-title">
+    <div class="top-bar-wordmark">Sleep</div>
+    <div class="top-bar-sub" id="topBarSub">Loading...</div>
+  </div>
+</div>
+
+<div id="spinner" class="spinner"></div>
+<div id="mainContent" style="display:none">
+  <div class="container">
+
+    <div class="phase-banner" id="phaseBanner">
+      <div class="banner-label">Sleep this phase</div>
+      <div class="banner-phase" id="bannerPhase">Loading</div>
+      <div class="banner-desc" id="bannerDesc"></div>
+    </div>
+
+    <div class="section-label">Your last 7 nights</div>
+    <div class="card">
+      <div class="card-title"><i class="ti ti-chart-bar"></i>Sleep quality</div>
+      <div class="sleep-history" id="sleepHistory"></div>
+      <div class="sleep-avg-line" id="sleepAvg"></div>
+    </div>
+
+    <div class="section-label">What is happening hormonally</div>
+    <div class="card" id="hormonalCard">
+      <div class="phase-note" id="hormonalNote"></div>
+      <div class="happening-grid" id="hormonalGrid"></div>
+    </div>
+
+    <div class="section-label">Tips for tonight</div>
+    <div class="card" id="tipsCard"></div>
+
+    <div class="section-label">What to avoid</div>
+    <div class="card" id="avoidCard">
+      <div id="avoidList"></div>
+    </div>
+
+    <div class="section-label">How did you sleep last night?</div>
+    <div class="card">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:4px" id="sleepLogBtns">
+        <button onclick="logSleep('Poor')"   class="sleep-log-btn" data-q="Poor"      style="background:#f5f0e8;border:1.5px solid #ede8e0;border-radius:10px;padding:12px 4px;font-size:13px;font-weight:500;color:#2c2820;cursor:pointer">Poor</button>
+        <button onclick="logSleep('Fair')"   class="sleep-log-btn" data-q="Fair"      style="background:#f5f0e8;border:1.5px solid #ede8e0;border-radius:10px;padding:12px 4px;font-size:13px;font-weight:500;color:#2c2820;cursor:pointer">Fair</button>
+        <button onclick="logSleep('Good')"   class="sleep-log-btn" data-q="Good"      style="background:#f5f0e8;border:1.5px solid #ede8e0;border-radius:10px;padding:12px 4px;font-size:13px;font-weight:500;color:#2c2820;cursor:pointer">Good</button>
+        <button onclick="logSleep('Great')"  class="sleep-log-btn" data-q="Great"     style="background:#f5f0e8;border:1.5px solid #ede8e0;border-radius:10px;padding:12px 4px;font-size:13px;font-weight:500;color:#2c2820;cursor:pointer">Great</button>
+      </div>
+      <div id="sleepLogMsg" style="font-size:12px;color:#7a7268;text-align:center;min-height:18px;margin-top:6px"></div>
+    </div>
+
+    <div class="science-note" id="scienceNote"></div>
+
+  </div>
+</div>
+
+<nav>
+  <a href="dashboard.html"><i class="ti ti-home"></i>Home</a>
+  <a href="workout.html"><i class="ti ti-barbell"></i>Workout</a>
+  <a href="log.html"><i class="ti ti-pencil"></i>Log</a>
+  <a href="nutrition.html"><i class="ti ti-salad"></i>Nutrition</a>
+  <a href="learn.html"><i class="ti ti-book-2"></i>Learn</a>
+</nav>
+
+<script type="module">
+  import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
+  import { getTodayStatus } from './hormoneSync.js'
+
+  const SUPABASE_URL = 'https://imgujppjvffbubnsscge.supabase.co'
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImltZ3VqcHBqdmZmYnVibnNzY2dlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2MDQzNzIsImV4cCI6MjA5NjE4MDM3Mn0.TpjycdiHLl5iI1G8u07mVmStKZWU2fzEsuw1dUi6diU'
+  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) { window.location.href = 'login.html' }
+  supabase.auth.onAuthStateChange((event, sess) => { if (!sess) window.location.href = 'login.html' })
+
+  // Phase-specific sleep data
+  const SLEEP_DATA = {
+    Menstrual: {
+      bannerClass: 'menstrual',
+      phase: 'Menstrual phase',
+      desc: 'Low estrogen and progesterone, combined with prostaglandins and potential cramping, can make sleep harder to come by this week. Serotonin is at its lowest, affecting both mood and sleep onset.',
+      hormonal: 'Estrogen and progesterone are both at their lowest point of the cycle. Serotonin production is reduced. Prostaglandins, which drive cramping, can disrupt sleep continuity.',
+      grid: [
+        { label: 'Estrogen', value: 'At its lowest' },
+        { label: 'Progesterone', value: 'At its lowest' },
+        { label: 'Serotonin', value: 'Reduced' },
+        { label: 'Sleep quality', value: 'Often disrupted' }
+      ],
+      tips: [
+        { icon: 'ti-temperature', title: 'Keep the room cool', desc: 'A cooler room (16 to 19 degrees Celsius) helps your core temperature drop, which is needed for sleep onset.' },
+        { icon: 'ti-droplet', title: 'Heat for cramps, not the whole room', desc: 'A hot water bottle on your lower abdomen can reduce prostaglandin-driven cramping without overheating your body.' },
+        { icon: 'ti-moon', title: 'Prioritise 8 to 9 hours', desc: 'Your body is doing significant work this week. Give yourself permission to sleep longer than usual.' },
+        { icon: 'ti-leaf', title: 'Magnesium glycinate before bed', desc: 'Magnesium relaxes smooth muscle and has a mild calming effect. 300 to 400mg in the evening may improve sleep quality. (Facchinetti et al. 1991)' },
+        { icon: 'ti-clock', title: 'Consistent wake time', desc: 'Even if sleep was broken, a consistent wake time anchors your circadian rhythm and makes the next night easier.' }
+      ],
+      avoid: [
+        'Alcohol within 4 hours of sleep. It fragments deep sleep and reduces REM, which worsens mood the following day.',
+        'Caffeine after 1pm. Its half-life is around 6 hours and longer in the luteal and menstrual phases.',
+        'High-intensity training in the evening. It raises core temperature and cortisol at the wrong time.',
+        'Screens without blue light filter after 9pm. Melatonin production is suppressed by short-wavelength light.'
+      ],
+      science: 'Source: De Martin Topranin V et al. International Journal of Sports Physiology and Performance 2023. Backstrom T et al. Archives of Women\'s Mental Health 2008. Facchinetti F et al. Obstetrics and Gynecology 1991.'
+    },
+    Follicular: {
+      bannerClass: 'follicular',
+      phase: 'Follicular phase',
+      desc: 'Rising estrogen tends to improve sleep quality in the follicular phase. Serotonin production picks up, mood lifts, and most women notice sleep becomes more restorative.',
+      hormonal: 'Estrogen is rising and directly supports serotonin production, which improves both mood and sleep onset. Progesterone remains low. This is typically the best sleep window of the cycle.',
+      grid: [
+        { label: 'Estrogen', value: 'Rising steadily' },
+        { label: 'Progesterone', value: 'Low' },
+        { label: 'Serotonin', value: 'Improving' },
+        { label: 'Sleep quality', value: 'Often best now' }
+      ],
+      tips: [
+        { icon: 'ti-sun', title: 'Morning light exposure', desc: 'Natural light within 30 minutes of waking sets your circadian clock and strengthens the sleep drive for the evening. Aim for 10 minutes outside.' },
+        { icon: 'ti-run', title: 'Schedule harder training now', desc: 'Your body recovers well in the follicular phase. Training hard earlier in the day supports deeper sleep at night without cortisol elevation.' },
+        { icon: 'ti-moon', title: 'Use this window to build debt repayment', desc: 'If you slept poorly during menstruation, the follicular phase is the natural recovery window. Aim for 7.5 to 9 hours.' },
+        { icon: 'ti-clock', title: 'Anchor your sleep timing', desc: 'A consistent bed and wake time locks in the gains from better follicular sleep quality and makes luteal-phase disruption easier to manage.' }
+      ],
+      avoid: [
+        'Staying up late because you feel good. Use rising energy to be productive earlier, not later.',
+        'Skipping wind-down routine because sleep feels easy. Consistency matters more than any single phase.',
+        'Caffeine after 2pm even if energy is high.'
+      ],
+      science: 'Source: Lokuge S et al. Journal of Psychiatry and Neuroscience 2011. Backstrom T et al. Archives of Women\'s Mental Health 2008. De Martin Topranin V et al. IJSPP 2023.'
+    },
+    Ovulatory: {
+      bannerClass: 'ovulatory',
+      phase: 'Ovulatory phase',
+      desc: 'Peak estrogen and a brief rise in testosterone create your highest energy and most socially connected days. Sleep is generally good though some women notice lighter sleep around the LH surge itself.',
+      hormonal: 'Estrogen peaks before ovulation, supporting strong serotonin and dopamine activity. LH surges to trigger egg release. Core temperature begins to rise slightly after ovulation.',
+      grid: [
+        { label: 'Estrogen', value: 'Peaking' },
+        { label: 'LH', value: 'Surging' },
+        { label: 'Serotonin', value: 'At its highest' },
+        { label: 'Sleep quality', value: 'Generally good' }
+      ],
+      tips: [
+        { icon: 'ti-moon', title: 'Wind down even when energy is high', desc: 'The ovulatory phase often comes with a social and energy surge. Protect your sleep window by building in a 30-minute wind-down regardless.' },
+        { icon: 'ti-temperature', title: 'Note temperature shift', desc: 'After ovulation, progesterone begins to rise and your core temperature increases by 0.3 to 0.5 degrees. A cooler sleep environment becomes more important from here.' },
+        { icon: 'ti-brain', title: 'Your brain is most active', desc: 'Cognitive performance is high. If sleep is lighter around your surge days, this is a known hormonal effect, not a sleep disorder.' }
+      ],
+      avoid: [
+        'Late-night stimulating social activity if you notice sleep is lighter around your LH surge.',
+        'Alcohol, which reduces sleep quality during the peak hormone window.',
+        'Ignoring the temperature rise that signals the start of the luteal phase sleep shift.'
+      ],
+      science: 'Source: De Martin Topranin V et al. IJSPP 2023. Charkoudian N, Stachenfeld NS. Comprehensive Physiology 2014. Backstrom T et al. 2008.'
+    },
+    'Early luteal': {
+      bannerClass: 'luteal',
+      phase: 'Early luteal phase',
+      desc: 'Rising progesterone has a genuine calming effect on the nervous system through its conversion to allopregnanolone, which activates GABA-A receptors. Many women find sleep quality is still good in the early luteal phase.',
+      hormonal: 'Progesterone is rising and metabolises into allopregnanolone, a neurosteroid with sedating properties. GABA-A receptor activation promotes calm and sleep. Core temperature is slightly elevated.',
+      grid: [
+        { label: 'Progesterone', value: 'Rising' },
+        { label: 'Allopregnanolone', value: 'Active, calming' },
+        { label: 'Core temp', value: 'Slightly elevated' },
+        { label: 'Sleep quality', value: 'Usually good' }
+      ],
+      tips: [
+        { icon: 'ti-temperature', title: 'Cool your sleep environment', desc: 'Progesterone raises your core temperature by around 0.3 to 0.5 degrees. Lowering the room temperature to 16 to 18 degrees compensates for this.' },
+        { icon: 'ti-leaf', title: 'Use the GABA window', desc: 'Allopregnanolone activity gives many women a naturally calmer evening in early luteal. A consistent wind-down routine takes advantage of this.' },
+        { icon: 'ti-barbell', title: 'Moderate evening training load', desc: 'Your body is beginning its recovery-prioritising shift. Heavy training close to bedtime competes with the progesterone-driven calm.' }
+      ],
+      avoid: [
+        'Overriding the natural calm with stimulants or stress in the evening.',
+        'High-intensity training within 2 hours of sleep, which elevates cortisol and competes with progesterone.',
+        'Alcohol, which disrupts allopregnanolone metabolism and causes rebound anxiety.'
+      ],
+      science: 'Source: Backstrom T et al. Psychoneuroendocrinology 2014. Bäckström T et al. 2014. De Martin Topranin V et al. IJSPP 2023. Charkoudian N, Stachenfeld NS. 2014.'
+    },
+    'Mid luteal': {
+      bannerClass: 'luteal',
+      phase: 'Mid luteal phase',
+      desc: 'This is where sleep quality is most measurably affected by your hormones. Research shows sleep quality is significantly impaired in the mid-luteal phase, with elevated core temperature and resting heart rate being the main drivers.',
+      hormonal: 'Progesterone is at its peak, keeping core temperature elevated. Estrogen is still present but both begin to fall toward late luteal. Cortisol sensitivity is higher. The elevated RHR and temperature are measurable physiological changes, not imagination.',
+      grid: [
+        { label: 'Progesterone', value: 'At its peak' },
+        { label: 'Core temp', value: 'Measurably higher' },
+        { label: 'RHR', value: 'Up by 1 to 2 bpm' },
+        { label: 'Sleep quality', value: 'Often disrupted' }
+      ],
+      tips: [
+        { icon: 'ti-temperature', title: 'Cool the room aggressively', desc: 'Target 15 to 17 degrees Celsius. A cool shower before bed can also help your core temperature drop enough for sleep onset.' },
+        { icon: 'ti-droplet', title: 'Hydrate well during the day', desc: 'Progesterone affects fluid regulation. Mild dehydration worsens sleep quality. Aim for 2 to 2.5 litres during the day, tapering off after 7pm.' },
+        { icon: 'ti-leaf', title: 'Magnesium glycinate', desc: '300 to 400mg magnesium glycinate 30 to 60 minutes before bed. Supports muscle relaxation and may ease the transition into deeper sleep stages.' },
+        { icon: 'ti-clock', title: 'Protect 8 hours minimum', desc: 'Your body needs more time to achieve the same restorative sleep depth. Building in extra time compensates for the reduced efficiency.' },
+        { icon: 'ti-moon', title: 'Expect your wearable to be confused', desc: 'Elevated temperature and RHR in the mid-luteal phase looks like poor recovery to wearable devices calibrated on male physiology. Your Em~power data accounts for this. (Sims ST. ROAR 2024.)' }
+      ],
+      avoid: [
+        'Trusting your wearable readiness score without context. It is not accounting for your hormonal state.',
+        'Alcohol. It worsens REM suppression and raises core temperature further, compounding the hormonal effect.',
+        'Heavy meals within 2 hours of sleep. Digestion raises core temperature at the wrong time.',
+        'Caffeine after 12pm in the mid-luteal phase. Cortisol sensitivity is higher and caffeine compounds this.',
+        'Hard training in the evening. The stress response is amplified when progesterone and cortisol compete. (Hackney AC. J Sports Science and Medicine 2006.)'
+      ],
+      science: 'Source: De Martin Topranin V et al. International Journal of Sports Physiology and Performance 2023 (P=.006, sleep quality impaired mid-luteal vs early follicular). Charkoudian N, Stachenfeld NS. Comprehensive Physiology 2014. Hackney AC. JSSM 2006. Sims ST. ROAR 2024.'
+    },
+    'Late luteal': {
+      bannerClass: 'luteal',
+      phase: 'Late luteal phase',
+      desc: 'Both estrogen and progesterone are dropping sharply. Serotonin becomes less stable. The GABA-calming effect of allopregnanolone fades as progesterone falls, which can cause rebound anxiety and disrupted sleep.',
+      hormonal: 'Progesterone is falling, reducing allopregnanolone and its GABA-A calming effect. Estrogen is also dropping, reducing serotonin support. This combination drives the mood and sleep changes many women attribute to PMS.',
+      grid: [
+        { label: 'Progesterone', value: 'Falling fast' },
+        { label: 'Estrogen', value: 'Falling' },
+        { label: 'Serotonin', value: 'Less stable' },
+        { label: 'Sleep quality', value: 'Often broken' }
+      ],
+      tips: [
+        { icon: 'ti-leaf', title: 'Magnesium and tryptophan-rich foods', desc: 'Tryptophan is a serotonin precursor. Turkey, eggs, oats, and dairy in the evening may support serotonin production when hormonal support is withdrawing.' },
+        { icon: 'ti-moon', title: 'Earlier bedtime', desc: 'Sleep onset is often harder in the late luteal phase. Going to bed 30 to 60 minutes earlier increases your chances of reaching deep sleep before disruption occurs.' },
+        { icon: 'ti-brain', title: 'Name the GABA withdrawal', desc: 'Rebound anxiety in the late luteal phase is a genuine neurological event, not a psychological weakness. It resolves when your period begins and is not a signal that something is wrong with you.' },
+        { icon: 'ti-temperature', title: 'Keep the room cool', desc: 'Although temperature drops as progesterone falls, the disruption to sleep architecture continues. A cool environment remains helpful.' }
+      ],
+      avoid: [
+        'Alcohol entirely this week. In the late luteal phase, alcohol amplifies GABA withdrawal and can significantly worsen anxiety and sleep fragmentation.',
+        'Stressful conversations or news before bed. Cortisol is more reactive in the late luteal phase.',
+        'Skipping meals. Low blood sugar during late luteal amplifies cortisol overnight, disrupting deep sleep.'
+      ],
+      science: 'Source: Backstrom T et al. Psychoneuroendocrinology 2014 (GABA withdrawal mechanism). Backstrom T et al. Archives of Women\'s Mental Health 2008. Lokuge S et al. Journal of Psychiatry and Neuroscience 2011.'
+    },
+    Luteal: {
+      bannerClass: 'luteal',
+      phase: 'Luteal phase',
+      desc: 'Progesterone is elevated, raising your core temperature and resting heart rate. Sleep quality is measurably affected in the luteal phase, and your wearable device is likely underestimating your recovery because it was not built with female physiology in mind.',
+      hormonal: 'Progesterone rises after ovulation and remains elevated until your next period. It raises core temperature by around 0.3 to 0.5 degrees and resting heart rate by 1 to 2 bpm, both of which reduce sleep efficiency.',
+      grid: [
+        { label: 'Progesterone', value: 'Elevated' },
+        { label: 'Core temp', value: 'Elevated' },
+        { label: 'RHR', value: 'Higher than follicular' },
+        { label: 'Sleep quality', value: 'Often reduced' }
+      ],
+      tips: [
+        { icon: 'ti-temperature', title: 'Cool the room', desc: 'Target 16 to 18 degrees Celsius. Your core temperature is already elevated, so the room needs to compensate.' },
+        { icon: 'ti-leaf', title: 'Magnesium glycinate', desc: '300 to 400mg before bed supports muscle relaxation and may ease the drop into deeper sleep stages.' },
+        { icon: 'ti-clock', title: 'Protect at least 8 hours in bed', desc: 'Sleep efficiency drops in the luteal phase. More time in bed compensates for reduced deep sleep proportion.' },
+        { icon: 'ti-moon', title: 'Ignore your wearable readiness score', desc: 'Devices calibrated on male physiology interpret your elevated temperature and RHR as poor recovery. It is a hormonal state, not a fitness problem. (Sims ST. ROAR 2024.)' }
+      ],
+      avoid: [
+        'Alcohol, which raises core temperature and suppresses REM sleep, compounding the hormonal effect.',
+        'Caffeine after 12pm. Cortisol sensitivity is higher when progesterone is elevated.',
+        'Hard training in the 3 hours before sleep. Stress response is amplified when progesterone and cortisol compete.'
+      ],
+      science: 'Source: De Martin Topranin V et al. IJSPP 2023. Charkoudian N, Stachenfeld NS. Comprehensive Physiology 2014. Hackney AC. JSSM 2006. Sims ST. ROAR 2024.'
+    },
+    Perimenopause: {
+      bannerClass: 'perimenopause',
+      phase: 'Perimenopause',
+      desc: 'Sleep disruption is one of the most common and disruptive symptoms of perimenopause. Fluctuating estrogen affects serotonin and temperature regulation, while progesterone changes affect the GABA-calming system. Night sweats, hot flashes, and early waking are real physiological events, not lifestyle problems.',
+      hormonal: 'Estrogen fluctuates unpredictably rather than following a cycle. This disrupts serotonin production, temperature regulation, and sleep architecture. Progesterone declines, reducing allopregnanolone and its calming effect on GABA-A receptors.',
+      grid: [
+        { label: 'Estrogen', value: 'Fluctuating' },
+        { label: 'Progesterone', value: 'Declining' },
+        { label: 'Hot flashes', value: 'Common trigger' },
+        { label: 'Sleep quality', value: 'Often disrupted' }
+      ],
+      tips: [
+        { icon: 'ti-temperature', title: 'Cool the room significantly', desc: 'A room temperature of 15 to 17 degrees Celsius is especially important in perimenopause. Moisture-wicking bedding can also reduce night sweat disruption.' },
+        { icon: 'ti-leaf', title: 'Magnesium glycinate before bed', desc: '300 to 400mg supports the GABA system and muscle relaxation when progesterone is declining. This is one of the most evidence-supported supplements for perimenopausal sleep.' },
+        { icon: 'ti-clock', title: 'Strict consistent wake time', desc: 'With fragmented sleep, a consistent wake time is the most powerful single tool to anchor your circadian rhythm and improve sleep drive the following night.' },
+        { icon: 'ti-barbell', title: 'Strength training earlier in the day', desc: 'Resistance training significantly improves sleep quality in perimenopausal women. Morning or early afternoon is optimal. (Kohrt WM et al. MSSE 2004.)' },
+        { icon: 'ti-brain', title: 'Talk to a doctor about HRT', desc: 'Hormone replacement therapy is one of the most effective interventions for perimenopausal sleep disruption. Current evidence supports its safety for most healthy women when started within 10 years of menopause. (Manson JE et al. NEJM 2013.)' }
+      ],
+      avoid: [
+        'Alcohol entirely. It triggers hot flashes in many perimenopausal women and significantly worsens sleep architecture.',
+        'Caffeine after 12pm. Sensitivity increases as estrogen declines.',
+        'Hot rooms or heavy bedding, which amplify temperature-driven waking.',
+        'Late evening exercise, which elevates core temperature when the body most needs to cool for sleep.'
+      ],
+      science: 'Source: Harlow SD et al. Climacteric 2012 (STRAW+10). Freeman EW et al. Archives of General Psychiatry 2004. Backstrom T et al. Psychoneuroendocrinology 2014. Manson JE et al. NEJM 2013. Kohrt WM et al. MSSE 2004.'
+    },
+    Observation: {
+      bannerClass: 'observation',
+      phase: 'Building your baseline',
+      desc: 'Your hormone data is being established. The sleep guidance below reflects a low-estrogen environment, which is the most likely state during an observation or recovery phase.',
+      hormonal: 'Without confirmed ovulation signals, your hormonal environment may resemble a low-estrogen state. Sleep is supported by consistent habits more than hormonal tailwinds right now.',
+      grid: [
+        { label: 'Estrogen', value: 'Uncertain' },
+        { label: 'Progesterone', value: 'Uncertain' },
+        { label: 'Building data', value: 'In progress' },
+        { label: 'Sleep guidance', value: 'Foundational' }
+      ],
+      tips: [
+        { icon: 'ti-sun', title: 'Morning light every day', desc: '10 minutes of natural light within 30 minutes of waking is the single most powerful circadian anchor. It costs nothing and has strong evidence behind it.' },
+        { icon: 'ti-clock', title: 'Consistent sleep and wake times', desc: 'Without hormonal phase structure to lean on, your circadian rhythm is the most important sleep system to protect.' },
+        { icon: 'ti-leaf', title: 'Magnesium glycinate', desc: '300 to 400mg before bed supports relaxation and the GABA system regardless of hormonal phase.' },
+        { icon: 'ti-temperature', title: 'Cool dark room', desc: 'Sleep onset requires your core temperature to drop. A cool dark room supports this across all hormonal states.' }
+      ],
+      avoid: [
+        'Alcohol, which disrupts all sleep stages regardless of hormonal phase.',
+        'Caffeine after 1pm.',
+        'Screens without blue light filter after 9pm.',
+        'Inconsistent sleep timing, which fragments circadian rhythms further.'
+      ],
+      science: 'Source: Sims ST. ROAR 2024. De Martin Topranin V et al. IJSPP 2023. General sleep hygiene evidence: Walker M. Why We Sleep. Scribner 2017.'
+    }
+  }
+
+  const QUALITY_COLOURS = { Poor: '#e09898', Fair: '#e0c070', Good: '#88c088', Great: '#68b068', Excellent: '#68b068' }
+  const QUALITY_HEIGHTS = { Poor: 20, Fair: 36, Good: 52, Great: 60, Excellent: 60 }
+  const QUALITY_LABELS = { Poor: 'Poor', Fair: 'Fair', Good: 'Good', Great: 'Great', Excellent: 'Excellent' }
+
+  let _user = null
+
+  window.logSleep = async function (quality) {
+    if (!_user) return
+    const today = new Date().toISOString().split('T')[0]
+    const msg = document.getElementById('sleepLogMsg')
+
+    // Highlight selected button
+    document.querySelectorAll('.sleep-log-btn').forEach(b => {
+      const selected = b.dataset.q === quality
+      b.style.background = selected ? '#2c2820' : '#f5f0e8'
+      b.style.color = selected ? '#f5f0e8' : '#2c2820'
+      b.style.borderColor = selected ? '#2c2820' : '#ede8e0'
+    })
+
+    msg.textContent = 'Saving...'
+    const { error } = await supabase.from('daily_logs').upsert(
+      { user_id: _user.id, log_date: today, sleep_quality: quality },
+      { onConflict: 'user_id,log_date' }
+    )
+    if (error) {
+      msg.textContent = 'Could not save. Check your connection.'
+    } else {
+      msg.textContent = `Saved — ${quality} sleep logged for today.`
+      // Refresh the 7-day bars to show new entry
+      renderHistory(_user.id)
+    }
+  }
+
+  async function renderHistory (userId) {
+    const today = new Date()
+    const dates = []
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today); d.setDate(d.getDate() - i)
+      dates.push(d.toISOString().split('T')[0])
+    }
+    const { data: logs } = await supabase
+      .from('daily_logs').select('log_date, sleep_quality')
+      .eq('user_id', userId).in('log_date', dates).order('log_date', { ascending: true })
+
+    const logMap = {}
+    if (logs) logs.forEach(l => { logMap[l.log_date] = l.sleep_quality })
+
+    const days = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
+    const historyEl = document.getElementById('sleepHistory')
+    let total = 0; let counted = 0
+    historyEl.innerHTML = dates.map(d => {
+      const q = logMap[d]
+      const dayLabel = days[new Date(d + 'T12:00:00').getDay()]
+      const isToday = d === today.toISOString().split('T')[0]
+      if (q) { total += (q === 'Poor' ? 1 : q === 'Fair' ? 2 : q === 'Good' ? 3 : 4); counted++ }
+      return `<div class="sleep-bar-wrap">
+        <div class="sleep-bar" style="height:${q ? QUALITY_HEIGHTS[q] : 8}px;background:${q ? QUALITY_COLOURS[q] : '#ede8e0'};width:100%"></div>
+        <div class="sleep-bar-label" style="color:${isToday ? '#2c2820' : '#9a9590'};font-weight:${isToday ? '700' : '400'}">${isToday ? 'Today' : dayLabel}</div>
+      </div>`
+    }).join('')
+
+    if (counted > 0) {
+      const avg = total / counted
+      const avgLabel = avg < 1.75 ? 'Poor' : avg < 2.5 ? 'Fair' : avg < 3.25 ? 'Good' : 'Great'
+      document.getElementById('sleepAvg').textContent = `7-day average: ${avgLabel} (${counted} of 7 days logged)`
+    } else {
+      document.getElementById('sleepAvg').textContent = 'No sleep data yet. Log your first night above.'
+    }
+
+    // Pre-select today's quality if already logged
+    const todayQ = logMap[today.toISOString().split('T')[0]]
+    if (todayQ) {
+      document.querySelectorAll('.sleep-log-btn').forEach(b => {
+        const selected = b.dataset.q === todayQ
+        b.style.background = selected ? '#2c2820' : '#f5f0e8'
+        b.style.color = selected ? '#f5f0e8' : '#2c2820'
+        b.style.borderColor = selected ? '#2c2820' : '#ede8e0'
+      })
+      document.getElementById('sleepLogMsg').textContent = `${todayQ} sleep already logged for today.`
+    }
+  }
+
+  async function init () {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { window.location.href = 'login.html'; return }
+      _user = user
+
+      const status = await getTodayStatus(supabase, user.id)
+      const phase = status.subPhase || status.phase || 'Observation'
+      const phaseKey = Object.keys(SLEEP_DATA).includes(phase) ? phase : (Object.keys(SLEEP_DATA).includes(status.phase) ? status.phase : 'Observation')
+      const data = SLEEP_DATA[phaseKey] || SLEEP_DATA.Observation
+
+      // Top bar sub label
+      document.getElementById('topBarSub').textContent = status.phase === 'Perimenopause'
+        ? 'Perimenopause support'
+        : `${status.phase || 'Cycle'} phase, day ${status.cycleDay || ''}`
+
+      // Banner
+      document.getElementById('phaseBanner').className = `phase-banner ${data.bannerClass}`
+      document.getElementById('bannerPhase').textContent = data.phase
+      document.getElementById('bannerDesc').textContent = data.desc
+
+      // Hormonal card
+      document.getElementById('hormonalNote').textContent = data.hormonal
+      const grid = document.getElementById('hormonalGrid')
+      grid.innerHTML = data.grid.map(g => `
+        <div class="happening-pill">
+          <div class="happening-pill-label">${g.label}</div>
+          <div class="happening-pill-value">${g.value}</div>
+        </div>`).join('')
+
+      // Tips
+      const tipsCard = document.getElementById('tipsCard')
+      tipsCard.innerHTML = data.tips.map(t => `
+        <div class="tip-row">
+          <div class="tip-icon"><i class="ti ${t.icon}"></i></div>
+          <div class="tip-text">
+            <div class="tip-title">${t.title}</div>
+            <div class="tip-desc">${t.desc}</div>
+          </div>
+        </div>`).join('')
+
+      // Avoid
+      document.getElementById('avoidList').innerHTML = data.avoid.map(a => `
+        <div class="avoid-row">
+          <div class="avoid-dot"></div>
+          <div class="avoid-text">${a}</div>
+        </div>`).join('')
+
+      // Science note
+      document.getElementById('scienceNote').textContent = data.science
+
+      await renderHistory(user.id)
+
+      document.getElementById('spinner').style.display = 'none'
+      document.getElementById('mainContent').style.display = 'block'
+
+    } catch (err) {
+      console.error('Sleep screen error:', err)
+      document.getElementById('spinner').style.display = 'none'
+      document.getElementById('mainContent').style.display = 'block'
+    }
+  }
+
+  init()
+</script>
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js')
+    navigator.serviceWorker.addEventListener('message', e => {
+      if (e.data?.type === 'SW_UPDATED') window.location.reload()
+    })
+  }
+</script>
+</body>
+</html>

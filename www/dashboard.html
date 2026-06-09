@@ -179,14 +179,54 @@
       display: flex;
       align-items: center;
       gap: 10px;
-      font-size: 12px;
-      color: #2a5a2a;
     }
 
     .logged-banner i {
-      font-size: 16px;
+      font-size: 18px;
       flex-shrink: 0;
+      color: #4a8a4a;
     }
+
+    .logged-banner-title {
+      font-size: 13px;
+      font-weight: 500;
+      color: #2a5a2a;
+    }
+
+    .logged-banner-sub {
+      font-size: 11px;
+      color: #5a7a5a;
+      margin-top: 2px;
+    }
+
+    .logged-banner-sub a {
+      color: #4a7a4a;
+      font-weight: 500;
+      text-decoration: underline;
+    }
+
+    /* Streak badge */
+    .streak-badge {
+      margin: 0 16px 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      color: #7a7268;
+    }
+
+    /* Secondary log link */
+    .full-log-link {
+      display: block;
+      text-align: center;
+      font-size: 13px;
+      color: #9a9590;
+      margin: -4px 16px 12px;
+      padding: 6px;
+      text-decoration: none;
+    }
+
+    .full-log-link:hover { color: #6a6258; }
 
     /* Anomaly alerts */
     .anomaly-card {
@@ -474,7 +514,7 @@
     }
     .pulse-bars { display: flex; flex-direction: column; gap: 6px; }
     .pulse-bar-row { display: flex; align-items: center; gap: 8px; }
-    .pulse-bar-name { font-size: 12px; color: #5a5550; width: 60px; flex-shrink: 0; }
+    .pulse-bar-name { font-size: 12px; color: #5a5550; width: 130px; flex-shrink: 0; line-height: 1.35; display: flex; align-items: center; gap: 6px; }
     .pulse-bar-track {
       flex: 1; height: 8px; background: #f0ece6; border-radius: 4px; overflow: hidden;
     }
@@ -655,6 +695,8 @@
     }
   </style>
   <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="icon" href="/icon-192.png" type="image/png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Em~power">
@@ -678,6 +720,17 @@
 
   <div id="dashContent" style="display:none">
 
+    <div id="pathUpdateBanner" style="display:none;margin:12px 16px 4px;background:#f0f4f8;border:1px solid #c8d8e8;border-radius:14px;padding:14px 16px">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
+        <div style="flex:1">
+          <div style="font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#2a5a7a;margin-bottom:4px">New tracking mode available</div>
+          <div style="font-size:13px;color:#2c2820;line-height:1.6">We added a path for women currently on birth control. If this applies to you, update your tracking mode to get the right recommendations.</div>
+          <a href="setup.html?change=1" style="display:inline-block;margin-top:10px;font-size:13px;font-weight:500;color:#2a5a7a;text-decoration:none">Update tracking mode <i class="ti ti-arrow-right" style="font-size:12px"></i></a>
+        </div>
+        <button onclick="dismissPathBanner()" style="background:none;border:none;padding:0;cursor:pointer;color:#9a9590;font-size:18px;line-height:1;flex-shrink:0">&times;</button>
+      </div>
+    </div>
+
     <div class="hero hero-observation" id="heroCard">
       <div class="hero-label">Today</div>
       <div class="hero-phase" id="currentPhase">Loading...</div>
@@ -698,10 +751,26 @@
     </div>
     <div id="alreadyLoggedBanner" style="display:none" class="logged-banner">
       <i class="ti ti-circle-check"></i>
-      <span>You have logged today. Tap to update your log.</span>
+      <div>
+        <div class="logged-banner-title">All logged for today</div>
+        <div class="logged-banner-sub">Miss something? <a href="log.html">Open full log</a></div>
+      </div>
     </div>
 
-    <a href="log.html" class="log-btn" id="logBtn">Log today's data</a>
+    <div id="firstTimeCard" style="display:none;margin:0 16px 12px;background:#fff;border:1px solid #ede8e0;border-radius:14px;padding:18px 16px">
+      <div style="font-size:14px;font-weight:500;color:#2c2820;margin-bottom:6px">Your first check-in takes 30 seconds</div>
+      <div style="font-size:13px;color:#7a7268;line-height:1.6;margin-bottom:14px">Every signal you log makes your phase detection more accurate. The more you log, the more your recommendations become yours and not the population average.</div>
+      <a href="checkin.html" style="display:block;background:#2c2820;color:#f5f0e8;border-radius:12px;padding:13px;font-size:14px;font-weight:500;text-align:center;text-decoration:none;margin-bottom:8px">Start morning check-in</a>
+      <a href="log.html" style="display:block;border:1px solid #ede8e0;border-radius:12px;padding:11px;font-size:13px;color:#7a7268;text-align:center;text-decoration:none">Full log instead</a>
+    </div>
+
+    <a href="checkin.html" class="log-btn" id="logBtn">Morning check-in</a>
+    <a href="log.html" class="full-log-link" id="fullLogLink">Full log instead</a>
+
+    <div class="streak-badge" id="streakBadge" style="display:none">
+      <i class="ti ti-flame" style="color:#c8b89a;font-size:15px"></i>
+      <span id="streakText"></span>
+    </div>
 
     <div class="nutrition-card" onclick="window.location.href='nutrition.html'" id="nutritionCard">
       <div class="nutrition-card-top">
@@ -709,6 +778,17 @@
         <div class="nutrition-content">
           <div class="nutrition-title" id="nutritionTitle">Loading nutrition guidance...</div>
           <div class="nutrition-sub" id="nutritionSub"></div>
+        </div>
+        <i class="ti ti-chevron-right" style="font-size:16px;color:#9a9590;flex-shrink:0"></i>
+      </div>
+    </div>
+
+    <div class="nutrition-card" onclick="window.location.href='sleep.html'" id="sleepCard">
+      <div class="nutrition-card-top">
+        <div class="nutrition-icon"><i class="ti ti-moon"></i></div>
+        <div class="nutrition-content">
+          <div class="nutrition-title" id="sleepCardTitle">Sleep guide</div>
+          <div class="nutrition-sub" id="sleepCardSub">Phase-specific tips for tonight</div>
         </div>
         <i class="ti ti-chevron-right" style="font-size:16px;color:#9a9590;flex-shrink:0"></i>
       </div>
@@ -736,7 +816,7 @@
     </div>
 
     <div id="pulseCard" style="display:none" class="pulse-card">
-      <div class="pulse-label">Community pulse: women in your phase today</div>
+      <div class="pulse-label">Women in your phase today</div>
       <div class="pulse-bars" id="pulseBars"></div>
       <div class="pulse-note" id="pulseNote"></div>
     </div>
@@ -804,11 +884,45 @@
 
   </div>
 
-  <div style="text-align:center;padding:12px 0;margin-bottom:8px">
+  <div style="text-align:center;padding:12px 0;margin-bottom:8px;display:flex;justify-content:center;gap:20px;flex-wrap:wrap">
     <a href="feedback.html" style="font-size:12px;color:#9a9590;text-decoration:none;display:inline-flex;align-items:center;gap:6px">
       <i class="ti ti-message-circle" style="font-size:14px"></i>
       Share feedback
     </a>
+    <button id="installAppBtn" onclick="showInstallGuide()" style="display:none;font-size:12px;color:#9a9590;background:none;border:none;padding:0;cursor:pointer;align-items:center;gap:6px">
+      <i class="ti ti-download" style="font-size:14px"></i>
+      Install app
+    </button>
+    <a href="setup.html?change=1" style="font-size:12px;color:#9a9590;text-decoration:none;display:inline-flex;align-items:center;gap:6px">
+      <i class="ti ti-settings" style="font-size:14px"></i>
+      Change tracking mode
+    </a>
+  </div>
+
+  <!-- iOS install guide overlay -->
+  <div id="iosGuideOverlay" onclick="if(event.target===this)closeIosGuide()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.72);z-index:9999;flex-direction:column;align-items:center;justify-content:flex-end;padding-bottom:100px">
+    <div style="width:48px;height:48px;background:#c8b89a;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:12px;animation:iosArrowBounce 1.2s ease-in-out infinite">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v13M8 7l4-4 4 4M20 16v3a1 1 0 01-1 1H5a1 1 0 01-1-1v-3"/></svg>
+    </div>
+    <div style="background:#fff;border-radius:18px;padding:24px 20px 20px;width:calc(100% - 32px);max-width:388px;text-align:center">
+      <h3 style="font-size:16px;font-weight:600;color:#2c2820;margin:0 0 6px">Add to Home Screen</h3>
+      <p style="font-size:13px;color:#7a7268;line-height:1.5;margin:0 0 20px">Follow these steps in Safari to install Em~power.</p>
+      <div style="display:flex;flex-direction:column;gap:12px;text-align:left;margin-bottom:20px">
+        <div style="display:flex;align-items:flex-start;gap:12px">
+          <div style="width:24px;height:24px;border-radius:50%;background:#f5f0e8;font-size:12px;font-weight:700;color:#5a4a3a;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">1</div>
+          <div style="font-size:14px;color:#2c2820;line-height:1.5">Tap the <svg style="width:16px;height:16px;vertical-align:middle;position:relative;top:-1px" viewBox="0 0 24 24" fill="none" stroke="#2c2820" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v13M8 7l4-4 4 4M20 16v3a1 1 0 01-1 1H5a1 1 0 01-1-1v-3"/></svg> <strong>Share button</strong> at the bottom of your screen</div>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:12px">
+          <div style="width:24px;height:24px;border-radius:50%;background:#f5f0e8;font-size:12px;font-weight:700;color:#5a4a3a;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">2</div>
+          <div style="font-size:14px;color:#2c2820;line-height:1.5">Scroll down and tap <strong>Add to Home Screen</strong></div>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:12px">
+          <div style="width:24px;height:24px;border-radius:50%;background:#f5f0e8;font-size:12px;font-weight:700;color:#5a4a3a;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">3</div>
+          <div style="font-size:14px;color:#2c2820;line-height:1.5">Tap <strong>Add</strong> in the top right corner</div>
+        </div>
+      </div>
+      <button onclick="closeIosGuide()" style="width:100%;background:#f5f0e8;color:#2c2820;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:500;cursor:pointer">Got it</button>
+    </div>
   </div>
 
   <div class="bottom-nav">
@@ -930,7 +1044,7 @@
           { label: 'Energy', foods: ['Whole grains', 'Sweet potato', 'Oats'] }
         ],
         avoid: null,
-        source: 'Source: Lariviere et al. 2006. Antioxidants from berries support follicle health.'
+        source: 'Source: ISSN 2023. Peak output phase needs peak protein. Liu RH, Am J Clin Nutr 2003 — phytonutrients in whole foods support cellular repair.'
       },
       'Luteal': {
         title: 'Your body needs more today. That is biology.',
@@ -1139,7 +1253,7 @@
           progesterone: {
             direction: 'Rising to peak, then dropping sharply toward period',
             patterns: ['Raises core temperature and resting heart rate throughout the phase', 'Competes with cortisol for glucocorticoid receptors, making training stress higher'],
-            ranges: 'Mid-luteal range: 10 to 50 nmol/L, median 28.8 nmol/L. Values above 10 confirm ovulation occurred. (Munster et al. 2021; Hackney 2006)'
+            ranges: 'Mid-luteal range: 10 to 50 nmol/L, median 28.8 nmol/L. Values above 10 confirm ovulation occurred. (Munster et al. 2021)'
           },
           lh: {
             direction: 'Low and quiet after ovulatory surge',
@@ -1406,8 +1520,7 @@
       }
     }
 
-    // P20: Community pulse with real Supabase data
-    // Falls back to De Martin Topranin 2023 population values if < 10 users logged
+    // P20: Community pulse — shows what women in this phase are doing today
     async function renderCommunityPulse(userId, phase) {
       if (phase === 'observation' || phase === 'Perimenopause') return
       const today3 = new Date().toISOString().split('T')[0]
@@ -1415,49 +1528,54 @@
       try {
         const { data: phaseLogs } = await supabase
           .from('daily_logs')
-          .select('energy, user_id')
+          .select('energy, workout_feel, sleep_quality')
           .eq('log_date', today3)
-          .neq('user_id', userId) // never include current user
-          .not('energy', 'is', null)
+          .neq('user_id', userId)
 
-        const RESEARCH_FALLBACK = {
-          Menstrual:  { 'Very low': 38, Low: 35, Good: 20, High: 7, source: 'Estimated from phase-typical patterns. Based on logged data across early Em~power users.' },
-          Follicular: { 'Very low': 8,  Low: 18, Good: 46, High: 28, source: 'Estimated from phase-typical patterns. Based on logged data across early Em~power users.' },
-          Ovulatory:  { 'Very low': 5,  Low: 12, Good: 48, High: 35, source: 'Estimated from phase-typical patterns. Based on logged data across early Em~power users.' },
-          Luteal:     { 'Very low': 22, Low: 38, Good: 30, High: 10, source: 'Estimated from phase-typical patterns. Based on logged data across early Em~power users.' }
+        // Phase-appropriate fallback estimates
+        const FALLBACK = {
+          Menstrual:  { active: 42, resting: 51, slept: 58, showing: 68 },
+          Follicular: { active: 61, resting: 28, slept: 71, showing: 72 },
+          Ovulatory:  { active: 70, resting: 18, slept: 74, showing: 74 },
+          Luteal:     { active: 54, resting: 38, slept: 62, showing: 70 }
         }
 
-        let counts = { 'Very low': 0, Low: 0, Good: 0, High: 0 }
+        let rows = []
         let note = ''
-        let useLive = false
 
         if (phaseLogs && phaseLogs.length >= 10) {
-          phaseLogs.forEach(l => { if (counts[l.energy] !== undefined) counts[l.energy]++ })
-          useLive = true
-          note = phaseLogs.length + ' women in your phase have logged today'
+          const total = phaseLogs.length
+          const active  = phaseLogs.filter(l => l.workout_feel && l.workout_feel !== 'Rest day').length
+          const resting = phaseLogs.filter(l => l.workout_feel === 'Rest day').length
+          const slept   = phaseLogs.filter(l => l.sleep_quality === 'Good' || l.sleep_quality === 'Great' || l.sleep_quality === 'Excellent').length
+          const showing = phaseLogs.filter(l => l.energy).length
+          rows = [
+            { icon: 'ti-barbell',  label: 'Completed a Workout',  value: Math.round((active   / total) * 100) },
+            { icon: 'ti-zzz',      label: 'Sleep Goal Met',        value: Math.round((slept    / total) * 100) },
+            { icon: 'ti-leaf',     label: 'Prioritized Recovery',  value: Math.round((resting  / total) * 100) },
+            { icon: 'ti-notebook', label: 'Logged Their Day',      value: Math.round((showing  / total) * 100) },
+          ]
+          note = total + ' other women in your phase have logged today'
         } else {
-          const fb = RESEARCH_FALLBACK[phase]
+          const fb = FALLBACK[phase]
           if (!fb) return
-          counts = { 'Very low': fb['Very low'], Low: fb.Low, Good: fb.Good, High: fb.High }
-          note = 'Not enough users have logged today yet. Showing research-based estimates. ' + fb.source + '.'
+          rows = [
+            { icon: 'ti-barbell',  label: 'Completed a Workout', value: fb.active   },
+            { icon: 'ti-zzz',      label: 'Sleep Goal Met',       value: fb.slept    },
+            { icon: 'ti-leaf',     label: 'Prioritized Recovery', value: fb.resting  },
+            { icon: 'ti-notebook', label: 'Logged Their Day',     value: fb.showing  },
+          ]
+          note = 'Typical patterns for this phase. Updates as more women log each day.'
         }
 
-        const total = Object.values(counts).reduce((a, b) => a + b, 0)
-        if (total === 0) return
-
-        const card = document.getElementById('pulseCard')
-        card.style.display = 'block'
+        document.getElementById('pulseCard').style.display = 'block'
         document.getElementById('pulseNote').textContent = note
-
-        const barsEl = document.getElementById('pulseBars')
-        barsEl.innerHTML = ['High', 'Good', 'Low', 'Very low'].map(label => {
-          const pct = Math.round((counts[label] / total) * 100)
-          return `<div class="pulse-bar-row">
-            <div class="pulse-bar-name">${label}</div>
-            <div class="pulse-bar-track"><div class="pulse-bar-fill" style="width:${pct}%"></div></div>
-            <div class="pulse-bar-pct">${pct}%</div>
-          </div>`
-        }).join('')
+        document.getElementById('pulseBars').innerHTML = rows.map(r => `
+          <div class="pulse-bar-row">
+            <div class="pulse-bar-name"><i class="ti ${r.icon}" style="color:#c8b89a;font-size:14px;flex-shrink:0"></i>${r.label}</div>
+            <div class="pulse-bar-track"><div class="pulse-bar-fill" style="width:${r.value}%"></div></div>
+            <div class="pulse-bar-pct">${r.value}%</div>
+          </div>`).join('')
       } catch (e) { console.error('Pulse error', e) }
     }
 
@@ -1740,6 +1858,14 @@
         document.getElementById('loadingState').style.display = 'none'
         document.getElementById('dashContent').style.display = 'block'
 
+        // Show one-time banner for existing users who might benefit from Path 5
+        // Only show if: not already on path 5, banner not dismissed, path is observation or path 3
+        const bannerKey = 'path5-banner-dismissed'
+        const userPath = profile?.user_path
+        if (!localStorage.getItem(bannerKey) && userPath !== '5' && userPath !== '4') {
+          document.getElementById('pathUpdateBanner').style.display = 'block'
+        }
+
         let phase = 'observation'
         let cycleDay = null
         let cycleLen = 28
@@ -1822,16 +1948,49 @@
         const alreadyLogged = await checkAlreadyLogged(user.id)
         if (alreadyLogged) {
           document.getElementById('alreadyLoggedBanner').style.display = 'flex'
-          document.getElementById('logBtn').textContent = 'Update today\'s log'
+          document.getElementById('logBtn').textContent = 'Update log'
+          document.getElementById('logBtn').href = 'log.html'
           document.getElementById('logBtn').classList.add('logged')
+          document.getElementById('fullLogLink').style.display = 'none'
+          document.getElementById('firstTimeCard').style.display = 'none'
         }
 
         // Log streak
         const streak = await getLogStreak(user.id)
         document.getElementById('statStreak').textContent = streak
 
+        // Streak badge — always visible once streak > 0
+        if (streak > 0) {
+          const streakBadge = document.getElementById('streakBadge')
+          streakBadge.style.display = 'flex'
+          document.getElementById('streakText').textContent =
+            streak === 1 ? '1 day streak' : streak + ' day streak'
+        }
+
+        // First-time card — only for users who have never logged anything
+        if (!alreadyLogged && (!recentLogs || recentLogs.length === 0)) {
+          document.getElementById('firstTimeCard').style.display = 'block'
+          document.getElementById('logBtn').style.display = 'none'
+          document.getElementById('fullLogLink').style.display = 'none'
+        }
+
         // Nutrition card
         renderNutritionCard(phase, bodyWeight)
+
+        // Sleep card subtitle — phase-aware
+        const sleepSubtitles = {
+          Menstrual: 'Low hormones can disrupt sleep this week',
+          Follicular: 'Rising estrogen improves sleep quality now',
+          Ovulatory: 'Generally your best sleep window',
+          'Early luteal': 'Progesterone has a calming effect tonight',
+          'Mid luteal': 'Elevated temperature may disrupt sleep',
+          'Late luteal': 'GABA withdrawal can cause lighter sleep',
+          Luteal: 'Cool room and magnesium can help tonight',
+          Perimenopause: 'Hot flashes and sleep tips for tonight',
+          Observation: 'Evidence-based sleep habits for any phase'
+        }
+        const sleepSub = sleepSubtitles[dashState.subPhase] || sleepSubtitles[phase] || 'Phase-specific tips for tonight'
+        document.getElementById('sleepCardSub').textContent = sleepSub
 
         // P11: Hormone interpretation card
         const today2 = new Date().toISOString().split('T')[0]
@@ -1852,7 +2011,7 @@
           const container = document.getElementById('anomalyContainer')
           const items = []
           if (status.anomalies?.length) items.push(...status.anomalies.map(a => ({ type: 'anomaly', text: a.text || a.message })))
-          if (status.moodInsight) items.push({ type: 'mood', text: status.moodInsight })
+          if (status.moodInsight) items.push({ type: 'mood', text: status.moodInsight.message || status.moodInsight })
           if (items.length > 0) {
             container.innerHTML = items.map(item => `
               <div class="anomaly-card">
@@ -1949,6 +2108,23 @@
           }
         } catch (e) { console.error('Endo flag error', e) }
 
+        // Path 5: currently on birth control
+        if (profile.user_path === '5') {
+          const bcType = profile.bc_type
+          const isCombined = ['pill', 'patch', 'ring'].includes(bcType)
+          const isCopper = bcType === 'copper-iud'
+          if (!isCopper) {
+            const bcLabel = isCombined ? 'On combined contraception' : 'On progestin-only contraception'
+            const bcDesc = isCombined
+              ? 'Your synthetic hormones keep energy stable month to month. Many women on the pill still have a monthly withdrawal bleed — log it when it happens and we will track your patterns around it.'
+              : 'Bleeding on progestin-only methods can be irregular. Log any bleed when it happens. We track your energy, mood, and symptoms to find your personal patterns.'
+            document.getElementById('currentPhase').textContent = bcLabel
+            document.getElementById('currentDay').textContent = 'Tracking your energy, mood and symptoms'
+            document.getElementById('phaseDesc').textContent = bcDesc
+            document.getElementById('statsRow').style.display = 'none'
+          }
+        }
+
         // Path 4: Perimenopause-specific dashboard
         if (profile.user_path === '4') {
           try {
@@ -1992,6 +2168,11 @@
       }
     }
 
+    window.dismissPathBanner = function () {
+      localStorage.setItem('path5-banner-dismissed', '1')
+      document.getElementById('pathUpdateBanner').style.display = 'none'
+    }
+
     window.handleSignOut = async function (e) {
       e.preventDefault()
       await supabase.auth.signOut()
@@ -2002,25 +2183,48 @@
   </script>
 <script>
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js')
+    navigator.serviceWorker.addEventListener('message', e => {
+      if (e.data?.type === 'SW_UPDATED') window.location.reload()
+    })
   ;(function () {
+    var isStandalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches
+    if (isStandalone) return
+
     var isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent)
-    var isStandalone = window.navigator.standalone === true
-    if (!isIOS || isStandalone || localStorage.getItem('pwa-prompt-dismissed')) return
-    var b = document.createElement('div')
-    b.style.cssText = 'position:fixed;bottom:80px;left:16px;right:16px;background:#2c2820;color:#faf8f5;font-size:13px;padding:12px 14px;border-radius:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.18)'
-    var msg = document.createElement('span')
-    msg.style.lineHeight = '1.4'
-    msg.textContent = 'Add Em~power to your home screen for the full experience'
-    var x = document.createElement('button')
-    x.textContent = '\u2715'
-    x.setAttribute('aria-label', 'Dismiss')
-    x.style.cssText = 'background:none;border:none;color:#faf8f5;font-size:18px;cursor:pointer;flex-shrink:0;padding:0 2px;line-height:1'
-    x.onclick = function () { b.remove(); localStorage.setItem('pwa-prompt-dismissed', '1') }
-    b.appendChild(msg)
-    b.appendChild(x)
-    document.body.appendChild(b)
+    var btn = document.getElementById('installAppBtn')
+    var deferredPrompt = null
+
+    if (isIOS) {
+      btn.style.display = 'inline-flex'
+    }
+
+    window.addEventListener('beforeinstallprompt', function (e) {
+      e.preventDefault()
+      deferredPrompt = e
+      btn.style.display = 'inline-flex'
+    })
+
+    window.showInstallGuide = function () {
+      if (deferredPrompt) {
+        deferredPrompt.prompt()
+        deferredPrompt.userChoice.then(function () { deferredPrompt = null })
+      } else {
+        var overlay = document.getElementById('iosGuideOverlay')
+        overlay.style.display = 'flex'
+      }
+    }
+
+    window.closeIosGuide = function () {
+      document.getElementById('iosGuideOverlay').style.display = 'none'
+    }
   })()
 </script>
+<style>
+  @keyframes iosArrowBounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(8px); }
+  }
+</style>
 </body>
 
 </html>

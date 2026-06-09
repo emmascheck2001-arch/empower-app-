@@ -239,6 +239,8 @@
     .nav-item.active i, .nav-item.active span { color: #c8b89a; }
   </style>
   <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="icon" href="/icon-192.png" type="image/png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Em~power">
@@ -292,6 +294,19 @@
           <div class="section-text">
             <div class="section-title">Your brain and your cycle</div>
             <div class="section-desc">Why your mood, focus, and motivation shift across your cycle, and why it is not a personality flaw</div>
+          </div>
+          <i class="ti ti-chevron-right section-chevron"></i>
+        </div>
+      </div>
+
+      <div class="section-card" onclick="openArticle('sleep')">
+        <div class="section-header">
+          <div class="section-icon" style="background:#e8eef8;color:#2a4a8a">
+            <i class="ti ti-moon"></i>
+          </div>
+          <div class="section-text">
+            <div class="section-title">Sleep and your cycle</div>
+            <div class="section-desc">Why sleep changes across your cycle, why the luteal phase is harder, and what the research actually supports</div>
           </div>
           <i class="ti ti-chevron-right section-chevron"></i>
         </div>
@@ -516,6 +531,43 @@
         `
       },
 
+      sleep: {
+        title: 'Sleep and your cycle',
+        body: `
+          <h3>Sleep is not passive recovery</h3>
+          <p>Reproductive hormones are produced and regulated during sleep. LH pulses, which drive follicle development and ovulation, happen predominantly at night. Disrupted sleep disrupts those pulses. Poor sleep raises cortisol, which directly suppresses GnRH, the signal that tells your ovaries to function. The relationship runs both ways: your hormones affect your sleep, and your sleep affects your hormones.</p>
+          <div class="highlight-box">Sleep quality is measurably worse in the mid-luteal and late luteal phases compared to the follicular phase. This is not anxiety or lifestyle. It is a direct effect of progesterone and temperature changes on sleep architecture. (De Martin Topranin et al. IJSPP 2023)</div>
+
+          <h3>How sleep changes across your cycle</h3>
+          <p><strong>Menstrual phase.</strong> Estrogen and progesterone are both at their lowest. Prostaglandins driving cramping can also interrupt sleep, particularly in the first one to two nights. Iron loss and lower hormone levels mean fatigue is genuine, not laziness.</p>
+          <p><strong>Follicular phase.</strong> Rising estrogen supports serotonin production and improves mood stability, which typically improves sleep quality. Most women report their best sleep in the follicular phase. This is consistent with what the research shows about estrogen's role in sleep architecture. (Shechter A, Boivin DB. Sleep Med Rev 2010)</p>
+          <p><strong>Ovulatory phase.</strong> Sleep is generally still good. The brief estrogen peak supports serotonin and melatonin. Energy often peaks here too.</p>
+          <p><strong>Luteal phase.</strong> Progesterone raises your core temperature by 0.3 to 0.5 degrees Celsius. Your body needs to cool down to fall into and maintain deep sleep. That elevated temperature works against this. Resting heart rate is on average 1.7 bpm higher. By late luteal, progesterone and estrogen are both dropping sharply, and GABA receptor activity falls with progesterone. For many women this creates a rebound effect: lighter sleep, more waking, and a feeling of not having rested properly. (De Martin Topranin et al. IJSPP 2023; Charkoudian N, Stachenfeld NS. Comprehensive Physiology 2014; Backstrom T et al. Psychoneuroendocrinology 2014)</p>
+
+          <h3>The feedback loop</h3>
+          <p>Poor sleep raises cortisol. Elevated cortisol suppresses LH pulses and disrupts the next follicular phase. A disrupted follicular phase produces less estrogen. Lower estrogen worsens the next cycle's sleep. This is why a period of poor sleep can throw off several consecutive cycles. It is not a personality issue or poor discipline. It is a self-reinforcing hormonal cycle that takes active management to break.</p>
+
+          <h3>What wearables get wrong</h3>
+          <p>Wearable sleep scores were built and calibrated on male physiology. Your elevated core temperature and higher resting heart rate in the luteal phase register as poor recovery to these devices. If your sleep score drops every second half of your cycle on a reliable schedule, this is very likely a calibration issue, not an accurate reflection of your sleep quality. Em~power already accounts for this in its intensity recommendations. (Sims ST. ROAR 2024)</p>
+
+          <h3>What actually helps</h3>
+          <ul>
+            <li><strong>Keep the bedroom cool.</strong> 18 to 20 degrees Celsius. Especially important in the luteal phase when your core temperature is already elevated.</li>
+            <li><strong>Consistent sleep and wake times.</strong> Circadian rhythm stability helps buffer against the hormonal disruption of late luteal. Even on weekends.</li>
+            <li><strong>Magnesium glycinate 300 to 400mg before bed.</strong> Associated with improved sleep quality and reduced time to fall asleep. Well tolerated. (Abbasi B et al. J Res Med Sci 2012)</li>
+            <li><strong>Protein before bed in the luteal phase.</strong> Progesterone increases overnight protein catabolism. A small protein-containing snack before sleep may reduce this and support overnight recovery.</li>
+            <li><strong>Reduce alcohol.</strong> Even moderate alcohol fragments sleep architecture, reduces REM sleep, and worsens the next day's hormonal signalling. The effect is larger in the luteal phase.</li>
+            <li><strong>Limit caffeine after 12pm.</strong> Caffeine has a half-life of 5 to 6 hours and reduces slow-wave sleep even when you feel like you slept fine.</li>
+            <li><strong>Log your sleep quality daily.</strong> Patterns across your cycle tell you far more than any single night. Em~power tracks this and uses it to calibrate your recommendations.</li>
+          </ul>
+
+          <h3>When to talk to a doctor</h3>
+          <p>If poor sleep is consistently affecting your daily function across multiple cycles, bring your logged sleep data to your doctor. A clear pattern of luteal-phase sleep disruption is clinical information, not a vague complaint. Cognitive behavioural therapy for insomnia (CBT-I) has strong evidence independent of hormonal status. If sleep disruption coincides with other perimenopausal symptoms, hormone therapy has specific evidence for improving sleep in that context.</p>
+          <p class="cite">Sources: De Martin Topranin V et al. IJSPP 2023; Shechter A, Boivin DB. Sleep Med Rev 2010; Charkoudian N, Stachenfeld NS. Comprehensive Physiology 2014; Backstrom T et al. Psychoneuroendocrinology 2014; Abbasi B et al. J Res Med Sci 2012; Sims ST. ROAR. Rodale 2024.</p>
+          <a href="sleep.html" style="display:block;background:#2c2820;color:#f5f0e8;border-radius:12px;padding:14px 16px;font-size:14px;font-weight:500;text-align:center;text-decoration:none;margin-top:16px">Open your phase-specific sleep guide <i class="ti ti-arrow-right" style="margin-left:6px"></i></a>
+        `
+      },
+
       phases: {
         title: 'Your cycle phases',
         body: `
@@ -626,7 +678,7 @@
 
           <h3>RED-S: when exercise costs more than it returns</h3>
           <p>Relative Energy Deficiency in Sport happens when energy burned through exercise consistently exceeds energy taken in through food. Your body responds by shutting down non-essential systems, starting with reproduction. You do not need to be an elite athlete or visibly underweight for this to happen. Signs include persistent fatigue, getting ill frequently, stress fractures, and a missing or irregular period.</p>
-          <p>A missing period is not a sign that you are training hard. It is a sign that your body has decided reproduction is too costly given your current energy balance. Your period returning is not a sign you are getting softer. It is a sign your body is well enough to perform. (Source: Mountjoy M et al. BJSM 2023, IOC RED-S Consensus Statement.)</p>
+          <p>A missing period is not a sign that you are training hard. It is a sign that your body has decided reproduction is too costly given your current energy balance. Your period returning is not a sign you are getting softer. It is a sign your body is healthy enough to support it. (Source: Mountjoy M et al. BJSM 2023, IOC RED-S Consensus Statement.)</p>
           <p class="cite">Sources: Sims ST. ROAR. Rodale 2024; Kissow et al. Sports Medicine 2022; Colenso-Semple et al. Frontiers 2023; De Martin Topranin et al. IJSPP 2023; Hackney AC. JSSM 2006; Kohrt WM et al. MSSE 2004; Mountjoy M et al. BJSM 2023 (IOC RED-S Consensus); NIH Revitalization Act 1993.</p>
         `
       },
@@ -638,22 +690,22 @@
           <p>If any of the following sounds familiar, you are not imagining it and you are not alone. Each of these conditions has a specific biological explanation, and each one is manageable with the right support. The biggest obstacle for most women is getting a proper investigation in the first place.</p>
 
           <h3>PCOS</h3>
-          <p>Polycystic ovary syndrome affects roughly 1 in 10 women and is one of the most common hormonal conditions. It involves elevated androgen levels, irregular or absent ovulation, and often insulin resistance. Common signs include irregular cycles, difficulty losing weight, acne, excess facial or body hair, and fatigue. PCOS is very manageable through nutrition, resistance training, and in some cases medication. It is not a fertility sentence. (Source: Teede HJ et al. Human Reproduction 2018.)</p>
-          <p>Hormonal birth control suppresses PCOS symptoms without addressing what is causing them. If you were put on the pill for irregular cycles or PCOS, the original pattern may return after stopping. Insulin resistance is central to PCOS for many women. Resistance training is one of the most evidence-supported interventions for improving insulin sensitivity. (Source: Woodward A et al. Obesity Reviews 2019; Fica S et al. J Medicine 2008.)</p>
+          <p>Polycystic ovary syndrome affects roughly 1 in 10 women and is one of the most common hormonal conditions. It involves elevated androgen levels, irregular or absent ovulation, and often insulin resistance. Women with PCOS may experience irregular cycles, difficulty managing weight, acne, excess facial or body hair, and fatigue, though presentations vary widely. PCOS is very manageable through nutrition, resistance training, and in some cases medication. A PCOS diagnosis does not mean you cannot have children. (Source: Teede HJ et al. Human Reproduction 2018.)</p>
+          <p>Hormonal birth control suppresses PCOS symptoms without addressing what is causing them. If you were put on the pill for irregular cycles or PCOS, the original pattern may return after stopping. (Source: Teede HJ et al. Human Reproduction 2018.) Insulin resistance is central to PCOS for many women, and resistance training is one of the most evidence-supported interventions for improving insulin sensitivity. (Source: Woodward A et al. Obesity Reviews 2019; Fica S et al. J Medicine 2008.)</p>
 
           <h3>Endometriosis</h3>
           <p>Endometriosis affects approximately 1 in 10 women and causes an average diagnostic delay of 7 to 10 years (Nnoaham KE et al. Fertility and Sterility 2011). That delay exists largely because period pain is routinely dismissed as normal. It is not.</p>
-          <p>Symptoms include severe period pain, pain during sex, bowel symptoms around your period, and difficulty conceiving. If this sounds familiar, please pursue a proper investigation. Name the specific symptoms to your doctor. Ask for a referral to a gynaecologist. Do not accept the phrase "some pain is normal" as a final answer. (Source: Meuleman C et al. Human Reproduction Update 2009.)</p>
+          <p>Common experiences include severe period pain, pain during sex, bowel symptoms around your period, and difficulty conceiving, though many women have few or no obvious symptoms. If any of this resonates, please pursue a proper investigation. Name the specific experiences to your doctor. Ask for a referral to a gynaecologist. Do not accept "some pain is normal" as a final answer. (Source: Meuleman C et al. Human Reproduction Update 2009.)</p>
 
           <h3>Perimenopause</h3>
-          <p>Perimenopause can begin as early as the mid-30s. It is the gradual hormonal transition leading to menopause, and it can span several years. Symptoms include cycle irregularity, sleep disruption, mood changes, brain fog, joint pain, and changes in exercise tolerance. These are real hormonal shifts, not just stress. Many women are dismissed by doctors who attribute all of this to anxiety or lifestyle. If symptoms are cyclical and your cycles are changing, hormonal changes are the most likely explanation. (Source: Harlow SD et al. Climacteric 2012, STRAW+10.)</p>
+          <p>Perimenopause can begin as early as the mid-30s. It is the gradual hormonal transition leading to menopause, and it can span several years. Women in perimenopause may experience cycle irregularity, sleep disruption, mood changes, brain fog, joint pain, and changes in exercise tolerance, though experiences vary significantly. These are real hormonal shifts, not just stress. If your cycles are changing and symptoms feel cyclical, it is worth discussing with a doctor who specialises in hormonal health. (Source: Harlow SD et al. Climacteric 2012, STRAW+10.)</p>
           <p>Current evidence shows that hormone replacement therapy started within 10 years of menopause or before age 60 is associated with reduced risk of osteoporosis, cardiovascular disease, and cognitive decline in most healthy women. The 2002 study that caused widespread fear around HRT was later found to have been significantly misinterpreted. It used older hormone formulations in older women, and the conclusions were overstated in ways that have harmed women's health for decades. (Source: Manson JE et al. NEJM 2013.)</p>
 
           <h3>RED-S</h3>
-          <p>Relative Energy Deficiency in Sport is not an elite athlete problem. Any woman who trains consistently while under-fuelling is at risk. Before you feel visibly unwell, your immune function, bone health, metabolic rate, and reproductive function are already being affected. A missing or irregular period is the clearest external signal. Persistent fatigue, frequent illness, and stress fractures are others. (Source: Mountjoy M et al. BJSM 2023.)</p>
+          <p>Relative Energy Deficiency in Sport is not an elite athlete problem. Any woman who trains consistently while under-fuelling is at risk. Before you feel visibly unwell, your immune function, bone health, metabolic rate, and reproductive function may already be affected. A missing or irregular period can be an early signal. Persistent fatigue, frequent illness, and recurring injury are others that may be worth exploring with a doctor or sports dietitian. (Source: Mountjoy M et al. BJSM 2023.)</p>
 
           <h3>Iron deficiency</h3>
-          <p>Standard anaemia tests measure haemoglobin. But ferritin, your stored iron, can be depleted while haemoglobin looks completely normal. Ferritin below 30 mcg/L is functionally deficient for active women, even with normal haemoglobin. Symptoms include persistent fatigue, poor training recovery, brain fog, and breathlessness on exertion. If these symptoms are familiar, ask specifically for a full iron panel including ferritin, not just a standard blood count. (Source: Burden RJ et al. BJSM 2015.)</p>
+          <p>Standard anaemia tests measure haemoglobin. But ferritin, your stored iron, can be depleted while haemoglobin looks completely normal. Ferritin below 30 mcg/L is considered functionally deficient for active women, even with normal haemoglobin (Burden RJ et al. BJSM 2015). Women experiencing persistent fatigue, poor training recovery, brain fog, or breathlessness on exertion may benefit from asking their doctor for a full iron panel including ferritin, not just a standard blood count.</p>
 
           <p>If any of these descriptions match your experience, you deserve a thorough investigation. Bring your logged Em~power data to the appointment. Patterns over time are far more useful to a doctor than a single-day snapshot.</p>
           <p class="cite">Sources: Teede HJ et al. Human Reproduction 2018; Nnoaham KE et al. Fertility and Sterility 2011; Meuleman C et al. Human Reproduction Update 2009; Harlow SD et al. Climacteric 2012 (STRAW+10); Manson JE et al. NEJM 2013; Mountjoy M et al. BJSM 2023; Woodward A et al. Obesity Reviews 2019; Fica S et al. 2008; Burden RJ et al. BJSM 2015.</p>
@@ -931,24 +983,10 @@
 
 <script>
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js')
-  ;(function () {
-    var isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent)
-    var isStandalone = window.navigator.standalone === true
-    if (!isIOS || isStandalone || localStorage.getItem('pwa-prompt-dismissed')) return
-    var b = document.createElement('div')
-    b.style.cssText = 'position:fixed;bottom:80px;left:16px;right:16px;background:#2c2820;color:#faf8f5;font-size:13px;padding:12px 14px;border-radius:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.18)'
-    var msg = document.createElement('span')
-    msg.style.lineHeight = '1.4'
-    msg.textContent = 'Add Em~power to your home screen for the full experience'
-    var x = document.createElement('button')
-    x.textContent = '\u2715'
-    x.setAttribute('aria-label', 'Dismiss')
-    x.style.cssText = 'background:none;border:none;color:#faf8f5;font-size:18px;cursor:pointer;flex-shrink:0;padding:0 2px;line-height:1'
-    x.onclick = function () { b.remove(); localStorage.setItem('pwa-prompt-dismissed', '1') }
-    b.appendChild(msg)
-    b.appendChild(x)
-    document.body.appendChild(b)
-  })()
+    navigator.serviceWorker.addEventListener('message', e => {
+      if (e.data?.type === 'SW_UPDATED') window.location.reload()
+    })
+  
 </script>
 </body>
 </html>
