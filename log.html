@@ -622,6 +622,11 @@
       setTimeout(goToDashboard, 2500)
     }
 
+    function localDateStr() {
+      const d = new Date()
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+    }
+
     let _prevPeriodDate = null
     let _prevCycleId = null
     let _prevPhaseName = ''
@@ -634,7 +639,7 @@
       try {
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) return
-        const today = new Date().toISOString().split('T')[0]
+        const today = localDateStr()
         const { data: existing } = await supabase
           .from('cycle_data').select('id, cycle_length, last_period_date').eq('user_id', user.id)
           .order('created_at', { ascending: false }).limit(1).maybeSingle()
@@ -853,7 +858,7 @@
         prevConfidence = status.confidence
 
         const todayDate = new Date()
-        const today = todayDate.toISOString().split('T')[0]
+        const today = localDateStr()
         const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
         document.getElementById('dayLabel').textContent = 'Today, ' + days[todayDate.getDay()]
 
@@ -901,7 +906,7 @@
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { window.location.href = 'login.html'; return }
 
-      const today = new Date().toISOString().split('T')[0]
+      const today = localDateStr()
       const payload = {
         user_id: user.id,
         log_date: today,

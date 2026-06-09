@@ -942,7 +942,11 @@
           <div style="font-size:12px;color:#7a6a5a;line-height:1.7;margin-top:8px">Population averages are built from research that often excluded women entirely. Your personal pattern across your own cycles is the only benchmark that matters for your health. The longer you use Em~power, the more personal and accurate your recommendations become.</div>
           <div style="font-size:10px;color:#9a9590;margin-top:8px;font-style:italic">Source: Münster et al. 2021; Janse de Jonge. Sports Medicine 2003; Sims ST. ROAR. 2024.</div>
         </div>
-        <button class="next-btn" id="finishBtn" onclick="finishSetup()">Finish setup</button>
+        <div style="display:flex;align-items:flex-start;gap:12px;padding:16px;background:#fff;border:1px solid #ede8e0;border-radius:12px;margin-bottom:16px">
+          <input type="checkbox" id="privacyAgree" style="width:18px;height:18px;margin-top:2px;accent-color:#2c2820;flex-shrink:0;cursor:pointer" onchange="updateFinishBtn()">
+          <label for="privacyAgree" style="font-size:13px;color:#3a3530;line-height:1.6;cursor:pointer">I have read and agree to the <a href="privacy.html" target="_blank" style="color:#c8b89a;text-decoration:underline">Privacy Policy</a>. I understand Em~power is a wellness app and not a substitute for medical advice.</label>
+        </div>
+        <button class="next-btn" id="finishBtn" onclick="finishSetup()" disabled style="opacity:0.5">Agree to continue</button>
         <div class="stats-skip" onclick="finishSetup(true)">Skip body stats</div>
       </div>
     </div>
@@ -981,6 +985,14 @@
         let currentPath = null
         const selections = {}
         const periSelectedSymptoms = []
+
+        window.updateFinishBtn = function() {
+          const agreed = document.getElementById('privacyAgree').checked
+          const btn = document.getElementById('finishBtn')
+          btn.disabled = !agreed
+          btn.style.opacity = agreed ? '1' : '0.5'
+          btn.textContent = agreed ? 'Finish setup' : 'Agree to continue'
+        }
 
         window.togglePeriSymptom = function (el, key) {
             const idx = periSelectedSymptoms.indexOf(key)
@@ -1167,23 +1179,25 @@
                     localStorage.setItem('peri_symptoms', JSON.stringify(periSelectedSymptoms))
                 }
 
-                const { error: profileErr } = await supabase.from('profiles').update({
+                const { error: profileErr } = await supabase.from('profiles').upsert({
+                    id: user.id,
+                    email: user.email,
                     user_path: String(currentPath),
                     bc_type: bcTypeValue,
                     cycle_length: cycleLen,
                     onboarding_complete: true,
                     body_weight_kg: bodyWeightKg,
                     fitness_level: skip ? null : (selectedFitness || null)
-                }).eq('id', user.id)
+                }, { onConflict: 'id' })
                 if (profileErr) throw profileErr
 
                 if (lastPeriodDate || lastPeriodIrreg) {
-                    const { error: cycleErr } = await supabase.from('cycle_data').insert({
+                    const { error: cycleErr } = await supabase.from('cycle_data').upsert({
                         user_id: user.id,
                         last_period_date: lastPeriodDate || lastPeriodIrreg,
                         cycle_length: cycleLen
-                    })
-                    if (cycleErr) throw cycleErr
+                    }, { onConflict: 'user_id' })
+                    if (cycleErr && cycleErr.code !== '23505') throw cycleErr
                 }
 
                 window.location.href = 'dashboard.html'
