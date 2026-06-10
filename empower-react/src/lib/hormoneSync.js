@@ -558,12 +558,14 @@ function buildCycleStatus(profile, cycleData, recentLogs, mucusLogs, today) {
       symptomInference = inferPhaseFromSymptoms(recentLogs, mucusLogs)
     }
   } else {
-    // No cycle data — use symptom inference as the working phase estimate
+    // No cycle data — keep symptom inference as a SUPPORTING signal only; do NOT
+    // promote it to the headline phase. Showing an inferred phase (e.g. "Luteal")
+    // with a confidence % contradicted the "observation" mode shown on the dashboard
+    // and overstated certainty — for a no-cycle-data user (e.g. Depo recovery) the
+    // honest state is observation. (CLAUDE.md: never show an inferred phase with the
+    // same confidence as a calculated one.) The inference is still returned below so
+    // screens can surface it as a clearly-labelled soft hint.
     symptomInference = inferPhaseFromSymptoms(recentLogs, mucusLogs)
-    if (symptomInference?.inferredPhase) {
-      phase = symptomInference.inferredPhase
-      confidence = symptomInference.confidencePct / 100
-    }
   }
 
   const intensityModifier = getIntensityModifier(phase, subPhase)

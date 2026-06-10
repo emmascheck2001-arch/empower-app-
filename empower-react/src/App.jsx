@@ -79,11 +79,18 @@ function AuthGuard({ children, requireOnboarded = true }) {
     if (!session) { setState('unauthed'); return }
     const uid = session.user.id
     setUserId(uid)
-    if (!localStorage.getItem(`ep_privacy_${uid}`)) { setState('needs-privacy'); return }
-    if (requireOnboarded) {
-      const { data: prof } = await supabase.from('profiles').select('onboarding_complete').eq('id', uid).maybeSingle()
-      if (!prof?.onboarding_complete) { setState('needs-setup'); return }
+    // Onboarded users already agreed to the privacy policy during setup, so never
+    // re-prompt them — and don't rely on localStorage for this, since some browsers
+    // clear it between sessions (which made the privacy gate reappear every login).
+    const { data: prof } = await supabase.from('profiles').select('onboarding_complete').eq('id', uid).maybeSingle()
+    const onboarded = !!prof?.onboarding_complete
+    if (onboarded) {
+      localStorage.setItem(`ep_privacy_${uid}`, '1')
+      setState('authed'); return
     }
+    // New user: show the privacy gate once, then route them into setup.
+    if (!localStorage.getItem(`ep_privacy_${uid}`)) { setState('needs-privacy'); return }
+    if (requireOnboarded) { setState('needs-setup'); return }
     setState('authed')
   }
 

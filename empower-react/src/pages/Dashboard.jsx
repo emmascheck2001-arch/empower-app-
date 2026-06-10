@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase'
 import { getTodayStatus, getPhase, getLutealSubPhase } from '../lib/hormoneSync'
 import BottomNav from '../components/BottomNav'
 import Spinner from '../components/Spinner'
-import { WeeklySummaryModal, WeeklySummaryCard, shouldShowWeeklySummary, markWeeklySummaryShown, markWeeklySummaryDismissed, wasDismissedToday, buildWeeklySummary } from '../components/WeeklySummary'
+import { WeeklySummaryModal, WeeklySummaryCard, markWeeklySummaryDismissed, buildWeeklySummary } from '../components/WeeklySummary'
 
 const PHASE_COLORS = {
   Menstrual:      { dot:'#e09898', bg:'#f0d8d8', text:'#5a2a28' },
@@ -302,16 +302,17 @@ export default function Dashboard() {
         alloLoad = Math.min(10, alloLoad)
       }
 
-      // Weekly summary
-      if (twoWeekLogs && shouldShowWeeklySummary(twoWeekLogs)) {
-        const summary = buildWeeklySummary(twoWeekLogs, phase, subPhase, confidence, daysLeft, cycleDay, cycleData?.cycle_length || 28)
-        setWeeklySummary(summary)
-        markWeeklySummaryShown()
-        setWeeklyModal(true)
-      } else if (twoWeekLogs && wasDismissedToday()) {
-        const summary = buildWeeklySummary(twoWeekLogs, phase, subPhase, confidence, daysLeft, cycleDay, cycleData?.cycle_length || 28)
-        setWeeklySummary(summary)
-        setWeeklyCard(true)
+      // Weekly summary — show as a non-intrusive card whenever there are at least 3
+      // logs this calendar week. Tapping the card opens the full modal. It no longer
+      // auto-opens as a modal, and no longer depends on localStorage to dedupe (which
+      // some browsers clear, making the insight pop up again every day).
+      if (twoWeekLogs) {
+        const thisWeekCount = twoWeekLogs.filter(l => Math.floor((new Date() - new Date(l.log_date + 'T00:00:00')) / 86400000) < 7).length
+        if (thisWeekCount >= 3) {
+          const summary = buildWeeklySummary(twoWeekLogs, phase, subPhase, confidence, daysLeft, cycleDay, cycleData?.cycle_length || 28)
+          setWeeklySummary(summary)
+          setWeeklyCard(true)
+        }
       }
 
       setD({ profile, phase, subPhase, cycleDay, cycleLen, daysLeft, confidence, bw, alreadyLogged, streak, recentLogs, twoWeekLogs, anomalyItems, alloLoad, isPath4, userEmail: user.email, todayLoggers: todayLoggers || 0 })

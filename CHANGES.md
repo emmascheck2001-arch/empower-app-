@@ -4,6 +4,19 @@ Changes made autonomously from user feedback. Most recent first.
 
 ---
 
+## 2026-06-10 — Privacy gate repeating, weekly insight repeating, phase mismatch across screens
+
+**User said:** "i keep seeing the privacy thing everytime i log in and my weekly insight came up today but i got one yesterday also it says im in my lutel phase in workout and nuterion but im in oberveration mood on the home screen and still it somehow has % on my data something seem wrong"
+
+**What was done:** Three separate bugs.
+1. *Privacy gate every login:* the consent state lived only in `localStorage`, which the user's browser was clearing between sessions. AuthGuard now treats anyone who completed onboarding (which already requires agreeing to the privacy policy in Setup) as consented, so it never re-prompts an existing user.
+2. *Phase mismatch (home said "observation", Workout/Nutrition said "Luteal"):* the dashboard computes its phase from cycle data (correctly showing observation for a no-cycle-data Depo user), but `getTodayStatus` was promoting a guessed symptom-inferred phase to the headline with a confidence %. Removed that promotion — with no cycle data the app now stays in observation mode everywhere and keeps the inference only as a soft supporting signal. This also removes the misleading % on observation data.
+3. *Weekly insight popping up repeatedly:* it auto-opened as a full-screen modal and deduped via `localStorage` (also being cleared), so it re-popped daily. It's now a non-intrusive card shown when there are 3+ logs in the current week; tapping it opens the full modal.
+
+**Files changed:** empower-react/src/App.jsx, empower-react/src/lib/hormoneSync.js, empower-react/src/pages/Dashboard.jsx
+
+---
+
 ## 2026-06-08 — Fix mood showing as [object Object] on dashboard
 
 **User said:** "It says mood [object,object] I'm not sure what that means"
