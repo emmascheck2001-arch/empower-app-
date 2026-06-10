@@ -22,6 +22,7 @@ const FLUID_OPTS   = ['None or dry','Sticky or crumbly','Creamy or lotion-like',
 const LH_OPTS      = ['No test','Negative','Positive']
 const FLOW_OPTS    = ['Spotting only','Light','Moderate','Heavy','Very heavy']
 const PAIN_OPTS    = [{v:1,label:'1 None'},{v:2,label:'2 Mild'},{v:3,label:'3 Moderate'},{v:4,label:'4 Severe'},{v:5,label:'5 Debilitating'}]
+const WORKOUT_OPTS = ['Rest day','Weaker than usual','Average','Stronger than usual','Skipped']
 
 const pill = (active) => ({
   padding:'7px 14px', borderRadius:20, border:`1px solid ${active?'#c8b89a':'#ede8e0'}`,
@@ -65,7 +66,7 @@ export default function Log() {
   const [log, setLog] = useState({
     energy:null, sleep_quality:null, resting_hr:null, resting_hr_exact:'',
     wrist_temp:'', cervical_fluid:null, lh_result:null, mood:[], symptoms:[], disruptors:[],
-    flow_volume:null, pain_rating:null,
+    workout_feel:null, flow_volume:null, pain_rating:null,
     hormone_estradiol:'', hormone_progesterone:'', hormone_lh:'', hormone_cortisol:'',
     hot_flash_count:'', night_sweats_severity:null, joint_pain_rating:null, brain_fog_rating:null,
   })
@@ -99,6 +100,7 @@ export default function Log() {
         resting_hr:existing.resting_hr||null, resting_hr_exact:existing.resting_hr_exact?String(existing.resting_hr_exact):'',
         wrist_temp:existing.wrist_temp?String(existing.wrist_temp):'',
         lh_result:existing.lh_result||null, mood:existing.mood||[], symptoms:existing.symptoms||[], disruptors:existing.disruptors||[],
+        workout_feel:existing.workout_feel||null,
         flow_volume:existing.flow_volume||null, pain_rating:existing.pain_rating||null,
         hot_flash_count:existing.hot_flash_count?String(existing.hot_flash_count):'',
         night_sweats_severity:existing.night_sweats_severity||null,
@@ -148,6 +150,7 @@ export default function Log() {
       hormone_progesterone:log.hormone_progesterone?parseFloat(log.hormone_progesterone):null,
       hormone_lh:log.hormone_lh?parseFloat(log.hormone_lh):null,
       hormone_cortisol:log.hormone_cortisol?parseFloat(log.hormone_cortisol):null,
+      workout_feel:log.workout_feel,
       flow_volume:log.flow_volume, pain_rating:log.pain_rating,
       hot_flash_count:log.hot_flash_count?parseInt(log.hot_flash_count):null,
       night_sweats_severity:log.night_sweats_severity, joint_pain_rating:log.joint_pain_rating,
@@ -173,20 +176,21 @@ export default function Log() {
       </TopBar>
       <div style={{padding:'16px 16px 120px'}}>
 
-        {!isMenstrual&&!isPath4&&<>
+        {!isPath4&&<>
           <span style={sLabel}>Cervical fluid</span>
-          <div style={{fontSize:11,color:'#9a9590',marginBottom:8,fontStyle:'italic'}}>80% sensitivity for detecting your fertile window (Bigelow et al. 2004)</div>
+          <div id="cervicalFluidWhy" style={{fontSize:11,color:'#9a9590',marginBottom:8,fontStyle:'italic'}}>One of the strongest ovulation indicators, tracks fertile window with 80% sensitivity (Bigelow et al. 2004)</div>
           <PillRow opts={FLUID_OPTS} selected={log.cervical_fluid} single onToggle={v=>set('cervical_fluid',v)}/>
           <span style={sLabel}>LH test</span>
+          <div id="lhTestWhy" style={{fontSize:11,color:'#9a9590',marginBottom:8,fontStyle:'italic'}}>Strongest single ovulation signal: a positive test means ovulation is likely within 12 to 36 hours</div>
           <PillRow opts={LH_OPTS} selected={log.lh_result} single onToggle={v=>set('lh_result',v)}/>
         </>}
 
         <span style={sLabel}>Energy today</span>
         <GridRow opts={ENERGY_OPTS} selected={log.energy} onSelect={v=>set('energy',v)}/>
 
-        <span style={sLabel}>Mood — positive</span>
+        <span style={sLabel}>Positive mood</span>
         <PillRow opts={MOOD_POS} selected={log.mood} onToggle={v=>toggleMulti('mood',v)}/>
-        <span style={sLabel}>Mood — challenging</span>
+        <span style={sLabel}>Challenging mood</span>
         <PillRow opts={MOOD_NEG} selected={log.mood} onToggle={v=>toggleMulti('mood',v)}/>
 
         <span style={sLabel}>Wrist temperature °C (optional)</span>
@@ -203,6 +207,7 @@ export default function Log() {
         <PillRow opts={SYMPTOMS} selected={log.symptoms} onToggle={v=>toggleMulti('symptoms',v)}/>
 
         <span style={sLabel}>Sleep last night</span>
+        <div style={{fontSize:11,color:'#9a9590',marginBottom:8,fontStyle:'italic'}}>Sleep is not passive recovery. Estrogen and progesterone are produced and regulated during sleep. (Haver et al. 2025)</div>
         <GridRow opts={SLEEP_OPTS} selected={log.sleep_quality} onSelect={v=>set('sleep_quality',v)}/>
 
         <span style={sLabel}>Disruptors</span>

@@ -49,15 +49,15 @@ export const MOOD_PHASE_SIGNALS = {
     energy: ['Very low', 'Low'],
     phaseSignal: 'Late luteal',
     confidenceBonus: 0.08,
-    note: 'Low serotonin and GABA withdrawal pattern consistent with late luteal neurochemistry'
+    note: 'Irritability and anxiety often peak in the days before a period as both estrogen and progesterone drop sharply. This has a specific hormonal cause and will ease when your period begins.'
   },
   early_luteal: {
     moods: ['Calm', 'Focused'],
     requires: 1,
-    energy: ['Good', 'Low', null], // energy variable in early luteal
+    energy: ['Good', 'Low', null],
     phaseSignal: 'Early luteal',
     confidenceBonus: 0.06,
-    note: 'Calm settled pattern consistent with progesterone allopregnanolone GABA effect in early luteal'
+    note: 'The calmer, more settled feeling in the first half of the luteal phase comes from rising progesterone — it has a mild calming effect via the brain\'s GABA receptors.'
   },
   follicular: {
     moods: ['Energised', 'Energetic', 'Happy', 'Motivated', 'Social'],
@@ -65,7 +65,7 @@ export const MOOD_PHASE_SIGNALS = {
     energy: ['Good', 'High'],
     phaseSignal: 'Follicular',
     confidenceBonus: 0.07,
-    note: 'Energised motivated pattern consistent with rising serotonin and dopamine in follicular phase'
+    note: 'Rising estrogen tends to bring better mood, motivation, and energy. This is one of the stronger mood signals in the cycle.'
   },
   ovulatory: {
     moods: ['Energised', 'Energetic', 'Happy', 'Confident', 'Focused', 'Social'],
@@ -73,7 +73,7 @@ export const MOOD_PHASE_SIGNALS = {
     energy: ['High'],
     phaseSignal: 'Ovulatory',
     confidenceBonus: 0.09,
-    note: 'Peak energy and confidence pattern consistent with ovulatory neurochemical peak'
+    note: 'Peak estrogen and a brief testosterone rise together tend to drive the highest energy, confidence, and social drive of the cycle.'
   },
   menstrual: {
     moods: ['Low', 'Tired', 'Anxious', 'Sad'],
@@ -81,15 +81,15 @@ export const MOOD_PHASE_SIGNALS = {
     energy: ['Very low', 'Low'],
     phaseSignal: 'Menstrual',
     confidenceBonus: 0.05,
-    note: 'Low mood and energy consistent with lowest serotonin point during menstruation'
+    note: 'Lower mood and energy during menstruation are driven by estrogen and progesterone being at their lowest. This typically lifts within a few days as estrogen begins to rise again.'
   },
   mid_luteal: {
     moods: ['Irritable', 'Anxious', 'Tired'],
     requires: 1,
-    energy: ['Low', 'Good', null], // mixed in mid luteal
+    energy: ['Low', 'Good', null],
     phaseSignal: 'Mid luteal',
     confidenceBonus: 0.05,
-    note: 'Mixed mood pattern consistent with declining estrogen and unstable serotonin in mid luteal'
+    note: 'Mixed mood in the mid-luteal phase is common as estrogen begins to fall while progesterone remains high. Energy and mood stability tend to feel less predictable than follicular.'
   }
 }
 
@@ -115,8 +115,8 @@ export const PHASE_PREDICTIONS = {
     brain_state: 'Low serotonin',
     intensity: 0.70,
     why: 'Estrogen is at its lowest point. Estrogen directly drives serotonin production — so when estrogen drops, serotonin drops with it. Serotonin is your mood-stabilising neurotransmitter. Its absence is why low mood, emotional sensitivity, and difficulty concentrating are so common right now. This is a measurable neurochemical change — not a personal failing. Source: Lokuge et al. 2011. Backstrom et al. 2008.',
-    training: 'Light movement is genuinely optimal right now. Walking, yoga, and gentle stretching reduce prostaglandins without adding cortisol load.',
-    nutrition: 'Prioritise iron (lost through bleeding), omega-3s (reduce prostaglandins), and complex carbohydrates. Your body needs more nutrient-dense food right now, not less.'
+    training: 'Light movement is genuinely optimal right now. Walking, yoga, and gentle stretching help reduce period pain without adding stress to your system.',
+    nutrition: 'Prioritise iron (lost through bleeding), omega-3s (help reduce cramping), and complex carbohydrates. Your body needs more nutrient-dense food right now, not less.'
   },
   'Early follicular': {
     label: 'Early follicular',
@@ -138,7 +138,7 @@ export const PHASE_PREDICTIONS = {
     label: 'Ovulatory',
     brain_state: 'Neurochemical peak',
     intensity: 1.05,
-    why: 'Peak estrogen means peak serotonin, dopamine, and norepinephrine all together. The brief testosterone surge from the LH spike adds to this. Every confidence, motivation, and clarity neurotransmitter is at or near its highest point simultaneously. This is the neurochemical basis for why ovulation feels like the best version of yourself — because in measurable brain chemistry terms, it is. Source: Backstrom et al. 2008. Lokuge et al. 2011.',
+    why: 'Peak estrogen means peak serotonin, dopamine, and norepinephrine all together. The brief testosterone surge adds to this. Every mood, motivation, and clarity brain chemical is at or near its highest point simultaneously. This is why ovulation often feels like the best version of yourself — in measurable brain chemistry terms, it genuinely is. Source: Backstrom et al. 2008. Lokuge et al. 2011.',
     training: 'Your highest performance window. Warm up thoroughly — peak estrogen increases ligament laxity slightly. Attempt load increases on key lifts.',
     nutrition: 'Peak energy demand. Fuel generously with whole foods, quality protein, and complex carbohydrates. Your body is primed to use nutrients effectively right now.'
   },
@@ -146,9 +146,9 @@ export const PHASE_PREDICTIONS = {
     label: 'Early luteal',
     brain_state: 'GABA calm',
     intensity: 0.92,
-    why: 'Progesterone is rising and metabolises in the brain into allopregnanolone. Allopregnanolone directly activates GABA-A receptors — the same receptors targeted by anti-anxiety compounds. This produces a natural calming, settling effect. The peaceful feeling many women notice in early luteal is progesterone acting on the GABA system. Source: Backstrom et al. Psychoneuroendocrinology 2014.',
-    training: 'Slightly reduced intensity but still strong. Your body temperature is rising slightly — take slightly longer to warm up and stay well hydrated.',
-    nutrition: 'Protein needs begin to increase as progesterone raises catabolism. Aim for the higher end of your protein range. Progesterone drives legitimate hunger — fuel it with whole foods.'
+    why: 'Progesterone is rising and converts in the brain into a calming compound that works on the same receptors as anti-anxiety medication. This is why early luteal often feels more settled and peaceful than the week before. It is progesterone directly affecting your brain chemistry. Source: Backstrom et al. Psychoneuroendocrinology 2014.',
+    training: 'Slightly reduced intensity but still strong. Your body temperature is rising slightly — take a little longer to warm up and stay well hydrated.',
+    nutrition: 'Protein needs are rising as progesterone causes your body to break down muscle protein faster. Aim for the higher end of your protein range. Progesterone drives real hunger — fuel it with whole foods.'
   },
   'Mid luteal': {
     label: 'Mid luteal',
@@ -162,17 +162,17 @@ export const PHASE_PREDICTIONS = {
     label: 'Late luteal',
     brain_state: 'Serotonin crash',
     intensity: 0.72,
-    why: 'Both estrogen and progesterone are dropping sharply. Serotonin drops with estrogen. When progesterone drops the GABA-calming effect disappears suddenly — and for some women this GABA withdrawal triggers a rebound anxiety and irritability response. The combination of low serotonin and GABA withdrawal is the neurochemical mechanism behind PMS. This is why PMS feels so different to ordinary low mood — it has a specific biochemical cause that resolves the moment menstruation begins and hormones reset. Source: Backstrom et al. Psychoneuroendocrinology 2014. Osborn et al. 2025.',
-    training: 'Low intensity movement is most appropriate. Walking, gentle yoga, and light resistance work. Avoid high-cortisol training which compounds the existing hormonal stress.',
-    nutrition: 'Natural period pain prevention: start magnesium 400mg daily now, omega-3s, anti-inflammatory foods. Reduce ultra-processed food, alcohol, and excess caffeine which worsen prostaglandin load.'
+    why: 'Both estrogen and progesterone are dropping sharply. Serotonin drops with estrogen. When progesterone drops, the calming effect it was providing disappears, which for some women triggers rebound anxiety and irritability. The combination of low serotonin and this withdrawal is the biological reason PMS feels so different from ordinary low mood. It has a specific chemical cause, and it resolves the moment your period starts and hormones reset. Source: Backstrom et al. Psychoneuroendocrinology 2014. Osborn et al. 2025.',
+    training: 'Low intensity movement is most appropriate. Walking, gentle yoga, and light resistance work. Avoid high-intensity training, which adds stress to an already loaded system.',
+    nutrition: 'Natural period pain prevention: start magnesium 400mg daily now, omega-3s, and anti-inflammatory foods. Reduce ultra-processed food, alcohol, and excess caffeine, which make cramping worse.'
   },
   Luteal: {
     label: 'Luteal',
     brain_state: 'Serotonin dropping',
     intensity: 0.82,
-    why: 'Progesterone is rising and estrogen is beginning to decline. This combination — progesterone calming the GABA system while serotonin support starts to reduce — creates the mixed neurochemical environment of the luteal phase. Source: Backstrom et al. 2008.',
-    training: 'Moderate intensity. Perceived effort may feel higher at the same load as resting heart rate elevates slightly.',
-    nutrition: 'Protein needs are higher in the luteal phase due to progesterone-driven catabolism (ISSN 2023). Eat at the higher end of your protein range and add 200 to 300 extra calories from whole foods.'
+    why: 'Progesterone is rising and estrogen is beginning to decline. Progesterone has a calming effect while falling estrogen means less serotonin support. This creates the mixed feeling of the luteal phase — some calm, some mood unpredictability. Source: Backstrom et al. 2008.',
+    training: 'Moderate intensity. Perceived effort may feel higher at the same load as resting heart rate rises slightly in this phase.',
+    nutrition: 'Protein needs are higher in the luteal phase because progesterone causes your body to break down muscle protein faster (ISSN 2023). Eat at the higher end of your protein range and add 200 to 300 extra calories from whole foods.'
   },
   Follicular: {
     label: 'Follicular',
@@ -194,9 +194,9 @@ export const PHASE_PREDICTIONS = {
     label: 'On combined hormonal contraception',
     brain_state: 'Stable synthetic hormones',
     intensity: 0.90,
-    why: 'Combined hormonal contraception (pill, patch, or ring) delivers synthetic estrogen and progestin at steady levels throughout the month. Your natural cycle is suppressed — there is no LH surge, no ovulation, no natural progesterone rise. The result is a more consistent hormonal environment with no PMS, no luteal phase fatigue, and no cycle-driven dips. Research suggests training adaptation may be slightly different on OCs. Natural testosterone is reduced, which can affect strength progress, and the anabolic effect of peak natural estrogen in the follicular phase is absent. This does not mean you cannot build strength — you can, and consistently. It just means the dramatic week-to-week variability that naturally cycling women experience does not apply to you in the same way. Source: Elliott-Sale KJ et al. Sports Medicine 2020. Wikstrom-Frisen L et al. JSCR 2017.',
+    why: 'Combined hormonal contraception (pill, patch, or ring) delivers synthetic estrogen and progestin at steady levels throughout the month. Your natural cycle is suppressed — there is no LH surge, no ovulation, no natural progesterone rise. The result is a more consistent hormonal environment with no PMS, no luteal phase fatigue, and no cycle-driven dips. Research suggests training adaptation may be slightly different on OCs. Natural testosterone is reduced, which can affect strength progress, and the muscle-building boost from peak natural estrogen in the follicular phase is absent. This does not mean you cannot build strength — you can, and consistently. It just means the dramatic week-to-week variability that naturally cycling women experience does not apply to you in the same way. Source: Elliott-Sale KJ et al. Sports Medicine 2020. Wikstrom-Frisen L et al. JSCR 2017.',
     training: 'Your energy and recovery are more consistent than naturally cycling women. You can train at good intensity year-round without phase-based adjustments. Focus on progressive overload across weeks rather than cycle-based periodisation. Strength training remains the most important thing you can do for long-term hormonal health.',
-    nutrition: 'Consistent protein intake is the priority. No luteal phase protein increase is needed because there is no natural progesterone surge driving protein catabolism. Standard 1.6g per kg bodyweight supports muscle maintenance and performance. Eating enough total calories matters more than timing or cycling macros.'
+    nutrition: 'Consistent protein intake is the priority. No luteal phase protein increase is needed because there is no natural progesterone surge causing your body to break down muscle protein faster. A standard 1.6g per kg of body weight supports muscle maintenance and performance. Eating enough total calories matters more than timing.'
   },
   'bc-progestin': {
     label: 'On progestin-only contraception',
@@ -245,18 +245,17 @@ export function interpretMoodSignal(todayLog, recentLogs, calendarPhase, calenda
         result.insight = {
           type: 'mood_phase_confirmation',
           priority: 'low',
-          message: 'Your mood today is consistent with ' + pattern.phaseSignal + '. ' + pattern.note + '.',
+          message: pattern.note,
           science: 'Source: Backstrom et al. Archives of Women\'s Mental Health 2008.'
         }
       } else if (calendarPhase) {
-        // Mood contradicts calendar — reduce confidence, flag mismatch
         result.mismatch = true
         result.confidenceAdjustment = -0.05
         result.insight = {
           type: 'mood_phase_mismatch',
           priority: 'medium',
-          message: 'Your mood and energy today are more consistent with ' + pattern.phaseSignal + ' than the ' + calendarPhase + ' phase the calendar predicts. This may mean your cycle is slightly ahead of or behind the calendar estimate. Keep logging — the algorithm will update your phase estimate as the pattern becomes clearer.',
-          science: pattern.note + '. Source: Backstrom et al. 2008.'
+          message: 'How you feel today looks more like ' + pattern.phaseSignal + ' than ' + calendarPhase + '. Your cycle may be running slightly ahead of or behind the calendar estimate. Keep logging — the algorithm will update as the pattern becomes clearer.',
+          science: 'Source: Backstrom et al. 2008.'
         }
       }
       break
@@ -277,8 +276,8 @@ export function interpretMoodSignal(todayLog, recentLogs, calendarPhase, calenda
       result.insight = {
         type: 'persistent_negative_mood_signal',
         priority: 'high',
-        message: 'You have logged persistently low mood and anxiety across the last 3 days. This pattern is most consistent with the late luteal phase regardless of what the calendar predicts. If your period arrives in the next 1 to 5 days this will confirm the pattern.',
-        science: 'Persistent negative mood before menstruation is the behavioural signature of the late luteal serotonin-GABA withdrawal mechanism. Source: Backstrom et al. 2008.'
+        message: 'You have logged lower mood for a few days in a row. This kind of pattern often appears in the days before a period as hormones drop. If your period arrives soon this will confirm the pattern — and it will ease once it does.',
+        science: 'Source: Backstrom et al. Archives of Women\'s Mental Health 2008.'
       }
     }
   }
@@ -423,7 +422,7 @@ export function getMoodContextFeedback(latestLog, phase, subPhase) {
       type: 'mood_context',
       icon: 'brain',
       headline: 'Progesterone is your natural calm',
-      body: 'The settled feeling right now is progesterone converting to allopregnanolone in your brain and activating GABA-A receptors — the same receptors targeted by anti-anxiety compounds. This is your body\'s natural calming mechanism. Source: Backstrom et al. Psychoneuroendocrinology 2014.'
+      body: 'The settled feeling right now is progesterone converting in your brain into a calming compound — the same type targeted by anti-anxiety medications. This is your body\'s own calming mechanism. Source: Backstrom et al. Psychoneuroendocrinology 2014.'
     }
   }
 

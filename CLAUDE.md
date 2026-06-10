@@ -1,27 +1,44 @@
 # Em~power — Claude Code Instructions
 
 ## Project context
-Women's hormone-based fitness app. Vanilla HTML, CSS, JavaScript ES modules, Supabase JS client loaded via CDN. No build step, no npm, no framework. All files live in this folder and open directly in a browser via Live Server.
+Women's hormone-based fitness app. **React + Vite SPA** in `empower-react/`. Supabase JS client loaded via npm (not CDN). All screens are React components (`.jsx`). Build with `npm run build` inside `empower-react/`. Deploy the `dist/` folder to Netlify. The root directory contains legacy HTML files — ignore them, they are NOT deployed.
 
 ## Supabase credentials
 URL: https://imgujppjvffbubnsscge.supabase.co
 Anon key: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImltZ3VqcHBqdmZmYnVibnNzY2dlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2MDQzNzIsImV4cCI6MjA5NjE4MDM3Mn0.TpjycdiHLl5iI1G8u07mVmStKZWU2fzEsuw1dUi6diU
 
-## Files in this project
-- login.html — sign in and create account
-- setup.html — onboarding for new users, four paths
-- dashboard.html — main home screen showing phase, nutrition card, log streak
-- log.html — daily symptom and biometric log with 5-question morning check-in as default
-- mucus.html — cervical mucus and spotting log
-- workout.html — activity picker, muscle group selector, guided workout player
-- checkin.html — 5-question morning check-in
-- feedback.html — trial user feedback screen with smart follow-up questions, stores to user_feedback table
-- nutrition.html — phase-aware nutrition screen with symptom relief accordion
-- hormoneSync.js — shared getTodayStatus function used by all screens
-- algorithm_v3.js — core algorithm with processAllSignals, getNutritionTargets, getIntensityModifier
+## Files in this project (React SPA — empower-react/src/)
+
+**Pages (empower-react/src/pages/):**
+- Login.jsx — route `/login` — sign in and create account
+- Setup.jsx — route `/setup` — onboarding for new users, four paths
+- Dashboard.jsx — route `/dashboard` — main home screen showing phase, nutrition card, log streak
+- Log.jsx — route `/log` — daily symptom and biometric log
+- Workout.jsx — route `/workout` — activity picker, muscle group selector, guided workout player with timers
+- Checkin.jsx — route `/checkin` — 5-question morning check-in
+- Feedback.jsx — route `/feedback` — trial user feedback screen, stores to user_feedback table
+- Nutrition.jsx — route `/nutrition` — phase-aware nutrition screen with symptom relief accordion
+- Calendar.jsx — route `/calendar` — colour-coded cycle calendar with future day planning
+- Learn.jsx — route `/learn` — science articles and perimenopause education
+- Privacy.jsx — route `/privacy` — privacy policy
+- Sleep.jsx — route `/sleep` — sleep tracking and guidance
+
+**Shared library (empower-react/src/lib/):**
+- hormoneSync.js — getTodayStatus shared function, getPhase, getLutealSubPhase, inferPhaseFromSymptoms
+- algorithm_v3.js — processAllSignals, getNutritionTargets, getIntensityModifier, PHASE_PREDICTIONS, BRAIN_STATE_STYLES
+
+**Components (empower-react/src/components/):**
+- BottomNav.jsx — 5-item nav (most screens) or 6-item nav (dashboard/calendar adds Calendar tab)
+- TopBar.jsx — top bar with back button
+- Spinner.jsx — loading spinner
+
+**Config:**
+- empower-react/public/_redirects — `/* /index.html 200` (required for Netlify SPA routing)
+- empower-react/vite.config.js — build config with timestamp in filenames to bust cache
+- empower-react/public/manifest.json — PWA manifest
 
 ## Database tables
-- profiles — id, email, name, user_path, bc_type, bc_stop_date, cycle_length, body_weight_kg, fitness_level, onboarding_complete
+- profiles — id, email, name, user_path, bc_type, bc_stop_date, cycle_length, body_weight_kg, fitness_level, onboarding_complete, diet_preference
 - cycle_data — id, user_id, last_period_date, cycle_length, notes
 - daily_logs — id, user_id, log_date, energy, symptoms[], workout_feel, mood[], sleep_quality, resting_hr, resting_hr_exact, disruptors[], wrist_temp, temp_deviation, lh_result, hormone_estradiol, hormone_progesterone, hormone_lh, hormone_cortisol, flow_volume, pain_rating, hot_flash_count, night_sweats_severity, joint_pain_rating, joint_pain_location[], brain_fog_rating, notes, created_at. Unique constraint on (user_id, log_date).
 - mucus_logs — id, user_id, log_date, discharge_type, spotting_type, notes. Unique constraint on (user_id, log_date).
@@ -98,12 +115,7 @@ This section documents every design decision, UI pattern, field option, and cont
 - Inner elements: `border-radius:12px` (medium), `border-radius:10px` (small)
 - Spacing: 16px page margins, 10-12px card gaps
 
-**Spinner (identical across all files):**
-```css
-.spinner { width:32px; height:32px; border:3px solid #ede8e0; border-top-color:#c8b89a; border-radius:50%; animation:spin 0.8s linear infinite; margin:60px auto; }
-@keyframes spin { to { transform:rotate(360deg); } }
-```
-Always: show spinner on load, hide when Supabase data returns. Never show blank screen.
+**Spinner:** Use `<Spinner />` from `../components/Spinner.jsx`. Import and render it while loading. Always show spinner on load, hide when Supabase data returns. Never show a blank screen. The `Spinner` component uses inline styles matching the design system.
 
 **Button states:**
 - Primary CTA: `background:#2c2820; color:#f5f0e8; border:none; border-radius:12px; padding:16px; font-size:15px; font-weight:500`
@@ -113,45 +125,19 @@ Always: show spinner on load, hide when Supabase data returns. Never show blank 
 **Toggle switches (core finisher, etc.):** `width:44px; height:26px; border-radius:13px; background:#d8d0c8` off / `#2c2820` on. Thumb: `width:20px; height:20px; top:3px; left:3px`. On: `transform:translateX(18px)`.
 
 **Bottom navigation — 5 items (most screens):**
-Home (`ti ti-home`, dashboard.html) / Workout (`ti ti-barbell`, workout.html) / Log (`ti ti-pencil`, log.html) / Nutrition (`ti ti-salad`, nutrition.html) / Learn (`ti ti-book-2`, learn.html)
+Home (`ti ti-home`, `/dashboard`) / Workout (`ti ti-barbell`, `/workout`) / Log (`ti ti-pencil`, `/log`) / Nutrition (`ti ti-salad`, `/nutrition`) / Learn (`ti ti-book-2`, `/learn`)
 Active item: icon and text both `color:#2c2820`. Inactive: `#9a9590`.
-Dashboard uses 6-item nav adding Calendar (`ti ti-calendar`, calendar.html) between Log and Nutrition.
+Dashboard and Calendar use a 6-item nav adding Calendar (`ti ti-calendar`, `/calendar`) between Workout and Log. Implemented in `BottomNav.jsx` — `isDashboard` prop controls the 6-item variant.
 
 **Top bar pattern:** `background:#f5f0e8; padding:16px 20px; border-bottom:1px solid #ede8e0; display:flex; align-items:center; gap:12px`. Back button: `ti ti-arrow-left`, `font-size:20px`.
 
-**PWA head tags (every HTML file, exact format):**
-```html
-<link rel="manifest" href="/manifest.json">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Em~power">
-<meta name="theme-color" content="#2c2820">
-```
-SW registration and iOS install banner (shown once, localStorage key `pwa-prompt-dismissed`) added to every file.
+**PWA:** Configured in `empower-react/index.html` (manifest, apple-mobile-web-app tags, theme-color). Service worker registered via `<script>` in `index.html`. SW file is `empower-react/public/sw.js`. SPA routing requires `empower-react/public/_redirects` containing `/* /index.html 200` — never remove this file.
 
-**Service worker (sw.js):** Cache name `empower-v1`. Pre-caches all 11 HTML files + hormoneSync.js + algorithm_v3.js + manifest.json. Stale-while-revalidate strategy. Never intercepts `supabase.co`, `jsdelivr.net`, or `cdn.` requests.
-
-**Auth guard (every screen except login.html):**
-```javascript
-const { data: { session: _s } } = await supabase.auth.getSession()
-if (!_s) { window.location.href = 'login.html' }
-supabase.auth.onAuthStateChange((event, session) => {
-  if (!session) { window.location.href = 'login.html' }
-})
-```
-NEVER use `return` after redirect at module top level (causes SyntaxError in ES modules).
-
-**index.html:** Instant redirect only. No content.
-```html
-<!DOCTYPE html><html><head><meta charset="UTF-8">
-<meta http-equiv="refresh" content="0; url=login.html">
-<script>window.location.href = 'login.html'</script>
-</head><body></body></html>
-```
+**Auth guard:** Handled centrally by `<AuthGuard>` in `App.jsx` using `supabase.auth.onAuthStateChange`. Individual pages call `supabase.auth.getUser()` in `useEffect` and redirect with `navigate('/login', { replace: true })` if no user. Never use `window.location.href` in React components.
 
 ---
 
-### CHECKIN.HTML — Morning check-in
+### Checkin.jsx — route /checkin — Morning check-in
 
 **Path 4 science note adaptation (permanent):** After getTodayStatus loads, if `todayStatus.profile?.user_path === '4'`, two science notes are updated via JS: (1) mucus question note changes from "80% sensitivity for detecting your fertile window" to estrogen-level framing — cervical fluid still tracked but context is estrogen signals not ovulation. (2) Sleep question note changes to perimenopause-specific. These updates happen in the `try` block after getTodayStatus resolves. Never remove this adaptation.
 
@@ -186,7 +172,7 @@ NEVER use `return` after redirect at module top level (causes SyntaxError in ES 
 
 ---
 
-### LOG.HTML — Full daily log
+### Log.jsx — route /log — Full daily log
 
 **Path 4 science note adaptation (permanent):** When `userPath === '4'` is confirmed in `loadPhase()`, two science note elements are updated via JS: (1) `#cervicalFluidWhy` changes from "One of the strongest ovulation indicators" to estrogen-level framing. (2) `#lhTestWhy` changes from "strongest single ovulation signal" to "Ovulation becomes unpredictable in perimenopause. A positive LH test may still occur. Log it if you test." The `id` attributes on these elements must never be removed.
 
@@ -219,7 +205,7 @@ NEVER use `return` after redirect at module top level (causes SyntaxError in ES 
 
 ---
 
-### DASHBOARD.HTML — Main home screen
+### Dashboard.jsx — route /dashboard — Main home screen
 
 **Screen order (permanent, do not reorder):**
 1. Hero card: phase name (italic serif), cycle day, description, confidence dot + text, "Plan my workout" button, science disclaimer
@@ -264,7 +250,7 @@ NEVER use `return` after redirect at module top level (causes SyntaxError in ES 
 
 ---
 
-### WORKOUT.HTML — Activity picker and workout player
+### Workout.jsx — route /workout — Activity picker and workout player
 
 **Screen flow:** screenActivity → screenGymFocus (gym only) → screenSummary → screenWarmup → screenPlayer → screenCooldown → screenComplete
 
@@ -339,43 +325,56 @@ Non-gym activities also show: duration (minutes input) + notes (textarea).
 
 ---
 
-### NUTRITION.HTML — Phase-aware nutrition screen
+### Nutrition.jsx — route /nutrition — Phase-aware nutrition screen
 
-**Top bar:** Back arrow (to dashboard.html) + "NUTRITION" wordmark + phase chip (uppercase, amber).
+**Top bar:** Back arrow (`ti ti-arrow-left`, navigates to `/dashboard`) + "NUTRITION" wordmark + phase chip (uppercase, amber background `#f5e6c8`, text `#6a4a10`).
 
-**Phase banner:** Full-width card with phase-specific gradient background. Fields: banner-label / banner-phase (italic serif) / banner-desc / banner-science.
-Phase gradients: menstrual `135deg, #3d2830, #2c1f25` / follicular `135deg, #2c3828, #1f2c20` / ovulatory `135deg, #2c3035, #1f252c` / luteal `135deg, #352c20, #2c2415` / observation `135deg, #2c2820, #1f1e18`
+**Phase banner:** Full-width dark card with phase-specific gradient background. Fields: small label / phase name (italic serif) / desc / science citation.
+Phase gradients: Menstrual `135deg, #3d2830, #2c1f25` / Follicular `135deg, #2c3828, #1f2c20` / Ovulatory `135deg, #2c3035, #1f252c` / Luteal `135deg, #352c20, #2c2415` / Perimenopause `135deg, #2c2030, #201828` / observation `135deg, #2c2820, #1f1e18`
 
-**Profile stats bar:** Shows weight + fitness level when available. "Update" link to setup.html.
+**Profile stats bar:** Always visible (not conditional). Shows weight (kg) + fitness level. "Update" link navigates to `/setup`. If weight or fitness not set, shows "Not set" in muted text.
 
-**Targets card:** 2-column — protein (g) / extra kcal (+prefix). Source citation below.
+**Targets card:** 2-column — protein (g) / extra kcal (+prefix, shown as 0 when not applicable). Vegan users: protein multiplied by 1.15 (Source: Rogerson, D. (2017). Vegan diets. *Journal of the International Society of Sports Nutrition*, *14*, 36). Citation row below in muted italic.
+
+**Diet preference feature — permanent, never remove:**
+- 7 diet options stored as single-select chips in an "Update" bottom sheet: No preference / Vegetarian / Vegan / Pescatarian / Anti-inflammatory / Gluten-free / Dairy-free
+- Saved to `diet_preference` column in `profiles` table (text)
+- When a diet is active, phase foods are replaced with `DIET_FOODS[activeDiet][phaseKey]` arrays. Fallback chain: phase-specific → observation → default phase foods
+- Vegan: protein target multiplied by 1.15 (`isVegan` flag, `displayProtein = Math.round(targets.proteinG * 1.15)`)
+- Phase key mapping for diet lookup: Early/Mid/Late luteal all map to `'Luteal'`; Perimenopause maps to `'Perimenopause'`
+- Diet chip row in Update sheet: flex-wrap, single-select toggle. "No preference" deselects all others.
+- `DIET_FOODS` object covers: Vegetarian / Vegan / Pescatarian / Anti-inflammatory / Gluten-free / Dairy-free × Menstrual / Follicular / Ovulatory / Luteal / Perimenopause / observation
 
 **2 tabs:** Phase foods (default active) / Symptom relief
 
 **Phase foods tab:**
 - Section label (phase-specific)
-- 2-column food card grid (6 cards per phase): emoji icon + food name + why + source
+- 2-column food card grid (6 cards per phase): emoji icon + food name + why
 - Avoid card: `background:#fdf5f0; border:1px solid #f0d8cc`. Red-tinted. List of avoid items with reasons.
-- Carb cravings note (menstrual phase only): `background:#fff4f0; border:1px solid #e8cfc8`. "Why carbohydrate cravings are real right now". Explains estrogen-insulin sensitivity mechanism. Source: Mauvais-Jarvis et al. JCI 2013.
+- Carb cravings note (menstrual phase only): `background:#fff4f0; border:1px solid #e8cfc8`. "Why carbohydrate cravings are real right now." Source: Mauvais-Jarvis et al. *Journal of Clinical Investigation*. 2013.
 
 **Symptom relief tab — 5 accordion cards (exact order):**
-1. Cramping (emoji 🦵) — "Dysmenorrhea and pelvic pain" — 4 remedies: Fatty fish / Pumpkin seeds and dark chocolate / Fresh ginger / Walnuts and flaxseed. Avoid: trans fats / excess alcohol / tea+coffee with iron meals / high sodium.
-2. Bloating (emoji 🪣 via unicode) — "Luteal-phase GI changes" — 4 remedies: Probiotic foods / Cooked vegetables / Fennel / Increase water. Avoid: high-sodium / carbonated drinks / alcohol / raw brassicas / sugar alcohols.
-3. Brain fog (emoji 🧠) — "Focus, concentration and energy" — 4 remedies: Iron-rich foods / Oily fish and walnuts / Complex carbohydrates / Eggs and leafy greens. Avoid: ultra-processed / excess alcohol / skipping meals.
-4. PMS and mood (emoji 💙) — "Late luteal phase support" — 4 remedies: Calcium and vitamin D / Magnesium-rich foods / Vitamin B6 / Complex carbohydrates. Avoid: alcohol / refined sugar / high-sodium / excess caffeine.
-5. Fatigue and low energy (emoji 🦵 via unicode) — "Especially during and after menstruation" — 3 remedies: Red meat / Lentils+spinach+tofu with vitamin C / B12. Avoid: black tea/coffee with iron / large dairy at same meal.
+1. Cramping — subtitle "Period cramps and pelvic pain" — 4 remedies: Salmon and sardines / Pumpkin seeds and dark chocolate / Ginger / Walnuts and flaxseed. Avoid: trans fats / excess alcohol / tea and coffee with iron-rich meals / high-sodium foods.
+2. Bloating — subtitle "Luteal-phase digestive changes" — 4 remedies: Probiotic foods / Cooked vegetables / Fennel / Increase water intake. Avoid: high-sodium foods / carbonated drinks / alcohol / raw brassicas / sugar alcohols.
+3. Brain fog — subtitle "Focus, concentration, and energy" — 4 remedies: Iron-rich foods / Salmon, sardines, or walnuts / Complex carbohydrates / Eggs and leafy greens. Avoid: ultra-processed foods / excess alcohol / skipping meals.
+4. PMS and mood — subtitle "Late luteal phase support" — 4 remedies: Calcium and vitamin D / Magnesium-rich foods / Vitamin B6 / Complex carbohydrates. Avoid: alcohol / refined sugar / high-sodium foods / excess caffeine.
+5. Fatigue and low energy — subtitle "Especially during and after your period" — 3 remedies: Red meat / Lentils, spinach, or tofu with vitamin C / B12-rich foods. Avoid: black tea or coffee with iron-rich meals / large dairy portions at the same meal.
 
-**Accordion CSS:** `.symptom-card.open .symptom-chevron { transform:rotate(180deg); }`. Body hidden until `.open` class added.
+**Accordion CSS:** `.symptom-card.open .symptom-chevron { transform:rotate(180deg); }`. Body hidden by default, shown when `.open` class applied.
+
+**APA references block:** All citations at the bottom of the component in a `APA_REFS` array rendered as a references section. APA 7 format mandatory.
 
 **Disclaimer at bottom:** Medical disclaimer, not advice, consult a professional.
 
 **Bottom nav:** 5 items, Nutrition active.
 
-**Phase-specific food data (`PHASE_DATA`):** All 5 phases (Menstrual/Follicular/Ovulatory/Luteal/Observation) have: bannerClass / desc / science / sectionLabel / foods[] / avoid[]. Each food has: icon (HTML entity) / name / why / source.
+**Phase-specific food data (`PHASE_DATA`):** All phases (Menstrual/Follicular/Ovulatory/Luteal/Perimenopause/observation) have: gradientStyle / desc / science / sectionLabel / foods[] / avoid[]. Each food has: icon (emoji) / name / why. No inline source per food — citations handled by APA_REFS block.
+
+**Language rules for this screen (permanent):** "Salmon and sardines" not "oily fish". "Plant-based omega-3" not "ALA". "Omega-3" not "EPA/DHA". "Period cramps" not "Dysmenorrhea" in UI text. "Iron from red meat" not "haem iron". "Plant-based iron" not "non-haem iron". See the clinical language ban table in GENERAL CODE RULES.
 
 ---
 
-### SETUP.HTML — Onboarding
+### Setup.jsx — route /setup — Onboarding
 
 **Welcome text (exact):** "You have probably been dismissed before. Maybe your pain was called normal. Maybe your symptoms were called anxiety. Maybe you were told to come back if it got worse. Em~power is not that. Your body sends signals every single day. This app learns to read them and takes every single one seriously."
 
@@ -383,21 +382,25 @@ Phase gradients: menstrual `135deg, #3d2830, #2c1f25` / follicular `135deg, #2c3
 - "Your cycle is a vital sign" (warm background `#f5f0e8`)
 - "Built on research about women" (white background)
 
-**4 path options:**
-1. Path 1: "I know my last period date" — icon `ti ti-calendar`
-2. Path 2: "I just came off birth control" — icon `ti ti-pill`  
-3. Path 3: "My cycles are irregular or I am not sure" — icon `ti ti-wave-sine`
-4. Path 4: "I am in perimenopause or menopause" — icon `ti ti-heart`
+**5 path options — display order and database IDs do NOT match. Never change the IDs:**
 
-**Path 1 panel:** Date input (last period) + cycle length input (21-45, default 28) + preset buttons (24 / 28 default / 30 / 32 / 35) + live phase preview box showing cycle day / days until period / current phase.
+| Display order | `user_path` in DB | Label | Icon |
+|---|---|---|---|
+| 1 | `'1'` | I know my last period date | `ti-calendar` |
+| 2 | `'5'` | I am currently on birth control | `ti-pill` |
+| 3 | `'2'` | I just came off birth control | `ti-pill-off` |
+| 4 | `'3'` | My cycles are irregular or I am not sure | `ti-wave-sine` |
+| 5 | `'4'` | I am in perimenopause or menopause | `ti-heart` |
 
-**Path 2 panel:** BC type selector (full-width single-select buttons):
-Combined pill (estrogen and progestin) / Mini pill (progestin only) / Patch / Vaginal ring / Hormonal IUD (Mirena, Kyleena) / Copper IUD (non-hormonal) / Implant (Nexplanon) / Depo-Provera injection / Not sure
-Plus: bleeding status (Yes a full period / Some spotting / Nothing yet) + observation mode explanation + 3 check items (cervical mucus, wearable, mood/energy).
+**Path 1 panel (`user_path='1'`):** Date input (last period) + cycle length input (21-45, default 28) + preset buttons (24 / 28 default / 30 / 32 / 35) + live phase preview box showing cycle day / days until period / current phase.
 
-**Path 3 panel:** Rough date input + irregularity type (Slightly irregular / Very irregular / Never tracked before).
+**Path 5 panel (`user_path='5'`, currently on BC):** BC type selector using `BC_TYPES_CURRENT` array (values: pill / minipill / patch / ring / hormonal-iud / copper-iud / implant / depo). Optional last period/withdrawal bleed date input + cycle length presets. Saves `bc_type` to profiles.
 
-**Path 4 panel:** Stage (Early perimenopause / Late perimenopause / Menopause 12+ months) + 3 check items (exercise adapts / sleep+mood tracking / Hormone+ testing).
+**Path 2 panel (`user_path='2'`, just came off BC):** BC type selector using `BC_TYPES` string array (Combined pill / Mini pill / Patch / Vaginal ring / Hormonal IUD / Copper IUD / Implant / Depo-Provera injection / Not sure). Optional stop date input — "When did you stop?" — saves to `bc_stop_date` in profiles. `bc_stop_date` is only saved when path === 2 and a date is entered.
+
+**Path 3 panel (`user_path='3'`, irregular/unsure):** No extra fields. User continues straight to body stats.
+
+**Path 4 panel (`user_path='4'`, perimenopause/menopause):** Stage selector: Early perimenopause / Late perimenopause / Menopause 12+ months. Saved to `bc_type` column (repurposed for stage). Stage required to continue.
 
 **Body stats overlay (bottom sheet, appears after path selection):**
 - Body weight: number input + kg/lbs unit toggle
@@ -409,7 +412,7 @@ Plus: bleeding status (Yes a full period / Some spotting / Nothing yet) + observ
 
 ---
 
-### FEEDBACK.HTML — User feedback
+### Feedback.jsx — route /feedback — User feedback
 
 **Hero card (dark):** "You are building this app." / "Every piece of feedback goes directly to the developer and shapes what gets fixed next."
 
@@ -445,7 +448,7 @@ Icons: ti ti-home / ti ti-pencil / ti ti-barbell / ti ti-sun / ti ti-apps
 
 ---
 
-### CALENDAR.HTML — Cycle calendar
+### Calendar.jsx — route /calendar — Cycle calendar
 
 **Title:** "Em~power Cycle Calendar". Subtitle in top bar: "Day X of Y" (cycle users) / "Symptom burden calendar" (Path 4) / "Building baseline" (no data).
 
@@ -545,19 +548,52 @@ if (cell.inMonth) {
 
 **No dashes in HTML text:** Remove em dashes and en dashes from static HTML text content. Use "to" for ranges, commas for parenthetical breaks. Exception: dashes inside JavaScript strings in `<script>` blocks are fine.
 
-**Every file edit must also update www/ and ios/App/App/public/:** After changing any HTML/JS file, the same change goes to `www/[filename]` and `ios/App/App/public/[filename]`. Both must always be in sync with the root directory.
+**Clinical language is permanently banned from user-facing text — never revert these decisions:**
 
-**After every session — deploy to production:** Run from `/Users/emmascheck/Desktop/hormone app`:
+The following clinical terms have been replaced everywhere in the app. Never reintroduce them:
+
+| Banned term | Use instead |
+|---|---|
+| Allopregnanolone | "a calming compound that works on the same receptors as anti-anxiety medication" or "converts in the brain into a calming compound" |
+| GABA-A receptors / GABA receptors | remove entirely, or describe as "the same receptors as anti-anxiety medication" |
+| GABA withdrawal | "the calming effect it was providing disappears" |
+| Glucocorticoid receptors | "stress hormone system" |
+| Protein catabolism | "your body breaks down muscle protein faster" |
+| HPA axis | remove entirely |
+| Dysmenorrhea | "period cramps" (in UI text; APA reference titles are exempt) |
+| Prostaglandins | "pain-causing hormones" or "period pain" (in UI text) |
+| Haem iron / Non-haem iron | "iron from red meat" / "plant-based iron" |
+| Oily fish | specific fish names: "salmon and sardines" or "salmon, sardines, or mackerel" |
+| ALA omega-3 / EPA/DHA | "plant-based omega-3" / "omega-3" |
+| Sulforaphane | describe naturally, e.g. "a compound that supports estrogen metabolism" |
+| DIM (diindolylmethane) | "a compound that supports estrogen metabolism" |
+| Functional iron deficiency | simplified natural language |
+| GnRH | "the hormone signal that tells your ovaries to function" |
+| GnRH analogues | "medications that temporarily suppress ovarian hormone production" |
+| Anabolic effect | "muscle-building boost" |
+| Neurochemical basis for | simplified natural language |
+| Arachidonic acid | simplified: describe the mechanism plainly |
+| COX-2 enzymes | simplified natural language |
+
+**APA 7 format is mandatory for all citations:** Author, A. A. (Year). Title. *Journal*, *Volume*(Issue), pages. Never use informal citation styles. "Dysmenorrhea" in APA reference titles is correct — cite exact titles. Only simplify clinical terms in user-facing UI text, not in citation strings.
+
+**PCOS and endometriosis are never named in pattern flags:** Pattern flags for irregular cycles or pain always use neutral language about the pattern and suggest speaking to a doctor. Never name PCOS, endometriosis, adenomyosis, or fibroids in flag text. This is a permanent legal and clinical safety rule.
+
+**After every session — build and deploy to production:** Run from `empower-react/`:
 ```
-netlify deploy --dir . --site 11d125ac-cd81-4060-8dc1-2b6b580265ed --prod
+npm run build && netlify deploy --dir dist --site 11d125ac-cd81-4060-8dc1-2b6b580265ed --prod
 ```
-The local Netlify link points to the wrong site (scintillating-phoenix). Always pass `--site 11d125ac-cd81-4060-8dc1-2b6b580265ed` explicitly. Production site is https://empowerhealth.netlify.app — empowerhealth.com is a different company's website and is NOT this app.
+Or from the project root:
+```
+cd "/Users/emmascheck/Desktop/hormone app/empower-react" && npm run build && netlify deploy --dir dist --site 11d125ac-cd81-4060-8dc1-2b6b580265ed --prod
+```
+Always pass `--site 11d125ac-cd81-4060-8dc1-2b6b580265ed` explicitly. Production site is https://empowerhealth.netlify.app. empowerhealth.com is a different company and is NOT this app. The `www/` and `ios/` directories in the repo root are legacy — do NOT sync changes to them.
 
 **Tabler icons only:** Never use emoji as icons where a ti class exists. Emoji only where no tabler icon equivalent exists (e.g. 🧘‍♀️ for yoga, 🌿 for complete screen).
 
 **Georgia serif italic used for:** Phase names in banners (workout, dashboard, nutrition), exercise names in player, hero titles in feedback/success screens, section headers in setup.
 
-**Supabase CDN import:** Always `from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'`. Never npm import.
+**Supabase import:** Always `import { supabase } from '../lib/supabase'` in React components. The client is initialised once in `empower-react/src/lib/supabase.js`. Never use the CDN ESM import — the project uses npm.
 
 **getTodayStatus:** Always imported from `./hormoneSync.js`. Never re-implemented in any screen. Returns: phase, subPhase, cycleDay, cycleLen, daysUntilPeriod, confidence, confidenceLabel, confidencePct, intensityModifier, intensityLabel, nutritionTargets, immediateFeedback, anomalies, predictions, symptomInference, moodInsight, bodyWeight, profile.
 
@@ -951,16 +987,20 @@ Chest / Back / Shoulders / Biceps / Triceps / Quads / Hamstrings / Glutes / Calv
 
 Core finisher toggle shown for Full body / Upper body / Lower body only. Hidden when Custom selected.
 
-## Auth and session protection — add to every screen except login.html
+## Auth and session protection — React pattern
 
-IMPORTANT: The pattern below uses `return` after redirect. In ES modules (all HTML files use `<script type="module">`), `return` at the top level of a module causes a SyntaxError. Omit `return` when the auth check runs at module top level. The safe pattern for module scripts:
+Auth is handled centrally by `AuthGuard` in `App.jsx`. All routes except `/login` and `/privacy` are wrapped in `<AuthGuard>`. Individual pages check auth in `useEffect` with `navigate('/login', { replace: true })`. Pattern:
 ```javascript
-const { data: { session: _s } } = await supabase.auth.getSession()
-if (!_s) { window.location.href = 'login.html' }
-supabase.auth.onAuthStateChange((event, session) => {
-  if (!session) window.location.href = 'login.html'
-})
+useEffect(() => {
+  async function init() {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { navigate('/login', { replace: true }); return }
+    // load data here
+  }
+  init()
+}, [navigate])
 ```
+Never use `window.location.href` in React pages — always use `navigate()` from `useNavigate()`.
 
 ## Loading spinner — add to every screen
 ```css
@@ -1024,7 +1064,7 @@ hormoneSync.js exports inferPhaseFromSymptoms(recentLogs, mucusLogs).
 
 ## Content requirements — implement all of these
 
-### ONBOARDING — setup.html
+### ONBOARDING — Setup.jsx (/setup)
 
 **Welcome screen — first thing new user sees:**
 "You have probably been dismissed before. Maybe your pain was called normal. Maybe your symptoms were called anxiety. Maybe you were told to come back if it got worse. Em~power is not that. Your body sends signals every single day. This app learns to read them — and takes every single one seriously. Welcome."
@@ -1060,7 +1100,7 @@ Late 30s: Perimenopause can begin here per STRAW+10 staging (Harlow 2012). Start
 40s: Bone and muscle can still be built. Protein needs increasing. Sleep becomes more critical.
 Source: Wright V, Haver MC, Sims ST. Diary of a CEO October 2025. Harlow 2012 for perimenopause onset.
 
-### DASHBOARD — dashboard.html
+### DASHBOARD — Dashboard.jsx (/dashboard)
 
 **Personal baseline card (shown after 2 cycles):**
 Shows personal average cycle length vs population 28 days, personal follicular length, personal luteal length, personal temperature baseline, personal RHR. Under each: "Your personal pattern drives your recommendations — not the population average."
@@ -1101,12 +1141,12 @@ Source: Haver MC. Diary of a CEO October 2025. Verify funding statistic against 
   - All: "These are population average hormone levels. Your personal levels may be higher or lower and still be completely normal for you."
 
 **PCOS pattern flag:**
-When cycle consistently over 35 days + no detected ovulation signals + 3 cycles: "Your cycle pattern shows some features sometimes associated with PCOS. This is not a diagnosis. PCOS is very manageable through training and nutrition. Worth discussing with your doctor."
-Source: Crawford N. Diary of a CEO October 2025. Teede 2018 for PCOS management language.
+When cycle consistently over 35 days + no detected ovulation signals + 3 cycles: "Your cycle has been longer than usual across your last few tracked cycles. Longer cycles are common and have many possible causes. If this pattern continues, it may be worth mentioning to your doctor — tracking data like this can be useful context for that conversation. This is a pattern observation, not a diagnosis."
+Source: Teede 2018 for PCOS management language. Never name PCOS directly in the flag — keep the language as a pattern observation only.
 
 **Endometriosis pain flag:**
-When pain 4 or 5 logged for 2+ consecutive cycles: "Severe period pain is not something you have to accept. Excruciating cramps can indicate endometriosis, adenomyosis, or uterine fibroids. Women wait an average of years for a diagnosis because pain is dismissed. If your pain consistently disrupts your daily life please pursue a proper investigation."
-Source: Crawford N. Diary of a CEO October 2025. Nnoaham 2011 for diagnostic delay data — use published figure not podcast.
+When pain 4 or 5 logged for 2+ consecutive cycles: "You have logged significant period pain across multiple cycles. Severe pain is worth taking seriously and worth tracking — the pattern you are building here is exactly the kind of information that can be useful to bring to a healthcare provider. If pain regularly affects your daily life, it is worth raising with your doctor."
+Source: Nnoaham 2011 for diagnostic delay data. Never name endometriosis directly in the flag — frame as a pain pattern worth discussing, not a condition indicator.
 
 **"Women suffer longer" motivation card (observation mode 30+ days):**
 "Women live longer than men but spend 20% more of their lives in poor health. What you are doing right now — tracking your hormonal health before something goes wrong — is exactly the kind of proactive care that changes this."
@@ -1125,7 +1165,7 @@ Source: Manson JE et al. NEJM 2013. Haver MC. Diary of a CEO October 2025. Verif
 If user logs crisis-level mood: include Crisis Services Canada 1-833-456-4566 or text 45645.
 Source: Freeman 2004/2006. Bromberger 2018. Soares 2014. Verify suicide risk claim carefully against these sources before including.
 
-### LOG SCREEN — log.html
+### LOG SCREEN — Log.jsx (/log)
 
 **Flow volume tracking (menstrual phase only):**
 Options: Spotting only, Light, Moderate, Heavy, Very heavy.
@@ -1181,7 +1221,7 @@ Starting 5 to 7 days before predicted period:
 "Calcium 1000mg daily and vitamin D 800 to 1000 IU are especially important during hormonal contraceptive recovery. Calcium from dairy, sardines, almonds, leafy greens."
 Source: FDA Depo-Provera prescribing information 2016.
 
-### WORKOUT SCREEN — workout.html
+### WORKOUT SCREEN — Workout.jsx (/workout)
 
 **Phase banner muscle mass note:**
 "Muscle mass is one of the most powerful things you can build for your long-term hormonal health. It improves insulin sensitivity, supports healthy estrogen metabolism, and directly influences how well you transition through perimenopause and menopause."
@@ -1218,7 +1258,7 @@ Accessible from log screen and setup. Only shown when relevant. Extreme sensitiv
 "Up to 1 in 4 known pregnancies ends in miscarriage (Quenby et al. The Lancet 2021). Most early losses are caused by chromosomal abnormalities — not caused by exercise, stress, food, or anything the mother did. Women are rarely told this clearly. Em~power will continue tracking your cycle as your hormones re-establish, typically 4 to 8 weeks."
 Recurrent loss (3+): mention investigating thyroid, autoimmune, clotting disorders, uterine anatomy.
 
-### CONTRACEPTIVE INFORMATION (setup.html)
+### CONTRACEPTIVE INFORMATION (Setup.jsx)
 Non-judgmental information about each method including effects on cycle visibility, training adaptation, and recovery. Note that all hormonal methods suppress natural cycle. Copper IUD is non-hormonal. New progestin-only pills have different profiles.
 Source: Crawford N, Sims ST. Diary of a CEO October 2025. Teede 2018.
 
@@ -1292,7 +1332,7 @@ curl -s -X PATCH "https://imgujppjvffbubnsscge.supabase.co/rest/v1/user_feedback
 **Files changed:** [list]
 ```
 
-3. Sync to www/ and deploy to production.
+3. Build and deploy to production: `cd "/Users/emmascheck/Desktop/hormone app/empower-react" && npm run build && netlify deploy --dir dist --site 11d125ac-cd81-4060-8dc1-2b6b580265ed --prod`
 
 ### Step 4 — Flag session summary to Emma
 

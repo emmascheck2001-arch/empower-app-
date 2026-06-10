@@ -10,7 +10,7 @@ export default function TopBar({ title, subtitle, subtitleColor, backTo, childre
       position: 'sticky', top: 0, zIndex: 10
     }}>
       {backTo !== false && (
-        <button onClick={() => backTo ? navigate(backTo) : navigate(-1)} style={{
+        <button onClick={() => typeof backTo === 'function' ? backTo() : backTo ? navigate(backTo) : navigate(-1)} style={{
           background: 'none', border: 'none', cursor: 'pointer',
           color: '#2c2820', fontSize: 20, padding: 0, display: 'flex'
         }}>

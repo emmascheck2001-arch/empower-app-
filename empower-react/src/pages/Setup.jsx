@@ -5,7 +5,8 @@ import { getPhase } from '../lib/hormoneSync'
 
 const PATH_OPTIONS = [
   { id:1, label:'I know my last period date', icon:'ti-calendar' },
-  { id:2, label:'I just came off birth control', icon:'ti-pill' },
+  { id:5, label:'I am currently on birth control', icon:'ti-pill' },
+  { id:2, label:'I just came off birth control', icon:'ti-pill-off' },
   { id:3, label:'My cycles are irregular or I am not sure', icon:'ti-wave-sine' },
   { id:4, label:'I am in perimenopause or menopause', icon:'ti-heart' },
 ]
@@ -13,6 +14,17 @@ const BC_TYPES = [
   'Combined pill (estrogen and progestin)', 'Mini pill (progestin only)', 'Patch',
   'Vaginal ring', 'Hormonal IUD (Mirena, Kyleena)', 'Copper IUD (non-hormonal)',
   'Implant (Nexplanon)', 'Depo-Provera injection', 'Not sure',
+]
+// Path 5 — currently on BC. Values must match getTodayStatus bc_type checks.
+const BC_TYPES_CURRENT = [
+  { val:'pill',         label:'Combined pill (estrogen and progestin)' },
+  { val:'minipill',     label:'Mini pill (progestin only)' },
+  { val:'patch',        label:'Patch' },
+  { val:'ring',         label:'Vaginal ring' },
+  { val:'hormonal-iud', label:'Hormonal IUD (Mirena, Kyleena)' },
+  { val:'copper-iud',   label:'Copper IUD (non-hormonal)' },
+  { val:'implant',      label:'Implant (Nexplanon)' },
+  { val:'depo',         label:'Depo-Provera injection' },
 ]
 const optCard = (active) => ({
   padding:'14px 16px', borderRadius:12, border:`1px solid ${active?'#c8b89a':'#ede8e0'}`,
@@ -28,6 +40,7 @@ export default function Setup() {
   const [lastPeriod, setLastPeriod] = useState('')
   const [cycleLen, setCycleLen] = useState(28)
   const [bcType, setBcType] = useState(null)
+  const [bcStopDate, setBcStopDate] = useState('')
   const [stage, setStage] = useState(null)
   const [showStats, setShowStats] = useState(false)
   const [weight, setWeight] = useState('')
@@ -53,6 +66,7 @@ export default function Setup() {
     if (path === 1 && !lastPeriod) return false
     if (path === 2 && !bcType) return false
     if (path === 4 && !stage) return false
+    if (path === 5 && !bcType) return false
     return true
   }
 
@@ -71,7 +85,8 @@ export default function Setup() {
     const { error } = await supabase.from('profiles').upsert({
       id: user.id, email: user.email,
       user_path: String(path),
-      bc_type: path === 4 ? stage : path === 2 ? bcType : null,
+      bc_type: path === 4 ? stage : (path === 2 || path === 5) ? bcType : null,
+      bc_stop_date: path === 2 && bcStopDate ? bcStopDate : undefined,
       cycle_length: cycleLen,
       onboarding_complete: true,
       body_weight_kg: bodyWeightKg,
@@ -80,7 +95,7 @@ export default function Setup() {
 
     if (error) { console.error(error); setSaving(false); return }
 
-    if (path === 1 && lastPeriod) {
+    if ((path === 1 || path === 5) && lastPeriod) {
       await supabase.from('cycle_data').upsert({
         user_id: user.id, last_period_date: lastPeriod, cycle_length: cycleLen
       }, { onConflict: 'user_id' })
@@ -99,7 +114,7 @@ export default function Setup() {
 
       <span style={sLabel}>How would you describe your cycle right now?</span>
       {PATH_OPTIONS.map(p => (
-        <div key={p.id} style={optCard(path===p.id)} onClick={() => setPath(p.id)}>
+        <div key={p.id} style={optCard(path===p.id)} onClick={() => { setPath(p.id); setBcType(null); setStage(null); setBcStopDate('') }}>
           <i className={`ti ${p.icon}`} style={{ fontSize:20, color:path===p.id?'#5a4a3a':'#c8b89a', flexShrink:0 }} />
           <div style={{ fontSize:14, fontWeight:path===p.id?600:400 }}>{p.label}</div>
         </div>
@@ -121,21 +136,49 @@ export default function Setup() {
           {preview && (
             <div style={{ marginTop:12, padding:12, background:'#fff', borderRadius:10, border:'1px solid #ede8e0' }}>
               <div style={{ fontSize:12, color:'#9a9590', marginBottom:4 }}>Based on what you entered</div>
-              <div style={{ fontSize:14, fontWeight:600 }}>{preview.phase} phase — Day {preview.cd}</div>
+              <div style={{ fontSize:14, fontWeight:600 }}>{preview.phase} phase, Day {preview.cd}</div>
               <div style={{ fontSize:13, color:'#7a7268' }}>{preview.daysLeft} days until next period</div>
             </div>
           )}
         </div>
       )}
 
+      {path===5 && (
+        <div style={{ background:'#f5f0e8', borderRadius:12, padding:16, marginTop:4 }}>
+          <span style={sLabel}>What are you currently using?</span>
+          <div style={{ fontSize:13, color:'#7a7268', marginBottom:12, lineHeight:1.6 }}>
+            Em~power adapts your nutrition and workout guidance to your method. Hormonal methods affect how your body responds to training.
+          </div>
+          {BC_TYPES_CURRENT.map(t=>(
+            <div key={t.val} style={optCard(bcType===t.val)} onClick={()=>setBcType(t.val)}>
+              <div style={{ fontSize:13 }}>{t.label}</div>
+            </div>
+          ))}
+          <div style={{ marginTop:12 }}>
+            <span style={sLabel}>Last period or withdrawal bleed (optional)</span>
+            <input type="date" value={lastPeriod} onChange={e=>setLastPeriod(e.target.value)} style={inputStyle} />
+            {lastPeriod && (
+              <div style={{ marginTop:8, display:'flex', gap:6, flexWrap:'wrap' }}>
+                <span style={{ fontSize:12, color:'#9a9590' }}>Cycle length:</span>
+                {[24,28,30,32,35].map(d=>(
+                  <button key={d} onClick={()=>setCycleLen(d)} style={{ padding:'4px 10px', borderRadius:8, border:`1px solid ${cycleLen===d?'#c8b89a':'#ede8e0'}`, background:cycleLen===d?'#e8dfd0':'#fff', fontSize:12, cursor:'pointer', fontFamily:'inherit' }}>{d}</button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {path===2 && (
         <div style={{ background:'#f5f0e8', borderRadius:12, padding:16, marginTop:4 }}>
-          <span style={sLabel}>What type of birth control?</span>
+          <span style={sLabel}>What type of birth control did you come off?</span>
           {BC_TYPES.map(t=>(
             <div key={t} style={optCard(bcType===t)} onClick={()=>setBcType(t)}>
               <div style={{ fontSize:13 }}>{t}</div>
             </div>
           ))}
+          <span style={{ ...sLabel, marginTop:12 }}>When did you stop? (optional)</span>
+          <input type="date" value={bcStopDate} onChange={e=>setBcStopDate(e.target.value)} style={inputStyle} />
         </div>
       )}
 

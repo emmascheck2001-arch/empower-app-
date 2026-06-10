@@ -216,7 +216,7 @@ function detectAnomalies(recentLogs, phase, cycleLen, flagStats) {
   // Severe period pain — potential flag for investigation
   // Source: Nnoaham et al. Fertility and Sterility 2011 (diagnostic delay)
   if (canObserve && (latest.pain_rating >= 4) && phase === 'Menstrual') {
-    anomalies.push({ type: 'pain_high', text: 'You logged significant pain today. Pain that disrupts your daily life during your period is not something you have to accept. It can indicate endometriosis, adenomyosis, or fibroids. Women wait an average of 7 to 10 years for an endometriosis diagnosis because severe pain is routinely dismissed. If this is a recurring pattern please pursue a proper investigation. (Nnoaham et al. Fertility and Sterility 2011)' })
+    anomalies.push({ type: 'pain_high', text: 'You logged significant pain today. Severe period pain is not something you have to simply push through — it is worth taking seriously. Some women find that tracking this pattern over time gives them useful information to bring to a healthcare provider. If pain like this happens regularly, it may be worth discussing with your doctor. (Nnoaham et al. Fertility and Sterility 2011)' })
   }
 
   // High disruptors in luteal phase amplify stress response
@@ -234,7 +234,7 @@ function detectAnomalies(recentLogs, phase, cycleLen, flagStats) {
       // Rewrite with warm non-diagnostic framing
       anomalies.push({
         ...pmddResult,
-        message: 'We have noticed a consistent mood pattern across your last few cycles — you tend to feel significantly more low or anxious in the week before your period, and noticeably better once it begins. This kind of cyclical pattern is worth knowing about. It has a specific biological explanation and there are effective approaches to managing it. If it is disrupting your life, it is worth raising with your doctor and specifically mentioning the cyclical timing — that detail matters for how it is assessed. This is a pattern observation, not a diagnosis.'
+        message: 'We have noticed a consistent mood pattern across your last few cycles — you tend to feel significantly more low or anxious in the week before your period, and noticeably better once it begins. This kind of cyclical pattern is worth knowing about. It has a specific biological explanation and there are effective approaches to managing it. If it is disrupting your life, it is worth raising with your doctor and specifically mentioning the cyclical timing — that detail matters for how it is assessed.'
       })
     }
   }

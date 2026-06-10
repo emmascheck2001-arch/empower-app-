@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import TopBar from '../components/TopBar'
-import Spinner from '../components/Spinner'
+
+const EMMA_EMAIL = 'emmascheck2001@gmail.com'
 
 const CATEGORIES = [
   { id:'something_broken', emoji:'🔧', label:'Something is broken', sub:'Error, crash, or not working' },
@@ -20,17 +21,88 @@ const SCREENS = [
   { id:'general', label:'General or other', icon:'ti-apps' },
 ]
 const FOLLOWUPS = {
-  something_broken: { q:'What happened when it broke?', opts:['Blank screen','Error message showed','Button did nothing','Saved but disappeared','Showed wrong screen','App closed'] },
-  confusing: { q:'What specifically confused you?', opts:['Labels or wording','Where to find something','What a number means','What to do next','Phase information','Something else'] },
-  missing: { q:'What type of thing is missing?', opts:['A feature I need','A food or exercise','More explanation','A notification or reminder','Data I entered is not shown','Something else'] },
-  wrong: { q:'What type of issue did you notice?', opts:['Science claim seems off','Phase feels wrong','Numbers look wrong','Recommendation not right','Data not saving','Something else'] },
-  love: { q:'What made it feel good?', opts:['Felt understood','Easy to use','Information was useful','Design looks good','Data felt personal','Something else'] },
-  other: { q:'What is the nature of your feedback?', opts:['Suggestion','Question','Privacy concern','Compliment','Other'] },
+  something_broken: {
+    q: 'What happened when it broke?',
+    opts: [
+      'It showed a blank screen',
+      'I got an error message',
+      'The button did nothing when I tapped it',
+      'It saved but the data disappeared',
+      'It redirected me to the wrong screen',
+      'It crashed and closed',
+    ]
+  },
+  confusing: {
+    q: 'What specifically confused you?',
+    opts: [
+      'I did not know what to tap next',
+      'The wording was hard to understand',
+      'I did not know what a feature was for',
+      'The phase information was unclear',
+      'The workout guidance did not make sense',
+      'I could not find something I was looking for',
+    ]
+  },
+  missing: {
+    q: 'What type of thing is missing?',
+    opts: [
+      'A workout or exercise I want to do',
+      'A way to track something about my cycle',
+      'Better explanations of the science',
+      'More personalisation to my data',
+      'A way to see my history or trends',
+      'Something to connect with other users',
+    ]
+  },
+  wrong: {
+    q: 'What type of issue did you notice?',
+    opts: [
+      'The phase prediction seems wrong for where I am in my cycle',
+      'The workout recommendation does not match how I feel',
+      'The nutrition advice seems off',
+      'A science claim does not seem accurate',
+      'The hormone reference ranges look incorrect',
+      'The weight suggestions are too high or too low',
+    ]
+  },
+  love: {
+    q: 'What made it feel good?',
+    opts: [
+      'It felt personalised to me specifically',
+      'The science explanation was clear and useful',
+      'The design looks really good',
+      'It was easy and fast to use',
+      'It made me feel understood',
+      'The workout was exactly what I needed',
+    ]
+  },
+  other: {
+    q: 'What is the nature of your feedback?',
+    opts: [
+      'A suggestion for improvement',
+      'A question about how something works',
+      'Feedback on the overall experience',
+      'Something about the app I want to discuss',
+      'A comparison to another app I use',
+      'Something else entirely',
+    ]
+  },
 }
+const PRIORITY_MAP = {
+  something_broken: 'CRITICAL — fix immediately',
+  wrong: 'HIGH — science or data accuracy issue',
+  confusing: 'MEDIUM — UX improvement needed',
+  missing: 'MEDIUM — feature request',
+  love: 'INFO — positive signal, do not change',
+  other: 'LOW — review and decide',
+}
+
+const sLabel = { fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590', marginBottom:12, display:'block' }
 
 export default function Feedback() {
   const navigate = useNavigate()
-  const [step, setStep] = useState(1)
+  const [user, setUser] = useState(null)
+  const [allowed, setAllowed] = useState(null)
   const [category, setCategory] = useState(null)
   const [screen, setScreen] = useState(null)
   const [description, setDescription] = useState('')
@@ -38,31 +110,64 @@ export default function Feedback() {
   const [frustration, setFrustration] = useState(null)
   const [saving, setSaving] = useState(false)
   const [done, setDone] = useState(false)
-  const [user, setUser] = useState(null)
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) navigate('/login', { replace: true })
-      else setUser(user)
+    supabase.auth.getUser().then(({ data: { user: u } }) => {
+      if (!u) { navigate('/login', { replace: true }); return }
+      setUser(u)
+      setAllowed(u.email === EMMA_EMAIL)
     })
   }, [navigate])
 
   const canSubmit = category && description.length >= 3
+  const showFrustration = category && category !== 'love' && description.length >= 3
+
+  function buildClaudeInstruction(cat, screenId, desc, fu, fr) {
+    const priority = PRIORITY_MAP[cat] || 'LOW'
+    const catLabel = CATEGORIES.find(c => c.id === cat)?.label || cat
+    const screenLabel = SCREENS.find(s => s.id === screenId)?.label || 'General'
+    const fuText = fu ? ' Specifically: ' + fu + '.' : ''
+    const frText = fr ? ' Frustration: ' + fr + '/5.' : ''
+    return priority + ' — ' + catLabel + ' on ' + screenLabel + '. User reported: "' + desc + '".' + fuText + frText
+  }
 
   async function submit() {
     if (!canSubmit) return
     setSaving(true)
     try {
+      const priority = PRIORITY_MAP[category] || 'LOW'
+      const instruction = buildClaudeInstruction(category, screen || 'general', description, followup, frustration)
       await supabase.from('user_feedback').insert({
-        user_id: user.id, user_email: user.email,
-        category, screen: screen || 'general',
-        description, followup_answer: followup,
+        user_id: user.id,
+        user_email: user.email,
+        category,
+        screen: screen || 'general',
+        description,
+        followup_answer: followup,
         frustration_rating: frustration,
+        priority,
+        claude_code_instruction: instruction,
         status: 'pending',
       })
       setDone(true)
     } catch(e) { console.error(e) }
     setSaving(false)
+  }
+
+  if (allowed === null) return null
+
+  if (!allowed) {
+    return (
+      <div style={{ paddingBottom:40 }}>
+        <TopBar title="FEEDBACK" backTo="/dashboard" />
+        <div style={{ padding:'40px 20px', textAlign:'center' }}>
+          <div style={{ fontSize:40, marginBottom:16 }}>🔒</div>
+          <div style={{ fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:20, marginBottom:8 }}>Beta access only</div>
+          <div style={{ fontSize:14, color:'#7a7268', lineHeight:1.6, marginBottom:24 }}>The feedback tool is only available during the beta period. Thank you for using Em~power.</div>
+          <button className="btn-primary" onClick={() => navigate('/dashboard')}>Back to dashboard</button>
+        </div>
+      </div>
+    )
   }
 
   if (done) {
@@ -75,10 +180,16 @@ export default function Feedback() {
           <div style={{ fontSize:11, color:'#9a9590', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:4 }}>Category</div>
           <div style={{ fontSize:13 }}>{CATEGORIES.find(c=>c.id===category)?.label}</div>
         </div>
-        <div style={{ background:'#f5f0e8', borderRadius:12, padding:14, marginBottom:24, textAlign:'left' }}>
+        <div style={{ background:'#f5f0e8', borderRadius:12, padding:14, marginBottom:12, textAlign:'left' }}>
           <div style={{ fontSize:11, color:'#9a9590', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:4 }}>Your feedback</div>
           <div style={{ fontSize:13 }}>{description}</div>
         </div>
+        {followup && (
+          <div style={{ background:'#f5f0e8', borderRadius:12, padding:14, marginBottom:24, textAlign:'left' }}>
+            <div style={{ fontSize:11, color:'#9a9590', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:4 }}>Your answer</div>
+            <div style={{ fontSize:13 }}>{followup}</div>
+          </div>
+        )}
         <button className="btn-primary" onClick={() => navigate('/dashboard')}>Back to dashboard</button>
       </div>
     )
@@ -89,7 +200,6 @@ export default function Feedback() {
       <TopBar title="FEEDBACK" backTo="/dashboard" />
       <div style={{ padding:'16px 16px 40px' }}>
 
-        {/* Hero */}
         <div style={{ background:'#2c2820', borderRadius:14, padding:20, marginBottom:20 }}>
           <div style={{ fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:18, color:'#f5f0e8', marginBottom:8 }}>You are building this app.</div>
           <div style={{ fontSize:13, color:'#c8b89a', lineHeight:1.6 }}>Every piece of feedback goes directly to the developer and shapes what gets fixed next.</div>
@@ -97,10 +207,10 @@ export default function Feedback() {
 
         {/* Step 1 — Category */}
         <div style={{ marginBottom:20 }}>
-          <span style={{ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590', marginBottom:12, display:'block' }}>1. What kind of feedback?</span>
+          <span style={sLabel}>1. What kind of feedback?</span>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
             {CATEGORIES.map(c => (
-              <div key={c.id} onClick={() => setCategory(c.id)} style={{
+              <div key={c.id} onClick={() => { setCategory(c.id); setFollowup(null) }} style={{
                 padding:'12px', borderRadius:12, border:`1px solid ${category===c.id?'#c8b89a':'#ede8e0'}`,
                 background:category===c.id?'#e8dfd0':'#fff', cursor:'pointer'
               }}>
@@ -115,7 +225,7 @@ export default function Feedback() {
         {/* Step 2 — Screen */}
         {category && (
           <div style={{ marginBottom:20 }}>
-            <span style={{ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590', marginBottom:12, display:'block' }}>2. Which screen?</span>
+            <span style={sLabel}>2. Which screen?</span>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
               {SCREENS.map(s => (
                 <div key={s.id} onClick={() => setScreen(s.id)} style={{
@@ -134,7 +244,7 @@ export default function Feedback() {
         {/* Step 3 — Description */}
         {category && (
           <div style={{ marginBottom:20 }}>
-            <span style={{ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590', marginBottom:12, display:'block' }}>3. Tell me more</span>
+            <span style={sLabel}>3. Tell me more</span>
             <textarea
               value={description}
               onChange={e => setDescription(e.target.value)}
@@ -148,23 +258,24 @@ export default function Feedback() {
         {/* Step 4 — Follow-up */}
         {category && FOLLOWUPS[category] && (
           <div style={{ marginBottom:20 }}>
-            <span style={{ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590', marginBottom:12, display:'block' }}>4. {FOLLOWUPS[category].q}</span>
-            <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
+            <span style={sLabel}>4. {FOLLOWUPS[category].q}</span>
+            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
               {FOLLOWUPS[category].opts.map(o => (
                 <button key={o} onClick={() => setFollowup(followup===o ? null : o)} style={{
-                  padding:'7px 12px', borderRadius:20, border:`1px solid ${followup===o?'#c8b89a':'#ede8e0'}`,
-                  background:followup===o?'#e8dfd0':'#fff', color:followup===o?'#5a4a3a':'#2c2820',
-                  fontSize:12, cursor:'pointer', fontFamily:'inherit', fontWeight:followup===o?500:400
+                  padding:'10px 14px', borderRadius:10, border:`1px solid ${followup===o?'#2c2820':'#ede8e0'}`,
+                  background:followup===o?'#f5f0e8':'#fff', color:'#2c2820',
+                  fontSize:13, cursor:'pointer', fontFamily:'inherit', fontWeight:followup===o?500:400,
+                  textAlign:'left'
                 }}>{o}</button>
               ))}
             </div>
           </div>
         )}
 
-        {/* Step 5 — Frustration */}
-        {category && description.length >= 3 && (
+        {/* Step 5 — Frustration (hidden for 'love' category) */}
+        {showFrustration && (
           <div style={{ marginBottom:24 }}>
-            <span style={{ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590', marginBottom:12, display:'block' }}>5. How frustrated are you?</span>
+            <span style={sLabel}>5. How frustrated are you?</span>
             <div style={{ display:'flex', gap:8, justifyContent:'space-between' }}>
               {[['😌',1],['😊',2],['😐',3],['😕',4],['😤',5]].map(([emoji,val]) => (
                 <button key={val} onClick={() => setFrustration(val)} style={{
