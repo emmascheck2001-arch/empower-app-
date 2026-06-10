@@ -40,6 +40,7 @@ const HERO_GRADIENT = {
   'Late luteal':  'linear-gradient(135deg,#352c20,#2c2415)',
   Perimenopause:  'linear-gradient(135deg,#2c2035,#1f1528)',
   observation:    'linear-gradient(135deg,#2c2820,#1f1e18)',
+  bc:             'linear-gradient(135deg,#26303a,#1a222c)',
 }
 
 const PHASE_DESC_BASE = {
@@ -52,6 +53,7 @@ const PHASE_DESC_BASE = {
   Luteal:         'Progesterone is elevated and your body is working harder than it appears. Recovery takes longer and training may feel heavier.',
   Perimenopause:  'Your hormonal landscape is shifting. Resistance training, adequate protein, and consistent sleep are your strongest tools for managing symptoms and protecting long-term health.',
   observation:    'We are learning your baseline. Keep logging and your personalised recommendations will emerge from your own data over time.',
+  bc:             'Your contraception keeps your hormones steady, so there is no natural cycle to track. Consistent training and protein matter more than timing, and strength work is your highest-value investment for long-term hormonal health.',
 }
 
 function getPersonalisedPhaseDesc(phase, subPhase, recentLogs) {
@@ -95,12 +97,13 @@ const SLEEP_SUBTITLES = {
   Luteal:         'Elevated temperature may disrupt sleep',
   Perimenopause:  'Hot flashes and sleep tips for tonight',
   observation:    'Evidence-based sleep habits for any phase',
+  bc:             'Steady hormones support consistent sleep',
 }
 
 const PROTEIN_MULT = {
   Menstrual: 1.5, Follicular: 1.7, Ovulatory: 1.8,
   'Early luteal': 1.8, 'Mid luteal': 2.0, 'Late luteal': 2.0,
-  Luteal: 2.0, Perimenopause: 1.8, observation: 1.6,
+  Luteal: 2.0, Perimenopause: 1.8, observation: 1.6, bc: 1.6,
 }
 
 function localDateStr() {
@@ -250,10 +253,27 @@ export default function Dashboard() {
 
       const bw = profile?.body_weight_kg || 65
       const isPath4 = profile?.user_path === '4'
+      // Hormonal BC (path 5, excluding the non-hormonal copper IUD) suppresses the
+      // natural cycle — these users have no real cycle phase even if a last-period
+      // date exists in cycle_data, so we must not compute one.
+      const isHormonalBC = profile?.user_path === '5' && profile?.bc_type !== 'copper-iud'
+
+      // Single source of truth shared with Workout/Nutrition. Fetched once here so the
+      // dashboard can never disagree with those screens about the user's phase.
+      let status = null
+      try { status = await getTodayStatus(supabase, user.id) } catch(e) {}
+
       let phase = 'observation', subPhase = null, cycleDay = null, cycleLen = 28, daysLeft = null, confidence = 0.05
+      let bcProteinG = null
 
       if (isPath4) {
         phase = 'Perimenopause'; confidence = 0.5
+      } else if (isHormonalBC && status) {
+        // Mirror getTodayStatus: show the contraception state, not a cycle phase.
+        phase = 'bc'
+        subPhase = status.subPhase            // e.g. "Combined pill", "Hormonal IUD"
+        confidence = status.confidence || 0.3
+        bcProteinG = status.nutritionTargets?.proteinG || null
       } else if (cycleData?.last_period_date) {
         const lastPeriod = new Date(cycleData.last_period_date + 'T00:00:00')
         const today = new Date(); today.setHours(0,0,0,0)
@@ -286,11 +306,8 @@ export default function Dashboard() {
       }
 
       let anomalyItems = []
-      try {
-        const status = await getTodayStatus(supabase, user.id)
-        if (status.anomalies?.length) anomalyItems.push(...status.anomalies.map(a => ({ type: 'anomaly', text: a.text || a.message })))
-        if (status.moodInsight?.message) anomalyItems.push({ type: 'mood', text: status.moodInsight.message })
-      } catch(e) {}
+      if (status?.anomalies?.length) anomalyItems.push(...status.anomalies.map(a => ({ type: 'anomaly', text: a.text || a.message })))
+      if (status?.moodInsight?.message) anomalyItems.push({ type: 'mood', text: status.moodInsight.message })
 
       let alloLoad = 0
       if (recentLogs?.length >= 3) {
@@ -315,7 +332,7 @@ export default function Dashboard() {
         }
       }
 
-      setD({ profile, phase, subPhase, cycleDay, cycleLen, daysLeft, confidence, bw, alreadyLogged, streak, recentLogs, twoWeekLogs, anomalyItems, alloLoad, isPath4, userEmail: user.email, todayLoggers: todayLoggers || 0 })
+      setD({ profile, phase, subPhase, cycleDay, cycleLen, daysLeft, confidence, bw, bcProteinG, alreadyLogged, streak, recentLogs, twoWeekLogs, anomalyItems, alloLoad, isPath4, userEmail: user.email, todayLoggers: todayLoggers || 0 })
       loadFriends(user.id)
     } catch(e) { console.error(e) }
     finally { setLoading(false) }
@@ -324,10 +341,13 @@ export default function Dashboard() {
   if (loading) return <><div style={{ paddingTop: 60 }}><Spinner /></div><BottomNav /></>
   if (!d) return null
 
-  const { phase, subPhase, cycleDay, cycleLen, daysLeft, confidence, bw, alreadyLogged, streak, recentLogs, twoWeekLogs, anomalyItems, alloLoad, isPath4, userEmail, todayLoggers } = d
-  const phaseLabel = phase === 'observation' ? 'Observation mode' : phase === 'Perimenopause' ? 'Perimenopause' : `${subPhase || phase} phase`
+  const { phase, subPhase, cycleDay, cycleLen, daysLeft, confidence, bw, bcProteinG, alreadyLogged, streak, recentLogs, twoWeekLogs, anomalyItems, alloLoad, isPath4, userEmail, todayLoggers } = d
+  const phaseLabel = phase === 'observation' ? 'Observation mode'
+    : phase === 'Perimenopause' ? 'Perimenopause'
+    : phase === 'bc' ? (subPhase || 'Hormonal birth control')
+    : `${subPhase || phase} phase`
   const heroGrad = HERO_GRADIENT[subPhase] || HERO_GRADIENT[phase] || HERO_GRADIENT.observation
-  const protein = Math.round(bw * (PROTEIN_MULT[subPhase] || PROTEIN_MULT[phase] || 1.7))
+  const protein = phase === 'bc' && bcProteinG ? bcProteinG : Math.round(bw * (PROTEIN_MULT[subPhase] || PROTEIN_MULT[phase] || 1.7))
   const confPct = Math.round(confidence * 100)
   const alloC = alloLoad >= 7 ? { bg:'#fce8e0', border:'#f0b8a0', text:'#8a3020', label:'High load' }
     : { bg:'#fef4e4', border:'#f0d498', text:'#6a4a10', label:'Moderate load' }

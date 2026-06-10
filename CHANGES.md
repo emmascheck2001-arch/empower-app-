@@ -4,6 +4,16 @@ Changes made autonomously from user feedback. Most recent first.
 
 ---
 
+## 2026-06-10 — Dashboard showed a natural cycle phase for hormonal birth control users (proactive fix)
+
+**Found via:** audit follow-up to the phase-mismatch feedback fix (same bug class, different cohort). No user reported it directly, but it affected a live user (a combined-pill user was being shown "Ovulatory phase" — a false fertile-window signal).
+
+**What was done:** The dashboard computed the phase itself from a last-period date and only special-cased perimenopause (path 4). For hormonal birth control users (path 5, e.g. the pill/IUD), who often still have a last-period date saved, it wrongly computed a natural cycle phase — while Workout and Nutrition (which use `getTodayStatus`) correctly showed the contraception state. The pill suppresses ovulation, so "Ovulatory phase" was both inconsistent and clinically wrong. The dashboard now reads its phase for these users from `getTodayStatus` (the single source the other screens use) and shows a dedicated "on hormonal birth control" state instead of a cycle phase. The non-hormonal copper IUD is excluded and still tracks a natural cycle.
+
+**Files changed:** empower-react/src/pages/Dashboard.jsx
+
+---
+
 ## 2026-06-10 — Privacy gate repeating, weekly insight repeating, phase mismatch across screens
 
 **User said:** "i keep seeing the privacy thing everytime i log in and my weekly insight came up today but i got one yesterday also it says im in my lutel phase in workout and nuterion but im in oberveration mood on the home screen and still it somehow has % on my data something seem wrong"
