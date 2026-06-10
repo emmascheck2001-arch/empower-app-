@@ -82,7 +82,7 @@ export default function Checkin() {
 
   if (saved) {
     return (
-      <div style={{ padding: 24, textAlign: 'center' }}>
+      <div onClick={() => navigate('/dashboard')} style={{ padding: 24, textAlign: 'center', cursor: 'pointer', minHeight: '70vh' }}>
         <div style={{ fontSize: 40, marginBottom: 16 }}>✓</div>
         <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>Check-in saved</div>
         <div style={{ fontSize: 14, color: '#7a7268', lineHeight: 1.6 }}>{feedbackMsg}</div>
@@ -95,7 +95,7 @@ export default function Checkin() {
   const isPath4 = status?.profile?.user_path === '4'
 
   return (
-    <div onClick={saved ? () => navigate('/dashboard') : undefined}>
+    <div>
       {/* Top bar */}
       <div style={{ background:'#f5f0e8', padding:'16px 20px', borderBottom:'1px solid #ede8e0', textAlign:'center' }}>
         <div style={{ fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:20 }}>{phase}</div>

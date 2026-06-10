@@ -646,7 +646,7 @@ export default function Workout() {
     setLoading(false)
   }
 
-  function getPhaseWeightNote(exWeight, intensityModifier) {
+  function getPhaseWeightNote(exWeight, intensityModifier, phaseVal) {
     if (!exWeight) return null
     const lower = exWeight.toLowerCase()
     if (lower === 'bodyweight' || lower.startsWith('bodyweight or') || lower === 'light band') return null
@@ -658,6 +658,14 @@ export default function Workout() {
     const raw = mid * intensityModifier
     const suggested = Math.round(raw / 2.5) * 2.5
     const clamped = Math.max(lo, Math.min(hi, suggested))
+    // The intensity-based notes below describe natural cycle physiology (elevated RHR,
+    // progesterone-cortisol load). Birth control, perimenopause, and observation users
+    // share those intensity values coincidentally but are NOT in a luteal phase, so use
+    // neutral wording for them rather than misattributing cycle physiology.
+    const CYCLE_PHASES = ['Menstrual','Follicular','Ovulatory','Early luteal','Mid luteal','Late luteal','Luteal']
+    if (!CYCLE_PHASES.includes(phaseVal)) {
+      return { weight: `${clamped}kg`, note: 'Train to how you feel today. Individual variation is large — let your energy and form guide your load.', source: 'Colenso-Semple et al. 2023 Frontiers; Janse de Jonge 2003 Sports Medicine' }
+    }
     if (intensityModifier >= 1.0) {
       return { weight: `${clamped}kg`, note: 'Peak estrogen and testosterone phase. Aim toward the top of your range if you feel strong. Individual variation is large — your body is the primary guide.', source: 'Kissow et al. 2022 Sports Medicine; Colenso-Semple et al. 2023 Frontiers' }
     } else if (intensityModifier >= 0.90) {
@@ -1201,7 +1209,7 @@ export default function Workout() {
 
           {/* Weight guide — always visible */}
           {(() => {
-            const weightNote = getPhaseWeightNote(exObj.weight, intensity)
+            const weightNote = getPhaseWeightNote(exObj.weight, intensity, phase)
             return weightNote ? (
               <div style={{ background:'#e8dfd0', border:'1px solid #c8b89a', borderRadius:12, padding:'12px 14px', marginBottom:12, display:'flex', alignItems:'center', gap:12 }}>
                 <div>

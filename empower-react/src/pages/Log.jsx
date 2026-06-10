@@ -77,6 +77,7 @@ export default function Log() {
   async function init() {
     const { data:{ user } } = await supabase.auth.getUser()
     if (!user) { navigate('/login',{replace:true}); return }
+    try {
     const [{ data:profile },{ data:cycleData }] = await Promise.all([
       supabase.from('profiles').select('user_path').eq('id',user.id).single(),
       supabase.from('cycle_data').select('*').eq('user_id',user.id).order('created_at',{ascending:false}).limit(1).maybeSingle(),
@@ -113,7 +114,8 @@ export default function Log() {
       }))
     }
     if (mucus?.discharge_type) setLog(prev=>({...prev,cervical_fluid:mucus.discharge_type}))
-    setLoading(false)
+    } catch(e) { console.error(e) }
+    finally { setLoading(false) }
   }
 
   const set = (field,val) => setLog(prev=>({...prev,[field]:val}))

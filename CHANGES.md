@@ -4,6 +4,22 @@ Changes made autonomously from user feedback. Most recent first.
 
 ---
 
+## 2026-06-10 — App-wide bug sweep (Workout, Checkin, Log, hormoneSync)
+
+**Found via:** requested "check for bugs everywhere" — audited every page, lib, and component not already reviewed this session.
+
+**What was fixed:**
+1. *Workout weight guide misattributed cycle physiology.* `getPhaseWeightNote` chose its wording purely from the intensity-modifier value, so birth-control (0.85), perimenopause (0.82), and observation/Depo (0.72) users were told they had "elevated RHR" or "progesterone-cortisol competition" — luteal-phase physiology they don't have. It now uses neutral, train-to-feel wording for any non-cycle phase and keeps the cycle-specific notes only for real cycle phases.
+2. *Check-in success screen "Tap anywhere to go to dashboard" did nothing.* The tap handler was on the form (only shown before saving), not on the success view. Moved the navigate handler onto the success view and removed the dead one.
+3. *Daily log could spin forever on a load error.* `init()` had no error handling, so a failed network call left the spinner stuck. Wrapped it in try/finally so loading always clears.
+4. *Removed a stray console error for users with no cycle data.* `getTodayStatus` read `cycle_data` with `.single()`, which errors on zero rows; switched to `.maybeSingle()` (same data, no error noise).
+
+**Also reviewed and confirmed clean / not bugs:** Calendar correctly shows no cycle colouring for hormonal-BC users (getTodayStatus returns no cycle day for them); the Check-in vs Log "Good/Normal" and "Great/Excellent" wording difference is intentional and handled by the scoring tables; Feedback, BottomNav, TopBar, Sleep, and the algorithm_v3 lookup tables handle all phase values without crashing. Two minor follow-ups noted (not yet done): the Learn "Your path" card shows natural-cycle content to birth-control users, and the Sleep banner can show a raw `bc-combined` label.
+
+**Files changed:** empower-react/src/pages/Workout.jsx, empower-react/src/pages/Checkin.jsx, empower-react/src/pages/Log.jsx, empower-react/src/lib/hormoneSync.js
+
+---
+
 ## 2026-06-10 — Nutrition panel: perimenopause users got the wrong food guidance + stale protein after weight edit
 
 **Found via:** requested check of the Nutrition panel for bugs.
