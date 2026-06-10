@@ -825,7 +825,18 @@ export default function Nutrition() {
                 return (
                   <button key={String(d.val)} onClick={() => {
                     if (d.val === null) { setEditDiets([]); return }
-                    setEditDiets(prev => prev.includes(d.val) ? prev.filter(x => x !== d.val) : [...prev, d.val])
+                    // Gluten-free and dairy-free are dietary restrictions — they can combine with
+                    // each other but not with a base diet. Every base diet is mutually exclusive.
+                    const ADDONS = ['gluten_free', 'dairy_free']
+                    const isAddon = ADDONS.includes(d.val)
+                    setEditDiets(prev => {
+                      const has = prev.includes(d.val)
+                      if (isAddon) {
+                        const addonsOnly = prev.filter(x => ADDONS.includes(x))
+                        return has ? addonsOnly.filter(x => x !== d.val) : [...addonsOnly, d.val]
+                      }
+                      return has ? [] : [d.val]
+                    })
                   }} style={{
                     padding:'8px 12px', borderRadius:10, border:`1px solid ${isActive?'#c8b89a':'#ede8e0'}`,
                     background:isActive?'#e8dfd0':'#fff', cursor:'pointer',
