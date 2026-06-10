@@ -565,17 +565,25 @@ export default function Nutrition() {
     updates.diet_preference = editDiets.length > 0 ? JSON.stringify(editDiets) : null
     if (Object.keys(updates).length > 0) {
       await supabase.from('profiles').update(updates).eq('id', user.id)
-      setProfile(prev => ({ ...prev, ...updates }))
     }
     setSavingStats(false)
     setShowUpdateSheet(false)
+    // Re-run init so the protein target (and vegan multiplier) reflect the new weight
+    // and diet immediately — getTodayStatus recomputes nutritionTargets from the DB.
+    await init()
   }
 
   if (loading) return <div style={{ paddingTop:60 }}><Spinner /></div>
 
-  const phaseKey = ['Early luteal','Mid luteal','Late luteal'].includes(phase) ? 'Luteal' : phase
+  // Collapse subphases to the key the food/gradient tables use. Luteal subphases →
+  // Luteal; perimenopause stages (status.subPhase is "Early/Late perimenopause" or
+  // "Postmenopause") → Perimenopause, otherwise these fell through to observation and
+  // path-4 users never saw the calcium/bone-protective perimenopause guidance.
+  const phaseKey = ['Early luteal','Mid luteal','Late luteal'].includes(phase) ? 'Luteal'
+    : ['Early perimenopause','Late perimenopause','Postmenopause','Perimenopause'].includes(phase) ? 'Perimenopause'
+    : phase
   const phaseData = PHASE_DATA[phaseKey] || PHASE_DATA.observation
-  const gradient = PHASE_GRADIENT[phase] || PHASE_GRADIENT.observation
+  const gradient = PHASE_GRADIENT[phase] || PHASE_GRADIENT[phaseKey] || PHASE_GRADIENT.observation
   const displayPhase = phase === 'observation' ? 'Building baseline' : phase
   const activeDiets = parseDiets(profile?.diet_preference)
   const primaryDiet = DIET_PRIORITY.find(d => activeDiets.includes(d)) || null

@@ -4,6 +4,18 @@ Changes made autonomously from user feedback. Most recent first.
 
 ---
 
+## 2026-06-10 — Nutrition panel: perimenopause users got the wrong food guidance + stale protein after weight edit
+
+**Found via:** requested check of the Nutrition panel for bugs.
+
+**What was done:** Two bugs.
+1. *Perimenopause users saw generic "observation" nutrition instead of perimenopause guidance.* The screen set its phase from `status.subPhase`, which for path-4 users is "Early perimenopause" / "Late perimenopause" / "Postmenopause". The `phaseKey` lookup only collapsed luteal subphases, so those values didn't match the `Perimenopause` key and fell back to `observation` — meaning the dedicated calcium/bone-protective foods, science text, avoid list, perimenopause diet arrays, and gradient never showed. `phaseKey` now maps all perimenopause stages to `Perimenopause` (and the gradient falls back through `phaseKey`). The top bar still shows the specific stage label.
+2. *Protein target didn't update after editing body weight.* The Update sheet writes the new weight to the database but `targets` (and therefore the displayed protein number) was never recomputed, so it stayed stale until a full reload. `saveStats()` now re-runs `init()`, which recomputes the targets from the new weight (and re-applies the vegan multiplier on diet change).
+
+**Files changed:** empower-react/src/pages/Nutrition.jsx
+
+---
+
 ## 2026-06-10 — Dashboard showed a natural cycle phase for hormonal birth control users (proactive fix)
 
 **Found via:** audit follow-up to the phase-mismatch feedback fix (same bug class, different cohort). No user reported it directly, but it affected a live user (a combined-pill user was being shown "Ovulatory phase" — a false fertile-window signal).
