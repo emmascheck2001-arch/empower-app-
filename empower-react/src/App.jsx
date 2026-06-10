@@ -67,29 +67,44 @@ function PrivacyGate({ userId, onAgreed }) {
   )
 }
 
-function AuthGuard({ children }) {
-  const [state, setState] = useState('loading') // loading | authed | unauthed | needs-privacy
+// requireOnboarded: when true (default), a signed-in user whose profile is not
+// onboarding_complete is sent to /setup. The /setup route itself passes false so
+// the user can actually complete onboarding. This prevents the logged-in-but-pathless
+// state where a user could reach /log etc. without ever choosing a path.
+function AuthGuard({ children, requireOnboarded = true }) {
+  const [state, setState] = useState('loading') // loading | authed | unauthed | needs-privacy | needs-setup
   const [userId, setUserId] = useState(null)
 
-  async function checkPrivacy(session) {
+  async function resolve(session) {
     if (!session) { setState('unauthed'); return }
     const uid = session.user.id
     setUserId(uid)
-    if (localStorage.getItem(`ep_privacy_${uid}`)) { setState('authed'); return }
-    setState('needs-privacy')
+    if (!localStorage.getItem(`ep_privacy_${uid}`)) { setState('needs-privacy'); return }
+    if (requireOnboarded) {
+      const { data: prof } = await supabase.from('profiles').select('onboarding_complete').eq('id', uid).maybeSingle()
+      if (!prof?.onboarding_complete) { setState('needs-setup'); return }
+    }
+    setState('authed')
   }
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => checkPrivacy(session))
+    supabase.auth.getSession().then(({ data: { session } }) => resolve(session))
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
       if (!session) setState('unauthed')
     })
     return () => subscription.unsubscribe()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  function reResolve() {
+    setState('loading')
+    supabase.auth.getSession().then(({ data: { session } }) => resolve(session))
+  }
 
   if (state === 'loading') return <div style={{ paddingTop: 60 }}><Spinner /></div>
   if (state === 'unauthed') return <Navigate to="/login" replace />
-  if (state === 'needs-privacy') return <PrivacyGate userId={userId} onAgreed={() => setState('authed')} />
+  if (state === 'needs-privacy') return <PrivacyGate userId={userId} onAgreed={reResolve} />
+  if (state === 'needs-setup') return <Navigate to="/setup" replace />
   return children
 }
 
@@ -101,7 +116,7 @@ export default function App() {
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<AuthGuard><Dashboard /></AuthGuard>} />
-        <Route path="/setup"     element={<AuthGuard><Setup /></AuthGuard>} />
+        <Route path="/setup"     element={<AuthGuard requireOnboarded={false}><Setup /></AuthGuard>} />
         <Route path="/log"       element={<AuthGuard><Log /></AuthGuard>} />
         <Route path="/checkin"   element={<AuthGuard><Checkin /></AuthGuard>} />
         <Route path="/workout"   element={<AuthGuard><Workout /></AuthGuard>} />
