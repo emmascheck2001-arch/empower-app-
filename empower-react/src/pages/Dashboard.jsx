@@ -265,15 +265,32 @@ export default function Dashboard() {
 
       let phase = 'observation', subPhase = null, cycleDay = null, cycleLen = 28, daysLeft = null, confidence = 0.05
       let bcProteinG = null
+      let bcBleedDay = null, bcInBleedWindow = false
 
       if (isPath4) {
         phase = 'Perimenopause'; confidence = 0.5
       } else if (isHormonalBC && status) {
-        // Mirror getTodayStatus: show the contraception state, not a cycle phase.
+        // On hormonal birth control the natural cycle is suppressed and ovulation is
+        // usually paused — so we never label Follicular/Ovulatory/Luteal phases.
+        // BUT these users still get a withdrawal bleed and period-like symptoms, so
+        // if they gave a bleed date we still track their pill-pack cycle and predict
+        // the next bleed. This is accurate (the pack repeats on a fixed schedule) and
+        // keeps the screen genuinely useful for them.
         phase = 'bc'
         subPhase = status.subPhase            // e.g. "Combined pill", "Hormonal IUD"
         confidence = status.confidence || 0.3
         bcProteinG = status.nutritionTargets?.proteinG || null
+        if (cycleData?.last_period_date) {
+          const lastBleed = new Date(cycleData.last_period_date + 'T00:00:00')
+          const today = new Date(); today.setHours(0,0,0,0)
+          cycleLen = cycleData.cycle_length || 28
+          let day = Math.floor((today - lastBleed) / 86400000) + 1
+          if (day > cycleLen) day = ((day - 1) % cycleLen) + 1   // fold into the current pack
+          bcBleedDay = day
+          daysLeft = Math.max(0, cycleLen - day + 1)
+          // Period-like symptoms cluster around the withdrawal bleed (pack start / end)
+          bcInBleedWindow = day <= 5 || daysLeft <= 2
+        }
       } else if (cycleData?.last_period_date) {
         const lastPeriod = new Date(cycleData.last_period_date + 'T00:00:00')
         const today = new Date(); today.setHours(0,0,0,0)
@@ -332,7 +349,7 @@ export default function Dashboard() {
         }
       }
 
-      setD({ profile, phase, subPhase, cycleDay, cycleLen, daysLeft, confidence, bw, bcProteinG, alreadyLogged, streak, recentLogs, twoWeekLogs, anomalyItems, alloLoad, isPath4, userEmail: user.email, todayLoggers: todayLoggers || 0 })
+      setD({ profile, phase, subPhase, cycleDay, cycleLen, daysLeft, confidence, bw, bcProteinG, bcBleedDay, bcInBleedWindow, alreadyLogged, streak, recentLogs, twoWeekLogs, anomalyItems, alloLoad, isPath4, userEmail: user.email, todayLoggers: todayLoggers || 0 })
       loadFriends(user.id)
     } catch(e) { console.error(e) }
     finally { setLoading(false) }
@@ -341,7 +358,7 @@ export default function Dashboard() {
   if (loading) return <><div style={{ paddingTop: 60 }}><Spinner /></div><BottomNav /></>
   if (!d) return null
 
-  const { phase, subPhase, cycleDay, cycleLen, daysLeft, confidence, bw, bcProteinG, alreadyLogged, streak, recentLogs, twoWeekLogs, anomalyItems, alloLoad, isPath4, userEmail, todayLoggers } = d
+  const { phase, subPhase, cycleDay, cycleLen, daysLeft, confidence, bw, bcProteinG, bcBleedDay, bcInBleedWindow, alreadyLogged, streak, recentLogs, twoWeekLogs, anomalyItems, alloLoad, isPath4, userEmail, todayLoggers } = d
   const phaseLabel = phase === 'observation' ? 'Observation mode'
     : phase === 'Perimenopause' ? 'Perimenopause'
     : phase === 'bc' ? (subPhase || 'Hormonal birth control')
@@ -369,7 +386,13 @@ export default function Dashboard() {
           <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.12em', textTransform:'uppercase', color:'rgba(232,224,212,0.6)', marginBottom:6 }}>Your phase</div>
           <div style={{ fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:24, marginBottom:6 }}>{phaseLabel}</div>
           <div style={{ fontSize:13, color:'rgba(232,224,212,0.75)', marginBottom:14 }}>
-            {cycleDay ? `Day ${cycleDay} of ${cycleLen}, ${daysLeft} days until next period` : 'Tracking your cycle patterns'}
+            {phase === 'bc'
+              ? (bcBleedDay
+                  ? (bcInBleedWindow
+                      ? `Day ${bcBleedDay} of your pill cycle · withdrawal bleed likely around now`
+                      : `Day ${bcBleedDay} of your pill cycle · next bleed in about ${daysLeft} day${daysLeft === 1 ? '' : 's'}`)
+                  : 'Steady hormones — tracking your symptoms')
+              : cycleDay ? `Day ${cycleDay} of ${cycleLen}, ${daysLeft} days until next period` : 'Tracking your cycle patterns'}
           </div>
           <div style={{ fontSize:13, color:'rgba(232,224,212,0.8)', lineHeight:1.7, marginBottom:16 }}>
             {getPersonalisedPhaseDesc(phase, subPhase, recentLogs)}
@@ -391,6 +414,18 @@ export default function Dashboard() {
           )}
         </div>
 
+
+        {/* Birth control context — explains why we track a pill cycle, not a true cycle */}
+        {phase === 'bc' && (
+          <div style={{ background:'#fff', border:'1px solid #ede8e0', borderRadius:14, padding:16, marginBottom:12 }}>
+            <div style={{ display:'flex', gap:10, alignItems:'flex-start' }}>
+              <i className="ti ti-info-circle" style={{ color:'#c8b89a', fontSize:18, flexShrink:0, marginTop:1 }} />
+              <div style={{ fontSize:13, color:'#5a5248', lineHeight:1.6 }}>
+                Your birth control keeps your hormones steady and usually pauses ovulation, so there is no natural cycle to track. The bleed you get is a withdrawal bleed, not a true period — but cramps, mood changes, and other period-like symptoms are still real and worth logging. We track your pill cycle and flag when your next bleed is due.
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Weekly summary card (after modal dismissed) */}
         {weeklyCard && weeklySummary && (
