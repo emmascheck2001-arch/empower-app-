@@ -1,3 +1,4 @@
+// route /friends — social feature: friend requests, friend phase cards, pending invites
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'

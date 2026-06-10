@@ -437,3 +437,50 @@ export function getMoodContextFeedback(latestLog, phase, subPhase) {
 
   return null
 }
+
+// Returns the symptom area most relevant to what the user has actually logged recently.
+// Drives auto-open accordion in Nutrition and personalised note in targets card.
+// Source: symptom-nutrition links from Facchinetti 1991, Rahbar 2012, Angeli 2016, ISSN 2023
+export function getPersonalisedNutritionFocus(recentLogs) {
+  if (!recentLogs?.length) return null
+  const recent = recentLogs.slice(0, 7)
+  const allSymptoms = recent.flatMap(l => l.symptoms || [])
+  const allMoods = recent.flatMap(l => l.mood || [])
+  const energyValues = recent.map(l => l.energy).filter(Boolean)
+  const sleepValues = recent.map(l => l.sleep_quality).filter(Boolean)
+
+  const hasCramps = allSymptoms.some(s => ['Cramps','Cramping','Back pain'].includes(s))
+  const bloatingCount = allSymptoms.filter(s => s === 'Bloating').length
+  const lowEnergyCount = energyValues.filter(e => ['Low','Very low'].includes(e)).length
+  const poorSleepCount = sleepValues.filter(s => s === 'Poor').length
+  const negMoodCount = allMoods.filter(m => ['Anxious','Irritable','Low','Sad'].includes(m)).length
+  const hasBrainFog = allMoods.some(m => m === 'Brain fog') || recent.some(l => (l.brain_fog_rating || 0) >= 3)
+
+  if (hasCramps) return { focus: 'cramping', reason: 'You logged cramps recently — anti-inflammatory foods are your priority right now.' }
+  if (bloatingCount >= 2) return { focus: 'bloating', reason: 'You logged bloating recently — probiotic and gut-settling foods help most here.' }
+  if (negMoodCount >= 2) return { focus: 'pms', reason: 'You logged low or anxious mood recently — magnesium and complex carbohydrates support this directly.' }
+  if (hasBrainFog) return { focus: 'brainfog', reason: 'You logged brain fog recently — iron, omega-3, and eggs and leafy greens support focus.' }
+  if (lowEnergyCount >= 2) return { focus: 'fatigue', reason: 'You logged low energy recently — iron and B12 are your focus right now.' }
+  if (poorSleepCount >= 2) return { focus: 'fatigue', reason: 'You logged poor sleep recently — magnesium glycinate and stable blood sugar through the day help most.' }
+  return null
+}
+
+// Returns a personalised readiness note based on recent workout feel, energy, and sleep logs.
+// Used to replace or supplement the generic intensity guide in Workout.jsx.
+export function getPersonalisedWorkoutReadiness(recentLogs) {
+  if (!recentLogs?.length) return null
+  const recent = recentLogs.slice(0, 7)
+  const todayLog = recent[0]
+  const workoutFeels = recent.slice(0, 5).map(l => l.workout_feel).filter(Boolean)
+  const recentDisruptors = recent.flatMap(l => l.disruptors || [])
+
+  const hardCount = workoutFeels.filter(f => ['Felt hard','Hard'].includes(f)).length
+  const strongCount = workoutFeels.filter(f => ['Felt strong','Strong','Stronger than usual'].includes(f)).length
+
+  if (todayLog?.energy === 'Very low') return 'You logged very low energy today. Start at 80% and adjust from there — your body is telling you something real.'
+  if (todayLog?.sleep_quality === 'Poor') return 'You logged poor sleep last night. Trust how you feel over your targets today.'
+  if (hardCount >= 3) return `Your last ${hardCount} sessions have felt hard. A lighter session today actively supports recovery.`
+  if (strongCount >= 2) return 'Your recent sessions have felt strong. This is a good window to work toward the top of your ranges.'
+  if (recentDisruptors.some(d => ['High stress','Very poor sleep','Illness'].includes(d))) return 'Recent stressors logged. Stress adds hormonal load — factor that into your effort today.'
+  return null
+}

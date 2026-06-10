@@ -1,3 +1,5 @@
+> **Developer?** See [empower-react/README.md](empower-react/README.md) for architecture, setup, and how the codebase works. This file contains AI assistant instructions — it is not developer documentation.
+
 # Em~power — Claude Code Instructions
 
 ## Project context

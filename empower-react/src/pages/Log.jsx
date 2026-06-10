@@ -1,3 +1,4 @@
+// route /log — full daily log: energy, mood, cervical fluid, LH, RHR, wrist temp, symptoms, sleep, workout feel, disruptors, flow, pain, hormones
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'

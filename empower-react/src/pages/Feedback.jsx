@@ -1,3 +1,4 @@
+// route /feedback — user feedback form: category, screen, description, follow-up, frustration rating. Saves to user_feedback table.
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'

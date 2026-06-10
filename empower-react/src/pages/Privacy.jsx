@@ -1,3 +1,4 @@
+// route /privacy — privacy policy. Accessible without auth.
 import TopBar from '../components/TopBar'
 
 export default function Privacy() {

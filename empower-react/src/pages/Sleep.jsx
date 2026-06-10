@@ -1,3 +1,4 @@
+// route /sleep — phase-aware sleep guidance and evidence-based tips
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'

@@ -1,6 +1,6 @@
 // hormoneSync.js — shared algorithm module
 // All phase logic lives here. Import getTodayStatus into every screen.
-import { interpretMoodSignal, detectPMDDPattern, getMoodContextFeedback, checkFlag } from './algorithm_v3.js'
+import { interpretMoodSignal, detectPMDDPattern, getMoodContextFeedback, checkFlag, getPersonalisedNutritionFocus, getPersonalisedWorkoutReadiness } from './algorithm_v3.js'
 
 // ── Phase calculation (canonical — never duplicate this elsewhere) ──────────
 export function getPhase(cycleDay, cycleLen) {
@@ -439,119 +439,107 @@ export function inferPhaseFromSymptoms(recentLogs, mucusLogs = []) {
   }
 }
 
-// ── Main exported function ───────────────────────────────────────────────────
-export async function getTodayStatus(supabase, userId) {
-  const [
-    cycleResult,
-    profileResult,
-    logsResult,
-    mucusResult
-  ] = await Promise.all([
-    supabase.from('cycle_data').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(1).single(),
-    supabase.from('profiles').select('*').eq('id', userId).single(),
-    supabase.from('daily_logs').select('*').eq('user_id', userId).order('log_date', { ascending: false }).limit(7),
-    supabase.from('mucus_logs').select('*').eq('user_id', userId).order('log_date', { ascending: false }).limit(7)
-  ])
+// ── Path-specific status builders ────────────────────────────────────────────
+// Each returns the same shape as getTodayStatus(). Logic is unchanged — these
+// are extractions only so getTodayStatus() stays readable as an orchestrator.
 
-  const cycleData = cycleResult.data
-  const profile = profileResult.data
-  const recentLogs = logsResult.data || []
-  const mucusLogs = mucusResult.data || []
-
-  const today = new Date(); today.setHours(0, 0, 0, 0)
-
-  // Path 5: currently on birth control
-  // Hormonal environment depends on method — do not treat all BC the same
-  if (profile?.user_path === '5') {
-    const bcType = profile?.bc_type
-    const isCombined = ['pill', 'patch', 'ring'].includes(bcType)
-    const isCopper = bcType === 'copper-iud'
-    // Copper IUD has no hormones — natural cycle intact, fall through to normal cycle logic below
-    if (!isCopper) {
-      const bcPhase = isCombined ? 'bc-combined' : 'bc-progestin'
-      const bcConfidence = Math.min(0.65, 0.25 + (recentLogs.length * 0.04))
-      const bodyWeightBC = profile?.body_weight_kg || 65
-      // Combined pill: stable synthetic estrogen, intensity closer to follicular
-      // Progestin-only: lower estrogen influence, moderate intensity
-      const bcIntensity = isCombined ? 0.90 : 0.85
-      const bcIntensityLabel = isCombined
-        ? 'Consistent training window. Your energy is more stable than a naturally cycling woman.'
-        : 'Moderate to good intensity. Tune in to how you feel each day.'
-      const bcNutritionMultiplier = isCombined ? 1.6 : 1.7
-      const bcSubPhase = isCombined ? 'Combined pill' : (bcType === 'minipill' ? 'Mini pill'
-        : bcType === 'implant' ? 'Implant' : bcType === 'depo' ? 'Depo-Provera'
-        : bcType === 'hormonal-iud' ? 'Hormonal IUD' : 'Progestin-only')
-      return {
-        phase: bcPhase,
-        subPhase: bcSubPhase,
-        cycleDay: null,
-        cycleLen: null,
-        daysUntilPeriod: null,
-        confidence: bcConfidence,
-        confidenceLabel: bcConfidence > 0.45
-          ? 'Your personal pattern is emerging'
-          : 'Building your baseline. Tracking energy, mood, sleep, and workouts.',
-        confidencePct: Math.round(bcConfidence * 100),
-        intensityModifier: bcIntensity,
-        intensityLabel: bcIntensityLabel,
-        nutritionTargets: getNutritionTargets(bcPhase, bodyWeightBC),
-        immediateFeedback: [],
-        anomalies: [],
-        predictions: [],
-        symptomInference: null,
-        moodInsight: null,
-        bodyWeight: bodyWeightBC,
-        profile: profile || {}
-      }
-    }
-    // Copper IUD: falls through to natural cycle calculation below
+// Path 5: currently on hormonal birth control (not copper IUD)
+// Hormonal environment depends on method — do not treat all BC the same.
+// Combined pill/patch/ring: stable synthetic estrogen, no cycle-based targets.
+// Progestin-only (mini pill, implant, Depo, hormonal IUD): lower estrogen influence.
+function buildPath5Status(profile, recentLogs) {
+  const bcType = profile?.bc_type
+  const isCombined = ['pill', 'patch', 'ring'].includes(bcType)
+  const bcPhase = isCombined ? 'bc-combined' : 'bc-progestin'
+  const bcConfidence = Math.min(0.65, 0.25 + (recentLogs.length * 0.04))
+  const bodyWeight = profile?.body_weight_kg || 65
+  const intensity = isCombined ? 0.90 : 0.85
+  const intensityLabel = isCombined
+    ? 'Consistent training window. Your energy is more stable than a naturally cycling woman.'
+    : 'Moderate to good intensity. Tune in to how you feel each day.'
+  const subPhase = isCombined ? 'Combined pill'
+    : bcType === 'minipill' ? 'Mini pill'
+    : bcType === 'implant' ? 'Implant'
+    : bcType === 'depo' ? 'Depo-Provera'
+    : bcType === 'hormonal-iud' ? 'Hormonal IUD'
+    : 'Progestin-only'
+  return {
+    phase: bcPhase,
+    subPhase,
+    cycleDay: null,
+    cycleLen: null,
+    daysUntilPeriod: null,
+    confidence: bcConfidence,
+    confidenceLabel: bcConfidence > 0.45
+      ? 'Your personal pattern is emerging'
+      : 'Building your baseline. Tracking energy, mood, sleep, and workouts.',
+    confidencePct: Math.round(bcConfidence * 100),
+    intensityModifier: intensity,
+    intensityLabel,
+    nutritionTargets: getNutritionTargets(bcPhase, bodyWeight),
+    immediateFeedback: [],
+    anomalies: [],
+    predictions: [],
+    symptomInference: null,
+    moodInsight: null,
+    bodyWeight,
+    profile: profile || {},
+    recentLogs,
+    personalisedFocus: getPersonalisedNutritionFocus(recentLogs),
+    workoutReadiness: getPersonalisedWorkoutReadiness(recentLogs),
   }
+}
 
-  // Path 4: perimenopause/menopause — skip all cycle phase calculations
-  // Cycle data may exist from before they chose Path 4 but must not drive phase logic
-  if (profile?.user_path === '4') {
-    const stage = profile?.bc_type || 'peri-early'
-    const subPhasePeri = stage === 'menopause' ? 'Postmenopause'
-      : stage === 'peri-late' ? 'Late perimenopause' : 'Early perimenopause'
-    const periConfidence = Math.min(0.75, 0.30 + (recentLogs.length * 0.05))
-    const bodyWeightPeri = profile?.body_weight_kg || 65
-    const periAnomalies = detectAnomalies(recentLogs, 'Perimenopause', null, {
-      daysLogged: recentLogs.length,
-      confidence: periConfidence,
-      cyclesTracked: 0,
-      userPath: '4',
-      bcType: profile?.bc_type
-    })
-    return {
-      phase: 'Perimenopause',
-      subPhase: subPhasePeri,
-      cycleDay: null,
-      cycleLen: null,
-      daysUntilPeriod: null,
-      confidence: periConfidence,
-      confidenceLabel: periConfidence > 0.55 ? 'Your symptom pattern is becoming clear'
-        : 'Building your perimenopause baseline',
-      confidencePct: Math.round(periConfidence * 100),
-      intensityModifier: getIntensityModifier('Perimenopause', null),
-      intensityLabel: 'Train to how you feel — listen to your body above all else.',
-      nutritionTargets: getNutritionTargets('Perimenopause', bodyWeightPeri),
-      immediateFeedback: getImmediateFeedback(recentLogs[0], 'Perimenopause', subPhasePeri, periConfidence),
-      anomalies: periAnomalies,
-      predictions: [],
-      symptomInference: null,
-      moodInsight: interpretMoodSignal(recentLogs[0], recentLogs, 'Perimenopause', subPhasePeri).insight,
-      bodyWeight: bodyWeightPeri,
-      profile: profile || {}
-    }
+// Path 4: perimenopause/menopause — skip all cycle phase calculations.
+// Cycle data may exist from before they chose Path 4 but must not drive phase logic.
+function buildPath4Status(profile, recentLogs) {
+  const stage = profile?.bc_type || 'peri-early'
+  const subPhase = stage === 'menopause' ? 'Postmenopause'
+    : stage === 'peri-late' ? 'Late perimenopause' : 'Early perimenopause'
+  const confidence = Math.min(0.75, 0.30 + (recentLogs.length * 0.05))
+  const bodyWeight = profile?.body_weight_kg || 65
+  const anomalies = detectAnomalies(recentLogs, 'Perimenopause', null, {
+    daysLogged: recentLogs.length,
+    confidence,
+    cyclesTracked: 0,
+    userPath: '4',
+    bcType: profile?.bc_type
+  })
+  return {
+    phase: 'Perimenopause',
+    subPhase,
+    cycleDay: null,
+    cycleLen: null,
+    daysUntilPeriod: null,
+    confidence,
+    confidenceLabel: confidence > 0.55 ? 'Your symptom pattern is becoming clear'
+      : 'Building your perimenopause baseline',
+    confidencePct: Math.round(confidence * 100),
+    intensityModifier: getIntensityModifier('Perimenopause', null),
+    intensityLabel: 'Train to how you feel — listen to your body above all else.',
+    nutritionTargets: getNutritionTargets('Perimenopause', bodyWeight),
+    immediateFeedback: getImmediateFeedback(recentLogs[0], 'Perimenopause', subPhase, confidence),
+    anomalies,
+    predictions: [],
+    symptomInference: null,
+    moodInsight: interpretMoodSignal(recentLogs[0], recentLogs, 'Perimenopause', subPhase).insight,
+    bodyWeight,
+    profile: profile || {},
+    recentLogs,
+    personalisedFocus: getPersonalisedNutritionFocus(recentLogs),
+    workoutReadiness: getPersonalisedWorkoutReadiness(recentLogs),
   }
+}
 
+// All other paths: calculate phase from period date, or infer from symptoms.
+// Copper IUD users (path 5, isCopper) also route here — no hormones, natural cycle intact.
+function buildCycleStatus(profile, cycleData, recentLogs, mucusLogs, today) {
   let phase = 'observation'
   let subPhase = null
   let cycleDay = null
   let cycleLen = 28
   let daysUntilPeriod = null
   let confidence = 0.05
-
   let symptomInference = null
 
   if (cycleData?.last_period_date) {
@@ -609,6 +597,40 @@ export async function getTodayStatus(supabase, userId) {
     symptomInference,
     moodInsight: interpretMoodSignal(recentLogs[0], recentLogs, phase, subPhase).insight,
     bodyWeight,
-    profile: profile || {}
+    profile: profile || {},
+    recentLogs,
+    personalisedFocus: getPersonalisedNutritionFocus(recentLogs),
+    workoutReadiness: getPersonalisedWorkoutReadiness(recentLogs),
   }
+}
+
+// ── Main exported function ───────────────────────────────────────────────────
+// Fetches all data in parallel, then dispatches to the appropriate builder
+// based on user path. Return shape is identical across all paths.
+export async function getTodayStatus(supabase, userId) {
+  const [cycleResult, profileResult, logsResult, mucusResult] = await Promise.all([
+    supabase.from('cycle_data').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(1).single(),
+    supabase.from('profiles').select('*').eq('id', userId).single(),
+    supabase.from('daily_logs').select('*').eq('user_id', userId).order('log_date', { ascending: false }).limit(7),
+    supabase.from('mucus_logs').select('*').eq('user_id', userId).order('log_date', { ascending: false }).limit(7)
+  ])
+
+  const cycleData = cycleResult.data
+  const profile = profileResult.data
+  const recentLogs = logsResult.data || []
+  const mucusLogs = mucusResult.data || []
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+
+  // Path 5: on hormonal BC — skip cycle logic (unless copper IUD, which is non-hormonal)
+  if (profile?.user_path === '5' && profile?.bc_type !== 'copper-iud') {
+    return buildPath5Status(profile, recentLogs)
+  }
+
+  // Path 4: perimenopause/menopause — skip all cycle phase calculations
+  if (profile?.user_path === '4') {
+    return buildPath4Status(profile, recentLogs)
+  }
+
+  // All other paths (1, 2, 3) + copper IUD users: phase from cycle data or symptom inference
+  return buildCycleStatus(profile, cycleData, recentLogs, mucusLogs, today)
 }

@@ -1,3 +1,4 @@
+// route /login — sign in and create account. Auth handled by Supabase. Redirects to /setup on first login, /dashboard on return.
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'

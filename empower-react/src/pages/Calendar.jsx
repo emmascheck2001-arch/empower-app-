@@ -1,3 +1,4 @@
+// route /calendar — colour-coded cycle calendar with past logs and future day planning bottom sheets
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'

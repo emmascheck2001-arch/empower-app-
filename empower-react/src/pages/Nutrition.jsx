@@ -1,3 +1,4 @@
+// route /nutrition — phase-aware food guidance, protein targets, symptom relief accordion, diet preference
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
@@ -527,6 +528,7 @@ export default function Nutrition() {
   const [openSymptom, setOpenSymptom] = useState(null)
   const [showRefs, setShowRefs] = useState(false)
   const [showFasting, setShowFasting] = useState(false)
+  const [personalisedFocus, setPersonalisedFocus] = useState(null)
   const [showUpdateSheet, setShowUpdateSheet] = useState(false)
   const [editWeight, setEditWeight] = useState('')
   const [editFitness, setEditFitness] = useState('')
@@ -546,6 +548,10 @@ export default function Nutrition() {
       const p = status?.subPhase || status?.phase || 'observation'
       setPhase(p)
       setTargets(status?.nutritionTargets || null)
+      if (status?.personalisedFocus) {
+        setPersonalisedFocus(status.personalisedFocus)
+        setOpenSymptom(status.personalisedFocus.focus)
+      }
     } catch(e) { console.error(e) }
     setLoading(false)
   }
@@ -625,6 +631,11 @@ export default function Nutrition() {
             </div>
           </div>
           <div style={{ fontSize:11, color:'#9a9590', textAlign:'center', marginTop:8 }}>International Society of Sports Nutrition, 2023</div>
+          {personalisedFocus && (
+            <div style={{ fontSize:12, color:'#5a4a3a', background:'#f5f0e8', borderRadius:8, padding:'8px 10px', marginTop:10, lineHeight:1.5 }}>
+              {personalisedFocus.reason}
+            </div>
+          )}
           {isVegan && (
             <div style={{ fontSize:11, color:'#7a7268', textAlign:'center', marginTop:4, lineHeight:1.5 }}>
               +15% applied for plant protein bioavailability (Rogerson, 2017; Mariotti & Gardner, 2019)
@@ -648,7 +659,7 @@ export default function Nutrition() {
       {tab === 'foods' ? (
         <div style={{ padding:'0 16px' }}>
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
-            <span style={{ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590' }}>{phaseData.sectionLabel}</span>
+            <span style={{ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590' }}>{personalisedFocus ? 'Based on your recent logs' : phaseData.sectionLabel}</span>
             {activeDiets.length > 0 && (
               <span style={{ fontSize:11, fontWeight:600, color:'#c8b89a', background:'#f5f0e8', padding:'2px 8px', borderRadius:6 }}>
                 {dietLabel}

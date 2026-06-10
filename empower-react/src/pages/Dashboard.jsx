@@ -1,3 +1,4 @@
+// route /dashboard — main home screen: phase hero card, anomaly alerts, nutrition card, streak, allostatic load, phase info sheet
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
@@ -41,16 +42,47 @@ const HERO_GRADIENT = {
   observation:    'linear-gradient(135deg,#2c2820,#1f1e18)',
 }
 
-const PHASE_DESC = {
-  Menstrual:      'You may notice lower energy, heavier cramps, and a stronger need for rest this week. Try incorporating iron-rich foods and gentle movement. Anti-inflammatory foods can help reduce cramping. (Rahbar 2012)',
-  Follicular:     'Rising estrogen tends to bring better mood, faster recovery, and stronger training sessions. A good window to push training load and take on new challenges.',
-  Ovulatory:      'Peak estrogen and testosterone together. You may notice higher energy, confidence, and cognitive sharpness. Your body is primed for high-intensity training right now.',
-  'Early luteal': 'Progesterone is rising with a calming effect via GABA receptors. Energy is typically still good this sub-phase — a steady, focused week ahead.',
-  'Mid luteal':   'Your core temperature and resting heart rate are measurably higher right now. The same session may feel harder than usual — this is real physiology, not a fitness change. (De Martin Topranin 2023)',
-  'Late luteal':  'Estrogen and progesterone are both dropping. You may notice mood changes, lighter sleep, or PMS symptoms. These have a direct hormonal cause and will ease when your period begins.',
-  Luteal:         'Progesterone is elevated and your body is working harder than it appears. Recovery takes longer and training may feel heavier — your data can show you exactly how much.',
+const PHASE_DESC_BASE = {
+  Menstrual:      'Estrogen and progesterone are at their lowest. Iron, anti-inflammatory foods, and rest are your biological priority right now.',
+  Follicular:     'Rising estrogen supports faster recovery, stronger training sessions, and better mood. A good window to push training load.',
+  Ovulatory:      'Peak estrogen and testosterone together. Your body is primed for high-intensity training and your brain is performing at its sharpest.',
+  'Early luteal': 'Progesterone is rising with a calming effect. Energy is typically still good this sub-phase — a steady, focused week ahead.',
+  'Mid luteal':   'Your core temperature and resting heart rate are measurably higher right now. The same session costs more physiologically — this is real biology, not a fitness change.',
+  'Late luteal':  'Both hormones are dropping. Mood changes, lighter sleep, and PMS symptoms have a direct hormonal cause and will ease when your period begins.',
+  Luteal:         'Progesterone is elevated and your body is working harder than it appears. Recovery takes longer and training may feel heavier.',
   Perimenopause:  'Your hormonal landscape is shifting. Resistance training, adequate protein, and consistent sleep are your strongest tools for managing symptoms and protecting long-term health.',
   observation:    'We are learning your baseline. Keep logging and your personalised recommendations will emerge from your own data over time.',
+}
+
+function getPersonalisedPhaseDesc(phase, subPhase, recentLogs) {
+  const key = subPhase || phase
+  const base = PHASE_DESC_BASE[key] || PHASE_DESC_BASE[phase] || PHASE_DESC_BASE.observation
+  if (!recentLogs?.length) return base
+  const today = recentLogs[0]
+  const recent = recentLogs.slice(0, 5)
+  const allSymptoms = recent.flatMap(l => l.symptoms || [])
+  const allMoods = recent.flatMap(l => l.mood || [])
+  const energyValues = recent.map(l => l.energy).filter(Boolean)
+  const sleepValues = recent.map(l => l.sleep_quality).filter(Boolean)
+  const poorSleepCount = sleepValues.filter(s => s === 'Poor').length
+  const lowEnergyCount = energyValues.filter(e => ['Low','Very low'].includes(e)).length
+  const hasCramps = allSymptoms.some(s => ['Cramps','Cramping'].includes(s))
+  const hasHighEnergy = energyValues.some(e => e === 'High')
+  const hasNegMood = allMoods.some(m => ['Anxious','Irritable','Low','Sad'].includes(m))
+
+  if (today?.energy === 'Very low' && ['Follicular','Ovulatory'].includes(phase))
+    return `${base} You logged very low energy today — that is real data worth noting even in a high-energy phase. Keep logging so we can track the pattern.`
+  if (hasCramps && phase === 'Menstrual')
+    return `${base} You logged cramps — salmon, ginger, and magnesium are your highest-priority foods right now.`
+  if (poorSleepCount >= 3)
+    return `${base} You have logged poor sleep ${poorSleepCount} times recently — sleep drives hormonal recovery. Magnesium glycinate and a cool room are your evidence-based priorities tonight.`
+  if (lowEnergyCount >= 3 && phase === 'Follicular')
+    return `${base} Your logs show consistently low energy this follicular phase — rising estrogen usually supports energy, so this pattern is worth tracking across your next cycle.`
+  if (hasHighEnergy && ['Follicular','Ovulatory'].includes(phase))
+    return `${base} You logged high energy — this matches exactly what rising estrogen does. Push your training this week.`
+  if (hasNegMood && ['Late luteal','Mid luteal','Luteal'].includes(key))
+    return `${base} You logged anxious or low mood — this matches the hormonal pattern directly. Magnesium, protein, and stable blood sugar all help here.`
+  return base
 }
 
 const SLEEP_SUBTITLES = {
@@ -138,7 +170,11 @@ const PHASE_SHEET_INFO = {
 function ActivityPulse({ twoWeekLogs }) {
   const energyCounts = { 'Very low':0, 'Low':0, 'Normal':0, 'High':0 }
   const logs = twoWeekLogs || []
-  logs.forEach(l => { if (l.energy && energyCounts[l.energy] !== undefined) energyCounts[l.energy]++ })
+  // Checkin saves "Good", Log saves "Normal" — same concept, normalise for display
+  logs.forEach(l => {
+    const e = l.energy === 'Good' ? 'Normal' : l.energy
+    if (e && energyCounts[e] !== undefined) energyCounts[e]++
+  })
   const total = Object.values(energyCounts).reduce((a,b)=>a+b,0)
   const workouts = logs.filter(l => l.workout_feel && l.workout_feel !== 'Rest day' && l.workout_feel !== 'Skipped').length
   const ENERGY_COLORS = { 'Very low':'#e09898', 'Low':'#e0c070', 'Normal':'#88c088', 'High':'#4a9a4a' }
@@ -315,7 +351,7 @@ export default function Dashboard() {
             {cycleDay ? `Day ${cycleDay} of ${cycleLen}, ${daysLeft} days until next period` : 'Tracking your cycle patterns'}
           </div>
           <div style={{ fontSize:13, color:'rgba(232,224,212,0.8)', lineHeight:1.7, marginBottom:16 }}>
-            {PHASE_DESC[subPhase] || PHASE_DESC[phase] || PHASE_DESC.observation}
+            {getPersonalisedPhaseDesc(phase, subPhase, recentLogs)}
           </div>
           <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:16 }}>
             <div style={{ width:8, height:8, borderRadius:'50%', background: confidence > 0.55 ? '#88c088' : confidence > 0.30 ? '#e0c070' : '#c88878' }} />

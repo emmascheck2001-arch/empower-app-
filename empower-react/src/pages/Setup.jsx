@@ -1,3 +1,4 @@
+// route /setup — onboarding: 5 paths (see PATH_OPTIONS), body stats, bc_type, bc_stop_date. IDs do not match display order — see CLAUDE.md.
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'

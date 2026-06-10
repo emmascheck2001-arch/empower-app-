@@ -1,3 +1,4 @@
+// route /workout — activity picker, muscle group selector, guided workout player with timers and phase-adapted weights
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
@@ -712,6 +713,7 @@ export default function Workout() {
   const banner = PHASE_BANNER[phase] || PHASE_BANNER.observation
   const isAcl = phase === 'Ovulatory' && (activity === 'gym' || activity === 'hiit')
   const isHiitWarn = (phase === 'Mid luteal' || phase === 'Late luteal') && activity === 'hiit'
+  const workoutReadiness = status?.workoutReadiness || null
   const rawProtein = status?.nutritionTargets?.proteinG
   const isVeganWorkout = (() => { try { const d = status?.profile?.diet_preference; if (!d) return false; const p = JSON.parse(d); return Array.isArray(p) ? p.includes('vegan') : p === 'vegan' } catch { return status?.profile?.diet_preference === 'vegan' } })()
   const protein = rawProtein ? (isVeganWorkout ? Math.round(rawProtein * 1.15) : rawProtein) : null
@@ -740,6 +742,7 @@ export default function Workout() {
         <div style={{ fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:18, color:banner.text, marginBottom:4 }}>{phase}</div>
         <div style={{ fontSize:12, color:banner.text, opacity:0.8, lineHeight:1.6 }}>{banner.note}</div>
         <div style={{ fontSize:11, color:banner.text, opacity:0.6, marginTop:4 }}>Intensity guide: {Math.round(intensity * 100)}% of your max effort today</div>
+        {workoutReadiness && <div style={{ fontSize:11, color:banner.text, background:'rgba(255,255,255,0.12)', borderRadius:8, padding:'6px 10px', marginTop:6, lineHeight:1.5 }}>{workoutReadiness}</div>}
       </div>
       <div style={{ padding:'0 16px' }}>
         <span style={{ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590', marginBottom:12, display:'block' }}>What are you doing today?</span>
