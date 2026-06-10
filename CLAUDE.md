@@ -47,8 +47,19 @@ Anon key: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6I
 - cycle_summaries — id, user_id, cycle_number, cycle dates, phase lengths, ovulation data
 - user_baselines — id, avg_cycle_length, avg_luteal_length, temp_follicular_baseline, rhr_follicular_baseline, pms_days_before, peak_energy_day, cycles_tracked, model_confidence
 - user_feedback — id, user_id, user_email, category, screen, description, followup_answer, frustration_rating, priority, status, claude_code_instruction, developer_notes, resolved_at
+- friendships — id, requester_id, addressee_id, status ('pending' | 'accepted'). RLS scoped to requester or addressee. Powers the Friends feature.
+- friend_visibility — owner-only flags controlling which fields a friend can see (e.g. sleep_quality, workout_feel). RLS owner-only.
 
 Always use upsert with onConflict: 'user_id,log_date' when saving daily data.
+
+## Database security — friend functions (permanent, never weaken)
+
+Two Postgres functions power the Friends feature. Both are `SECURITY DEFINER` (they bypass RLS), so they MUST re-implement the access check themselves. A June 2026 audit found they did not, exposing every user's name, path, cycle length, and last period date to anyone with an email — no login required. This is now fixed and must never regress:
+
+- **`get_friend_card(target_user_id)`** — returns a friend's phase card. Only returns data if an `accepted` row exists in `friendships` between `auth.uid()` and `target_user_id` (either direction). `EXECUTE` is REVOKEd from `anon`/`PUBLIC` — requires login. Never remove the friendship guard or re-grant anon access.
+- **`find_user_by_email(search_email)`** — returns a user's UUID for the add-friend-by-email flow. `EXECUTE` REVOKEd from `anon`/`PUBLIC` — authenticated callers only. Never re-grant anon access (it would become an email-enumeration oracle).
+- Both functions, plus `get_claude_instructions`, have a pinned `search_path = public`.
+- Rule for any future `SECURITY DEFINER` function: it bypasses RLS, so it must check `auth.uid()` against the data it returns, and `EXECUTE` should never be granted to `anon` unless the data is genuinely public.
 
 ---
 

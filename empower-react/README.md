@@ -233,6 +233,20 @@ Unique constraint on `(user_id, log_date)`. Always upsert.
 ### `user_baselines` / `cycle_summaries`
 Schema in place for long-term pattern analysis. Not yet written to by the app.
 
+### `friendships` / `friend_visibility`
+Power the Friends feature (`/friends`). `friendships` holds `requester_id`, `addressee_id`, and `status` (`pending` | `accepted`). `friend_visibility` holds owner-only flags for which fields a friend may see. Both have RLS scoped to the owner / participants.
+
+---
+
+## Security: friend functions
+
+The Friends feature uses two Postgres `SECURITY DEFINER` functions. Because `SECURITY DEFINER` bypasses Row Level Security, these functions check access themselves:
+
+- **`get_friend_card(target_user_id)`** — returns a friend's phase card only if an `accepted` friendship exists between the caller and the target. Not callable by anonymous users.
+- **`find_user_by_email(search_email)`** — returns a user's UUID for the add-friend flow. Authenticated callers only.
+
+If you ever add another `SECURITY DEFINER` function, it must verify `auth.uid()` against the data it returns, and `EXECUTE` must not be granted to `anon` unless the data is genuinely public. (A June 2026 audit caught these two leaking health data to anyone with an email — do not reintroduce that pattern.)
+
 ---
 
 ## Supabase client
