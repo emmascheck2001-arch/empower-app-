@@ -218,7 +218,7 @@ export default function Log() {
           <input type="number" min="0" placeholder="Count" value={log.hot_flash_count} onChange={e=>set('hot_flash_count',e.target.value)}
             style={{width:'100%',padding:'12px 14px',borderRadius:10,border:'1px solid #ede8e0',fontSize:15,fontFamily:'inherit',marginBottom:16}}/>
           <span style={sLabel}>Night sweats</span>
-          <PillRow opts={['None','Mild','Moderate','Severe']} selected={log.night_sweats_severity} single onToggle={v=>set('night_sweats_severity',v)}/>
+          <PillRow opts={[{v:0,label:'None'},{v:1,label:'Mild'},{v:2,label:'Moderate'},{v:3,label:'Severe'}]} selected={log.night_sweats_severity} single onToggle={v=>set('night_sweats_severity',v)}/>
           <span style={sLabel}>Joint pain (1-5)</span>
           <PillRow opts={[1,2,3,4,5].map(n=>({v:n,label:String(n)}))} selected={log.joint_pain_rating} single onToggle={v=>set('joint_pain_rating',v)}/>
           <span style={sLabel}>Brain fog (1-5)</span>

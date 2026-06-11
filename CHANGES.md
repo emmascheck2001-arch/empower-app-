@@ -4,6 +4,16 @@ Changes made autonomously from user feedback. Most recent first.
 
 ---
 
+## 2026-06-11 — Merged check-in: night-sweats selector broke Save for perimenopause users
+
+**Found via:** QA pass on the new merged check-in/log screen.
+
+**What was done:** On the merged screen, the path-4 (perimenopause) "Night sweats" selector stored a text value (None/Mild/Moderate/Severe), but `daily_logs.night_sweats_severity` is an integer column — so when a perimenopause user picked a night-sweats level, the upsert was rejected by Postgres and Save silently failed (they were stuck on the screen). Changed the selector to integer values (0–3), matching the joint-pain and brain-fog selectors right next to it. Other users were unaffected. Quick fields, the "Add more detail" expander, and Save are otherwise working.
+
+**Files changed:** empower-react/src/pages/Log.jsx
+
+---
+
 ## 2026-06-10 — Feedback fix: post-workout "eat 85g protein in 45 minutes" was wrong
 
 **User said:** "At the end of my workout it said eat 85g of protein within 45 minutes if you can it's 8:02pm and 85g of protein seems like a lot in that period of time can you fact check this"
