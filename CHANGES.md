@@ -4,6 +4,16 @@ Changes made autonomously from user feedback. Most recent first.
 
 ---
 
+## 2026-06-11 — Postmenopause track + fixed the path-4 stage never registering
+
+**Found via:** adding a short postmenopause track to the menopause content.
+
+**What was done:** Added a postmenopause-specific Learn article ("After menopause: the long view") covering how postmenopause differs from perimenopause (estrogen now low and steady, not fluctuating) and where to focus — bone in the first years, cardiovascular risk, persistent GSM symptoms, and HRT timing. Sourced (Harlow STRAW+10 2012, Kohrt 2004, Carr 2003, Manson 2013, NAMS). While wiring it in, found and fixed a latent bug: Setup saves the perimenopause stage as its display string ("Menopause 12+ months" etc.), but buildPath4Status compared against "menopause"/"peri-late", which never matched — so every path-4 user was labelled "Early perimenopause" regardless of their selection, and postmenopausal users were never detected. The mapping now reads the actual saved strings. Existing users with no stage set still default to Early perimenopause, so nothing changed for them. Verified the build and that every Learn menu item has matching content.
+
+**Files changed:** empower-react/src/lib/hormoneSync.js, empower-react/src/pages/Learn.jsx
+
+---
+
 ## 2026-06-11 — Menopause content: added vaginal/sexual health article, tightened three claims
 
 **Found via:** review of menopause coverage and science quality.

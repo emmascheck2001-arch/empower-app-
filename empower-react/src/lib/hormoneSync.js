@@ -500,9 +500,13 @@ function buildPath5Status(profile, recentLogs, totalLogs = 0) {
 // Path 4: perimenopause/menopause — skip all cycle phase calculations.
 // Cycle data may exist from before they chose Path 4 but must not drive phase logic.
 function buildPath4Status(profile, recentLogs, totalLogs = 0) {
-  const stage = profile?.bc_type || 'peri-early'
-  const subPhase = stage === 'menopause' ? 'Postmenopause'
-    : stage === 'peri-late' ? 'Late perimenopause' : 'Early perimenopause'
+  // Setup saves bc_type as the display string the user picked
+  // ('Early perimenopause' / 'Late perimenopause' / 'Menopause 12+ months').
+  // Map those to the subPhase label. Null/unknown defaults to Early perimenopause.
+  const stage = profile?.bc_type || ''
+  const subPhase = stage.startsWith('Menopause') ? 'Postmenopause'
+    : stage.startsWith('Late') ? 'Late perimenopause'
+    : 'Early perimenopause'
   // Grows with lifetime history, not just the last 7 days, so it never resets.
   const confidence = Math.min(0.80, 0.30 + (totalLogs * 0.014))
   const bodyWeight = profile?.body_weight_kg || 65

@@ -58,6 +58,7 @@ const SECTIONS = [
 
 const PERI_SECTIONS = [
   { id:'peri_what',      icon:'ti ti-question-mark', iconBg:'#f5f0e8', iconColor:'#8a6a4a', title:'What is perimenopause?',          desc:'What it is, when it starts, and what to expect from this transition' },
+  { id:'peri_post',      icon:'ti ti-sun',            iconBg:'#f8f0e0', iconColor:'#a07020', title:'After menopause: the long view',   desc:'What changes once periods have stopped for good, and where to put your energy' },
   { id:'peri_hormones',  icon:'ti ti-dna',            iconBg:'#f0e8f8', iconColor:'#7a4a9a', title:'Hormones during the transition',   desc:'How estrogen, progesterone, and FSH change and why that matters' },
   { id:'peri_bone',      icon:'ti ti-bone',            iconBg:'#e8f0f8', iconColor:'#2a5a8a', title:'Bone health',                      desc:'Why bone loss accelerates and what you can do about it right now' },
   { id:'peri_metabolic', icon:'ti ti-activity',        iconBg:'#e8f8e8', iconColor:'#2a6a2a', title:'Metabolism and weight',            desc:'Why body composition changes and what is actually driving it' },
@@ -324,6 +325,23 @@ const ARTICLES = {
       { h: 'What to reduce' },
       { ul: ['Excess caffeine, which worsens hot flashes and increases calcium excretion', 'Alcohol, which worsens sleep, hot flashes, and mood', 'Ultra-processed foods, which drive insulin resistance already worsened by declining estrogen', 'High-sodium foods, which increase urinary calcium loss'] },
       { cite: 'Sources: ISSN 2023 protein position stand; Kohrt 2004 MSSE; Messina M et al. Nutrients 2021; Mozaffarian D et al. JAMA 2006.' },
+    ]
+  },
+  peri_post: {
+    title: 'After menopause: the long view',
+    content: [
+      { h: 'When the fluctuations finally settle' },
+      { p: 'Menopause is a single point in time: 12 consecutive months with no period. Everything after that is postmenopause, and it is not a phase you pass through — it is the rest of your life. The defining difference from perimenopause is that estrogen is no longer swinging up and down; it is now low and steady. For many women that is a genuine relief: the unpredictability of late perimenopause eases, and mood and brain fog often improve once hormones stop fluctuating.' },
+      { box: 'In postmenopause the goal shifts from managing fluctuating hormones to protecting long-term health, because the protection estrogen used to provide is now permanently reduced. The habits you build in the first years matter for decades. (Harlow SD et al. Climacteric 2012, STRAW+10)' },
+      { h: 'Bone: the first years matter most' },
+      { p: 'Bone loss is fastest in the first five to seven years after menopause. Keep up resistance and impact training, prioritise calcium and vitamin D, and ask your doctor whether a bone density (DXA) scan is appropriate for you. Protecting bone now prevents fractures later. (Kohrt WM et al. MSSE 2004)' },
+      { h: 'Heart: the new priority' },
+      { p: 'Cardiovascular disease is the leading cause of death in women, and risk rises after menopause as estrogen\'s protective effect on blood vessels and cholesterol is lost. Resistance training, regular conversational-pace cardio, and keeping an eye on blood pressure and cholesterol become central rather than optional. (Carr MC. JCEM 2003)' },
+      { h: 'Symptoms that persist' },
+      { p: 'Hot flashes usually fade within a few years for most women. Vaginal dryness and urinary symptoms do the opposite — they tend to persist and worsen without treatment, and they are easily treated. See the Vaginal and sexual health article. Do not assume these are simply permanent now.' },
+      { h: 'HRT after menopause' },
+      { p: 'HRT remains an option in postmenopause, and timing still matters most: the evidence is most favourable for women who begin within about 10 years of menopause or before age 60. Whether to start, continue, or stop is an individual decision to make with a doctor who knows your history. (Manson JE et al. NEJM 2013)' },
+      { cite: 'Sources: Harlow SD et al. Climacteric 2012 (STRAW+10); Kohrt WM et al. MSSE 2004; Carr MC. JCEM 2003; Manson JE et al. NEJM 2013; The North American Menopause Society position statements.' },
     ]
   },
   peri_gsm: {
