@@ -5,3 +5,16 @@ node_modules/
 
 # Local secrets — never commit
 .env.local
+
+# Editor config (personal, not shared)
+.vscode/
+
+# Other AI tools' local state
+.codex/
+
+# Claude Code runtime/session state (machine-local)
+.claude/scheduled_tasks.lock
+.claude/scheduled_tasks.json
+
+# Local backups
+backups/
