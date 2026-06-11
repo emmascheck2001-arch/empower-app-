@@ -29,13 +29,13 @@ const CUSTOM_MUSCLES = ['Chest','Back','Shoulders','Biceps','Triceps','Quads','H
 
 const CARDIO_GUIDES = {
   walk: {
-    Menstrual:      { duration:'20 to 30 min', pace:'Easy, conversational', note:'Movement reduces prostaglandins — even 10 minutes makes a measurable difference. Keep pace gentle.', science:'Gentle walking reduces prostaglandin-driven cramping. (Daley et al. 2015)' },
+    Menstrual:      { duration:'20 to 30 min', pace:'Easy, conversational', note:'Movement reduces prostaglandins, and even 10 minutes makes a measurable difference. Keep the pace gentle.', science:'Gentle walking reduces prostaglandin-driven cramping. (Daley et al. 2015)' },
     Follicular:     { duration:'30 to 45 min', pace:'Brisk, purposeful', note:'Rising estrogen supports endurance. Push pace. This is one of your best cardio windows.', science:'Women rely more on fat oxidation, which supports steady aerobic work. (Hamadeh et al. 2005)' },
-    'Late follicular':{ duration:'40 to 60 min', pace:'Fast, interval-friendly', note:'Try tempo intervals: 3 min fast, 2 min easy, repeat.', science:'Aerobic capacity changes little across the cycle, but recovery is strong now — a good window to push.' },
-    Ovulatory:      { duration:'30 to 60 min', pace:'Fast or interval', note:'A strong window for speed. Consider fartlek intervals — push hard for 1 min, recover for 2 min.', science:'Strength tends to be highest in the follicular-to-ovulatory window — push if you feel good. Individual variation is large. (Sarwar et al. 1996; Colenso-Semple et al. 2023)' },
+    'Late follicular':{ duration:'40 to 60 min', pace:'Fast, interval-friendly', note:'Try tempo intervals: 3 min fast, 2 min easy, repeat.', science:'Aerobic capacity changes little across the cycle, but recovery is strong now, so it is a good window to push.' },
+    Ovulatory:      { duration:'30 to 60 min', pace:'Fast or interval', note:'A strong window for speed. Consider fartlek intervals, pushing hard for 1 min then recovering for 2 min.', science:'Strength tends to be highest in the follicular and ovulatory window. Push if you feel good, since individual variation is large. (Sarwar et al. 1996; Colenso-Semple et al. 2023)' },
     'Early luteal': { duration:'30 to 40 min', pace:'Moderate, steady', note:'Progesterone begins rising. Steady-state pace feels sustainable. Avoid pushing to max effort.', science:'Progesterone begins raising core temperature, so a steady pace can feel slightly harder. (Charkoudian and Stachenfeld 2014)' },
-    'Mid luteal':   { duration:'20 to 30 min', pace:'Easy to moderate', note:'Core temperature is measurably higher. The same pace feels harder — that is real physiology, not lack of fitness.', science:'RHR elevated 1.7 bpm in mid-luteal. Perceived exertion is genuinely higher. (De Martin Topranin 2023)' },
-    'Late luteal':  { duration:'20 to 30 min', pace:'Easy, gentle', note:'Keep it gentle. Walking is enough today. This is maintenance, not performance.', science:'High cortisol and low serotonin — hard training compounds hormonal stress. (Hackney 2006)' },
+    'Mid luteal':   { duration:'20 to 30 min', pace:'Easy to moderate', note:'Core temperature is measurably higher. The same pace feels harder, and that is real physiology, not a lack of fitness.', science:'RHR elevated 1.7 bpm in mid-luteal. Perceived exertion is genuinely higher. (De Martin Topranin 2023)' },
+    'Late luteal':  { duration:'20 to 30 min', pace:'Easy, gentle', note:'Keep it gentle. Walking is enough today. This is maintenance, not performance.', science:'With high cortisol and low serotonin, hard training compounds hormonal stress. (Hackney 2006)' },
     Luteal:         { duration:'25 to 35 min', pace:'Easy to moderate', note:'Progesterone elevates core temperature. Hydrate well and do not compare pace to your follicular numbers.', science:'Progesterone raises core temperature and delays sweating onset. (Charkoudian 2014)' },
     Perimenopause:  { duration:'30 to 45 min', pace:'Moderate, consistent', note:'Weight-bearing walking protects bone density. Aim for 30 minutes most days. Every session counts.', science:'Weight-bearing exercise maintains bone mineral density at any age. (Kohrt et al. 2004)' },
     observation:    { duration:'25 to 35 min', pace:'Comfortable', note:'Walk at a pace that feels good. Logging how it feels helps the algorithm learn your baseline.', science:'Consistent moderate exercise supports hormonal regulation. (Sims. ROAR 2024)' },
@@ -43,34 +43,34 @@ const CARDIO_GUIDES = {
   run: {
     Menstrual:      { duration:'15 to 25 min', pace:'Easy jog only', note:'If you run today, keep heart rate below 140 bpm. Walking intervals are completely fine and smart.', science:'High-intensity running during menstruation elevates cortisol and may worsen cramping. (Hackney 2006)' },
     Follicular:     { duration:'30 to 45 min', pace:'Comfortable to brisk', note:'Great time to build your base. Introduce longer efforts. Your recovery is faster than any other phase.', science:'Follicular phase muscle protein synthesis responds best to training load. (Kissow 2022)' },
-    'Late follicular':{ duration:'35 to 50 min', pace:'Tempo or threshold', note:'Strong window for threshold work and longer efforts — your recovery is high right now.', science:'Recovery is strong in the late follicular phase; aerobic capacity varies little across the cycle, so train to feel.' },
-    Ovulatory:      { duration:'30 to 60 min', pace:'Tempo or intervals', note:'A strong window for speed. Try 800m repeats or a tempo run if you feel good.', science:'Strength tends to be highest in the follicular-to-ovulatory window — push if you feel good. Individual variation is large. (Sarwar et al. 1996; Colenso-Semple et al. 2023)' },
-    'Early luteal': { duration:'25 to 35 min', pace:'Steady, comfortable', note:'Progesterone is rising. Steady continuous running suits this phase — save hard intervals for earlier in the cycle.', science:'Core temperature begins rising in early luteal. (Charkoudian and Stachenfeld 2014)' },
-    'Mid luteal':   { duration:'20 to 30 min', pace:'Easy conversational', note:'Your body temperature is elevated. Drop pace by 10 to 15%. Do not chase your follicular splits.', science:'Core temperature elevated 0.3 to 0.5 degrees in luteal — pace should reflect this. (Charkoudian 2014)' },
+    'Late follicular':{ duration:'35 to 50 min', pace:'Tempo or threshold', note:'Strong window for threshold work and longer efforts, since your recovery is high right now.', science:'Recovery is strong in the late follicular phase; aerobic capacity varies little across the cycle, so train to feel.' },
+    Ovulatory:      { duration:'30 to 60 min', pace:'Tempo or intervals', note:'A strong window for speed. Try 800m repeats or a tempo run if you feel good.', science:'Strength tends to be highest in the follicular and ovulatory window. Push if you feel good, since individual variation is large. (Sarwar et al. 1996; Colenso-Semple et al. 2023)' },
+    'Early luteal': { duration:'25 to 35 min', pace:'Steady, comfortable', note:'Progesterone is rising. Steady continuous running suits this phase. Save hard intervals for earlier in the cycle.', science:'Core temperature begins rising in early luteal. (Charkoudian and Stachenfeld 2014)' },
+    'Mid luteal':   { duration:'20 to 30 min', pace:'Easy conversational', note:'Your body temperature is elevated. Drop pace by 10 to 15%. Do not chase your follicular splits.', science:'Core temperature is elevated 0.3 to 0.5 degrees in the luteal phase, so pace should reflect this. (Charkoudian 2014)' },
     'Late luteal':  { duration:'20 min', pace:'Easy jog', note:'Finishing the run is the goal today. Pace is irrelevant. You are maintaining, not building.', science:'Progesterone-cortisol competition means hard running creates a larger stress response. (Hackney 2006)' },
-    Luteal:         { duration:'25 to 35 min', pace:'Easy to moderate', note:'Run to feel, not to pace. Hydrate more than usual — progesterone delays sweating onset.', science:'Fluid regulation is altered in the luteal phase. Hydration needs increase. (Charkoudian 2014)' },
+    Luteal:         { duration:'25 to 35 min', pace:'Easy to moderate', note:'Run to feel, not to pace. Hydrate more than usual, since progesterone delays sweating onset.', science:'Fluid regulation is altered in the luteal phase. Hydration needs increase. (Charkoudian 2014)' },
     Perimenopause:  { duration:'20 to 40 min', pace:'Comfortable intervals', note:'Run-walk intervals are excellent for bone density and joint protection. 3 min run, 2 min walk, repeat.', science:'Impact exercise is one of the most effective bone density interventions. (Kohrt et al. 2004)' },
-    observation:    { duration:'20 to 30 min', pace:'Easy', note:'Easy pace. Log how your body feels — this builds your personal baseline data.', science:'Personal tracking outperforms population averages for training load decisions.' },
+    observation:    { duration:'20 to 30 min', pace:'Easy', note:'Easy pace. Log how your body feels. This builds your personal baseline data.', science:'Personal tracking outperforms population averages for training load decisions.' },
   },
   cycle: {
-    Menstrual:      { duration:'20 to 30 min', pace:'Zone 2, easy spin', note:'Low resistance, easy cadence. Cycling is ideal during menstruation — low impact and joint-friendly.', science:'Low-impact cycling does not aggravate cramping the way high-impact work can, and movement eases period pain. (Daley et al. 2015)' },
+    Menstrual:      { duration:'20 to 30 min', pace:'Zone 2, easy spin', note:'Low resistance, easy cadence. Cycling is ideal during menstruation, since it is low impact and joint-friendly.', science:'Low-impact cycling does not aggravate cramping the way high-impact work can, and movement eases period pain. (Daley et al. 2015)' },
     Follicular:     { duration:'30 to 50 min', pace:'Zone 2 to 3', note:'Build your aerobic base. Increase resistance or include short climbs. Your recovery is excellent right now.', science:'Women rely more on fat oxidation, supporting aerobic base-building. (Hamadeh et al. 2005)' },
-    'Late follicular':{ duration:'30 to 55 min', pace:'Zone 3, intervals', note:'Great window for harder intervals or a longer climb — your recovery between efforts is strong.', science:'Recovery is strong in the late follicular phase; train to feel, capacity varies little across the cycle.' },
-    Ovulatory:      { duration:'30 to 60 min', pace:'Zone 3 to 4 intervals', note:'A strong window for hard efforts. Try 3 min hard, 2 min easy intervals.', science:'Strength tends to be highest in the follicular-to-ovulatory window — push if you feel good. Individual variation is large. (Sarwar et al. 1996; Colenso-Semple et al. 2023)' },
+    'Late follicular':{ duration:'30 to 55 min', pace:'Zone 3, intervals', note:'Great window for harder intervals or a longer climb, since your recovery between efforts is strong.', science:'Recovery is strong in the late follicular phase; train to feel, capacity varies little across the cycle.' },
+    Ovulatory:      { duration:'30 to 60 min', pace:'Zone 3 to 4 intervals', note:'A strong window for hard efforts. Try 3 min hard, 2 min easy intervals.', science:'Strength tends to be highest in the follicular and ovulatory window. Push if you feel good, since individual variation is large. (Sarwar et al. 1996; Colenso-Semple et al. 2023)' },
     'Early luteal': { duration:'25 to 40 min', pace:'Zone 2 to 3', note:'Still good energy. Steady endurance riding suits early luteal as core temperature starts to rise.', science:'Progesterone begins raising core temperature in early luteal. (Charkoudian and Stachenfeld 2014)' },
-    'Mid luteal':   { duration:'25 to 35 min', pace:'Zone 2', note:'Keep resistance lower than usual. Your body is working harder than it looks — elevated temperature and RHR are real.', science:'Resting HR elevated 1.7 bpm in mid-luteal. Same output costs more physiologically. (De Martin Topranin 2023)' },
+    'Mid luteal':   { duration:'25 to 35 min', pace:'Zone 2', note:'Keep resistance lower than usual. Your body is working harder than it looks. Elevated temperature and RHR are real.', science:'Resting HR elevated 1.7 bpm in mid-luteal. Same output costs more physiologically. (De Martin Topranin 2023)' },
     'Late luteal':  { duration:'20 to 30 min', pace:'Easy zone 2', note:'Keep it easy and low-pressure. Cycling is a gentle way to keep moving in the days before your period.', science:'Hormones drop in the late luteal phase and hard efforts carry a larger stress response. (Hackney 2006)' },
-    Luteal:         { duration:'20 to 30 min', pace:'Easy zone 2', note:'Stay comfortable. Hydrate well — luteal phase alters fluid regulation. Low-pressure session today.', science:'Progesterone raises core temperature and ventilatory threshold drops. (Charkoudian 2014)' },
+    Luteal:         { duration:'20 to 30 min', pace:'Easy zone 2', note:'Stay comfortable. Hydrate well, since the luteal phase alters fluid regulation. Low-pressure session today.', science:'Progesterone raises core temperature and ventilatory threshold drops. (Charkoudian 2014)' },
     Perimenopause:  { duration:'30 to 45 min', pace:'Comfortable pace', note:'Cycling is joint-friendly and weight-bearing enough to support bone. Excellent choice this phase.', science:'Low-impact aerobic exercise protects joints while supporting cardiovascular health in perimenopause. (Kohrt 2004)' },
-    observation:    { duration:'25 to 40 min', pace:'Comfortable', note:'Ride to feel. Log any notes — this helps the algorithm understand your baseline capacity.', science:'Consistent moderate training supports hormonal health regardless of cycle tracking status. (Sims. ROAR 2024)' },
+    observation:    { duration:'25 to 40 min', pace:'Comfortable', note:'Ride to feel. Log any notes. This helps the algorithm understand your baseline capacity.', science:'Consistent moderate training supports hormonal health regardless of cycle tracking status. (Sims. ROAR 2024)' },
   },
   swim: {
     Menstrual:      { duration:'20 to 30 min', pace:'Easy laps', note:'Cool water may reduce prostaglandin activity and ease cramps. Excellent choice during menstruation.', science:'Aquatic exercise reduces menstrual pain. Cool water may modulate prostaglandin activity. (Daley 2015)' },
-    Follicular:     { duration:'30 to 45 min', pace:'Build sets', note:'Great time for intervals — 50m hard, 50m easy. Your recovery between sets will be faster this week.', science:'Recovery between sets is strong in the follicular phase; train to feel. (Kissow 2022)' },
-    'Late follicular':{ duration:'30 to 50 min', pace:'Hard sets', note:'Strong window for speed and threshold sets — your recovery between sets is excellent now.', science:'Recovery is strong in the late follicular phase; capacity varies little across the cycle, so train to feel.' },
-    Ovulatory:      { duration:'30 to 50 min', pace:'Speed sets', note:'A strong window for hard efforts. Sprint intervals in the pool — try 25m all-out with 60s rest, repeat 6 to 8 times.', science:'Strength tends to be highest in the follicular-to-ovulatory window — push if you feel good. Individual variation is large. (Sarwar et al. 1996; Colenso-Semple et al. 2023)' },
+    Follicular:     { duration:'30 to 45 min', pace:'Build sets', note:'Great time for intervals, like 50m hard then 50m easy. Your recovery between sets will be faster this week.', science:'Recovery between sets is strong in the follicular phase; train to feel. (Kissow 2022)' },
+    'Late follicular':{ duration:'30 to 50 min', pace:'Hard sets', note:'Strong window for speed and threshold sets, since your recovery between sets is excellent now.', science:'Recovery is strong in the late follicular phase; capacity varies little across the cycle, so train to feel.' },
+    Ovulatory:      { duration:'30 to 50 min', pace:'Speed sets', note:'A strong window for hard efforts. Sprint intervals in the pool. Try 25m all-out with 60s rest, repeated 6 to 8 times.', science:'Strength tends to be highest in the follicular and ovulatory window. Push if you feel good, since individual variation is large. (Sarwar et al. 1996; Colenso-Semple et al. 2023)' },
     'Early luteal': { duration:'25 to 40 min', pace:'Steady', note:'Comfortable continuous swimming. The pool keeps you cool as core temperature starts to rise.', science:'Progesterone begins raising core temperature in early luteal; water aids cooling. (Charkoudian and Stachenfeld 2014)' },
-    'Mid luteal':   { duration:'25 to 35 min', pace:'Steady, easy', note:'One of the best phases to swim — the cool water directly offsets your elevated core temperature, so the same effort feels easier here than on land.', science:'Core temperature and RHR are measurably elevated in mid-luteal; external cooling helps. (De Martin Topranin 2023; Charkoudian and Stachenfeld 2014)' },
+    'Mid luteal':   { duration:'25 to 35 min', pace:'Steady, easy', note:'One of the best phases to swim, since the cool water directly offsets your elevated core temperature, so the same effort feels easier here than on land.', science:'Core temperature and RHR are measurably elevated in mid-luteal; external cooling helps. (De Martin Topranin 2023; Charkoudian and Stachenfeld 2014)' },
     'Late luteal':  { duration:'20 to 35 min', pace:'Easy laps', note:'Gentle, cooling, low-pressure. Swimming is an ideal way to keep moving in the days before your period.', science:'Hormones drop and stress sensitivity rises in late luteal; cool-water exercise is gentle on the system. (Hackney 2006)' },
     Luteal:         { duration:'25 to 35 min', pace:'Steady easy', note:'The coolness of the pool helps offset elevated core temperature. Great recovery tool this phase.', science:'External cooling helps manage the elevated core temperature of the luteal phase. (Charkoudian 2014)' },
     Perimenopause:  { duration:'25 to 45 min', pace:'Comfortable to brisk', note:'Excellent low-impact cardiovascular and joint-friendly option. Pair it with resistance training, which does the bone-loading swimming cannot.', science:'Swimming supports cardiovascular health with minimal joint load; weight-bearing or resistance work is needed separately for bone. (Kohrt et al. 2004)' },
@@ -180,7 +180,7 @@ const PILATES_DESCRIPTIONS = {
   'Knee folds':                 'Lie on your back, knees bent, feet flat. Keeping your core engaged and your back still, lift one foot off the mat and bring the knee toward your chest without letting your pelvis tilt. Lower and alternate. This builds deep core stability.',
   'Supine leg circles':         'Lie on your back. Lift one leg toward the ceiling. Draw small circles in the air with your foot — the movement comes from the hip socket, not the knee. Keep your core engaged and your pelvis completely still on the mat.',
   'Single knee hug':            'Lie on your back and draw one knee into your chest with both hands. Keep the other leg extended or slightly raised. Hold for the set time. This gently releases the low back and hip flexor.',
-  'Shell stretch':              'Kneel and sit back on your heels, then fold forward completely with arms alongside your body, palms up. Let your spine round fully. This is the Pilates version of child\'s pose — complete release.',
+  'Shell stretch':              'Kneel and sit back on your heels, then fold forward completely with arms alongside your body, palms up. Let your spine round fully. This is the Pilates version of child\'s pose, a complete release.',
   'Roll-down against wall':     'Stand with your back against a wall, heels a few centimetres away. Tuck your chin, then slowly peel your spine away from the wall one vertebra at a time until you are hanging forward. Then slowly re-stack each vertebra back to the wall on the way up.',
   'Hundred':                    'Lie on your back. Lift your head, shoulders, and legs to a low hover. Arms hover just above the mat alongside your body. Pump your arms in a small, controlled pulsing motion — 5 counts inhale, 5 counts exhale. One hundred total arm pumps. Modify by keeping knees bent if your lower back lifts off the mat.',
   'Roll-up':                    'Lie flat, arms overhead. Inhale to prepare, then exhale and slowly peel your spine off the mat one vertebra at a time, reaching toward your feet. Inhale at the top. Exhale to roll back down slowly, controlling each vertebra. Never use momentum.',
@@ -205,14 +205,14 @@ const PILATES_DESCRIPTIONS = {
 }
 
 const HIIT_ROUNDS = {
-  Menstrual:      { rounds:3, work:25, rest:35, exercises:['Low-impact march in place','Step touch side to side','Gentle squat — no jump','Standing knee lift','Standing side crunch'] },
+  Menstrual:      { rounds:3, work:25, rest:35, exercises:['Low-impact march in place','Step touch side to side','Gentle squat, no jump','Standing knee lift','Standing side crunch'] },
   Follicular:     { rounds:5, work:40, rest:20, exercises:['Jump squat','High knees sprint','Push-up','Lateral shuffle','Plank hold'] },
   'Late follicular':{ rounds:6, work:40, rest:20, exercises:['Burpee','Sprint in place','Jump lunge','Push-up jump','Plank to pike'] },
   Ovulatory:      { rounds:6, work:40, rest:20, exercises:['Burpee','Box jump or jump squat','High knees sprint','Jump lunge','Mountain climber','Plank push-up'] },
   'Early luteal': { rounds:4, work:35, rest:25, exercises:['Squat jump','High knees','Push-up','Lateral shuffle','Plank'] },
   'Mid luteal':   { rounds:3, work:30, rest:30, exercises:['Step-up or low squat','Marching in place','Push-up','Side lunge','Plank hold'] },
   'Late luteal':  { rounds:3, work:25, rest:35, exercises:['Bodyweight squat','Step touch','Modified push-up','Standing core twist','Gentle plank'] },
-  Luteal:         { rounds:3, work:30, rest:30, exercises:['Squat — no jump','Step touch','Push-up','Lateral lunge','Plank hold'] },
+  Luteal:         { rounds:3, work:30, rest:30, exercises:['Squat, no jump','Step touch','Push-up','Lateral lunge','Plank hold'] },
   Perimenopause:  { rounds:3, work:30, rest:30, exercises:['Step-up','Modified high knees','Push-up on knees','Lateral lunge','Plank hold'] },
   observation:    { rounds:3, work:30, rest:30, exercises:['Squat','High knees','Push-up','Lateral shuffle','Plank'] },
 }
@@ -598,12 +598,12 @@ const CLASS_TYPES = [
 const PHASE_BANNER = {
   Menstrual:      { bg:'#3d2830', text:'#f5e8e8', note:'Lower intensity today is smart, not lazy. Prostaglandins and low estrogen are doing real physiological work. (Hackney 2006)' },
   Follicular:     { bg:'#2c3828', text:'#e8f5e8', note:'Rising estrogen supports muscle protein synthesis and recovery. Research suggests late follicular may produce stronger adaptations. (Kissow et al. 2022)' },
-  Ovulatory:      { bg:'#2c3035', text:'#e8f0f8', note:'Peak estrogen and a small testosterone rise — you may feel unusually strong. Complete your full warmup today: knee ligament laxity is measurably higher around ovulation, which raises ACL injury risk. (Herzberg et al. 2017)' },
+  Ovulatory:      { bg:'#2c3035', text:'#e8f0f8', note:'Peak estrogen and a small testosterone rise, so you may feel unusually strong. Complete your full warmup today: knee ligament laxity is measurably higher around ovulation, which raises ACL injury risk. (Herzberg et al. 2017)' },
   'Early luteal': { bg:'#352c20', text:'#f5ede0', note:'Progesterone rising with a mild calming GABA effect. Good steady energy still available. Solid phase for focused progress. (Bäckström et al. 2014)' },
   'Mid luteal':   { bg:'#352c20', text:'#f5ede0', note:'RHR is measurably higher and recovery is slower. The same weight costs more physiologically. That is real biology, not lack of fitness. (De Martin Topranin et al. 2023)' },
   'Late luteal':  { bg:'#352c20', text:'#f5ede0', note:'Both hormones dropping. Progesterone-cortisol competition means hard training creates a larger stress response than usual. Completing your sets cleanly is the goal. (Hackney 2006)' },
   Luteal:         { bg:'#352c20', text:'#f5ede0', note:'Progesterone elevated and core temperature rising. Prioritise form and completing sets over adding weight. (De Martin Topranin et al. 2023)' },
-  Perimenopause:  { bg:'#2c2035', text:'#f0e8f8', note:'Lift heavy. Training at challenging loads — the LIFTMOR trial had postmenopausal women do 5 sets of 5 near their limit — built bone and preserved muscle safely, where light high-rep work does not. This is the single highest-value thing you can do for your long-term health. (Watson et al. LIFTMOR, JBMR 2018; Kohrt et al. 2004)' },
+  Perimenopause:  { bg:'#2c2035', text:'#f0e8f8', note:'Lift heavy. Training at challenging loads builds bone and preserves muscle safely, where light high-rep work does not. In the LIFTMOR trial, postmenopausal women did 5 sets of 5 near their limit. This is the single highest-value thing you can do for your long-term health. (Watson et al. LIFTMOR, JBMR 2018; Kohrt et al. 2004)' },
   observation:    { bg:'#2c2820', text:'#f5f0e8', note:'Building your personal baseline. Log how every session feels. Individual variation is large and your data is more useful than population averages.' },
 }
 
@@ -771,14 +771,14 @@ export default function Workout() {
     // share those intensity values coincidentally but are NOT in a luteal phase, so use
     // neutral wording for them rather than misattributing cycle physiology.
     if (phaseVal === 'Perimenopause') {
-      return { weight: `${clamped}kg`, note: 'Load is the priority now. Lifting heavy — a weight where the last 2 reps are genuinely hard — directly builds bone and preserves muscle as estrogen declines, which light high-rep work does not. Progress the weight as you get stronger.', source: 'Watson et al. LIFTMOR trial, JBMR 2018; Kohrt et al. MSSE 2004' }
+      return { weight: `${clamped}kg`, note: 'Load is the priority now. Lifting heavy, meaning a weight where the last 2 reps are genuinely hard, directly builds bone and preserves muscle as estrogen declines, which light high-rep work does not. Progress the weight as you get stronger.', source: 'Watson et al. LIFTMOR trial, JBMR 2018; Kohrt et al. MSSE 2004' }
     }
     const CYCLE_PHASES = ['Menstrual','Follicular','Ovulatory','Early luteal','Mid luteal','Late luteal','Luteal']
     if (!CYCLE_PHASES.includes(phaseVal)) {
-      return { weight: `${clamped}kg`, note: 'Train to how you feel today. Individual variation is large — let your energy and form guide your load.', source: 'Colenso-Semple et al. 2023 Frontiers' }
+      return { weight: `${clamped}kg`, note: 'Train to how you feel today. Individual variation is large, so let your energy and form guide your load.', source: 'Colenso-Semple et al. 2023 Frontiers' }
     }
     if (intensityModifier >= 1.0) {
-      return { weight: `${clamped}kg`, note: 'Peak estrogen and testosterone phase. Aim toward the top of your range if you feel strong. Individual variation is large — your body is the primary guide.', source: 'Kissow et al. 2022 Sports Medicine; Colenso-Semple et al. 2023 Frontiers' }
+      return { weight: `${clamped}kg`, note: 'Peak estrogen and testosterone phase. Aim toward the top of your range if you feel strong. Individual variation is large, so your body is the primary guide.', source: 'Kissow et al. 2022 Sports Medicine; Colenso-Semple et al. 2023 Frontiers' }
     } else if (intensityModifier >= 0.90) {
       return { weight: `${clamped}kg`, note: 'Good energy available. Mid-range weights with solid form. Recovery is still strong this phase.', source: 'Kissow et al. 2022 Sports Medicine' }
     } else if (intensityModifier >= 0.80) {
@@ -829,7 +829,7 @@ export default function Workout() {
     if (!classType) return
     setSaving(true)
     const { data: { user } } = await supabase.auth.getUser()
-    const notes = classDuration ? `${CLASS_TYPES.find(c=>c.id===classType)?.label} class — ${classDuration} min` : `${CLASS_TYPES.find(c=>c.id===classType)?.label} class`
+    const notes = classDuration ? `${CLASS_TYPES.find(c=>c.id===classType)?.label} class, ${classDuration} min` : `${CLASS_TYPES.find(c=>c.id===classType)?.label} class`
     await supabase.from('daily_logs').upsert({
       user_id: user.id, log_date: localDateStr(), workout_feel: 'Felt average', notes
     }, { onConflict: 'user_id,log_date' })
@@ -977,7 +977,7 @@ export default function Workout() {
         <TopBar title="WORKOUT" backTo={() => setScreen('muscles')} />
         <div style={{ padding:'16px 16px 0' }}>
           <div style={{ fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:20, marginBottom:2 }}>Warmup</div>
-          <div style={{ fontSize:12, color:'#9a9590', marginBottom:14 }}>{moves.length} movements — tick each as you go</div>
+          <div style={{ fontSize:12, color:'#9a9590', marginBottom:14 }}>{moves.length} movements, tick each as you go</div>
 
           {isAcl && (
             <div style={{ background:'#fff8e6', border:'1px solid #f0c040', borderRadius:12, padding:14, marginBottom:12 }}>
@@ -988,7 +988,7 @@ export default function Workout() {
 
           <div style={{ background:'#fff', border:'1px solid #ede8e0', borderRadius:12, marginBottom:12, overflow:'hidden' }}>
             <div style={{ padding:'10px 16px', borderBottom:'1px solid #f5f0e8', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-              <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590' }}>Phase warmup — {phase}</div>
+              <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590' }}>Warmup for {phase}</div>
               <div style={{ fontSize:12, color:'#9a9590' }}>{totalDone}/{moves.length}</div>
             </div>
             {moves.map((move, i) => {
@@ -1045,14 +1045,14 @@ export default function Workout() {
           </div>}
           {isHiitWarn && <div style={{ background:'#fdf3f0', border:'1px solid #e8a080', borderRadius:12, padding:14, marginBottom:12 }}>
             <div style={{ fontSize:13, fontWeight:600, marginBottom:4, color:'#6a2800' }}>HIIT is more stressful in this phase</div>
-            <div style={{ fontSize:12, color:'#7a4020', lineHeight:1.6 }}>Progesterone competes with cortisol receptors — high intensity creates a larger net stress response right now (Hackney 2006).</div>
+            <div style={{ fontSize:12, color:'#7a4020', lineHeight:1.6 }}>Progesterone competes with cortisol receptors, so high intensity creates a larger net stress response right now (Hackney 2006).</div>
           </div>}
 
           {isGym ? <>
             <div style={{ fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:20, marginBottom:2 }}>
               {muscleGroup==='full'?'Full body':muscleGroup==='upper'?'Upper body':muscleGroup==='lower'?'Lower body':'Custom'} session
             </div>
-            <div style={{ fontSize:12, color:'#7a7268', marginBottom:8 }}>{fitnessLevel.charAt(0).toUpperCase()+fitnessLevel.slice(1)} — phase-matched intensity</div>
+            <div style={{ fontSize:12, color:'#7a7268', marginBottom:8 }}>{fitnessLevel.charAt(0).toUpperCase()+fitnessLevel.slice(1)}, phase-matched intensity</div>
             <div style={{ fontSize:12, color:'#7a7268', marginBottom:16, lineHeight:1.5 }}>Aim for a weight where the last 2 to 3 reps are genuinely hard. If a set feels easy, go heavier.</div>
             <div style={{ background:'#fff', border:'1px solid #ede8e0', borderRadius:12, marginBottom:16, overflow:'hidden' }}>
               {exercises.map((exObj, i) => (
@@ -1060,13 +1060,13 @@ export default function Workout() {
                   <div style={{ width:24, height:24, borderRadius:12, background:'#f5f0e8', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:600, color:'#9a9590', flexShrink:0 }}>{i+1}</div>
                   <div style={{ flex:1 }}>
                     <div style={{ fontSize:14, fontWeight:500 }}>{exObj.name}</div>
-                    <div style={{ fontSize:12, color:'#9a9590' }}>{exObj.sets} sets of {exObj.reps} reps — {exObj.weight}</div>
+                    <div style={{ fontSize:12, color:'#9a9590' }}>{exObj.sets} sets of {exObj.reps} reps at {exObj.weight}</div>
                   </div>
                 </div>
               ))}
             </div>
             <button className="btn-primary" onClick={() => { setPlayerIdx(0); setPhaseOpen(false); setScreen('player') }}>Start workout</button>
-            <button onClick={() => setScreen('feel')} style={{ display:'block', width:'100%', marginTop:10, background:'none', border:'none', fontSize:13, color:'#9a9590', cursor:'pointer', textDecoration:'underline', fontFamily:'inherit' }}>Already done — just log it</button>
+            <button onClick={() => setScreen('feel')} style={{ display:'block', width:'100%', marginTop:10, background:'none', border:'none', fontSize:13, color:'#9a9590', cursor:'pointer', textDecoration:'underline', fontFamily:'inherit' }}>Already done, just log it</button>
           </> : (() => {
             const cardioKey = ['walk','run','cycle','swim'].includes(activity) ? activity : null
             const cardioGuide = cardioKey ? pc(CARDIO_GUIDES[cardioKey], phase) : null
@@ -1117,7 +1117,7 @@ export default function Workout() {
             if (hiitData) return (
               <>
                 <div style={{ fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:20, marginBottom:2 }}>HIIT</div>
-                <div style={{ fontSize:12, color:'#9a9590', marginBottom:14 }}>{hiitData.rounds} rounds — {hiitData.work}s work / {hiitData.rest}s rest</div>
+                <div style={{ fontSize:12, color:'#9a9590', marginBottom:14 }}>{hiitData.rounds} rounds, {hiitData.work}s work and {hiitData.rest}s rest</div>
 
                 <div style={{ display:'flex', gap:10, marginBottom:12 }}>
                   <div style={{ flex:1, background:'#fdf3f0', border:'1px solid #e8c0a8', borderRadius:10, padding:'10px 12px', textAlign:'center' }}>
@@ -1135,14 +1135,14 @@ export default function Workout() {
                 </div>
 
                 <div style={{ background:'#fdf3f0', border:'1px solid #e8c0a8', borderRadius:12, padding:14, marginBottom:12 }}>
-                  <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a6040', marginBottom:6 }}>How hard — this is the whole point</div>
-                  <div style={{ fontSize:13, color:'#3a3530', lineHeight:1.6, marginBottom:6 }}>Each work bout should be near-maximal, an effort of 9 to 10 out of 10. If you could hold a conversation, it is not HIIT — it is just cardio, and it will feel easy. Women are more fatigue-resistant and recover faster between bouts than men, so you have to push to genuinely high intensity for the adaptation; a comfortable circuit will not get you there. Use harder variations (add a jump, go faster) before adding rounds.</div>
+                  <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a6040', marginBottom:6 }}>How hard to push</div>
+                  <div style={{ fontSize:13, color:'#3a3530', lineHeight:1.6, marginBottom:6 }}>Each work bout should be near-maximal, an effort of 9 to 10 out of 10. If you could hold a conversation, it is not HIIT. It is just cardio, and it will feel easy. Women are more fatigue-resistant and recover faster between bouts than men, so you have to push to genuinely high intensity for the adaptation; a comfortable circuit will not get you there. Use harder variations (add a jump, go faster) before adding rounds.</div>
                   <div style={{ fontSize:11, color:'#9a9590', fontStyle:'italic', lineHeight:1.5 }}>Sims ST. ROAR 2024; sex differences in HIIT, Frontiers in Physiology 2020; Hunter SK, sex differences in fatigability, Acta Physiologica 2014.</div>
                 </div>
 
                 <div style={{ background:'#fff', border:'1px solid #ede8e0', borderRadius:12, marginBottom:12, overflow:'hidden' }}>
                   <div style={{ padding:'10px 16px', borderBottom:'1px solid #f5f0e8' }}>
-                    <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590' }}>Exercises — repeat {hiitData.rounds} rounds</div>
+                    <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590' }}>Repeat all {hiitData.rounds} rounds</div>
                   </div>
                   {hiitData.exercises.map((ex, i) => (
                     <div key={i} style={{ padding:'11px 16px', borderBottom:i<hiitData.exercises.length-1?'1px solid #f5f0e8':'none', display:'flex', alignItems:'center', gap:12 }}>
@@ -1169,7 +1169,7 @@ export default function Workout() {
               return (
                 <>
                   <div style={{ fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:20, marginBottom:2 }}>{label}</div>
-                  <div style={{ fontSize:12, color:'#9a9590', marginBottom:14 }}>{seq.length} movements — phase-matched sequence</div>
+                  <div style={{ fontSize:12, color:'#9a9590', marginBottom:14 }}>{seq.length} movements, phase-matched sequence</div>
 
                   <div style={{ background:'#fff', border:'1px solid #ede8e0', borderRadius:12, marginBottom:12, overflow:'hidden' }}>
                     <div style={{ padding:'10px 16px', borderBottom:'1px solid #f5f0e8', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
@@ -1326,7 +1326,7 @@ export default function Workout() {
                   <div style={{ fontSize:10, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#7a6a50', marginBottom:2 }}>WEIGHT TODAY</div>
                   <div style={{ fontSize:20, fontWeight:700, color:'#2c2820' }}>~{weightNote.weight}</div>
                 </div>
-                <div style={{ flex:1, fontSize:12, color:'#5a4a3a', lineHeight:1.5 }}>{weightNote.note}</div>
+                {playerIdx === 0 && <div style={{ flex:1, fontSize:12, color:'#5a4a3a', lineHeight:1.5 }}>{weightNote.note}</div>}
               </div>
             ) : null
           })()}
@@ -1441,7 +1441,7 @@ export default function Workout() {
           )}
 
           <button className="btn-primary" onClick={() => { setCardioRunning(false); setScreen('feel') }}>
-            Done — log how it went
+            Done, log how it went
           </button>
         </div>
         <BottomNav />
