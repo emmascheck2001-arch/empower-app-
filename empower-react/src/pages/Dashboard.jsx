@@ -300,12 +300,10 @@ export default function Dashboard() {
         if (cycleDay > 0 && cycleDay <= cycleLen + 7) {
           phase = getPhase(cycleDay, cycleLen)
           subPhase = phase === 'Luteal' ? getLutealSubPhase(cycleDay, cycleLen) : null
-          confidence = 0.45
-          if (recentLogs?.length) {
-            confidence += Math.min(0.25, recentLogs.length * 0.04)
-            if (recentLogs[0]?.energy === 'Very low' && (phase === 'Follicular' || phase === 'Ovulatory')) confidence -= 0.12
-          }
-          confidence = Math.min(0.88, Math.max(0.05, confidence))
+          // Use the canonical confidence from getTodayStatus — it grows with the
+          // user's whole logging history and never resets. Falling back to a small
+          // base only if the shared status failed to load.
+          confidence = status?.confidence ?? 0.45
         }
       }
 

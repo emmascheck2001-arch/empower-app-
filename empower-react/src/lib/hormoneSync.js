@@ -91,11 +91,15 @@ export function getNutritionTargets(phase, bodyWeight) {
 }
 
 // ── Confidence calculation ───────────────────────────────────────────────────
-function calcConfidence(phase, subPhase, recentLogs, mucusLogs) {
-  let confidence = 0.45
+// totalLogs is the user's LIFETIME log count, so the base confidence grows with
+// their whole history and never drops day to day. The 7-day signal bonuses below
+// refine it but can't pull it below the history-based floor.
+function calcConfidence(phase, subPhase, recentLogs, mucusLogs, totalLogs = 0) {
+  // Floor that only ever rises with total logging history: ~30 logs reaches the cap.
+  const historyFloor = 0.45 + Math.min(0.35, totalLogs * 0.012)
+  let confidence = historyFloor
 
   if (recentLogs?.length) {
-    confidence += Math.min(0.25, recentLogs.length * 0.04)
     const latestEnergy = recentLogs[0]?.energy
     if (latestEnergy === 'Very low' && (phase === 'Follicular' || phase === 'Ovulatory')) {
       confidence -= 0.12
@@ -146,7 +150,9 @@ function calcConfidence(phase, subPhase, recentLogs, mucusLogs) {
     }
   }
 
-  return Math.min(0.92, Math.max(0.05, confidence))
+  // Never fall below the history floor — a single off-signal day can refine the
+  // reading upward but can't make the app appear to "forget" what it has learned.
+  return Math.min(0.92, Math.max(historyFloor, confidence))
 }
 
 // ── Anomaly detection ────────────────────────────────────────────────────────
@@ -447,11 +453,12 @@ export function inferPhaseFromSymptoms(recentLogs, mucusLogs = []) {
 // Hormonal environment depends on method — do not treat all BC the same.
 // Combined pill/patch/ring: stable synthetic estrogen, no cycle-based targets.
 // Progestin-only (mini pill, implant, Depo, hormonal IUD): lower estrogen influence.
-function buildPath5Status(profile, recentLogs) {
+function buildPath5Status(profile, recentLogs, totalLogs = 0) {
   const bcType = profile?.bc_type
   const isCombined = ['pill', 'patch', 'ring'].includes(bcType)
   const bcPhase = isCombined ? 'bc-combined' : 'bc-progestin'
-  const bcConfidence = Math.min(0.65, 0.25 + (recentLogs.length * 0.04))
+  // Grows with lifetime history, not just the last 7 days, so it never resets.
+  const bcConfidence = Math.min(0.75, 0.25 + (totalLogs * 0.012))
   const bodyWeight = profile?.body_weight_kg || 65
   const intensity = isCombined ? 0.90 : 0.85
   const intensityLabel = isCombined
@@ -492,11 +499,12 @@ function buildPath5Status(profile, recentLogs) {
 
 // Path 4: perimenopause/menopause — skip all cycle phase calculations.
 // Cycle data may exist from before they chose Path 4 but must not drive phase logic.
-function buildPath4Status(profile, recentLogs) {
+function buildPath4Status(profile, recentLogs, totalLogs = 0) {
   const stage = profile?.bc_type || 'peri-early'
   const subPhase = stage === 'menopause' ? 'Postmenopause'
     : stage === 'peri-late' ? 'Late perimenopause' : 'Early perimenopause'
-  const confidence = Math.min(0.75, 0.30 + (recentLogs.length * 0.05))
+  // Grows with lifetime history, not just the last 7 days, so it never resets.
+  const confidence = Math.min(0.80, 0.30 + (totalLogs * 0.014))
   const bodyWeight = profile?.body_weight_kg || 65
   const anomalies = detectAnomalies(recentLogs, 'Perimenopause', null, {
     daysLogged: recentLogs.length,
@@ -533,7 +541,7 @@ function buildPath4Status(profile, recentLogs) {
 
 // All other paths: calculate phase from period date, or infer from symptoms.
 // Copper IUD users (path 5, isCopper) also route here — no hormones, natural cycle intact.
-function buildCycleStatus(profile, cycleData, recentLogs, mucusLogs, today) {
+function buildCycleStatus(profile, cycleData, recentLogs, mucusLogs, today, totalLogs = 0) {
   let phase = 'observation'
   let subPhase = null
   let cycleDay = null
@@ -553,7 +561,7 @@ function buildCycleStatus(profile, cycleData, recentLogs, mucusLogs, today) {
       phase = getPhase(cycleDay, cycleLen)
       if (phase === 'Luteal') subPhase = getLutealSubPhase(cycleDay, cycleLen)
       if (phase === 'Follicular') subPhase = getFollicularSubPhase(cycleDay)
-      confidence = calcConfidence(phase, subPhase, recentLogs, mucusLogs)
+      confidence = calcConfidence(phase, subPhase, recentLogs, mucusLogs, totalLogs)
       // Run inference alongside as supporting evidence even when phase is confirmed
       symptomInference = inferPhaseFromSymptoms(recentLogs, mucusLogs)
     }
@@ -610,29 +618,33 @@ function buildCycleStatus(profile, cycleData, recentLogs, mucusLogs, today) {
 // Fetches all data in parallel, then dispatches to the appropriate builder
 // based on user path. Return shape is identical across all paths.
 export async function getTodayStatus(supabase, userId) {
-  const [cycleResult, profileResult, logsResult, mucusResult] = await Promise.all([
+  const [cycleResult, profileResult, logsResult, mucusResult, totalLogsResult] = await Promise.all([
     supabase.from('cycle_data').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
     supabase.from('profiles').select('*').eq('id', userId).single(),
     supabase.from('daily_logs').select('*').eq('user_id', userId).order('log_date', { ascending: false }).limit(7),
-    supabase.from('mucus_logs').select('*').eq('user_id', userId).order('log_date', { ascending: false }).limit(7)
+    supabase.from('mucus_logs').select('*').eq('user_id', userId).order('log_date', { ascending: false }).limit(7),
+    // Lifetime log count drives confidence growth — the algorithm learns across the
+    // user's whole history, not just the last 7 days, so confidence only ever rises.
+    supabase.from('daily_logs').select('*', { count: 'exact', head: true }).eq('user_id', userId)
   ])
 
   const cycleData = cycleResult.data
   const profile = profileResult.data
   const recentLogs = logsResult.data || []
   const mucusLogs = mucusResult.data || []
+  const totalLogs = totalLogsResult.count || recentLogs.length
   const today = new Date(); today.setHours(0, 0, 0, 0)
 
   // Path 5: on hormonal BC — skip cycle logic (unless copper IUD, which is non-hormonal)
   if (profile?.user_path === '5' && profile?.bc_type !== 'copper-iud') {
-    return buildPath5Status(profile, recentLogs)
+    return buildPath5Status(profile, recentLogs, totalLogs)
   }
 
   // Path 4: perimenopause/menopause — skip all cycle phase calculations
   if (profile?.user_path === '4') {
-    return buildPath4Status(profile, recentLogs)
+    return buildPath4Status(profile, recentLogs, totalLogs)
   }
 
   // All other paths (1, 2, 3) + copper IUD users: phase from cycle data or symptom inference
-  return buildCycleStatus(profile, cycleData, recentLogs, mucusLogs, today)
+  return buildCycleStatus(profile, cycleData, recentLogs, mucusLogs, today, totalLogs)
 }
