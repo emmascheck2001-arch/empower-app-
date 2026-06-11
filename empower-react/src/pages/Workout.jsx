@@ -30,10 +30,10 @@ const CUSTOM_MUSCLES = ['Chest','Back','Shoulders','Biceps','Triceps','Quads','H
 const CARDIO_GUIDES = {
   walk: {
     Menstrual:      { duration:'20 to 30 min', pace:'Easy, conversational', note:'Movement reduces prostaglandins — even 10 minutes makes a measurable difference. Keep pace gentle.', science:'Gentle walking reduces prostaglandin-driven cramping. (Daley et al. 2015)' },
-    Follicular:     { duration:'30 to 45 min', pace:'Brisk, purposeful', note:'Rising estrogen supports endurance. Push pace. This is one of your best cardio windows.', science:'Estrogen improves fat oxidation and aerobic performance. (Hackney 2006)' },
-    'Late follicular':{ duration:'40 to 60 min', pace:'Fast, interval-friendly', note:'Peak aerobic capacity. Try tempo intervals: 3 min fast, 2 min easy, repeat.', science:'Peak estrogen increases VO2 max and exercise economy. (Sung et al. 2014)' },
-    Ovulatory:      { duration:'30 to 60 min', pace:'Fast or interval', note:'Your best window for speed. Consider fartlek intervals — push hard for 1 min, recover for 2 min.', science:'Testosterone and estrogen peak together — best power and speed output. (Sarwar et al. 1996)' },
-    'Early luteal': { duration:'30 to 40 min', pace:'Moderate, steady', note:'Progesterone begins rising. Steady-state pace feels sustainable. Avoid pushing to max effort.', science:'Progesterone increases ventilation rate — breathing feels harder at same pace. (Charkoudian 2014)' },
+    Follicular:     { duration:'30 to 45 min', pace:'Brisk, purposeful', note:'Rising estrogen supports endurance. Push pace. This is one of your best cardio windows.', science:'Women rely more on fat oxidation, which supports steady aerobic work. (Hamadeh et al. 2005)' },
+    'Late follicular':{ duration:'40 to 60 min', pace:'Fast, interval-friendly', note:'Try tempo intervals: 3 min fast, 2 min easy, repeat.', science:'Aerobic capacity changes little across the cycle, but recovery is strong now — a good window to push. (Janse de Jonge 2003)' },
+    Ovulatory:      { duration:'30 to 60 min', pace:'Fast or interval', note:'A strong window for speed. Consider fartlek intervals — push hard for 1 min, recover for 2 min.', science:'Strength tends to be highest in the follicular-to-ovulatory window — push if you feel good. Individual variation is large. (Sarwar et al. 1996; Colenso-Semple et al. 2023)' },
+    'Early luteal': { duration:'30 to 40 min', pace:'Moderate, steady', note:'Progesterone begins rising. Steady-state pace feels sustainable. Avoid pushing to max effort.', science:'Progesterone begins raising core temperature, so a steady pace can feel slightly harder. (Charkoudian and Stachenfeld 2014)' },
     'Mid luteal':   { duration:'20 to 30 min', pace:'Easy to moderate', note:'Core temperature is measurably higher. The same pace feels harder — that is real physiology, not lack of fitness.', science:'RHR elevated 1.7 bpm in mid-luteal. Perceived exertion is genuinely higher. (De Martin Topranin 2023)' },
     'Late luteal':  { duration:'20 to 30 min', pace:'Easy, gentle', note:'Keep it gentle. Walking is enough today. This is maintenance, not performance.', science:'High cortisol and low serotonin — hard training compounds hormonal stress. (Hackney 2006)' },
     Luteal:         { duration:'25 to 35 min', pace:'Easy to moderate', note:'Progesterone elevates core temperature. Hydrate well and do not compare pace to your follicular numbers.', science:'Progesterone raises core temperature and delays sweating onset. (Charkoudian 2014)' },
@@ -43,7 +43,7 @@ const CARDIO_GUIDES = {
   run: {
     Menstrual:      { duration:'15 to 25 min', pace:'Easy jog only', note:'If you run today, keep heart rate below 140 bpm. Walking intervals are completely fine and smart.', science:'High-intensity running during menstruation elevates cortisol and may worsen cramping. (Hackney 2006)' },
     Follicular:     { duration:'30 to 45 min', pace:'Comfortable to brisk', note:'Great time to build your base. Introduce longer efforts. Your recovery is faster than any other phase.', science:'Follicular phase muscle protein synthesis responds best to training load. (Kissow 2022)' },
-    Ovulatory:      { duration:'30 to 60 min', pace:'Tempo or intervals', note:'Peak power window. Try 800m repeats or a tempo run. Your body is primed for speed today.', science:'Peak estrogen and testosterone together drive maximum speed and power output. (Sarwar et al. 1996)' },
+    Ovulatory:      { duration:'30 to 60 min', pace:'Tempo or intervals', note:'A strong window for speed. Try 800m repeats or a tempo run if you feel good.', science:'Strength tends to be highest in the follicular-to-ovulatory window — push if you feel good. Individual variation is large. (Sarwar et al. 1996; Colenso-Semple et al. 2023)' },
     'Mid luteal':   { duration:'20 to 30 min', pace:'Easy conversational', note:'Your body temperature is elevated. Drop pace by 10 to 15%. Do not chase your follicular splits.', science:'Core temperature elevated 0.3 to 0.5 degrees in luteal — pace should reflect this. (Charkoudian 2014)' },
     'Late luteal':  { duration:'20 min', pace:'Easy jog', note:'Finishing the run is the goal today. Pace is irrelevant. You are maintaining, not building.', science:'Progesterone-cortisol competition means hard running creates a larger stress response. (Hackney 2006)' },
     Luteal:         { duration:'25 to 35 min', pace:'Easy to moderate', note:'Run to feel, not to pace. Hydrate more than usual — progesterone delays sweating onset.', science:'Fluid regulation is altered in the luteal phase. Hydration needs increase. (Charkoudian 2014)' },
@@ -51,9 +51,9 @@ const CARDIO_GUIDES = {
     observation:    { duration:'20 to 30 min', pace:'Easy', note:'Easy pace. Log how your body feels — this builds your personal baseline data.', science:'Personal tracking outperforms population averages for training load decisions. (Janse de Jonge 2003)' },
   },
   cycle: {
-    Menstrual:      { duration:'20 to 30 min', pace:'Zone 2, easy spin', note:'Low resistance, easy cadence. Cycling is ideal during menstruation — low impact and joint-friendly.', science:'Zone 2 cycling does not spike prostaglandins the way high-impact running can. (Hackney 2006)' },
-    Follicular:     { duration:'30 to 50 min', pace:'Zone 2 to 3', note:'Build your aerobic base. Increase resistance or include short climbs. Your recovery is excellent right now.', science:'Estrogen improves fat oxidation — follicular phase is ideal for building aerobic capacity. (Hackney 2006)' },
-    Ovulatory:      { duration:'30 to 60 min', pace:'Zone 3 to 4 intervals', note:'Peak power output. Try 3 min hard, 2 min easy intervals. This is your speed day.', science:'Peak estrogen and testosterone — best power-to-weight ratio of the cycle. (Sarwar et al. 1996)' },
+    Menstrual:      { duration:'20 to 30 min', pace:'Zone 2, easy spin', note:'Low resistance, easy cadence. Cycling is ideal during menstruation — low impact and joint-friendly.', science:'Low-impact cycling does not aggravate cramping the way high-impact work can, and movement eases period pain. (Daley et al. 2015)' },
+    Follicular:     { duration:'30 to 50 min', pace:'Zone 2 to 3', note:'Build your aerobic base. Increase resistance or include short climbs. Your recovery is excellent right now.', science:'Women rely more on fat oxidation, supporting aerobic base-building. (Hamadeh et al. 2005)' },
+    Ovulatory:      { duration:'30 to 60 min', pace:'Zone 3 to 4 intervals', note:'A strong window for hard efforts. Try 3 min hard, 2 min easy intervals.', science:'Strength tends to be highest in the follicular-to-ovulatory window — push if you feel good. Individual variation is large. (Sarwar et al. 1996; Colenso-Semple et al. 2023)' },
     'Mid luteal':   { duration:'25 to 35 min', pace:'Zone 2', note:'Keep resistance lower than usual. Your body is working harder than it looks — elevated temperature and RHR are real.', science:'Resting HR elevated 1.7 bpm in mid-luteal. Same output costs more physiologically. (De Martin Topranin 2023)' },
     Luteal:         { duration:'20 to 30 min', pace:'Easy zone 2', note:'Stay comfortable. Hydrate well — luteal phase alters fluid regulation. Low-pressure session today.', science:'Progesterone raises core temperature and ventilatory threshold drops. (Charkoudian 2014)' },
     Perimenopause:  { duration:'30 to 45 min', pace:'Comfortable pace', note:'Cycling is joint-friendly and weight-bearing enough to support bone. Excellent choice this phase.', science:'Low-impact aerobic exercise protects joints while supporting cardiovascular health in perimenopause. (Kohrt 2004)' },
@@ -62,7 +62,7 @@ const CARDIO_GUIDES = {
   swim: {
     Menstrual:      { duration:'20 to 30 min', pace:'Easy laps', note:'Cool water may reduce prostaglandin activity and ease cramps. Excellent choice during menstruation.', science:'Aquatic exercise reduces menstrual pain. Cool water may modulate prostaglandin activity. (Daley 2015)' },
     Follicular:     { duration:'30 to 45 min', pace:'Build sets', note:'Great time for intervals — 50m hard, 50m easy. Your recovery between sets will be faster this week.', science:'Follicular phase improves muscular endurance and swim economy. (Kissow 2022)' },
-    Ovulatory:      { duration:'30 to 50 min', pace:'Speed sets', note:'Peak power window. Sprint intervals in the pool. Try 25m all-out with 60s rest, repeat 6 to 8 times.', science:'Peak estrogen and testosterone drive best sprint and power output. (Sarwar et al. 1996)' },
+    Ovulatory:      { duration:'30 to 50 min', pace:'Speed sets', note:'A strong window for hard efforts. Sprint intervals in the pool — try 25m all-out with 60s rest, repeat 6 to 8 times.', science:'Strength tends to be highest in the follicular-to-ovulatory window — push if you feel good. Individual variation is large. (Sarwar et al. 1996; Colenso-Semple et al. 2023)' },
     Luteal:         { duration:'25 to 35 min', pace:'Steady easy', note:'The coolness of the pool helps offset elevated core temperature. Great recovery tool this phase.', science:'External cooling helps manage the elevated core temperature of the luteal phase. (Charkoudian 2014)' },
     observation:    { duration:'20 to 35 min', pace:'Comfortable', note:'Swim to feel. Aquatic exercise is one of the most joint-friendly training options available.', science:'Water-based exercise reduces joint load while maintaining cardiovascular stimulus. (ACSM guidelines)' },
   },
@@ -72,7 +72,7 @@ const WARMUP_MOVES = {
   Menstrual:      ['Hip circles — 30 seconds each direction', 'Cat-cow — 10 reps', 'Bodyweight squat — 15 reps, slow', 'Arm circles and shoulder rolls — 30 seconds', 'Glute bridge — 15 reps', 'Leg swings — 10 each side'],
   Follicular:     ['Hip circles — 30 seconds', 'Leg swings front and back — 10 each side', 'Inchworm to push-up — 5 reps', 'Lateral lunge — 8 each side', 'Arm circles — 30 seconds', 'Jump squat — 10 reps (light)'],
   'Late follicular':['Dynamic lunge with reach — 8 each side', 'Hip circles — 30 seconds', 'Band walk — 15 each direction', 'Push-up — 10 reps', 'Leg swing — 10 each side', 'Light squat jump — 10 reps'],
-  Ovulatory:      ['Hip circles — 30 seconds', 'Lateral band walk — 20 each direction', 'Jump squat — 10 reps', 'Arm swing and rotation — 30 seconds', 'Nordic curl — 5 reps slow', 'Inchworm — 5 reps'],
+  Ovulatory:      ['Hip circles — 30 seconds', 'Leg swings — 10 each side', 'Lateral band walk — 20 each direction', 'Dynamic lunge with reach — 8 each side', 'Glute bridge — 15 reps', 'Bodyweight squat — 12 reps', 'Inchworm to push-up — 5 reps', 'Jump squat — 8 reps (last, after full prep)'],
   'Early luteal': ['Cat-cow — 10 reps', 'Hip circles — 30 seconds', 'Bodyweight squat — 15 reps', 'Glute bridge — 15 reps', 'Shoulder circles — 30 seconds', 'Light lateral lunge — 8 each side'],
   'Mid luteal':   ['Cat-cow — 10 reps slow', 'Hip circles — 30 seconds', 'Glute bridge — 15 reps', 'Arm circles — 30 seconds', 'Bodyweight squat — 10 reps slow', 'Deep breathing — 5 slow breaths'],
   'Late luteal':  ['Cat-cow — 10 reps', 'Hip circles — 30 seconds', 'Glute bridge — 15 reps gentle', 'Arm swing — 30 seconds', 'Slow bodyweight squat — 10 reps', 'Child\'s pose — 30 seconds'],
@@ -195,12 +195,12 @@ const PILATES_DESCRIPTIONS = {
 }
 
 const HIIT_ROUNDS = {
-  Menstrual:      { rounds:3, work:25, rest:35, exercises:['Low-impact march in place','Step touch side to side','Gentle squat — no jump','Modified mountain climber — slow','Standing side crunch'] },
+  Menstrual:      { rounds:3, work:25, rest:35, exercises:['Low-impact march in place','Step touch side to side','Gentle squat — no jump','Standing knee lift','Standing side crunch'] },
   Follicular:     { rounds:5, work:40, rest:20, exercises:['Jump squat','High knees sprint','Push-up','Lateral shuffle','Plank hold'] },
   'Late follicular':{ rounds:6, work:40, rest:20, exercises:['Burpee','Sprint in place','Jump lunge','Push-up jump','Plank to pike'] },
   Ovulatory:      { rounds:6, work:40, rest:20, exercises:['Burpee','Box jump or jump squat','High knees sprint','Jump lunge','Mountain climber','Plank push-up'] },
   'Early luteal': { rounds:4, work:35, rest:25, exercises:['Squat jump','High knees','Push-up','Lateral shuffle','Plank'] },
-  'Mid luteal':   { rounds:3, work:30, rest:30, exercises:['Step-up or low squat','Modified high knees','Push-up','Side lunge','Plank hold'] },
+  'Mid luteal':   { rounds:3, work:30, rest:30, exercises:['Step-up or low squat','Marching in place','Push-up','Side lunge','Plank hold'] },
   'Late luteal':  { rounds:3, work:25, rest:35, exercises:['Bodyweight squat','Step touch','Modified push-up','Standing core twist','Gentle plank'] },
   Luteal:         { rounds:3, work:30, rest:30, exercises:['Squat — no jump','Step touch','Push-up','Lateral lunge','Plank hold'] },
   Perimenopause:  { rounds:3, work:30, rest:30, exercises:['Step-up','Modified high knees','Push-up on knees','Lateral lunge','Plank hold'] },
@@ -521,7 +521,7 @@ const EXERCISES = {
       ex('Deadlift', 4, 5, '70 to 110kg', 'Set up tight. Bar against shins throughout.'),
       ex('Bulgarian split squat', 4, 8, '20 to 35kg each', 'Long stride. Controlled descent, drive through heel.'),
       ex('Hip thrust', 4, 10, '70 to 120kg', 'Full hip extension and glute squeeze at top.'),
-      ex('Nordic hamstring curl', 3, 8, 'Bodyweight', 'Lower as slowly as possible. Crucial ACL injury prevention.'),
+      ex('Nordic hamstring curl', 3, 6, 'Bodyweight', 'Lower as slowly as you can with control; start with partial range and expect significant soreness at first. Builds eccentric hamstring strength and knee stability.'),
       ex('Leg press', 3, 12, '80 to 140kg', 'Full range. Maintain lower back contact with pad.'),
     ],
   },
@@ -543,7 +543,7 @@ const CLASS_TYPES = [
 const PHASE_BANNER = {
   Menstrual:      { bg:'#3d2830', text:'#f5e8e8', note:'Lower intensity today is smart, not lazy. Prostaglandins and low estrogen are doing real physiological work. (Hackney 2006)' },
   Follicular:     { bg:'#2c3828', text:'#e8f5e8', note:'Rising estrogen supports muscle protein synthesis and recovery. Research suggests late follicular may produce stronger adaptations. (Kissow et al. 2022)' },
-  Ovulatory:      { bg:'#2c3035', text:'#e8f0f8', note:'Peak estrogen and testosterone. You may feel unusually strong. Complete your full warmup today — peak estrogen temporarily increases ligament laxity. (Kissow et al. 2022)' },
+  Ovulatory:      { bg:'#2c3035', text:'#e8f0f8', note:'Peak estrogen and a small testosterone rise — you may feel unusually strong. Complete your full warmup today: knee ligament laxity is measurably higher around ovulation, which raises ACL injury risk. (Herzberg et al. 2017)' },
   'Early luteal': { bg:'#352c20', text:'#f5ede0', note:'Progesterone rising with a mild calming GABA effect. Good steady energy still available. Solid phase for focused progress. (Bäckström et al. 2014)' },
   'Mid luteal':   { bg:'#352c20', text:'#f5ede0', note:'RHR is measurably higher and recovery is slower. The same weight costs more physiologically. That is real biology, not lack of fitness. (De Martin Topranin et al. 2023)' },
   'Late luteal':  { bg:'#352c20', text:'#f5ede0', note:'Both hormones dropping. Progesterone-cortisol competition means hard training creates a larger stress response than usual. Completing your sets cleanly is the goal. (Hackney 2006)' },

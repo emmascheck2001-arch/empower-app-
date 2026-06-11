@@ -4,6 +4,22 @@ Changes made autonomously from user feedback. Most recent first.
 
 ---
 
+## 2026-06-11 — Full workout-tab science audit: safety fixes + citation corrections
+
+**Found via:** requested full audit of the Workout tab (durations, weights, workouts, warmups, instructions, demos) against women's cycle-phase science, cross-referenced to peer-reviewed sources. Ran three parallel audits, then verified and fixed.
+
+**What was fixed (safety):**
+- A Nordic hamstring curl was in the **ovulatory warmup** — a maximal eccentric exercise placed at peak ligament laxity (backwards and unsafe). Removed it and rebuilt the ovulatory warmup to be the most thorough/progressive (8 moves, joint and knee prep first, the only plyometric last).
+- The gym Nordic curl was over-dosed (3×8) and over-claimed ("crucial ACL prevention"). Reduced to 3×6 with a progression/soreness caveat and reframed to hamstring-strain prevention and knee stability (the ACL link is indirect).
+- Menstrual HIIT prescribed a mountain climber (raises intra-abdominal pressure during cramps) → swapped for a standing knee lift. Mid-luteal HIIT kept high knees (impact) despite the cooling intent → swapped for marching in place.
+
+**What was fixed (citations / accuracy):**
+- The ovulatory ligament-laxity/ACL claim was mis-cited to Kissow 2022 (a strength study); the repo itself flagged this SOURCE NEEDED. Replaced with the correct source, Herzberg et al. 2017 (OJSM systematic review & meta-analysis: laxity significantly higher in the ovulatory phase). Added to the Research Foundation.
+- Cardio "estrogen improves fat oxidation" was cited to Hackney 2006 (the cortisol paper) → corrected to Hamadeh et al. 2005. Overstated ovulatory "best power and speed (Sarwar 1996)" claims (walk/run/cycle/swim) softened to the accurate "strength tends to be highest in the follicular-to-ovulatory window" with individual-variation hedging. A VO2max claim (Sung 2014) and a progesterone-ventilation claim (mis-cited to Charkoudian) were corrected. Menstrual cycling prostaglandin claim re-cited to Daley 2015.
+
+**Audited and confirmed sound:** gym weight ranges (vs female strength norms), sets/reps per level, muscle-group mapping, form cues, yoga/pilates sequences and all move demos (anatomically correct, safe cues), and the duration/intensity gradient across phases. Build verified.
+
+**Files changed:** empower-react/src/pages/Workout.jsx, CLAUDE.md
 ## 2026-06-11 — Workout science pass: HIIT intensity, women-specific reps/load, menopause content
 
 **Found via:** user review — HIIT felt too easy; questioned whether gym reps were too high; asked to validate loading against women-specific science and update the whole workout tab for menopause, cross-referenced to peer-reviewed sources.
