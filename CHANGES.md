@@ -4,6 +4,15 @@ Changes made autonomously from user feedback. Most recent first.
 
 ---
 
+## 2026-06-11 — Gym: embedded exercise demo photos (replacing the watch-demo link)
+
+**Found via:** user preferred embedded images in the card over a link.
+
+**What was done:** Replaced the "Watch video demo" link with embedded demonstration photos in the gym player's demo card, sourced from the public-domain free-exercise-db (served via the jsDelivr CDN). Every image URL was verified to return HTTP 200 before being added — 28 of 30 gym exercises have a real photo; the 2 without (Bulgarian split squat, Nordic curl) gracefully fall back to the existing stick figure. The `ExerciseImage` component also falls back to the stick figure on any load error, so a missing or 404 image can never break the card (and a `key` per exercise resets that state between exercises). Warmups, yoga, and pilates keep their text demos.
+
+**Note for follow-up:** the free-exercise-db photos use a male model. For a women's app that's a brand consideration worth revisiting with a women-specific media source later.
+
+**Files changed:** empower-react/src/pages/Workout.jsx
 ## 2026-06-11 — Workout variety (gym + HIIT) + gym video demos
 
 **Found via:** user request — workouts repeated the same exercises each session; wanted variety, and visual demos for the gym while keeping the text ("word") demos for warmups/yoga/pilates.

@@ -338,6 +338,36 @@ function getPhases(svgType) {
   return P[svgType] || P.stand
 }
 
+// Embedded demo photos from the public-domain free-exercise-db (served via jsDelivr).
+// Every path below was verified to return HTTP 200. Exercises not listed (e.g. Bulgarian
+// split squat, Nordic curl) simply fall back to the stick figure — see ExerciseImage.
+const EXERCISE_IMG_BASE = 'https://cdn.jsdelivr.net/gh/yuhonas/free-exercise-db@main/exercises/'
+const EXERCISE_IMG = {
+  'Barbell squat':'Barbell_Squat/0.jpg', 'Bench press':'Barbell_Bench_Press_-_Medium_Grip/0.jpg',
+  'Deadlift':'Barbell_Deadlift/0.jpg', 'Overhead press':'Barbell_Shoulder_Press/0.jpg',
+  'Barbell row':'Bent_Over_Barbell_Row/0.jpg', 'Dumbbell row':'Bent_Over_Two-Dumbbell_Row/0.jpg',
+  'Dumbbell shoulder press':'Arnold_Dumbbell_Press/0.jpg', 'Bicep curl':'Barbell_Curl/0.jpg',
+  'Tricep dip':'Bench_Dips/0.jpg', 'Walking lunge':'Barbell_Walking_Lunge/0.jpg',
+  'Calf raise':'Barbell_Seated_Calf_Raise/0.jpg', 'Hip thrust':'Barbell_Hip_Thrust/0.jpg',
+  'Glute bridge':'Barbell_Glute_Bridge/0.jpg', 'Band pull-apart':'Band_Pull_Apart/0.jpg',
+  'Push-up':'Pushups/0.jpg', 'Plank':'Plank/0.jpg', 'Goblet squat':'Goblet_Squat/0.jpg',
+  'Leg press':'Leg_Press/0.jpg', 'Face pull':'Face_Pull/0.jpg', 'Cable face pull':'Face_Pull/0.jpg',
+  'Romanian deadlift':'Romanian_Deadlift/0.jpg', 'Cable row':'Seated_Cable_Rows/0.jpg',
+  'Dumbbell lateral raise':'Side_Lateral_Raise/0.jpg', 'Tricep pushdown':'Triceps_Pushdown/0.jpg',
+  'Incline dumbbell press':'Incline_Dumbbell_Press/0.jpg', 'Leg curl':'Lying_Leg_Curls/0.jpg',
+  'Pull-up':'Pullups/0.jpg', 'Weighted pull-up':'Pullups/0.jpg',
+}
+
+// Renders the real demo photo, falling back to the stick figure if no mapping exists
+// or the image fails to load (so a missing/404 image can never break the card).
+function ExerciseImage({ name, fallback }) {
+  const [err, setErr] = useState(false)
+  const path = EXERCISE_IMG[name]
+  if (!path || err) return fallback
+  return <img src={EXERCISE_IMG_BASE + path} alt={`${name} demonstration`} onError={() => setErr(true)}
+    style={{ width:'100%', height:'100%', objectFit:'contain' }} />
+}
+
 function StickFigure({ type }) {
   const s = { stroke:'#2c2820', strokeWidth:3, strokeLinecap:'round', fill:'none' }
   const bar = { stroke:'#c8b89a', strokeWidth:5, strokeLinecap:'round' }
@@ -1317,16 +1347,11 @@ export default function Workout() {
           <div style={{ background:'#fff', border:'1px solid #ede8e0', borderRadius:14, marginBottom:12, overflow:'hidden' }}>
             <div style={{ padding:'14px 16px 0' }}>
               <div style={{ fontSize:10, fontWeight:600, letterSpacing:'0.12em', textTransform:'uppercase', color:'#9a9590', marginBottom:8 }}>EXERCISE DEMO</div>
-              <div style={{ fontSize:15, fontWeight:600, marginBottom:10 }}>{exObj.name}</div>
-              <a href={`https://www.youtube.com/results?search_query=${encodeURIComponent(exObj.name + ' proper form technique')}`}
-                target="_blank" rel="noreferrer"
-                style={{ display:'inline-flex', alignItems:'center', gap:6, fontSize:13, fontWeight:500, color:'#2c2820', textDecoration:'none', background:'#e8dfd0', border:'1px solid #c8b89a', borderRadius:20, padding:'6px 14px', marginBottom:12 }}>
-                <i className="ti ti-player-play-filled" style={{ fontSize:14 }}/> Watch video demo
-              </a>
+              <div style={{ fontSize:15, fontWeight:600, marginBottom:12 }}>{exObj.name}</div>
             </div>
-            {/* Stick figure */}
-            <div style={{ background:'#faf8f5', margin:'0 16px 12px', borderRadius:12, padding:'8px 0', height:150 }}>
-              <StickFigure type={svgType} />
+            {/* Demo photo (free-exercise-db) with stick-figure fallback */}
+            <div style={{ background:'#fff', margin:'0 16px 12px', borderRadius:12, padding:8, height:170, display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden' }}>
+              <ExerciseImage key={exObj.name} name={exObj.name} fallback={<StickFigure type={svgType} />} />
             </div>
             {/* Tags */}
             <div style={{ padding:'0 16px 8px', display:'flex', gap:8, flexWrap:'wrap' }}>
