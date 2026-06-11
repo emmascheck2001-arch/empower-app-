@@ -497,6 +497,7 @@ const APA_REFS = [
   'Mauvais-Jarvis, F., Clegg, D. J., & Hevener, A. L. (2013). The role of estrogens in control of energy balance and glucose homeostasis. *Journal of Clinical Investigation*, *123*(7), 2813–2820.',
   'Carr, M. C. (2003). The emergence of the metabolic syndrome with menopause. *Journal of Clinical Endocrinology and Metabolism*, *88*(6), 2404–2411.',
   'International Society of Sports Nutrition. (2023). Position stand: Protein and exercise. *Journal of the International Society of Sports Nutrition*, *20*(1), 2221–2289.',
+  'Aragon, A. A., & Schoenfeld, B. J. (2013). Nutrient timing revisited: Is there a post-exercise anabolic window? *Journal of the International Society of Sports Nutrition*, *10*(1), 5.',
   'Lariviere, F., Moussalli, R., & Garrel, D. R. (1994). Increased leucine flux and leucine oxidation during the luteal phase of the menstrual cycle in women. *American Journal of Physiology*, *267*(3), E422–E428.',
   'Sarwar, R., Niclos, B. B., & Rutherford, O. M. (1996). Changes in muscle strength, relaxation rate and fatigability during the human menstrual cycle. *Journal of Physiology*, *493*(1), 267–272.',
   'Backstrom, T., Andreen, L., Birzniece, V., Bjorn, I., Johansson, I.-M., & Nordenstam-Simpanen, M. (2008). The role of hormones and hormonal treatments in premenstrual syndrome. *Archives of Women\'s Mental Health*, *11*(3), 185–191.',

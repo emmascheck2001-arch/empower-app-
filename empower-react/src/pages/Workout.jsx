@@ -859,7 +859,7 @@ export default function Workout() {
          feel === 'Felt hard' ? 'You did it even when it was hard. That is the real win.' :
          'Rest is part of training. Your body rebuilds during recovery.'}
       </div>
-      {protein && <div style={{ background:'#f5f0e8', borderRadius:12, padding:14, marginBottom:24, fontSize:13, color:'#3a3530', lineHeight:1.6 }}>Aim for <strong>{protein}g protein</strong> today, spread across your meals. A 20 to 40g serving within a couple of hours of training supports recovery, but your total protein for the day matters more than exact timing. (Aragon and Schoenfeld 2013; ISSN 2017)</div>}
+      {protein && <div style={{ background:'#f5f0e8', borderRadius:12, padding:14, marginBottom:24, fontSize:13, color:'#3a3530', lineHeight:1.6 }}><strong style={{ display:'block', fontSize:11, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590', marginBottom:6 }}>Post-workout</strong>Aim for <strong>{protein}g protein</strong> today, spread across your meals. A 20 to 40g serving within a couple of hours of training supports recovery, but your total protein for the day matters more than exact timing.</div>}
       <button className="btn-primary" onClick={() => navigate('/dashboard')}>Back to dashboard</button>
     </div>
   )
@@ -1052,7 +1052,8 @@ export default function Workout() {
             <div style={{ fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:20, marginBottom:2 }}>
               {muscleGroup==='full'?'Full body':muscleGroup==='upper'?'Upper body':muscleGroup==='lower'?'Lower body':'Custom'} session
             </div>
-            <div style={{ fontSize:12, color:'#7a7268', marginBottom:16 }}>{fitnessLevel.charAt(0).toUpperCase()+fitnessLevel.slice(1)} — phase-matched intensity</div>
+            <div style={{ fontSize:12, color:'#7a7268', marginBottom:8 }}>{fitnessLevel.charAt(0).toUpperCase()+fitnessLevel.slice(1)} — phase-matched intensity</div>
+            <div style={{ fontSize:12, color:'#7a7268', marginBottom:16, lineHeight:1.5 }}>Aim for a weight where the last 2 to 3 reps are genuinely hard. If a set feels easy, go heavier.</div>
             <div style={{ background:'#fff', border:'1px solid #ede8e0', borderRadius:12, marginBottom:16, overflow:'hidden' }}>
               {exercises.map((exObj, i) => (
                 <div key={i} style={{ padding:'12px 16px', borderBottom:i<exercises.length-1?'1px solid #f5f0e8':'none', display:'flex', alignItems:'center', gap:12 }}>
@@ -1064,10 +1065,6 @@ export default function Workout() {
                 </div>
               ))}
             </div>
-            {protein && <div style={{ background:'#f5f0e8', borderRadius:12, padding:14, marginBottom:16 }}>
-              <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590', marginBottom:6 }}>POST-WORKOUT</div>
-              <div style={{ fontSize:13, color:'#3a3530', lineHeight:1.6 }}>Aim for <strong>{protein}g protein</strong> today, spread across your meals. A 20 to 40g serving within a couple of hours of training supports recovery, but your total protein for the day matters more than exact timing. (Aragon and Schoenfeld 2013; ISSN 2017)</div>
-            </div>}
             <button className="btn-primary" onClick={() => { setPlayerIdx(0); setPhaseOpen(false); setScreen('player') }}>Start workout</button>
             <button onClick={() => setScreen('feel')} style={{ display:'block', width:'100%', marginTop:10, background:'none', border:'none', fontSize:13, color:'#9a9590', cursor:'pointer', textDecoration:'underline', fontFamily:'inherit' }}>Already done — just log it</button>
           </> : (() => {
