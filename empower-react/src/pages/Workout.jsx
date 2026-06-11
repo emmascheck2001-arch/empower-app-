@@ -196,9 +196,9 @@ const PILATES_DESCRIPTIONS = {
 
 const HIIT_ROUNDS = {
   Menstrual:      { rounds:3, work:25, rest:35, exercises:['Low-impact march in place','Step touch side to side','Gentle squat — no jump','Modified mountain climber — slow','Standing side crunch'] },
-  Follicular:     { rounds:4, work:35, rest:25, exercises:['Jump squat','High knees','Push-up','Lateral shuffle','Plank hold'] },
-  'Late follicular':{ rounds:5, work:40, rest:20, exercises:['Burpee','Sprint in place','Jump lunge','Push-up jump','Plank to pike'] },
-  Ovulatory:      { rounds:5, work:45, rest:15, exercises:['Burpee','Box jump or jump squat','High knees sprint','Jump lunge','Mountain climber','Plank push-up'] },
+  Follicular:     { rounds:5, work:40, rest:20, exercises:['Jump squat','High knees sprint','Push-up','Lateral shuffle','Plank hold'] },
+  'Late follicular':{ rounds:6, work:40, rest:20, exercises:['Burpee','Sprint in place','Jump lunge','Push-up jump','Plank to pike'] },
+  Ovulatory:      { rounds:6, work:40, rest:20, exercises:['Burpee','Box jump or jump squat','High knees sprint','Jump lunge','Mountain climber','Plank push-up'] },
   'Early luteal': { rounds:4, work:35, rest:25, exercises:['Squat jump','High knees','Push-up','Lateral shuffle','Plank'] },
   'Mid luteal':   { rounds:3, work:30, rest:30, exercises:['Step-up or low squat','Modified high knees','Push-up','Side lunge','Plank hold'] },
   'Late luteal':  { rounds:3, work:25, rest:35, exercises:['Bodyweight squat','Step touch','Modified push-up','Standing core twist','Gentle plank'] },
@@ -548,7 +548,7 @@ const PHASE_BANNER = {
   'Mid luteal':   { bg:'#352c20', text:'#f5ede0', note:'RHR is measurably higher and recovery is slower. The same weight costs more physiologically. That is real biology, not lack of fitness. (De Martin Topranin et al. 2023)' },
   'Late luteal':  { bg:'#352c20', text:'#f5ede0', note:'Both hormones dropping. Progesterone-cortisol competition means hard training creates a larger stress response than usual. Completing your sets cleanly is the goal. (Hackney 2006)' },
   Luteal:         { bg:'#352c20', text:'#f5ede0', note:'Progesterone elevated and core temperature rising. Prioritise form and completing sets over adding weight. (De Martin Topranin et al. 2023)' },
-  Perimenopause:  { bg:'#2c2035', text:'#f0e8f8', note:'Every strength session directly stimulates bone formation and improves insulin sensitivity. This is the highest-value investment for your long-term hormonal health. (Kohrt et al. 2004)' },
+  Perimenopause:  { bg:'#2c2035', text:'#f0e8f8', note:'Lift heavy. Training at challenging loads — the LIFTMOR trial had postmenopausal women do 5 sets of 5 near their limit — built bone and preserved muscle safely, where light high-rep work does not. This is the single highest-value thing you can do for your long-term health. (Watson et al. LIFTMOR, JBMR 2018; Kohrt et al. 2004)' },
   observation:    { bg:'#2c2820', text:'#f5f0e8', note:'Building your personal baseline. Log how every session feels. Individual variation is large and your data is more useful than population averages. (Janse de Jonge 2003)' },
 }
 
@@ -586,8 +586,15 @@ export default function Workout() {
   const [hiitSecondsLeft, setHiitSecondsLeft] = useState(0)
   const [hiitRunning, setHiitRunning] = useState(false)
 
-  // Declared before useEffects so it is in scope for the HIIT dependency array
-  const phase = status?.subPhase || status?.phase || 'observation'
+  // Declared before useEffects so it is in scope for the HIIT dependency array.
+  // Resolve the phase used for workout content: perimenopause/postmenopause users
+  // (status.phase === 'Perimenopause') use the Perimenopause content rather than their
+  // stage subPhase, which the dictionaries are not keyed by; hormonal-BC users have no
+  // cycle-specific workout content, so they use the neutral observation content.
+  const rawPhase = status?.phase
+  const phase = rawPhase === 'Perimenopause' ? 'Perimenopause'
+    : (rawPhase === 'bc-combined' || rawPhase === 'bc-progestin') ? 'observation'
+    : status?.subPhase || rawPhase || 'observation'
 
   useEffect(() => { init() }, [])
 
@@ -662,6 +669,9 @@ export default function Workout() {
     // progesterone-cortisol load). Birth control, perimenopause, and observation users
     // share those intensity values coincidentally but are NOT in a luteal phase, so use
     // neutral wording for them rather than misattributing cycle physiology.
+    if (phaseVal === 'Perimenopause') {
+      return { weight: `${clamped}kg`, note: 'Load is the priority now. Lifting heavy — a weight where the last 2 reps are genuinely hard — directly builds bone and preserves muscle as estrogen declines, which light high-rep work does not. Progress the weight as you get stronger.', source: 'Watson et al. LIFTMOR trial, JBMR 2018; Kohrt et al. MSSE 2004' }
+    }
     const CYCLE_PHASES = ['Menstrual','Follicular','Ovulatory','Early luteal','Mid luteal','Late luteal','Luteal']
     if (!CYCLE_PHASES.includes(phaseVal)) {
       return { weight: `${clamped}kg`, note: 'Train to how you feel today. Individual variation is large — let your energy and form guide your load.', source: 'Colenso-Semple et al. 2023 Frontiers; Janse de Jonge 2003 Sports Medicine' }
@@ -942,6 +952,15 @@ export default function Workout() {
                 </div>
               ))}
             </div>
+            <div style={{ background:'#f5f0e8', borderRadius:12, padding:14, marginBottom:16 }}>
+              <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590', marginBottom:6 }}>On reps and load</div>
+              <div style={{ fontSize:13, color:'#3a3530', lineHeight:1.6, marginBottom:6 }}>{phase === 'Perimenopause'
+                ? 'Heavier loads at lower reps are the priority now — they build bone and preserve muscle as estrogen declines, which lighter high-rep work does not. Pick a weight where the last 2 reps are genuinely hard, and if a set feels easy, go heavier.'
+                : 'Women are more fatigue-resistant than men and recover similarly between sets, so this rep volume is well within what you can handle. But reps only count when the last 2 to 3 are genuinely hard — if a set feels easy, add weight. Want pure strength? Use the Advanced level for heavier 5-rep sets.'}</div>
+              <div style={{ fontSize:11, color:'#9a9590', fontStyle:'italic', lineHeight:1.5 }}>{phase === 'Perimenopause'
+                ? 'Watson et al. LIFTMOR trial, JBMR 2018; Kohrt et al. MSSE 2004.'
+                : 'Hunter SK, sex differences in fatigability, Acta Physiologica 2014; Roberts et al. sex differences in resistance training, JSCR 2020; Schoenfeld et al. load and adaptation, JSCR 2017.'}</div>
+            </div>
             {protein && <div style={{ background:'#f5f0e8', borderRadius:12, padding:14, marginBottom:16 }}>
               <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590', marginBottom:6 }}>POST-WORKOUT</div>
               <div style={{ fontSize:13, color:'#3a3530', lineHeight:1.6 }}>Aim for <strong>{protein}g protein</strong> today, spread across your meals. A 20 to 40g serving within a couple of hours of training supports recovery, but your total protein for the day matters more than exact timing. (Aragon and Schoenfeld 2013; ISSN 2017)</div>
@@ -1018,6 +1037,12 @@ export default function Workout() {
                     <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590', marginBottom:4 }}>Rounds</div>
                     <div style={{ fontSize:18, fontWeight:700, color:'#2c2820' }}>{hiitData.rounds}</div>
                   </div>
+                </div>
+
+                <div style={{ background:'#fdf3f0', border:'1px solid #e8c0a8', borderRadius:12, padding:14, marginBottom:12 }}>
+                  <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a6040', marginBottom:6 }}>How hard — this is the whole point</div>
+                  <div style={{ fontSize:13, color:'#3a3530', lineHeight:1.6, marginBottom:6 }}>Each work bout should be near-maximal, an effort of 9 to 10 out of 10. If you could hold a conversation, it is not HIIT — it is just cardio, and it will feel easy. Women are more fatigue-resistant and recover faster between bouts than men, so you have to push to genuinely high intensity for the adaptation; a comfortable circuit will not get you there. Use harder variations (add a jump, go faster) before adding rounds.</div>
+                  <div style={{ fontSize:11, color:'#9a9590', fontStyle:'italic', lineHeight:1.5 }}>Sims ST. ROAR 2024; sex differences in HIIT, Frontiers in Physiology 2020; Hunter SK, sex differences in fatigability, Acta Physiologica 2014.</div>
                 </div>
 
                 <div style={{ background:'#fff', border:'1px solid #ede8e0', borderRadius:12, marginBottom:12, overflow:'hidden' }}>

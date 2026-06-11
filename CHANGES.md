@@ -4,6 +4,19 @@ Changes made autonomously from user feedback. Most recent first.
 
 ---
 
+## 2026-06-11 — Workout science pass: HIIT intensity, women-specific reps/load, menopause content
+
+**Found via:** user review — HIIT felt too easy; questioned whether gym reps were too high; asked to validate loading against women-specific science and update the whole workout tab for menopause, cross-referenced to peer-reviewed sources.
+
+**What was done:**
+- *HIIT was under-prescribed.* HIIT intensity is defined by effort, not the clock, and the prescriptions were short-rest moderate circuits that cap peak intensity — which is why a fit person finds them easy. Added a prominent "how hard" note (work bouts must be near-maximal, 9–10/10; women are more fatigue-resistant so must push genuinely hard) and increased difficulty for the high-capacity phases. Sources: Sims ROAR 2024; sex differences in HIIT, Frontiers in Physiology 2020; Hunter SK, Acta Physiologica 2014.
+- *Reps/load — validated with a women-specific rationale.* The rep ranges are defensible; added a note explaining women are more fatigue-resistant and recover similarly between sets (so volume is well-tolerated), that reps only count when the last few are genuinely hard, and that very active users should use Advanced for heavier 5-rep strength work. Sources: Hunter 2014; Roberts et al. JSCR 2020; Schoenfeld et al. JSCR 2017.
+- *Menopause: content was unreachable and is now wired in and upgraded.* The workout phase lookup used the stage subPhase ("Early perimenopause" etc.) but the dictionaries are keyed "Perimenopause", so menopause users silently got generic content. Fixed the resolution (perimenopause/postmenopause -> Perimenopause content; hormonal-BC -> observation). Upgraded the perimenopause phase banner, weight note, and reps/load note to a heavy-load/bone priority based on the LIFTMOR RCT (5x5 at >85% 1RM improved bone density safely in postmenopausal women). Sources: Watson et al. LIFTMOR, JBMR 2018; Kohrt et al. MSSE 2004.
+
+**Files changed:** empower-react/src/pages/Workout.jsx
+
+---
+
 ## 2026-06-11 — Postmenopause track + fixed the path-4 stage never registering
 
 **Found via:** adding a short postmenopause track to the menopause content.
