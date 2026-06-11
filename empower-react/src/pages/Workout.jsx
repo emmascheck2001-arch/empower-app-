@@ -1064,15 +1064,6 @@ export default function Workout() {
                 </div>
               ))}
             </div>
-            <div style={{ background:'#f5f0e8', borderRadius:12, padding:14, marginBottom:16 }}>
-              <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590', marginBottom:6 }}>On reps and load</div>
-              <div style={{ fontSize:13, color:'#3a3530', lineHeight:1.6, marginBottom:6 }}>{phase === 'Perimenopause'
-                ? 'Heavier loads at lower reps are the priority now — they build bone and preserve muscle as estrogen declines, which lighter high-rep work does not. Pick a weight where the last 2 reps are genuinely hard, and if a set feels easy, go heavier.'
-                : 'Women are more fatigue-resistant than men and recover similarly between sets, so this rep volume is well within what you can handle. But reps only count when the last 2 to 3 are genuinely hard — if a set feels easy, add weight. Want pure strength? Use the Advanced level for heavier 5-rep sets.'}</div>
-              <div style={{ fontSize:11, color:'#9a9590', fontStyle:'italic', lineHeight:1.5 }}>{phase === 'Perimenopause'
-                ? 'Watson et al. LIFTMOR trial, JBMR 2018; Kohrt et al. MSSE 2004.'
-                : 'Hunter SK, sex differences in fatigability, Acta Physiologica 2014; Roberts et al. sex differences in resistance training, JSCR 2020; Schoenfeld et al. load and adaptation, JSCR 2017.'}</div>
-            </div>
             {protein && <div style={{ background:'#f5f0e8', borderRadius:12, padding:14, marginBottom:16 }}>
               <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590', marginBottom:6 }}>POST-WORKOUT</div>
               <div style={{ fontSize:13, color:'#3a3530', lineHeight:1.6 }}>Aim for <strong>{protein}g protein</strong> today, spread across your meals. A 20 to 40g serving within a couple of hours of training supports recovery, but your total protein for the day matters more than exact timing. (Aragon and Schoenfeld 2013; ISSN 2017)</div>
@@ -1120,11 +1111,6 @@ export default function Workout() {
                   <div style={{ fontSize:11, color:'#9a9590', fontStyle:'italic', lineHeight:1.5 }}>{cardioGuide.science}</div>
                 </div>
 
-                <div style={{ background:'#f5f0e8', borderRadius:12, padding:14, marginBottom:16 }}>
-                  <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590', marginBottom:6 }}>Phase context</div>
-                  <div style={{ fontSize:13, color:'#3a3530', lineHeight:1.6 }}>{banner.note}</div>
-                </div>
-
                 <button className="btn-primary" onClick={() => { setCardioSeconds(0); setCardioRunning(false); setScreen('cardioTimer') }}>
                   Start {ACTIVITIES.find(a=>a.id===activity)?.label}
                 </button>
@@ -1169,11 +1155,6 @@ export default function Workout() {
                   ))}
                 </div>
 
-                <div style={{ background:'#f5f0e8', borderRadius:12, padding:14, marginBottom:16 }}>
-                  <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590', marginBottom:6 }}>Phase context</div>
-                  <div style={{ fontSize:13, color:'#3a3530', lineHeight:1.6 }}>{banner.note}</div>
-                </div>
-
                 <button className="btn-primary" onClick={() => {
                   const data = hiitFor(phase)
                   setHiitRound(1); setHiitExIdx(0); setHiitPhase('work')
@@ -1192,11 +1173,6 @@ export default function Workout() {
                 <>
                   <div style={{ fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:20, marginBottom:2 }}>{label}</div>
                   <div style={{ fontSize:12, color:'#9a9590', marginBottom:14 }}>{seq.length} movements — phase-matched sequence</div>
-
-                  <div style={{ background:'#f5f0e8', borderRadius:12, padding:14, marginBottom:12 }}>
-                    <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590', marginBottom:6 }}>Phase context</div>
-                    <div style={{ fontSize:13, color:'#3a3530', lineHeight:1.6 }}>{banner.note}</div>
-                  </div>
 
                   <div style={{ background:'#fff', border:'1px solid #ede8e0', borderRadius:12, marginBottom:12, overflow:'hidden' }}>
                     <div style={{ padding:'10px 16px', borderBottom:'1px solid #f5f0e8', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
