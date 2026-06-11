@@ -217,6 +217,21 @@ const HIIT_ROUNDS = {
   observation:    { rounds:3, work:30, rest:30, exercises:['Squat','High knees','Push-up','Lateral shuffle','Plank'] },
 }
 
+// Extra, phase-appropriate HIIT moves rotated in for day-to-day variety. Low-impact
+// options for menstrual/luteal phases; explosive options for follicular/ovulatory.
+const HIIT_POOL = {
+  Menstrual:        ['Heel taps','Standing oblique crunch','Slow reverse lunge','Bird-dog','Toe-touch march'],
+  Follicular:       ['Skater hops','Reverse lunge to knee drive','Plank shoulder taps','Speed squat','Tuck jump — low'],
+  'Late follicular':['Squat to press','Broad jump — controlled','Burpee to tuck','Plank jack','Speed mountain climber'],
+  Ovulatory:        ['Squat to press','Broad jump','Burpee to tuck','Skater bound','Plank jack','Speed mountain climber'],
+  'Early luteal':   ['Reverse lunge','Plank shoulder taps','Speed squat','Step-up','Skater step'],
+  'Mid luteal':     ['Step-up','Slow reverse lunge','Bird-dog','Glute bridge march','Standing side crunch'],
+  'Late luteal':    ['Marching in place','Slow squat','Standing knee lift','Bird-dog','Heel taps'],
+  Luteal:           ['Step-up','Slow reverse lunge','Standing knee lift','Glute bridge march'],
+  Perimenopause:    ['Step-up','Reverse lunge','Glute bridge march','Wall press-up','Standing knee lift'],
+  observation:      ['Reverse lunge','Step-up','Plank shoulder taps','Skater step'],
+}
+
 function ex(name, sets, reps, weight, tip) { return { name, sets, reps, weight, tip } }
 
 function getSvgType(name) {
@@ -537,6 +552,36 @@ const EXERCISES = {
   },
 }
 
+// Accessory pools rotated into the last 2 slots of a gym session for variety. The
+// main compound lifts (first 4 of each EXERCISES list) stay fixed for progression.
+// Only exercises the demo-metadata helpers already recognise are used here.
+const GYM_ACCESSORIES = {
+  upper: [
+    ex('Dumbbell lateral raise', 3, 14, '5 to 12kg each', 'Slight forward lean, lead with your elbows. Pause at shoulder height.'),
+    ex('Bicep curl', 3, 12, '6 to 12kg each', 'No swinging. Squeeze at the top, lower with control.'),
+    ex('Tricep dip', 3, 12, 'Bodyweight', 'Hands on a bench, lower until your elbows reach 90 degrees.'),
+    ex('Face pull', 3, 15, '12 to 25kg', 'Pull to face level, elbows high and wide. Rear delts and rotator cuff.'),
+    ex('Incline dumbbell press', 3, 10, '10 to 22kg each', '30 degree bench. Press up and slightly together, control the descent.'),
+    ex('Cable row', 3, 12, '25 to 45kg', 'Sit tall, pull the handle to your lower chest, squeeze.'),
+  ],
+  lower: [
+    ex('Walking lunge', 3, 12, 'Bodyweight to 12kg each', 'Long stride, front knee tracks over the toes, torso tall.'),
+    ex('Hip thrust', 3, 12, '30 to 70kg', 'Shoulders on a bench, drive through the heels, full hip extension.'),
+    ex('Leg curl', 3, 12, '15 to 35kg', 'Control the curl, pause at full contraction, lower slowly.'),
+    ex('Glute bridge', 3, 15, 'Bodyweight to 20kg', 'Drive your hips up, squeeze your glutes at the top, hold one second.'),
+    ex('Calf raise', 3, 15, '15 to 40kg', 'Full range, all the way up and all the way down. No half reps.'),
+    ex('Bulgarian split squat', 3, 10, '8 to 18kg each', 'Rear foot elevated, front knee tracks over the toes.'),
+  ],
+  full: [
+    ex('Dumbbell shoulder press', 3, 10, '6 to 14kg each', 'Press straight up, brace your core, lower slowly.'),
+    ex('Dumbbell row', 3, 12, '8 to 16kg each', 'Brace on a bench, drive your elbow back and up, squeeze.'),
+    ex('Goblet squat', 3, 12, '8 to 20kg', 'Hold the weight at your chest, sit deep, elbows inside the knees.'),
+    ex('Glute bridge', 3, 15, 'Bodyweight to 20kg', 'Drive your hips up, squeeze at the top, hold one second.'),
+    ex('Plank', 3, 40, 'Bodyweight', '40 seconds. Hips level, brace your core, do not let your back sag.'),
+    ex('Face pull', 3, 15, '12 to 25kg', 'Pull to face level, elbows high and wide. Rear delts.'),
+  ],
+}
+
 const FEEL_OPTIONS = ['Felt strong','Felt average','Felt hard','Rest day','Skipped']
 
 const CLASS_TYPES = [
@@ -580,6 +625,37 @@ function pc(dict, ph) {
 function localDateStr() {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+}
+
+// Deterministic day-based rotation for workout variety. Using the calendar day (not
+// Math.random) keeps the selection STABLE within a session/day — critical because the
+// gym player tracks set completion by exercise index, so the list must not reshuffle
+// mid-session — while varying day to day.
+function daySeed() {
+  const d = new Date()
+  return Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000)
+}
+function rotatePick(pool, n, seed) {
+  if (!pool || pool.length <= n) return pool || []
+  const start = ((seed % pool.length) + pool.length) % pool.length
+  const out = []
+  for (let i = 0; i < n; i++) out.push(pool[(start + i) % pool.length])
+  return out
+}
+// HIIT: keep the phase's structure (rounds/work/rest) but rotate which exercises are
+// shown from an expanded, phase-appropriate pool, keeping the same number of moves.
+function hiitFor(ph) {
+  const base = pc(HIIT_ROUNDS, ph)
+  if (!base) return base
+  const poolKey = HIIT_POOL[ph] ? ph
+    : ph && ph.includes('follicular') ? 'Follicular'
+    : ph && ph.includes('luteal') ? 'Luteal'
+    : 'observation'
+  const seen = new Set()
+  const pool = [...base.exercises, ...(HIIT_POOL[poolKey] || [])].filter(x => {
+    if (seen.has(x)) return false; seen.add(x); return true
+  })
+  return { ...base, exercises: rotatePick(pool, base.exercises.length, daySeed()) }
 }
 
 export default function Workout() {
@@ -638,7 +714,7 @@ export default function Workout() {
   useEffect(() => {
     if (!hiitRunning) return
     if (hiitSecondsLeft <= 0) {
-      const data = pc(HIIT_ROUNDS, phase)
+      const data = hiitFor(phase)
       if (hiitPhase === 'work') {
         setHiitPhase('rest')
         setHiitSecondsLeft(data.rest)
@@ -721,7 +797,18 @@ export default function Workout() {
 
   function getExercises() {
     const key = muscleGroup === 'custom' ? (customMuscles.some(m => ['Chest','Shoulders','Triceps'].includes(m)) ? 'upper' : customMuscles.some(m => ['Quads','Hamstrings','Glutes','Calves'].includes(m)) ? 'lower' : 'full') : (muscleGroup || 'full')
-    return EXERCISES[key]?.[fitnessLevel] || EXERCISES.full.intermediate
+    const base = EXERCISES[key]?.[fitnessLevel] || EXERCISES.full.intermediate
+    // Keep the main compound lifts (first 4) fixed for progression; rotate the
+    // remaining accessory slots day to day from an expanded pool. Deterministic by
+    // date, so the list stays stable within a session.
+    const core = base.slice(0, 4)
+    const coreNames = new Set(core.map(e => e.name))
+    const seen = new Set()
+    const accPool = [...base.slice(4), ...(GYM_ACCESSORIES[key] || [])].filter(e => {
+      if (coreNames.has(e.name) || seen.has(e.name)) return false
+      seen.add(e.name); return true
+    })
+    return core.concat(rotatePick(accPool, base.length - core.length, daySeed()))
   }
 
   async function save() {
@@ -995,7 +1082,7 @@ export default function Workout() {
           </> : (() => {
             const cardioKey = ['walk','run','cycle','swim'].includes(activity) ? activity : null
             const cardioGuide = cardioKey ? pc(CARDIO_GUIDES[cardioKey], phase) : null
-            const hiitData = activity === 'hiit' ? (pc(HIIT_ROUNDS, phase)) : null
+            const hiitData = activity === 'hiit' ? (hiitFor(phase)) : null
             const yogaSeq = activity === 'yoga' ? pc(YOGA_SEQUENCES, phase) : null
             const pilatesSeq = activity === 'pilates' ? pc(PILATES_SEQUENCES, phase) : null
 
@@ -1088,7 +1175,7 @@ export default function Workout() {
                 </div>
 
                 <button className="btn-primary" onClick={() => {
-                  const data = pc(HIIT_ROUNDS, phase)
+                  const data = hiitFor(phase)
                   setHiitRound(1); setHiitExIdx(0); setHiitPhase('work')
                   setHiitSecondsLeft(data.work); setHiitRunning(true)
                   setScreen('hiitTimer')
@@ -1230,7 +1317,12 @@ export default function Workout() {
           <div style={{ background:'#fff', border:'1px solid #ede8e0', borderRadius:14, marginBottom:12, overflow:'hidden' }}>
             <div style={{ padding:'14px 16px 0' }}>
               <div style={{ fontSize:10, fontWeight:600, letterSpacing:'0.12em', textTransform:'uppercase', color:'#9a9590', marginBottom:8 }}>EXERCISE DEMO</div>
-              <div style={{ fontSize:15, fontWeight:600, marginBottom:12 }}>{exObj.name}</div>
+              <div style={{ fontSize:15, fontWeight:600, marginBottom:10 }}>{exObj.name}</div>
+              <a href={`https://www.youtube.com/results?search_query=${encodeURIComponent(exObj.name + ' proper form technique')}`}
+                target="_blank" rel="noreferrer"
+                style={{ display:'inline-flex', alignItems:'center', gap:6, fontSize:13, fontWeight:500, color:'#2c2820', textDecoration:'none', background:'#e8dfd0', border:'1px solid #c8b89a', borderRadius:20, padding:'6px 14px', marginBottom:12 }}>
+                <i className="ti ti-player-play-filled" style={{ fontSize:14 }}/> Watch video demo
+              </a>
             </div>
             {/* Stick figure */}
             <div style={{ background:'#faf8f5', margin:'0 16px 12px', borderRadius:12, padding:'8px 0', height:150 }}>
@@ -1391,7 +1483,7 @@ export default function Workout() {
 
   // HIIT TIMER
   if (screen === 'hiitTimer') {
-    const data = pc(HIIT_ROUNDS, phase)
+    const data = hiitFor(phase)
     const isWork = hiitPhase === 'work'
     const currentExercise = data.exercises[hiitExIdx]
     const totalIntervals = data.rounds * data.exercises.length

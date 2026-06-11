@@ -4,6 +4,18 @@ Changes made autonomously from user feedback. Most recent first.
 
 ---
 
+## 2026-06-11 — Workout variety (gym + HIIT) + gym video demos
+
+**Found via:** user request — workouts repeated the same exercises each session; wanted variety, and visual demos for the gym while keeping the text ("word") demos for warmups/yoga/pilates.
+
+**What was done:**
+- *Variety (deterministic day rotation).* Added `daySeed()` + `rotatePick()` — selection is keyed to the calendar day (NOT Math.random) so it stays stable within a session (the gym player tracks sets by exercise index, so the list must not reshuffle mid-workout) but varies day to day.
+  - Gym: the main compound lifts (first 4) stay fixed for progression; the 2 accessory slots now rotate from an expanded pool (`GYM_ACCESSORIES`, built only from exercises the demo metadata already recognises). Verified across all 9 group/level combos: always 6 exercises, core fixed, stable within a day, varies across days, no duplicates, valid shape.
+  - HIIT: keeps the phase's rounds/work/rest but rotates which moves are shown from an expanded, phase-appropriate pool (`HIIT_POOL` — low-impact options for menstrual/luteal, explosive for follicular/ovulatory). Verified across all phases: correct count, stable, varies, no duplicates.
+- *Gym video demos.* Added a "Watch video demo" link to each exercise in the gym player (opens a form-demonstration video), on top of the existing stick figure and start/working/finish position text. Warmups, yoga, and pilates keep their text demos unchanged, as requested.
+- *Held deliberately:* yoga/pilates exercise rotation — their sequences are deliberately ordered flows (warm-up → peak → savasana), and rotating them safely needs curated per-phase pools so an intense pose never lands in a rest-day flow. Flagged as the careful next step rather than risk the flow.
+
+**Files changed:** empower-react/src/pages/Workout.jsx
 ## 2026-06-11 — Workout: phase-content fallback + filled-in cardio phase keys
 
 **Found via:** following up the workout audit — cardio dictionaries were missing per-phase keys for some strokes.
