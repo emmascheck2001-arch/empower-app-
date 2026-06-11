@@ -63,6 +63,7 @@ export default function Log() {
   const [phase, setPhase] = useState('observation')
   const [isMenstrual, setIsMenstrual] = useState(false)
   const [isPath4, setIsPath4] = useState(false)
+  const [showMore, setShowMore] = useState(false)
   const [showHormones, setShowHormones] = useState(false)
   const [log, setLog] = useState({
     energy:null, sleep_quality:null, resting_hr:null, resting_hr_exact:'',
@@ -179,26 +180,29 @@ export default function Log() {
       </TopBar>
       <div style={{padding:'16px 16px 120px'}}>
 
-        {!isPath4&&<>
-          <span style={sLabel}>Cervical fluid</span>
-          <div id="cervicalFluidWhy" style={{fontSize:11,color:'#9a9590',marginBottom:8,fontStyle:'italic'}}>One of the strongest ovulation indicators, tracks fertile window with 80% sensitivity (Bigelow et al. 2004)</div>
-          <PillRow opts={FLUID_OPTS} selected={log.cervical_fluid} single onToggle={v=>set('cervical_fluid',v)}/>
-          <span style={sLabel}>LH test</span>
-          <div id="lhTestWhy" style={{fontSize:11,color:'#9a9590',marginBottom:8,fontStyle:'italic'}}>Strongest single ovulation signal: a positive test means ovulation is likely within 12 to 36 hours</div>
-          <PillRow opts={LH_OPTS} selected={log.lh_result} single onToggle={v=>set('lh_result',v)}/>
-        </>}
+        <div className="card" style={{marginBottom:20}}>
+          <div style={{fontSize:14,fontWeight:600,marginBottom:4}}>Today's check-in</div>
+          <div style={{fontSize:13,color:'#7a7268'}}>The quick questions take under a minute. Add more detail anytime below.</div>
+        </div>
 
+        {/* ── Quick daily check-in (always visible) ───────────────────────── */}
         <span style={sLabel}>Energy today</span>
         <GridRow opts={ENERGY_OPTS} selected={log.energy} onSelect={v=>set('energy',v)}/>
+
+        <span style={sLabel}>Sleep last night</span>
+        <div style={{fontSize:11,color:'#9a9590',marginBottom:8,fontStyle:'italic'}}>Sleep is not passive recovery. Estrogen and progesterone are produced and regulated during sleep. (Haver et al. 2025)</div>
+        <GridRow opts={SLEEP_OPTS} selected={log.sleep_quality} onSelect={v=>set('sleep_quality',v)}/>
 
         <span style={sLabel}>Positive mood</span>
         <PillRow opts={MOOD_POS} selected={log.mood} onToggle={v=>toggleMulti('mood',v)}/>
         <span style={sLabel}>Challenging mood</span>
         <PillRow opts={MOOD_NEG} selected={log.mood} onToggle={v=>toggleMulti('mood',v)}/>
 
-        <span style={sLabel}>Wrist temperature °C (optional)</span>
-        <input type="number" step="0.1" min="34" max="40" placeholder="e.g. 36.2" value={log.wrist_temp} onChange={e=>set('wrist_temp',e.target.value)}
-          style={{width:'100%',padding:'12px 14px',borderRadius:10,border:'1px solid #ede8e0',fontSize:15,fontFamily:'inherit',marginBottom:16}}/>
+        {!isPath4&&<>
+          <span style={sLabel}>Cervical fluid</span>
+          <div id="cervicalFluidWhy" style={{fontSize:11,color:'#9a9590',marginBottom:8,fontStyle:'italic'}}>One of the strongest ovulation indicators, tracks fertile window with 80% sensitivity (Bigelow et al. 2004)</div>
+          <PillRow opts={FLUID_OPTS} selected={log.cervical_fluid} single onToggle={v=>set('cervical_fluid',v)}/>
+        </>}
 
         <span style={sLabel}>Resting heart rate</span>
         <PillRow opts={RHR_OPTS} selected={log.resting_hr} single onToggle={v=>{set('resting_hr',v);set('resting_hr_exact','')}}/>
@@ -208,21 +212,6 @@ export default function Log() {
 
         <span style={sLabel}>Physical symptoms</span>
         <PillRow opts={SYMPTOMS} selected={log.symptoms} onToggle={v=>toggleMulti('symptoms',v)}/>
-
-        <span style={sLabel}>Sleep last night</span>
-        <div style={{fontSize:11,color:'#9a9590',marginBottom:8,fontStyle:'italic'}}>Sleep is not passive recovery. Estrogen and progesterone are produced and regulated during sleep. (Haver et al. 2025)</div>
-        <GridRow opts={SLEEP_OPTS} selected={log.sleep_quality} onSelect={v=>set('sleep_quality',v)}/>
-
-        <span style={sLabel}>Disruptors</span>
-        <PillRow opts={DISRUPTORS} selected={log.disruptors} onToggle={v=>toggleMulti('disruptors',v)}/>
-
-        {isMenstrual&&<>
-          <span style={sLabel}>Flow today</span>
-          <PillRow opts={FLOW_OPTS} selected={log.flow_volume} single onToggle={v=>set('flow_volume',v)}/>
-          <span style={sLabel}>Pain level</span>
-          <PillRow opts={PAIN_OPTS} selected={log.pain_rating} single onToggle={v=>set('pain_rating',v)}/>
-          <div style={{fontSize:11,color:'#9a9590',fontStyle:'italic',marginBottom:16}}>Pain that disrupts your daily life is not normal. Log it and we will track the pattern.</div>
-        </>}
 
         {isPath4&&<>
           <span style={sLabel}>Hot flashes this week</span>
@@ -236,25 +225,58 @@ export default function Log() {
           <PillRow opts={[1,2,3,4,5].map(n=>({v:n,label:String(n)}))} selected={log.brain_fog_rating} single onToggle={v=>set('brain_fog_rating',v)}/>
         </>}
 
-        <div style={{marginBottom:20}}>
-          <button onClick={()=>setShowHormones(v=>!v)} style={{background:'none',border:'none',fontSize:13,color:'#9a9590',cursor:'pointer',fontFamily:'inherit',padding:0,display:'flex',alignItems:'center',gap:6}}>
-            <i className={`ti ti-chevron-${showHormones?'up':'down'}`}/> Hormone test results (optional)
-          </button>
-          {showHormones&&<div style={{marginTop:12,display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-            {[{label:'Estradiol pmol/L',field:'hormone_estradiol',ph:'e.g. 450'},
-              {label:'Progesterone nmol/L',field:'hormone_progesterone',ph:'e.g. 28.5'},
-              {label:'LH IU/L',field:'hormone_lh',ph:'e.g. 12.0'},
-              {label:'Cortisol nmol/L',field:'hormone_cortisol',ph:'e.g. 18.0'}].map(h=>(
-              <div key={h.field}>
-                <div style={{fontSize:11,color:'#9a9590',marginBottom:4}}>{h.label}</div>
-                <input type="number" step="0.1" placeholder={h.ph} value={log[h.field]} onChange={e=>set(h.field,e.target.value)}
-                  style={{width:'100%',padding:'10px 12px',borderRadius:8,border:'1px solid #ede8e0',fontSize:14,fontFamily:'inherit'}}/>
-              </div>
-            ))}
-          </div>}
-        </div>
+        {/* Flow + pain stay in the quick view during the period — they matter most then */}
+        {isMenstrual&&<>
+          <span style={sLabel}>Flow today</span>
+          <PillRow opts={FLOW_OPTS} selected={log.flow_volume} single onToggle={v=>set('flow_volume',v)}/>
+          <span style={sLabel}>Pain level</span>
+          <PillRow opts={PAIN_OPTS} selected={log.pain_rating} single onToggle={v=>set('pain_rating',v)}/>
+          <div style={{fontSize:11,color:'#9a9590',fontStyle:'italic',marginBottom:16}}>Pain that disrupts your daily life is not normal. Log it and we will track the pattern.</div>
+        </>}
 
-        <button className="btn-primary" onClick={save} disabled={saving}>{saving?'Saving...':'Save log →'}</button>
+        {/* ── Add more detail (collapsed by default) ───────────────────────── */}
+        <button onClick={()=>setShowMore(v=>!v)} style={{width:'100%',padding:'13px 16px',borderRadius:12,border:'1px solid #ede8e0',background:'#f5f0e8',color:'#5a5248',fontSize:14,fontWeight:500,cursor:'pointer',fontFamily:'inherit',display:'flex',alignItems:'center',justifyContent:'center',gap:8,marginBottom:16}}>
+          <i className={`ti ti-chevron-${showMore?'up':'down'}`}/> {showMore?'Hide extra detail':'Add more detail'}
+        </button>
+
+        {showMore&&<>
+          {!isPath4&&<>
+            <span style={sLabel}>LH test</span>
+            <div id="lhTestWhy" style={{fontSize:11,color:'#9a9590',marginBottom:8,fontStyle:'italic'}}>Strongest single ovulation signal: a positive test means ovulation is likely within 12 to 36 hours</div>
+            <PillRow opts={LH_OPTS} selected={log.lh_result} single onToggle={v=>set('lh_result',v)}/>
+          </>}
+
+          <span style={sLabel}>Wrist temperature °C (optional)</span>
+          <div style={{fontSize:11,color:'#9a9590',marginBottom:8,fontStyle:'italic'}}>One of the strongest phase signals when measured consistently. Progesterone raises core temperature 0.3 to 0.5°C in the luteal phase. (Zhu et al. 2021)</div>
+          <input type="number" step="0.1" min="34" max="40" placeholder="e.g. 36.2" value={log.wrist_temp} onChange={e=>set('wrist_temp',e.target.value)}
+            style={{width:'100%',padding:'12px 14px',borderRadius:10,border:'1px solid #ede8e0',fontSize:15,fontFamily:'inherit',marginBottom:16}}/>
+
+          <span style={sLabel}>Workout today</span>
+          <PillRow opts={WORKOUT_OPTS} selected={log.workout_feel} single onToggle={v=>set('workout_feel',v)}/>
+
+          <span style={sLabel}>Disruptors</span>
+          <PillRow opts={DISRUPTORS} selected={log.disruptors} onToggle={v=>toggleMulti('disruptors',v)}/>
+
+          <div style={{marginBottom:20}}>
+            <button onClick={()=>setShowHormones(v=>!v)} style={{background:'none',border:'none',fontSize:13,color:'#9a9590',cursor:'pointer',fontFamily:'inherit',padding:0,display:'flex',alignItems:'center',gap:6}}>
+              <i className={`ti ti-chevron-${showHormones?'up':'down'}`}/> Hormone test results (optional)
+            </button>
+            {showHormones&&<div style={{marginTop:12,display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+              {[{label:'Estradiol pmol/L',field:'hormone_estradiol',ph:'e.g. 450'},
+                {label:'Progesterone nmol/L',field:'hormone_progesterone',ph:'e.g. 28.5'},
+                {label:'LH IU/L',field:'hormone_lh',ph:'e.g. 12.0'},
+                {label:'Cortisol nmol/L',field:'hormone_cortisol',ph:'e.g. 18.0'}].map(h=>(
+                <div key={h.field}>
+                  <div style={{fontSize:11,color:'#9a9590',marginBottom:4}}>{h.label}</div>
+                  <input type="number" step="0.1" placeholder={h.ph} value={log[h.field]} onChange={e=>set(h.field,e.target.value)}
+                    style={{width:'100%',padding:'10px 12px',borderRadius:8,border:'1px solid #ede8e0',fontSize:14,fontFamily:'inherit'}}/>
+                </div>
+              ))}
+            </div>}
+          </div>
+        </>}
+
+        <button className="btn-primary" onClick={save} disabled={saving}>{saving?'Saving...':'Save check-in →'}</button>
       </div>
       <BottomNav/>
     </>

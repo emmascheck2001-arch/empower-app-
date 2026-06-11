@@ -402,14 +402,9 @@ export default function Dashboard() {
           <button onClick={() => navigate('/workout')} style={{ background:'rgba(232,224,212,0.18)', border:'1px solid rgba(232,224,212,0.35)', borderRadius:10, padding:'11px 18px', color:'#e8e0d4', fontSize:14, fontWeight:500, cursor:'pointer', width:'100%', fontFamily:'inherit', marginBottom:8 }}>
             Plan my workout
           </button>
-          <button onClick={() => navigate(alreadyLogged ? '/log' : '/checkin')} style={{ background:'transparent', border:'1px solid rgba(232,224,212,0.2)', borderRadius:10, padding:'9px 18px', color:'rgba(232,224,212,0.7)', fontSize:13, cursor:'pointer', width:'100%', fontFamily:'inherit' }}>
-            {alreadyLogged ? 'Update today\'s log' : 'Morning check-in'}
+          <button onClick={() => navigate('/log')} style={{ background:'transparent', border:'1px solid rgba(232,224,212,0.2)', borderRadius:10, padding:'9px 18px', color:'rgba(232,224,212,0.7)', fontSize:13, cursor:'pointer', width:'100%', fontFamily:'inherit' }}>
+            {alreadyLogged ? 'Update today\'s log' : 'Today\'s check-in'}
           </button>
-          {!alreadyLogged && (
-            <div style={{ textAlign:'center', marginTop:8 }}>
-              <button onClick={() => navigate('/log')} style={{ background:'none', border:'none', fontSize:12, color:'rgba(232,224,212,0.45)', cursor:'pointer', textDecoration:'underline', fontFamily:'inherit' }}>Full log instead</button>
-            </div>
-          )}
         </div>
 
 
@@ -435,7 +430,7 @@ export default function Dashboard() {
           <div className="card" style={{ marginBottom:12 }}>
             <div style={{ fontSize:13, fontWeight:600, marginBottom:6 }}>Welcome to Em~power</div>
             <div style={{ fontSize:13, color:'#7a7268', lineHeight:1.6, marginBottom:12 }}>Your first log starts building your personal baseline. The algorithm learns from your data over time.</div>
-            <button className="btn-primary" onClick={() => navigate('/checkin')}>Start your first check-in</button>
+            <button className="btn-primary" onClick={() => navigate('/log')}>Start your first check-in</button>
           </div>
         )}
 

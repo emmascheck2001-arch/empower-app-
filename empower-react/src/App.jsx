@@ -7,7 +7,6 @@ import Login    from './pages/Login'
 import Setup    from './pages/Setup'
 import Dashboard from './pages/Dashboard'
 import Log      from './pages/Log'
-import Checkin  from './pages/Checkin'
 import Workout  from './pages/Workout'
 import Nutrition from './pages/Nutrition'
 import Calendar from './pages/Calendar'
@@ -138,7 +137,8 @@ export default function App() {
         <Route path="/dashboard" element={<AuthGuard><Dashboard /></AuthGuard>} />
         <Route path="/setup"     element={<AuthGuard requireOnboarded={false}><Setup /></AuthGuard>} />
         <Route path="/log"       element={<AuthGuard><Log /></AuthGuard>} />
-        <Route path="/checkin"   element={<AuthGuard><Checkin /></AuthGuard>} />
+        {/* Check-in and full log are now one merged screen (quick questions + "add more detail") */}
+        <Route path="/checkin"   element={<AuthGuard><Log /></AuthGuard>} />
         <Route path="/workout"   element={<AuthGuard><Workout /></AuthGuard>} />
         <Route path="/nutrition" element={<AuthGuard><Nutrition /></AuthGuard>} />
         <Route path="/calendar"  element={<AuthGuard><Calendar /></AuthGuard>} />
