@@ -1319,8 +1319,8 @@ export default function Workout() {
               <div style={{ fontSize:10, fontWeight:600, letterSpacing:'0.12em', textTransform:'uppercase', color:'#9a9590', marginBottom:8 }}>EXERCISE DEMO</div>
               <div style={{ fontSize:15, fontWeight:600, marginBottom:12 }}>{exObj.name}</div>
             </div>
-            {/* Stick figure (gender-neutral animated demo) */}
-            <div style={{ background:'#faf8f5', margin:'0 16px 12px', borderRadius:12, padding:'8px 0', height:150 }}>
+            {/* Stick figure (gender-neutral demo, app palette) */}
+            <div style={{ background:'#faf8f5', border:'1px solid #ede8e0', margin:'0 16px 12px', borderRadius:12, padding:'14px 0', height:160 }}>
               <StickFigure type={svgType} />
             </div>
             {/* Tags */}
