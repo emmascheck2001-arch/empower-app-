@@ -737,7 +737,7 @@ export default function Workout() {
          feel === 'Felt hard' ? 'You did it even when it was hard. That is the real win.' :
          'Rest is part of training. Your body rebuilds during recovery.'}
       </div>
-      {protein && <div style={{ background:'#f5f0e8', borderRadius:12, padding:14, marginBottom:24, fontSize:13, color:'#3a3530', lineHeight:1.6 }}>Aim for <strong>{protein}g protein</strong> today. Eat within 45 minutes if you can. (ISSN 2023)</div>}
+      {protein && <div style={{ background:'#f5f0e8', borderRadius:12, padding:14, marginBottom:24, fontSize:13, color:'#3a3530', lineHeight:1.6 }}>Aim for <strong>{protein}g protein</strong> today, spread across your meals. A 20 to 40g serving within a couple of hours of training supports recovery, but your total protein for the day matters more than exact timing. (Aragon and Schoenfeld 2013; ISSN 2017)</div>}
       <button className="btn-primary" onClick={() => navigate('/dashboard')}>Back to dashboard</button>
     </div>
   )
@@ -944,7 +944,7 @@ export default function Workout() {
             </div>
             {protein && <div style={{ background:'#f5f0e8', borderRadius:12, padding:14, marginBottom:16 }}>
               <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590', marginBottom:6 }}>POST-WORKOUT</div>
-              <div style={{ fontSize:13, color:'#3a3530', lineHeight:1.6 }}>Aim for <strong>{protein}g protein</strong> today. Eat within 45 minutes of finishing. (ISSN 2023)</div>
+              <div style={{ fontSize:13, color:'#3a3530', lineHeight:1.6 }}>Aim for <strong>{protein}g protein</strong> today, spread across your meals. A 20 to 40g serving within a couple of hours of training supports recovery, but your total protein for the day matters more than exact timing. (Aragon and Schoenfeld 2013; ISSN 2017)</div>
             </div>}
             <button className="btn-primary" onClick={() => { setPlayerIdx(0); setPhaseOpen(false); setScreen('player') }}>Start workout</button>
             <button onClick={() => setScreen('feel')} style={{ display:'block', width:'100%', marginTop:10, background:'none', border:'none', fontSize:13, color:'#9a9590', cursor:'pointer', textDecoration:'underline', fontFamily:'inherit' }}>Already done — just log it</button>

@@ -4,6 +4,16 @@ Changes made autonomously from user feedback. Most recent first.
 
 ---
 
+## 2026-06-10 — Feedback fix: post-workout "eat 85g protein in 45 minutes" was wrong
+
+**User said:** "At the end of my workout it said eat 85g of protein within 45 minutes if you can it's 8:02pm and 85g of protein seems like a lot in that period of time can you fact check this"
+
+**What was done:** The user was right. The workout complete and cooldown screens showed the user's full *daily* protein target (e.g. 85g) with the instruction to eat it "within 45 minutes" — conflating a whole day's protein with a single post-workout serving, and attaching the discredited 45-minute "anabolic window". Both screens now say to spread the daily total across meals, recommend a realistic 20 to 40g serving within a couple of hours of training, and state that total daily protein matters more than exact timing. Citation updated to Aragon and Schoenfeld 2013 (nutrient-timing window) and the ISSN nutrient-timing position stand.
+
+**Files changed:** empower-react/src/pages/Workout.jsx
+
+---
+
 ## 2026-06-10 — App-wide bug sweep (Workout, Checkin, Log, hormoneSync)
 
 **Found via:** requested "check for bugs everywhere" — audited every page, lib, and component not already reviewed this session.
