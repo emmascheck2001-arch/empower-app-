@@ -17,6 +17,18 @@ import Learn    from './pages/Learn'
 import Sleep    from './pages/Sleep'
 import Friends  from './pages/Friends'
 
+// Lightweight "active today" tracking. Stamps profiles.last_active_at at most once
+// per 30 minutes per app session, fire-and-forget so it never blocks rendering or
+// errors visibly. Lets us measure real daily active users (returning sessions don't
+// refresh auth.last_sign_in_at, so that alone undercounts activity).
+let lastActiveStamp = 0
+function stampActive(uid) {
+  const now = Date.now()
+  if (now - lastActiveStamp < 30 * 60 * 1000) return
+  lastActiveStamp = now
+  supabase.from('profiles').update({ last_active_at: new Date().toISOString() }).eq('id', uid).then(() => {}, () => {})
+}
+
 function PrivacyGate({ userId, onAgreed }) {
   const [checked, setChecked] = useState(false)
 
@@ -83,6 +95,7 @@ function AuthGuard({ children, requireOnboarded = true }) {
     // re-prompt them — and don't rely on localStorage for this, since some browsers
     // clear it between sessions (which made the privacy gate reappear every login).
     const { data: prof } = await supabase.from('profiles').select('onboarding_complete').eq('id', uid).maybeSingle()
+    if (prof) stampActive(uid)
     const onboarded = !!prof?.onboarding_complete
     if (onboarded) {
       localStorage.setItem(`ep_privacy_${uid}`, '1')
