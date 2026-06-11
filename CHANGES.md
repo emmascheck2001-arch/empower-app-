@@ -4,6 +4,16 @@ Changes made autonomously from user feedback. Most recent first.
 
 ---
 
+## 2026-06-11 — Menopause content: added vaginal/sexual health article, tightened three claims
+
+**Found via:** review of menopause coverage and science quality.
+
+**What was done:** Filled the biggest gap in the menopause content — a new Learn article, "Vaginal and sexual health," covering genitourinary syndrome of menopause (dryness, painful sex, urinary changes), its treatments (moisturisers/lubricants, low-dose local vaginal estrogen, pelvic floor physio, DHEA/ospemifene), and libido/testosterone — all sourced (Portman & Gass 2014; NAMS GSM Position Statement 2020; Davis et al. Global Consensus on Testosterone Therapy for Women 2019). Also tightened three claims that were stronger than the evidence cleanly supports: perimenopausal depression risk softened from "two to five times" to "two to four times" and from "responds better than antidepressants" to "can respond well… sometimes when antidepressants alone have not been enough"; and the HRT benefits line now leads with the best-established benefits (symptoms, bone), frames cardiovascular as lower risk than feared rather than a treatment benefit, and notes cognition is still being researched.
+
+**Files changed:** empower-react/src/pages/Learn.jsx
+
+---
+
 ## 2026-06-11 — Merged check-in: night-sweats selector broke Save for perimenopause users
 
 **Found via:** QA pass on the new merged check-in/log screen.

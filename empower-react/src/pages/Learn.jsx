@@ -65,6 +65,7 @@ const PERI_SECTIONS = [
   { id:'peri_mood',      icon:'ti ti-heart',           iconBg:'#f8e8e8', iconColor:'#8a2a2a', title:'Mood and mental health',           desc:'Hormonal depression is real, not weakness. What the research says and when to seek help' },
   { id:'peri_exercise',  icon:'ti ti-barbell',         iconBg:'#f8e8e8', iconColor:'#8a2a2a', title:'Exercise in perimenopause',        desc:'Why the training priority order changes, and what the research supports' },
   { id:'peri_nutrition', icon:'ti ti-salad',           iconBg:'#e8f8e8', iconColor:'#2a6a2a', title:'Nutrition priorities',             desc:'Protein, calcium, vitamin D, phytoestrogens, and what to reduce' },
+  { id:'peri_gsm',       icon:'ti ti-heart',           iconBg:'#f8e8f0', iconColor:'#9a2a6a', title:'Vaginal and sexual health',        desc:'Dryness, painful sex, urinary changes, and libido — common, treatable, and rarely discussed' },
   { id:'peri_hrt',       icon:'ti ti-pill',            iconBg:'#f5f0e8', iconColor:'#8a6a4a', title:'HRT explained',                   desc:'What the 2002 study actually showed, what it did not show, and where the evidence stands now' },
   { id:'peri_doctor',    icon:'ti ti-stethoscope',     iconBg:'#f8f8e8', iconColor:'#6a6a1a', title:'Finding a doctor who listens',     desc:'What to ask, what to bring, and what you are entitled to expect' },
 ]
@@ -286,7 +287,7 @@ const ARTICLES = {
     content: [
       { h: 'This is hormonal, not personal' },
       { p: 'The hormonal transition into and through menopause is associated with significantly increased risk of depression and mood disorders, particularly in women with no prior history of depression. This is not a psychological weakness or a reaction to getting older. It is a direct effect of hormonal fluctuations on neurotransmitter systems. Estrogen regulates serotonin, dopamine, and norepinephrine production and receptor sensitivity. When estrogen becomes erratic, so does mood.' },
-      { box: 'Women with no prior history of depression have two to five times the risk of a depressive episode during perimenopause. This peaks in the late transition, when hormone fluctuations are most extreme. Perimenopausal depression often responds better to hormone therapy than to antidepressants. (Freeman EW et al. Archives of General Psychiatry 2004 and 2006; Bromberger JT et al. Depression and Anxiety 2018)' },
+      { box: 'Women with no prior history of depression have roughly two to four times the risk of a depressive episode during perimenopause. This peaks in the late transition, when hormone fluctuations are most extreme. Perimenopausal depression can respond well to hormone therapy, sometimes when antidepressants alone have not been enough. (Freeman EW et al. Archives of General Psychiatry 2004 and 2006; Bromberger JT et al. Depression and Anxiety 2018)' },
       { h: 'What helps' },
       { ul: ['Consistent resistance training and aerobic exercise. Both have strong independent evidence for mood improvement.', 'Sleep protection. Sleep disruption worsens every mood symptom significantly.', 'Hormone therapy. Has good evidence specifically for perimenopausal depression, particularly when mood symptoms coincide with other physical symptoms.'] },
       { p: 'If you are experiencing depression or very low mood during this transition, please speak to a doctor who understands hormonal mental health. What you are experiencing has a physiological cause and is treatable.' },
@@ -325,6 +326,27 @@ const ARTICLES = {
       { cite: 'Sources: ISSN 2023 protein position stand; Kohrt 2004 MSSE; Messina M et al. Nutrients 2021; Mozaffarian D et al. JAMA 2006.' },
     ]
   },
+  peri_gsm: {
+    title: 'Vaginal and sexual health',
+    content: [
+      { h: 'The symptom no one warns you about' },
+      { p: 'Vaginal dryness, burning, irritation, discomfort or pain during sex, and urinary changes such as urgency, frequency, or more frequent urinary tract infections are some of the most common effects of menopause. Together these are called genitourinary syndrome of menopause. Unlike hot flashes, which often ease over time, these symptoms tend to be progressive and usually get worse without treatment, not better.' },
+      { box: 'Genitourinary syndrome of menopause affects an estimated 50 to 70% of women in and after the menopause transition, yet only a minority ever raise it with a doctor. As estrogen declines, the tissues of the vulva, vagina, and urethra become thinner, less elastic, and less lubricated, and vaginal pH rises — which also raises the risk of irritation and urinary tract infections. (Portman DJ, Gass MLS. Menopause 2014; NAMS GSM Position Statement 2020)' },
+      { h: 'It is treatable, and you do not have to accept it' },
+      { p: 'Too many women are told that dryness and painful sex are just part of getting older. They are common, but they are not something you have to live with. There are effective options, from non-hormonal to prescription.' },
+      { ul: [
+        'Vaginal moisturisers used regularly — not only around sex — rehydrate the tissue over time. Lubricants reduce friction during sex. Both are non-hormonal and available without a prescription.',
+        'Local vaginal estrogen (a low-dose cream, tablet, or ring) restores the tissue directly. Very little is absorbed into the bloodstream, so it is considered safe for most women, including many who cannot or choose not to take systemic HRT. (NAMS GSM Position Statement 2020)',
+        'Pelvic floor physiotherapy can help with urinary urgency and discomfort.',
+        'Newer prescription options, including intravaginal DHEA and the oral medication ospemifene, are worth asking your doctor about if simpler measures are not enough.',
+      ] },
+      { h: 'Desire and libido' },
+      { p: 'A change in sex drive around menopause is common and rarely has a single cause. Declining estrogen and testosterone, disrupted sleep, mood changes, and the discomfort of the symptoms above all feed into it. Treating pain and protecting sleep often restores desire on their own, before anything else is needed.' },
+      { box: 'For some postmenopausal women with low sexual desire that genuinely distresses them, testosterone therapy has evidence of benefit. It is not a routine treatment and is prescribed off-label in many countries, but it is a legitimate option to discuss with a knowledgeable doctor. (Davis SR et al. Global Consensus Position Statement on the Use of Testosterone Therapy for Women, 2019)' },
+      { p: 'You are entitled to a comfortable, satisfying sex life at every age. If discomfort or loss of desire is affecting you, it is a medical issue worth raising — not something to endure quietly.' },
+      { cite: 'Sources: Portman DJ, Gass MLS. Menopause 2014 (GSM consensus terminology); The 2020 Genitourinary Syndrome of Menopause Position Statement of The North American Menopause Society. Menopause 2020; Davis SR et al. Global Consensus Position Statement on the Use of Testosterone Therapy for Women. 2019.' },
+    ]
+  },
   peri_hrt: {
     title: 'HRT explained',
     content: [
@@ -333,7 +355,7 @@ const ARTICLES = {
       { p: 'The problem: the conclusions were significantly misapplied. The study used older hormone formulations, recruited women who were on average 63 years old and already more than 10 years past menopause, and published results that did not separate the findings by age group or timing of initiation.' },
       { box: 'When the Women\'s Health Initiative data was later reanalyzed separating women by age and timing of initiation, a different picture emerged. Women who started HRT within 10 years of menopause or before age 60 showed reduced risk of cardiovascular disease, not increased risk. (Manson JE et al. New England Journal of Medicine 2013)' },
       { h: 'Where the evidence stands now' },
-      { p: 'Current evidence supports HRT as appropriate for most healthy women in perimenopause or early menopause. For women who start within the recommended window, benefits include reduced risk of osteoporosis, improved cardiovascular outcomes, improved cognitive function, and significantly reduced perimenopausal symptoms.' },
+      { p: 'Current evidence supports HRT as appropriate for most healthy women in perimenopause or early menopause. For women who start within the recommended window, the best-established benefits are significantly reduced perimenopausal symptoms and reduced risk of osteoporosis. The same data also point to a lower cardiovascular risk than the 2002 headlines suggested, rather than the harm once feared. Effects on long-term cognition are still being researched.' },
       { h: 'This is your decision to make with your doctor' },
       { p: 'HRT is not appropriate for every woman and there are individual risk factors that require assessment. But it is also not the dangerous treatment that decades of misreported science led many women and doctors to believe. If you are suffering significantly from perimenopausal symptoms, you are entitled to a proper evidence-based conversation about your options.' },
       { cite: 'Sources: Manson JE et al. NEJM 2013; British Menopause Society guidelines 2023; International Menopause Society position statement 2016.' },
