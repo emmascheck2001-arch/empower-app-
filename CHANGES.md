@@ -4,6 +4,17 @@ Changes made autonomously from user feedback. Most recent first.
 
 ---
 
+## 2026-06-11 — Workout: phase-content fallback + filled-in cardio phase keys
+
+**Found via:** following up the workout audit — cardio dictionaries were missing per-phase keys for some strokes.
+
+**What was done:** Two parts.
+1. *Systemic fix.* getTodayStatus returns sub-phases like "Early follicular", but the workout dictionaries are keyed "Follicular" — so early-follicular users were silently getting generic observation content across the WHOLE workout tab (cardio, warmups, HIIT, banner, yoga, pilates), not just cardio. Added a `pc()` lookup helper that uses the exact sub-phase if present, otherwise falls back to the base phase (Follicular/Luteal) before observation, and routed every dictionary lookup through it. No real cycle phase drops to observation anymore.
+2. *Cardio specifics (as requested).* Filled in the missing per-phase cardio entries so each stroke has tailored guidance: run gained Late follicular and Early luteal; cycle gained Late follicular, Early luteal, Late luteal; swim gained Late follicular, Early luteal, Mid luteal, Late luteal, and Perimenopause (e.g. swim mid-luteal now notes the cool water offsets the elevated core temperature; swim perimenopause notes to pair with resistance for bone since swimming is not weight-bearing). Also softened two lingering overstated citations in the swim Follicular note.
+
+Verified by simulating the lookup for every phase × stroke: all resolve to specific or correct base-phase content, none to observation.
+
+**Files changed:** empower-react/src/pages/Workout.jsx
 ## 2026-06-11 — Full workout-tab science audit: safety fixes + citation corrections
 
 **Found via:** requested full audit of the Workout tab (durations, weights, workouts, warmups, instructions, demos) against women's cycle-phase science, cross-referenced to peer-reviewed sources. Ran three parallel audits, then verified and fixed.

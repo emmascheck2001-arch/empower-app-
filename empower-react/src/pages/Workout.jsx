@@ -43,7 +43,9 @@ const CARDIO_GUIDES = {
   run: {
     Menstrual:      { duration:'15 to 25 min', pace:'Easy jog only', note:'If you run today, keep heart rate below 140 bpm. Walking intervals are completely fine and smart.', science:'High-intensity running during menstruation elevates cortisol and may worsen cramping. (Hackney 2006)' },
     Follicular:     { duration:'30 to 45 min', pace:'Comfortable to brisk', note:'Great time to build your base. Introduce longer efforts. Your recovery is faster than any other phase.', science:'Follicular phase muscle protein synthesis responds best to training load. (Kissow 2022)' },
+    'Late follicular':{ duration:'35 to 50 min', pace:'Tempo or threshold', note:'Strong window for threshold work and longer efforts — your recovery is high right now.', science:'Recovery is strong in the late follicular phase; aerobic capacity varies little across the cycle, so train to feel. (Janse de Jonge 2003)' },
     Ovulatory:      { duration:'30 to 60 min', pace:'Tempo or intervals', note:'A strong window for speed. Try 800m repeats or a tempo run if you feel good.', science:'Strength tends to be highest in the follicular-to-ovulatory window — push if you feel good. Individual variation is large. (Sarwar et al. 1996; Colenso-Semple et al. 2023)' },
+    'Early luteal': { duration:'25 to 35 min', pace:'Steady, comfortable', note:'Progesterone is rising. Steady continuous running suits this phase — save hard intervals for earlier in the cycle.', science:'Core temperature begins rising in early luteal. (Charkoudian and Stachenfeld 2014)' },
     'Mid luteal':   { duration:'20 to 30 min', pace:'Easy conversational', note:'Your body temperature is elevated. Drop pace by 10 to 15%. Do not chase your follicular splits.', science:'Core temperature elevated 0.3 to 0.5 degrees in luteal — pace should reflect this. (Charkoudian 2014)' },
     'Late luteal':  { duration:'20 min', pace:'Easy jog', note:'Finishing the run is the goal today. Pace is irrelevant. You are maintaining, not building.', science:'Progesterone-cortisol competition means hard running creates a larger stress response. (Hackney 2006)' },
     Luteal:         { duration:'25 to 35 min', pace:'Easy to moderate', note:'Run to feel, not to pace. Hydrate more than usual — progesterone delays sweating onset.', science:'Fluid regulation is altered in the luteal phase. Hydration needs increase. (Charkoudian 2014)' },
@@ -53,17 +55,25 @@ const CARDIO_GUIDES = {
   cycle: {
     Menstrual:      { duration:'20 to 30 min', pace:'Zone 2, easy spin', note:'Low resistance, easy cadence. Cycling is ideal during menstruation — low impact and joint-friendly.', science:'Low-impact cycling does not aggravate cramping the way high-impact work can, and movement eases period pain. (Daley et al. 2015)' },
     Follicular:     { duration:'30 to 50 min', pace:'Zone 2 to 3', note:'Build your aerobic base. Increase resistance or include short climbs. Your recovery is excellent right now.', science:'Women rely more on fat oxidation, supporting aerobic base-building. (Hamadeh et al. 2005)' },
+    'Late follicular':{ duration:'30 to 55 min', pace:'Zone 3, intervals', note:'Great window for harder intervals or a longer climb — your recovery between efforts is strong.', science:'Recovery is strong in the late follicular phase; train to feel, capacity varies little across the cycle. (Janse de Jonge 2003)' },
     Ovulatory:      { duration:'30 to 60 min', pace:'Zone 3 to 4 intervals', note:'A strong window for hard efforts. Try 3 min hard, 2 min easy intervals.', science:'Strength tends to be highest in the follicular-to-ovulatory window — push if you feel good. Individual variation is large. (Sarwar et al. 1996; Colenso-Semple et al. 2023)' },
+    'Early luteal': { duration:'25 to 40 min', pace:'Zone 2 to 3', note:'Still good energy. Steady endurance riding suits early luteal as core temperature starts to rise.', science:'Progesterone begins raising core temperature in early luteal. (Charkoudian and Stachenfeld 2014)' },
     'Mid luteal':   { duration:'25 to 35 min', pace:'Zone 2', note:'Keep resistance lower than usual. Your body is working harder than it looks — elevated temperature and RHR are real.', science:'Resting HR elevated 1.7 bpm in mid-luteal. Same output costs more physiologically. (De Martin Topranin 2023)' },
+    'Late luteal':  { duration:'20 to 30 min', pace:'Easy zone 2', note:'Keep it easy and low-pressure. Cycling is a gentle way to keep moving in the days before your period.', science:'Hormones drop in the late luteal phase and hard efforts carry a larger stress response. (Hackney 2006)' },
     Luteal:         { duration:'20 to 30 min', pace:'Easy zone 2', note:'Stay comfortable. Hydrate well — luteal phase alters fluid regulation. Low-pressure session today.', science:'Progesterone raises core temperature and ventilatory threshold drops. (Charkoudian 2014)' },
     Perimenopause:  { duration:'30 to 45 min', pace:'Comfortable pace', note:'Cycling is joint-friendly and weight-bearing enough to support bone. Excellent choice this phase.', science:'Low-impact aerobic exercise protects joints while supporting cardiovascular health in perimenopause. (Kohrt 2004)' },
     observation:    { duration:'25 to 40 min', pace:'Comfortable', note:'Ride to feel. Log any notes — this helps the algorithm understand your baseline capacity.', science:'Consistent moderate training supports hormonal health regardless of cycle tracking status. (Sims. ROAR 2024)' },
   },
   swim: {
     Menstrual:      { duration:'20 to 30 min', pace:'Easy laps', note:'Cool water may reduce prostaglandin activity and ease cramps. Excellent choice during menstruation.', science:'Aquatic exercise reduces menstrual pain. Cool water may modulate prostaglandin activity. (Daley 2015)' },
-    Follicular:     { duration:'30 to 45 min', pace:'Build sets', note:'Great time for intervals — 50m hard, 50m easy. Your recovery between sets will be faster this week.', science:'Follicular phase improves muscular endurance and swim economy. (Kissow 2022)' },
+    Follicular:     { duration:'30 to 45 min', pace:'Build sets', note:'Great time for intervals — 50m hard, 50m easy. Your recovery between sets will be faster this week.', science:'Recovery between sets is strong in the follicular phase; train to feel. (Kissow 2022; Janse de Jonge 2003)' },
+    'Late follicular':{ duration:'30 to 50 min', pace:'Hard sets', note:'Strong window for speed and threshold sets — your recovery between sets is excellent now.', science:'Recovery is strong in the late follicular phase; capacity varies little across the cycle, so train to feel. (Janse de Jonge 2003)' },
     Ovulatory:      { duration:'30 to 50 min', pace:'Speed sets', note:'A strong window for hard efforts. Sprint intervals in the pool — try 25m all-out with 60s rest, repeat 6 to 8 times.', science:'Strength tends to be highest in the follicular-to-ovulatory window — push if you feel good. Individual variation is large. (Sarwar et al. 1996; Colenso-Semple et al. 2023)' },
+    'Early luteal': { duration:'25 to 40 min', pace:'Steady', note:'Comfortable continuous swimming. The pool keeps you cool as core temperature starts to rise.', science:'Progesterone begins raising core temperature in early luteal; water aids cooling. (Charkoudian and Stachenfeld 2014)' },
+    'Mid luteal':   { duration:'25 to 35 min', pace:'Steady, easy', note:'One of the best phases to swim — the cool water directly offsets your elevated core temperature, so the same effort feels easier here than on land.', science:'Core temperature and RHR are measurably elevated in mid-luteal; external cooling helps. (De Martin Topranin 2023; Charkoudian and Stachenfeld 2014)' },
+    'Late luteal':  { duration:'20 to 35 min', pace:'Easy laps', note:'Gentle, cooling, low-pressure. Swimming is an ideal way to keep moving in the days before your period.', science:'Hormones drop and stress sensitivity rises in late luteal; cool-water exercise is gentle on the system. (Hackney 2006)' },
     Luteal:         { duration:'25 to 35 min', pace:'Steady easy', note:'The coolness of the pool helps offset elevated core temperature. Great recovery tool this phase.', science:'External cooling helps manage the elevated core temperature of the luteal phase. (Charkoudian 2014)' },
+    Perimenopause:  { duration:'25 to 45 min', pace:'Comfortable to brisk', note:'Excellent low-impact cardiovascular and joint-friendly option. Pair it with resistance training, which does the bone-loading swimming cannot.', science:'Swimming supports cardiovascular health with minimal joint load; weight-bearing or resistance work is needed separately for bone. (Kohrt et al. 2004)' },
     observation:    { duration:'20 to 35 min', pace:'Comfortable', note:'Swim to feel. Aquatic exercise is one of the most joint-friendly training options available.', science:'Water-based exercise reduces joint load while maintaining cardiovascular stimulus. (ACSM guidelines)' },
   },
 }
@@ -552,6 +562,21 @@ const PHASE_BANNER = {
   observation:    { bg:'#2c2820', text:'#f5f0e8', note:'Building your personal baseline. Log how every session feels. Individual variation is large and your data is more useful than population averages. (Janse de Jonge 2003)' },
 }
 
+// Phase content lookup: use the exact sub-phase if the dictionary has it, otherwise
+// fall back to the base phase (Follicular/Luteal) before observation. This stops real
+// cycle phases the dictionaries don't key directly — chiefly 'Early follicular', and
+// any luteal sub-phase a given dictionary omits — from silently dropping to generic
+// observation content.
+function pc(dict, ph) {
+  if (!dict) return null
+  if (ph && dict[ph]) return dict[ph]
+  const base = ph && ph.includes('follicular') ? 'Follicular'
+    : ph && ph.includes('luteal') ? 'Luteal'
+    : null
+  if (base && dict[base]) return dict[base]
+  return dict.observation
+}
+
 function localDateStr() {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
@@ -613,7 +638,7 @@ export default function Workout() {
   useEffect(() => {
     if (!hiitRunning) return
     if (hiitSecondsLeft <= 0) {
-      const data = HIIT_ROUNDS[phase] || HIIT_ROUNDS.observation
+      const data = pc(HIIT_ROUNDS, phase)
       if (hiitPhase === 'work') {
         setHiitPhase('rest')
         setHiitSecondsLeft(data.rest)
@@ -728,7 +753,7 @@ export default function Workout() {
   if (loading) return <div style={{ paddingTop:60 }}><Spinner /></div>
 
   const intensity = status?.intensityModifier ?? 1.0
-  const banner = PHASE_BANNER[phase] || PHASE_BANNER.observation
+  const banner = pc(PHASE_BANNER, phase)
   const isAcl = phase === 'Ovulatory' && (activity === 'gym' || activity === 'hiit')
   const isHiitWarn = (phase === 'Mid luteal' || phase === 'Late luteal') && activity === 'hiit'
   const workoutReadiness = status?.workoutReadiness || null
@@ -858,7 +883,7 @@ export default function Workout() {
 
   // GYM WARMUP SCREEN
   if (screen === 'warmup') {
-    const moves = WARMUP_MOVES[phase] || WARMUP_MOVES.observation
+    const moves = pc(WARMUP_MOVES, phase)
     const totalDone = moves.filter((_, i) => checkedMoves[i]).length
     return (
       <div style={{ paddingBottom:100 }}>
@@ -969,10 +994,10 @@ export default function Workout() {
             <button onClick={() => setScreen('feel')} style={{ display:'block', width:'100%', marginTop:10, background:'none', border:'none', fontSize:13, color:'#9a9590', cursor:'pointer', textDecoration:'underline', fontFamily:'inherit' }}>Already done — just log it</button>
           </> : (() => {
             const cardioKey = ['walk','run','cycle','swim'].includes(activity) ? activity : null
-            const cardioGuide = cardioKey ? (CARDIO_GUIDES[cardioKey]?.[phase] || CARDIO_GUIDES[cardioKey]?.observation || null) : null
-            const hiitData = activity === 'hiit' ? (HIIT_ROUNDS[phase] || HIIT_ROUNDS.observation) : null
-            const yogaSeq = activity === 'yoga' ? (YOGA_SEQUENCES[phase] || YOGA_SEQUENCES.observation) : null
-            const pilatesSeq = activity === 'pilates' ? (PILATES_SEQUENCES[phase] || PILATES_SEQUENCES.observation) : null
+            const cardioGuide = cardioKey ? pc(CARDIO_GUIDES[cardioKey], phase) : null
+            const hiitData = activity === 'hiit' ? (pc(HIIT_ROUNDS, phase)) : null
+            const yogaSeq = activity === 'yoga' ? pc(YOGA_SEQUENCES, phase) : null
+            const pilatesSeq = activity === 'pilates' ? pc(PILATES_SEQUENCES, phase) : null
 
             if (activity === 'rest') return (
               <>
@@ -1063,7 +1088,7 @@ export default function Workout() {
                 </div>
 
                 <button className="btn-primary" onClick={() => {
-                  const data = HIIT_ROUNDS[phase] || HIIT_ROUNDS.observation
+                  const data = pc(HIIT_ROUNDS, phase)
                   setHiitRound(1); setHiitExIdx(0); setHiitPhase('work')
                   setHiitSecondsLeft(data.work); setHiitRunning(true)
                   setScreen('hiitTimer')
@@ -1320,7 +1345,7 @@ export default function Workout() {
   // CARDIO TIMER
   if (screen === 'cardioTimer') {
     const cardioKey = ['walk','run','cycle','swim'].includes(activity) ? activity : null
-    const cardioGuide = cardioKey ? (CARDIO_GUIDES[cardioKey]?.[phase] || CARDIO_GUIDES[cardioKey]?.observation || null) : null
+    const cardioGuide = cardioKey ? pc(CARDIO_GUIDES[cardioKey], phase) : null
     const mm = String(Math.floor(cardioSeconds / 60)).padStart(2, '0')
     const ss = String(cardioSeconds % 60).padStart(2, '0')
     const label = ACTIVITIES.find(a => a.id === activity)?.label || activity
@@ -1366,7 +1391,7 @@ export default function Workout() {
 
   // HIIT TIMER
   if (screen === 'hiitTimer') {
-    const data = HIIT_ROUNDS[phase] || HIIT_ROUNDS.observation
+    const data = pc(HIIT_ROUNDS, phase)
     const isWork = hiitPhase === 'work'
     const currentExercise = data.exercises[hiitExIdx]
     const totalIntervals = data.rounds * data.exercises.length
