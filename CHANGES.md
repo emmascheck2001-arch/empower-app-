@@ -4,6 +4,16 @@ Changes made autonomously from user feedback. Most recent first.
 
 ---
 
+## 2026-06-12 — Feedback fix: observation mode stuck at 5% confidence forever
+
+**User said:** "I been stuck in observation mode for the past week and my algorithm says it's only at 5%"
+
+**What was done:** For users with no cycle data (e.g. Depo recovery / observation mode), confidence was hardcoded to 5% and never moved, even after a week of daily logging — so the app looked broken ("learning your baseline" with no progress). The no-cycle-data branch in `buildCycleStatus` and the dashboard's observation case both ignored the lifetime log count that already drives confidence growth for everyone else. Both now grow confidence by ~3% per logged day, capped at 45% (kept modest on purpose, since there is no confirmed cycle to anchor to — it reflects "learning your baseline", not certainty). Verified the reporting account now shows 29% after 8 logs instead of 5%. Phase correctly stays "observation".
+
+**Files changed:** empower-react/src/lib/hormoneSync.js, empower-react/src/pages/Dashboard.jsx
+
+---
+
 ## 2026-06-11 — Gym: embedded exercise demo photos (replacing the watch-demo link)
 
 **Found via:** user preferred embedded images in the card over a link.

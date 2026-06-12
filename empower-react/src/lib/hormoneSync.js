@@ -578,6 +578,10 @@ function buildCycleStatus(profile, cycleData, recentLogs, mucusLogs, today, tota
     // same confidence as a calculated one.) The inference is still returned below so
     // screens can surface it as a clearly-labelled soft hint.
     symptomInference = inferPhaseFromSymptoms(recentLogs, mucusLogs)
+    // Grow confidence as a logging history builds so observation mode does not sit at
+    // 5% forever. It stays modest (capped) because there is no confirmed cycle to
+    // anchor to — this reflects "learning your baseline", not certainty about a phase.
+    confidence = Math.min(0.45, 0.05 + totalLogs * 0.03)
   }
 
   const intensityModifier = getIntensityModifier(phase, subPhase)

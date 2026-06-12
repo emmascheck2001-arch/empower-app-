@@ -305,6 +305,11 @@ export default function Dashboard() {
           // base only if the shared status failed to load.
           confidence = status?.confidence ?? 0.45
         }
+      } else {
+        // Observation mode (no cycle data, e.g. Depo recovery): use the canonical
+        // confidence from getTodayStatus, which now grows as the logging history
+        // builds instead of sitting at 5% forever.
+        confidence = status?.confidence ?? 0.05
       }
 
       const today = localDateStr()
