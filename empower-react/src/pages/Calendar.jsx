@@ -140,7 +140,7 @@ export default function Calendar() {
   const lastPeriod = status?.lastPeriodDate
   // Use cycleLen from getTodayStatus (sourced from cycle_data) — more accurate than profile table
   const cycleLen = status?.cycleLen || profile?.cycle_length || 28
-  const hasPhaseData = !!lastPeriod && !isPath4 && !isHormonalBC
+  const hasPhaseData = !!lastPeriod && !isPath4
 
   const year = month.getFullYear()
   const mon = month.getMonth()
@@ -210,9 +210,9 @@ export default function Calendar() {
         <div style={{ width:28 }} />
       </div>
 
-      {isHormonalBC && (
+      {isHormonalBC && hasPhaseData && (
         <div style={{ margin:'12px 16px 0', padding:'12px 14px', background:'#f0f0f8', border:'1px solid #d8d8ec', borderRadius:12, fontSize:13, color:'#3a3550', lineHeight:1.55 }}>
-          <strong>Your natural cycle is paused.</strong> Hormonal birth control suppresses ovulation, so there are no cycle phases to show. This calendar tracks your logged energy, mood, and sleep instead.
+          <strong>These phases are an estimate.</strong> Hormonal birth control can flatten your natural hormone swings, so your true cycle may differ. We base these on the period and bleed dates you log.
         </div>
       )}
 
@@ -404,7 +404,7 @@ export default function Calendar() {
                       <div style={{ fontSize:12, color:'#9a9590', marginBottom:12 }}>
                         {daysAway === 0 ? 'Today' : daysAway === 1 ? 'In 1 day' : `In ${daysAway} days`}
                         {sub ? `, ${sub} phase` : ''}
-                        {hasPhaseData ? '' : isHormonalBC ? '' : '. Log your period date to see phase predictions'}
+                        {hasPhaseData ? '' : '. Log your period date to see phase predictions'}
                       </div>
                     )}
 

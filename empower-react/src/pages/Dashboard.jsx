@@ -269,7 +269,7 @@ export default function Dashboard() {
 
       if (isPath4) {
         phase = 'Perimenopause'; confidence = 0.5
-      } else if (isHormonalBC && status) {
+      } else if (isHormonalBC && status && !cycleData?.last_period_date) {
         // On hormonal birth control the natural cycle is suppressed and ovulation is
         // usually paused — so we never label Follicular/Ovulatory/Luteal phases.
         // BUT these users still get a withdrawal bleed and period-like symptoms, so
@@ -352,7 +352,10 @@ export default function Dashboard() {
         }
       }
 
-      setD({ profile, phase, subPhase, cycleDay, cycleLen, daysLeft, confidence, bw, bcProteinG, bcBleedDay, bcInBleedWindow, alreadyLogged, streak, recentLogs, twoWeekLogs, anomalyItems, alloLoad, isPath4, userEmail: user.email, todayLoggers: todayLoggers || 0 })
+      // Hormonal BC users who track a bleed date now get cycle phases too, flagged as an
+      // estimate (hormonal contraception can flatten the natural hormone swings).
+      const bcEstimate = isHormonalBC && !!cycleData?.last_period_date
+      setD({ profile, phase, subPhase, cycleDay, cycleLen, daysLeft, confidence, bw, bcProteinG, bcBleedDay, bcInBleedWindow, alreadyLogged, streak, recentLogs, twoWeekLogs, anomalyItems, alloLoad, isPath4, bcEstimate, userEmail: user.email, todayLoggers: todayLoggers || 0 })
       loadFriends(user.id)
     } catch(e) { console.error(e) }
     finally { setLoading(false) }
@@ -361,7 +364,7 @@ export default function Dashboard() {
   if (loading) return <><div style={{ paddingTop: 60 }}><Spinner /></div><BottomNav /></>
   if (!d) return null
 
-  const { phase, subPhase, cycleDay, cycleLen, daysLeft, confidence, bw, bcProteinG, bcBleedDay, bcInBleedWindow, alreadyLogged, recentLogs, anomalyItems, alloLoad, isPath4 } = d
+  const { phase, subPhase, cycleDay, cycleLen, daysLeft, confidence, bw, bcProteinG, bcBleedDay, bcInBleedWindow, alreadyLogged, recentLogs, anomalyItems, alloLoad, isPath4, bcEstimate } = d
   const phaseLabel = phase === 'observation' ? 'Observation mode'
     : phase === 'Perimenopause' ? 'Perimenopause'
     : phase === 'bc' ? (subPhase || 'Hormonal birth control')
@@ -400,6 +403,11 @@ export default function Dashboard() {
           <div style={{ fontSize:13, color:'rgba(232,224,212,0.8)', lineHeight:1.7, marginBottom:16 }}>
             {getPersonalisedPhaseDesc(phase, subPhase, recentLogs)}
           </div>
+          {bcEstimate && (
+            <div style={{ fontSize:12, color:'rgba(232,224,212,0.6)', lineHeight:1.55, marginBottom:16, fontStyle:'italic' }}>
+              Estimated from your logged bleed dates. Hormonal birth control can flatten your natural hormone swings, so your true cycle may differ.
+            </div>
+          )}
           <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:16 }}>
             <div style={{ width:8, height:8, borderRadius:'50%', background: confidence > 0.55 ? '#88c088' : confidence > 0.30 ? '#e0c070' : '#c88878' }} />
             <span style={{ fontSize:12, color:'rgba(232,224,212,0.7)' }}>{confLabel(confidence)} — {confPct}%</span>

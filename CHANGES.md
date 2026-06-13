@@ -4,6 +4,14 @@ Changes made autonomously from user feedback. Most recent first.
 
 ---
 
+## 2026-06-13 — Birth control: show cycle phases (as an estimate), not "cycle paused"
+
+**Decided by:** Emma — chose "phases for all BC, with a note." This refines the earlier same-day change (which hid phases for hormonal BC). Rationale she raised: many hormonal-BC users still cycle and bleed — true especially for the hormonal IUD (ovulation usually continues) and many mini-pill users; combined pill/patch/ring suppress ovulation and the monthly bleed is a withdrawal bleed, so for those the phases are an estimate.
+
+**What was done:** Hormonal-BC users (path 5, excluding copper IUD) who track a period/bleed date now flow through the normal cycle-phase logic — so phases appear on the dashboard, calendar, workout, and nutrition like any other user. Added a `bcEstimate` flag (set in `hormoneSync.js` `buildCycleStatus` and recomputed in `Dashboard.jsx`) that is true whenever a hormonal-BC user is being shown a phase. Both the dashboard hero and the calendar render an honest caveat when it is set: "Hormonal birth control can flatten your natural hormone swings, so your true cycle may differ." Users with no bleed date logged still fall back to the BC baseline state (`buildPath5Status`) and now correctly see the "log your period date to see phase predictions" prompt (which, once logged, gives them phases). Replaced the "your natural cycle is paused" calendar banner with the estimate caveat.
+
+**Files changed:** empower-react/src/lib/hormoneSync.js, empower-react/src/pages/Calendar.jsx, empower-react/src/pages/Dashboard.jsx
+
 ## 2026-06-13 — Calendar: complete mood colours + birth-control awareness
 
 **Reported by:** Emma — "make sure the calendar is working with all colors and mood; make sure if you're on hormonal birth control you're still getting what phase you're in."

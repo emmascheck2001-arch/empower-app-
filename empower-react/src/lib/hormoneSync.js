@@ -586,6 +586,10 @@ function buildCycleStatus(profile, cycleData, recentLogs, mucusLogs, today, tota
 
   const intensityModifier = getIntensityModifier(phase, subPhase)
   const bodyWeight = profile?.body_weight_kg || 65
+  // Hormonal BC users who track a bleed date get cycle phases too, but flagged as an
+  // estimate — hormonal contraception can flatten the natural hormone swings, so the
+  // true cycle may differ from what the bleed-date maths predicts.
+  const bcEstimate = profile?.user_path === '5' && profile?.bc_type !== 'copper-iud' && cycleDay != null
 
   return {
     phase,
@@ -593,6 +597,7 @@ function buildCycleStatus(profile, cycleData, recentLogs, mucusLogs, today, tota
     cycleDay,
     cycleLen,
     daysUntilPeriod,
+    bcEstimate,
     confidence,
     confidenceLabel: confidence > 0.90 ? 'Fully personalised'
       : confidence > 0.75 ? 'Your personal baseline established'
@@ -643,8 +648,11 @@ export async function getTodayStatus(supabase, userId) {
   const totalLogs = totalLogsResult.count || recentLogs.length
   const today = new Date(); today.setHours(0, 0, 0, 0)
 
-  // Path 5: on hormonal BC — skip cycle logic (unless copper IUD, which is non-hormonal)
-  if (profile?.user_path === '5' && profile?.bc_type !== 'copper-iud') {
+  // Path 5: on hormonal BC. If they track a period/bleed date we show cycle phases like
+  // everyone else (flagged as an estimate via bcEstimate, since hormonal contraception
+  // can flatten the natural hormone swings). With no date tracked, fall back to the BC
+  // baseline state. Copper IUD is non-hormonal and always uses the natural cycle path.
+  if (profile?.user_path === '5' && profile?.bc_type !== 'copper-iud' && !cycleData?.last_period_date) {
     return buildPath5Status(profile, recentLogs, totalLogs)
   }
 
