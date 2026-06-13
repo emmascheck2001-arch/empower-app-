@@ -4,6 +4,16 @@ Changes made autonomously from user feedback. Most recent first.
 
 ---
 
+## 2026-06-12 — Bug fix: broken PWA manifest (console errors + not installable)
+
+**Found via:** scheduled audit / browser console check — every page load logged "Manifest: Line 1, column 1, Syntax error" plus two 404s.
+
+**What was done:** `index.html` referenced `<link rel="manifest" href="/manifest.json">`, but `manifest.json` and the app icons were never carried into `empower-react/public/` during the React migration. The SPA `_redirects` fallback served `index.html` (HTML) for `/manifest.json`, so the browser tried to parse HTML as JSON and threw a syntax error on every load; the icons and `/favicon.ico` 404'd. Created `public/manifest.json` (start_url `/`, standalone, theme `#2c2820`), copied the four icon PNGs (192, 512, maskable-512, apple-touch) into `public/`, and added the missing `<link rel="icon">`, `<link rel="apple-touch-icon">`, and `<meta name="mobile-web-app-capable">` to `index.html`. The app is now installable as a PWA and the console is clean. Verified in a headless Chrome run: zero manifest errors, zero failed requests.
+
+**Files changed:** empower-react/index.html, empower-react/public/manifest.json (new), empower-react/public/icon-192.png, icon-512.png, icon-maskable-512.png, apple-touch-icon.png (new)
+
+---
+
 ## 2026-06-12 — Feedback fix: observation mode stuck at 5% confidence forever
 
 **User said:** "I been stuck in observation mode for the past week and my algorithm says it's only at 5%"
