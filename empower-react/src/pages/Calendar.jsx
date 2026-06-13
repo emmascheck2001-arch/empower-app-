@@ -19,10 +19,17 @@ const PC = {
 }
 
 const MOOD_COLORS = {
+  // Check-in moods
   Energised:{ bg:'#e8f5e8', text:'#1a4a1a' }, Happy:{ bg:'#fff4e0', text:'#6a3a00' },
   Calm:{ bg:'#e8f0f8', text:'#1a3a5a' }, Focused:{ bg:'#f0e8f8', text:'#3a1a5a' },
   Tired:{ bg:'#f0ece4', text:'#4a4030' }, Anxious:{ bg:'#fce8e8', text:'#6a2020' },
   Irritable:{ bg:'#fce8f0', text:'#6a2040' }, Low:{ bg:'#e8e8f0', text:'#2a2a5a' },
+  // Full-log moods (positive)
+  Energetic:{ bg:'#e8f5e8', text:'#1a4a1a' }, Motivated:{ bg:'#e8f5e8', text:'#1a4a1a' },
+  Confident:{ bg:'#fff4e0', text:'#6a3a00' }, Social:{ bg:'#e8f0f8', text:'#1a3a5a' },
+  // Full-log moods (challenging)
+  Sad:{ bg:'#e8e8f0', text:'#2a2a5a' }, 'Brain fog':{ bg:'#f0ece4', text:'#4a4030' },
+  'Low mood':{ bg:'#e8e8f0', text:'#2a2a5a' },
 }
 
 function localDateStr(d) {
@@ -127,10 +134,13 @@ export default function Calendar() {
 
   const profile = status?.profile
   const isPath4 = profile?.user_path === '4'
+  // Hormonal BC (path 5, not copper IUD) suppresses ovulation — there is no natural
+  // cycle phase, so never colour the calendar by phase even if a bleed date exists.
+  const isHormonalBC = profile?.user_path === '5' && profile?.bc_type !== 'copper-iud'
   const lastPeriod = status?.lastPeriodDate
   // Use cycleLen from getTodayStatus (sourced from cycle_data) — more accurate than profile table
   const cycleLen = status?.cycleLen || profile?.cycle_length || 28
-  const hasPhaseData = !!lastPeriod && !isPath4
+  const hasPhaseData = !!lastPeriod && !isPath4 && !isHormonalBC
 
   const year = month.getFullYear()
   const mon = month.getMonth()
@@ -194,11 +204,17 @@ export default function Calendar() {
         <div style={{ flex:1, textAlign:'center' }}>
           <div style={{ fontSize:13, fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase' }}>Em~power</div>
           <div style={{ fontSize:11, color:'#9a9590', marginTop:2 }}>
-            {status?.cycleDay ? `Day ${status.cycleDay} of ${cycleLen}` : 'Cycle calendar'}
+            {status?.cycleDay ? `Day ${status.cycleDay} of ${cycleLen}` : isHormonalBC ? (status?.subPhase || 'On birth control') : 'Cycle calendar'}
           </div>
         </div>
         <div style={{ width:28 }} />
       </div>
+
+      {isHormonalBC && (
+        <div style={{ margin:'12px 16px 0', padding:'12px 14px', background:'#f0f0f8', border:'1px solid #d8d8ec', borderRadius:12, fontSize:13, color:'#3a3550', lineHeight:1.55 }}>
+          <strong>Your natural cycle is paused.</strong> Hormonal birth control suppresses ovulation, so there are no cycle phases to show. This calendar tracks your logged energy, mood, and sleep instead.
+        </div>
+      )}
 
       <div style={{ padding:'16px 16px 0' }}>
         {/* Month nav */}
@@ -388,7 +404,7 @@ export default function Calendar() {
                       <div style={{ fontSize:12, color:'#9a9590', marginBottom:12 }}>
                         {daysAway === 0 ? 'Today' : daysAway === 1 ? 'In 1 day' : `In ${daysAway} days`}
                         {sub ? `, ${sub} phase` : ''}
-                        {hasPhaseData ? '' : '. Log your period date to see phase predictions'}
+                        {hasPhaseData ? '' : isHormonalBC ? '' : '. Log your period date to see phase predictions'}
                       </div>
                     )}
 

@@ -4,6 +4,18 @@ Changes made autonomously from user feedback. Most recent first.
 
 ---
 
+## 2026-06-13 — Calendar: complete mood colours + birth-control awareness
+
+**Reported by:** Emma — "make sure the calendar is working with all colors and mood; make sure if you're on hormonal birth control you're still getting what phase you're in."
+
+**What was found and done:**
+1. **Mood colours incomplete.** `MOOD_COLORS` in Calendar.jsx only covered the Check-in mood words (Energised, Happy, Calm, Focused, Tired, Anxious, Irritable, Low). The full Log screen saves a *different* set (Energetic, Motivated, Confident, Social, Sad, Brain fog, Low mood), none of which were mapped — so moods logged via the full log rendered as plain grey in the calendar. Added all seven missing moods with sentiment-appropriate colours. Phase colours (`PC`) were already complete for every phase.
+2. **Calendar ignored hormonal birth control.** A path-5 hormonal-BC user saw a generic grey "observation" calendar whose future-day sheet told them to "Log your period date to see phase predictions" — misleading, since hormonal BC suppresses ovulation and there is no natural cycle phase (per the app's permanent clinical rules). Added `isHormonalBC` detection (path 5, excluding copper IUD), folded it into `hasPhaseData` so the calendar never fabricates phases for these users, set the header subtitle to their method (e.g. "Combined pill"), suppressed the misleading period-date prompt, and added a short banner: "Your natural cycle is paused. Hormonal birth control suppresses ovulation, so there are no cycle phases to show. This calendar tracks your logged energy, mood, and sleep instead."
+
+**Clinical note:** Birth-control users do NOT get a faked Follicular/Ovulatory/Luteal phase (that would be medically wrong). They correctly get a BC-specific state — the dashboard already shows their method, pill-pack/withdrawal-bleed tracking, and BC nutrition via the `bc` phase. This change brings the calendar in line with that.
+
+**Files changed:** empower-react/src/pages/Calendar.jsx
+
 ## 2026-06-13 — Bug fix: setup could dead-end silently (users stuck with no profile)
 
 **Reported by:** Emma — "it doesn't like emily finish setup." Investigation found user `emilyberday@gmail.com` had a valid, confirmed auth account (signed in 2026-06-09) but **no profile row and no data anywhere** — she could log in but never completed onboarding.
