@@ -5,7 +5,8 @@ import { supabase } from '../lib/supabase'
 import { getTodayStatus, getPhase, getLutealSubPhase } from '../lib/hormoneSync'
 import BottomNav from '../components/BottomNav'
 import Spinner from '../components/Spinner'
-import { WeeklySummaryModal, WeeklySummaryCard, markWeeklySummaryDismissed, buildWeeklySummary } from '../components/WeeklySummary'
+import { WeeklySummaryModal, WeeklySummaryCard } from '../components/WeeklySummary'
+import { buildWeeklySummary, markWeeklySummaryDismissed } from '../lib/weeklySummaryUtils'
 
 const PHASE_COLORS = {
   Menstrual:      { dot:'#e09898', bg:'#f0d8d8', text:'#5a2a28' },
@@ -182,6 +183,7 @@ export default function Dashboard() {
   const [communityTab, setCommunityTab] = useState('community')
   const [friendsData, setFriendsData] = useState(null) // null = not loaded yet
 
+  // eslint-disable-next-line react-hooks/immutability, react-hooks/exhaustive-deps
   useEffect(() => { load() }, [])
 
   async function loadFriends(userId) {
@@ -202,13 +204,11 @@ export default function Dashboard() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { navigate('/login', { replace: true }); return }
 
-      const todayStr = localDateStr()
-      const [{ data: profile }, { data: cycleData }, { data: recentLogs }, { data: twoWeekLogs }, { count: todayLoggers }, { data: pendingRequests }] = await Promise.all([
+      const [{ data: profile }, { data: cycleData }, { data: recentLogs }, { data: twoWeekLogs }, { data: pendingRequests }] = await Promise.all([
         supabase.from('profiles').select('*').eq('id', user.id).single(),
         supabase.from('cycle_data').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(1).maybeSingle(),
         supabase.from('daily_logs').select('energy,resting_hr,wrist_temp,log_date,sleep_quality,disruptors').eq('user_id', user.id).order('log_date', { ascending: false }).limit(7),
         supabase.from('daily_logs').select('log_date,energy,sleep_quality,mood,workout_feel').eq('user_id', user.id).order('log_date', { ascending: false }).limit(14),
-        supabase.from('daily_logs').select('*', { count: 'exact', head: true }).eq('log_date', todayStr),
         supabase.from('friendships').select('id').eq('addressee_id', user.id).eq('status', 'pending'),
       ])
       setPendingFriends(pendingRequests?.length || 0)
@@ -225,7 +225,7 @@ export default function Dashboard() {
       // Single source of truth shared with Workout/Nutrition. Fetched once here so the
       // dashboard can never disagree with those screens about the user's phase.
       let status = null
-      try { status = await getTodayStatus(supabase, user.id) } catch { /* fallback to observation mode */ }
+      try { status = await getTodayStatus(supabase, user.id) } catch { /* non-fatal: falls back to observation mode */ }
 
       let phase = 'observation', subPhase = null, cycleDay = null, cycleLen = 28, daysLeft = null, confidence = 0.05
       let bcProteinG = null
@@ -280,15 +280,6 @@ export default function Dashboard() {
       const { data: todayLog } = await supabase.from('daily_logs').select('id').eq('user_id', user.id).eq('log_date', today).maybeSingle()
       const alreadyLogged = !!todayLog
 
-      let streak = 0
-      if (recentLogs?.length) {
-        const check = new Date(); check.setHours(0,0,0,0)
-        for (const log of recentLogs) {
-          const diff = Math.floor((check - new Date(log.log_date + 'T00:00:00')) / 86400000)
-          if (diff === streak) { streak++; check.setDate(check.getDate() - 1) } else break
-        }
-      }
-
       let anomalyItems = []
       if (status?.anomalies?.length) anomalyItems.push(...status.anomalies.map(a => ({ type: 'anomaly', text: a.text || a.message })))
       if (status?.moodInsight?.message) anomalyItems.push({ type: 'mood', text: status.moodInsight.message })
@@ -316,7 +307,7 @@ export default function Dashboard() {
         }
       }
 
-      setD({ profile, phase, subPhase, cycleDay, cycleLen, daysLeft, confidence, bw, bcProteinG, bcBleedDay, bcInBleedWindow, alreadyLogged, streak, recentLogs, twoWeekLogs, anomalyItems, alloLoad, isPath4, userEmail: user.email, todayLoggers: todayLoggers || 0 })
+      setD({ profile, phase, subPhase, cycleDay, cycleLen, daysLeft, confidence, bw, bcProteinG, bcBleedDay, bcInBleedWindow, alreadyLogged, recentLogs, anomalyItems, alloLoad, isPath4 })
       loadFriends(user.id)
     } catch(e) { console.error(e) }
     finally { setLoading(false) }
