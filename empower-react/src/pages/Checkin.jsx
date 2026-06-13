@@ -35,6 +35,7 @@ export default function Checkin() {
     mood: [], symptoms: []
   })
 
+  // eslint-disable-next-line react-hooks/immutability, react-hooks/exhaustive-deps
   useEffect(() => { init() }, [])
 
   async function init() {
@@ -43,7 +44,7 @@ export default function Checkin() {
     try {
       const s = await getTodayStatus(supabase, user.id)
       setStatus(s)
-    } catch(e) {}
+    } catch { /* non-fatal */ }
     setLoading(false)
   }
 
