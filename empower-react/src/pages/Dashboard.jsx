@@ -240,7 +240,7 @@ export default function Dashboard() {
 
       const todayStr = localDateStr()
       const [{ data: profile }, { data: cycleData }, { data: recentLogs }, { data: twoWeekLogs }, { count: todayLoggers }, { data: pendingRequests }] = await Promise.all([
-        supabase.from('profiles').select('*').eq('id', user.id).single(),
+        supabase.from('profiles').select('*').eq('id', user.id).maybeSingle(),
         supabase.from('cycle_data').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(1).maybeSingle(),
         supabase.from('daily_logs').select('energy,resting_hr,wrist_temp,log_date,sleep_quality,disruptors').eq('user_id', user.id).order('log_date', { ascending: false }).limit(7),
         supabase.from('daily_logs').select('log_date,energy,sleep_quality,mood,workout_feel').eq('user_id', user.id).order('log_date', { ascending: false }).limit(14),
@@ -249,7 +249,10 @@ export default function Dashboard() {
       ])
       setPendingFriends(pendingRequests?.length || 0)
 
-      if (profile && !profile.onboarding_complete) { navigate('/setup', { replace: true }); return }
+      // No profile, or onboarding not finished → send to setup. AuthGuard normally
+      // catches this, but guarding here too means a profile-less user never lands on a
+      // broken dashboard.
+      if (!profile || !profile.onboarding_complete) { navigate('/setup', { replace: true }); return }
 
       const bw = profile?.body_weight_kg || 65
       const isPath4 = profile?.user_path === '4'
@@ -362,7 +365,15 @@ export default function Dashboard() {
   }
 
   if (loading) return <><div style={{ paddingTop: 60 }}><Spinner /></div><BottomNav /></>
-  if (!d) return null
+  if (!d) return (
+    <>
+      <div style={{ padding:'80px 24px', textAlign:'center', color:'#7a7268' }}>
+        <div style={{ fontSize:14, marginBottom:16, lineHeight:1.6 }}>We could not load your dashboard. Check your connection and try again.</div>
+        <button onClick={() => { setLoading(true); load() }} style={{ background:'#2c2820', color:'#f5f0e8', border:'none', borderRadius:12, padding:'12px 24px', fontSize:14, fontWeight:500, cursor:'pointer', fontFamily:'inherit' }}>Try again</button>
+      </div>
+      <BottomNav />
+    </>
+  )
 
   const { phase, subPhase, cycleDay, cycleLen, daysLeft, confidence, bw, bcProteinG, bcBleedDay, bcInBleedWindow, alreadyLogged, recentLogs, anomalyItems, alloLoad, isPath4, bcEstimate } = d
   const phaseLabel = phase === 'observation' ? 'Observation mode'

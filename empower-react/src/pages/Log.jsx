@@ -80,7 +80,7 @@ export default function Log() {
     if (!user) { navigate('/login',{replace:true}); return }
     try {
     const [{ data:profile },{ data:cycleData }] = await Promise.all([
-      supabase.from('profiles').select('user_path').eq('id',user.id).single(),
+      supabase.from('profiles').select('user_path').eq('id',user.id).maybeSingle(),
       supabase.from('cycle_data').select('*').eq('user_id',user.id).order('created_at',{ascending:false}).limit(1).maybeSingle(),
     ])
     const path4 = profile?.user_path==='4'

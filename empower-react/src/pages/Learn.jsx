@@ -420,7 +420,7 @@ export default function Learn() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { navigate('/login', { replace: true }); return }
       try {
-        const { data: profile } = await supabase.from('profiles').select('user_path,bc_type').eq('id', user.id).single()
+        const { data: profile } = await supabase.from('profiles').select('user_path,bc_type').eq('id', user.id).maybeSingle()
         if (profile?.user_path) setUserPath(profile.user_path)
       } catch { /* ignore */ }
     }

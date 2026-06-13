@@ -4,6 +4,19 @@ Changes made autonomously from user feedback. Most recent first.
 
 ---
 
+## 2026-06-13 — Robustness audit: no more dead-ends / white screens
+
+**Reported by:** Emma — "make sure everything is working and no one is getting stuck."
+
+**Audit findings:** Build is clean. A DB check found several users stuck at onboarding — two signed-in-but-no-profile (`emilyberday`, `ems384`) and two with `onboarding_complete=false` (`delaneyheadrick3`, `kennedynolan`) — all pre-fix casualties of the silent setup dead-end fixed earlier today (they can complete setup now that it surfaces errors). No DB trigger creates profiles, so profiles come only from Setup's finish().
+
+**Hardening done (prevents future stuck states):**
+- `getTodayStatus` (hormoneSync.js) and the per-page profile reads in Dashboard, Log, and Learn used `.single()`, which **throws on zero rows**. For a profile-less user (or a transient empty read) that threw, and Dashboard then rendered a blank white screen (`if (!d) return null`) — a dead-end. Switched all four `profiles` reads to `.maybeSingle()` (all call sites already use optional chaining, so null flows through safely).
+- Dashboard now redirects to `/setup` when the profile is missing OR onboarding is incomplete (was only the latter), so a profile-less user can never land on a broken dashboard.
+- Dashboard's blank-screen failure state (`if (!d) return null`) is now a recoverable error with a "Try again" button instead of an unrecoverable white screen.
+
+**Files changed:** empower-react/src/lib/hormoneSync.js, empower-react/src/pages/Dashboard.jsx, empower-react/src/pages/Log.jsx, empower-react/src/pages/Learn.jsx
+
 ## 2026-06-13 — Birth control: show cycle phases (as an estimate), not "cycle paused"
 
 **Decided by:** Emma — chose "phases for all BC, with a note." This refines the earlier same-day change (which hid phases for hormonal BC). Rationale she raised: many hormonal-BC users still cycle and bleed — true especially for the hormonal IUD (ovulation usually continues) and many mini-pill users; combined pill/patch/ring suppress ovulation and the monthly bleed is a withdrawal bleed, so for those the phases are an estimate.

@@ -633,7 +633,7 @@ function buildCycleStatus(profile, cycleData, recentLogs, mucusLogs, today, tota
 export async function getTodayStatus(supabase, userId) {
   const [cycleResult, profileResult, logsResult, mucusResult, totalLogsResult] = await Promise.all([
     supabase.from('cycle_data').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
-    supabase.from('profiles').select('*').eq('id', userId).single(),
+    supabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
     supabase.from('daily_logs').select('*').eq('user_id', userId).order('log_date', { ascending: false }).limit(7),
     supabase.from('mucus_logs').select('*').eq('user_id', userId).order('log_date', { ascending: false }).limit(7),
     // Lifetime log count drives confidence growth — the algorithm learns across the
