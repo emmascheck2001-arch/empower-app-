@@ -28,12 +28,27 @@ function stampActive(uid) {
   supabase.from('profiles').update({ last_active_at: new Date().toISOString() }).eq('id', uid).then(() => {}, () => {})
 }
 
+// Privacy consent for not-yet-onboarded users. We persist it to localStorage, but some
+// browsers (Safari private mode, some iOS PWA storage partitions) silently drop or block
+// the write — which made the gate re-appear forever in a loop because resolve() re-reads
+// localStorage right after writing it. This in-memory set, module-level so it survives
+// route changes within the session, guarantees we always move forward after agreeing.
+const consentedThisSession = new Set()
+function rememberConsent(uid) {
+  consentedThisSession.add(uid)
+  try { localStorage.setItem(`ep_privacy_${uid}`, '1') } catch { /* storage may be blocked */ }
+}
+function hasConsent(uid) {
+  if (consentedThisSession.has(uid)) return true
+  try { return !!localStorage.getItem(`ep_privacy_${uid}`) } catch { return false }
+}
+
 function PrivacyGate({ userId, onAgreed }) {
   const [checked, setChecked] = useState(false)
 
   function agree() {
     if (!checked) return
-    localStorage.setItem(`ep_privacy_${userId}`, '1')
+    rememberConsent(userId)
     onAgreed()
   }
 
@@ -97,11 +112,13 @@ function AuthGuard({ children, requireOnboarded = true }) {
     if (prof) stampActive(uid)
     const onboarded = !!prof?.onboarding_complete
     if (onboarded) {
-      localStorage.setItem(`ep_privacy_${uid}`, '1')
+      rememberConsent(uid)
       setState('authed'); return
     }
-    // New user: show the privacy gate once, then route them into setup.
-    if (!localStorage.getItem(`ep_privacy_${uid}`)) { setState('needs-privacy'); return }
+    // New user: show the privacy gate once, then route them into setup. Uses the
+    // in-memory-or-localStorage check so a browser that drops localStorage writes
+    // (Safari private mode, some iOS PWAs) can never loop back to the gate.
+    if (!hasConsent(uid)) { setState('needs-privacy'); return }
     if (requireOnboarded) { setState('needs-setup'); return }
     setState('authed')
   }

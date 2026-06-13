@@ -4,6 +4,16 @@ Changes made autonomously from user feedback. Most recent first.
 
 ---
 
+## 2026-06-13 — Fix: privacy gate infinite loop locked new users out (Emily)
+
+**Reported by:** Emma — "emily couldn't get in, she was stuck in a loop."
+
+**Root cause:** The privacy gate recorded consent with `localStorage.setItem(ep_privacy_<uid>)` and then `AuthGuard.resolve()` re-read `localStorage` to decide whether to proceed. On mobile Safari, iOS PWAs, and private/incognito mode, localStorage writes are frequently dropped or blocked — so the write didn't persist, the re-read returned nothing, and the user was sent straight back to the privacy gate. Agreeing → re-check → gate again, forever. A not-yet-onboarded user (like Emily, who has no profile) has no DB consent record to fall back on, so she could never get past it. (In private mode `setItem` can also throw, which would kill the agree handler outright.)
+
+**What was done:** Added a module-level in-memory `consentedThisSession` set (survives route changes within the session) and routed all consent reads/writes through `rememberConsent()` / `hasConsent()` helpers. Consent is now remembered in memory the instant the user agrees, regardless of whether localStorage persists, so the gate can never loop. Both the localStorage read and write are wrapped in try/catch so a blocked/throwing storage API can no longer break the auth flow or hang on the spinner.
+
+**Files changed:** empower-react/src/App.jsx
+
 ## 2026-06-13 — Robustness audit: no more dead-ends / white screens
 
 **Reported by:** Emma — "make sure everything is working and no one is getting stuck."
