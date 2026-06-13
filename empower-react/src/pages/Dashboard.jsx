@@ -261,7 +261,7 @@ export default function Dashboard() {
       // Single source of truth shared with Workout/Nutrition. Fetched once here so the
       // dashboard can never disagree with those screens about the user's phase.
       let status = null
-      try { status = await getTodayStatus(supabase, user.id) } catch(e) {}
+      try { status = await getTodayStatus(supabase, user.id) } catch { /* ignore */ }
 
       let phase = 'observation', subPhase = null, cycleDay = null, cycleLen = 28, daysLeft = null, confidence = 0.05
       let bcProteinG = null
@@ -361,7 +361,7 @@ export default function Dashboard() {
   if (loading) return <><div style={{ paddingTop: 60 }}><Spinner /></div><BottomNav /></>
   if (!d) return null
 
-  const { phase, subPhase, cycleDay, cycleLen, daysLeft, confidence, bw, bcProteinG, bcBleedDay, bcInBleedWindow, alreadyLogged, streak, recentLogs, twoWeekLogs, anomalyItems, alloLoad, isPath4, userEmail, todayLoggers } = d
+  const { phase, subPhase, cycleDay, cycleLen, daysLeft, confidence, bw, bcProteinG, bcBleedDay, bcInBleedWindow, alreadyLogged, recentLogs, anomalyItems, alloLoad, isPath4 } = d
   const phaseLabel = phase === 'observation' ? 'Observation mode'
     : phase === 'Perimenopause' ? 'Perimenopause'
     : phase === 'bc' ? (subPhase || 'Hormonal birth control')

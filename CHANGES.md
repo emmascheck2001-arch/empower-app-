@@ -4,6 +4,19 @@ Changes made autonomously from user feedback. Most recent first.
 
 ---
 
+## 2026-06-12 — Code cleanup: lint pass + remove superseded Calendar content
+
+**Found via:** lint sweep during the 3-hourly bug check (45 ESLint problems, 0 build errors).
+
+**What was done:** Cleaned up 24 lint problems with zero behavior change — all verified against a passing build after each edit:
+- Converted 6 empty `catch(e){}` blocks to `catch { /* ignore */ }` (Checkin, Dashboard, Learn, Sleep, Workout, Friends) — identical runtime behavior, drops the unused binding.
+- Removed 11 genuinely unused variables from destructures/assignments (Dashboard, Friends, WeeklySummary, Workout), each confirmed unused by ESLint. Avoided one trap: a `return {…}` object whose fields *are* used sat on a near-identical line.
+- Removed the `WHAT_TO_EXPECT` and `PLAN_AHEAD` constant blocks (~24 lines) from the Calendar future-day sheet. These were superseded leftovers from an older design — the live sheet already renders the same ground via `PLAN_NUTRITION`/`PLAN_MOVEMENT` (PLAN AHEAD card) and `BRAIN_STATE`/`BRAIN_DETAIL` (YOUR BRAIN THIS DAY card), all fully populated. Wiring the legacy constants back in would have produced duplicate sections, so they were deleted rather than reconnected.
+
+**Deliberately left untouched** (changing them risks real behavior changes): 3 `setState`-in-effect cases (Calendar brain-reset, Setup preview, Workout HIIT timer), 5 `react-refresh/only-export-components` (dev-only HMR), the intentional `useEffect(()=>{init()},[])` mount pattern (exhaustive-deps + "before declared"), and the unused-but-complete `ActivityPulse` component. Lint went 45 → 21 problems.
+
+**Files changed:** empower-react/src/pages/{Calendar,Checkin,Dashboard,Friends,Learn,Sleep,Workout}.jsx, empower-react/src/components/WeeklySummary.jsx
+
 ## 2026-06-12 — Bug fix: broken PWA manifest (console errors + not installable)
 
 **Found via:** scheduled audit / browser console check — every page load logged "Manifest: Line 1, column 1, Syntax error" plus two 404s.
