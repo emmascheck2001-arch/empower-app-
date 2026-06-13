@@ -4,6 +4,16 @@ Changes made autonomously from user feedback. Most recent first.
 
 ---
 
+## 2026-06-13 — Bug fix: setup could dead-end silently (users stuck with no profile)
+
+**Reported by:** Emma — "it doesn't like emily finish setup." Investigation found user `emilyberday@gmail.com` had a valid, confirmed auth account (signed in 2026-06-09) but **no profile row and no data anywhere** — she could log in but never completed onboarding.
+
+**Root cause:** `Setup.jsx` `finish()` saved the profile with `supabase.from('profiles').upsert(...)`, but on error did `console.error(error); setSaving(false); return` — a **silent dead-end**. The spinner stopped, no message appeared, and the user was stuck on the setup screen with no profile created. Verified the database side is healthy: RLS policies allow the insert (simulated Emily's exact upsert under her own JWT in a rolled-back transaction — it succeeds), all columns nullable/defaulted. So the failure is client-side (most likely an expired auth session → RLS rejects the write), and the real bug is that the failure was invisible and unrecoverable.
+
+**What was done:** Added a `saveErr` state and rendered an error message below the Finish button. On save failure the user now sees either "Your session has expired. Please sign in again, then finish setup." (for auth/JWT/session errors) or the specific error text, instead of a silent dead-end. The save can now succeed or tell the user exactly what to do, rather than trapping them. Did NOT touch Emily's account (per Emma's instruction not to change her password).
+
+**Files changed:** empower-react/src/pages/Setup.jsx
+
 ## 2026-06-12 — Code cleanup: lint pass + remove superseded Calendar content
 
 **Found via:** lint sweep during the 3-hourly bug check (45 ESLint problems, 0 build errors).

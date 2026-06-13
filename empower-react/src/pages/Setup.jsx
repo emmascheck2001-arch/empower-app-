@@ -49,6 +49,7 @@ export default function Setup() {
   const [fitness, setFitness] = useState(null)
   const [agreed, setAgreed] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [saveErr, setSaveErr] = useState(null)
   const [preview, setPreview] = useState(null)
 
   useEffect(() => {
@@ -74,6 +75,7 @@ export default function Setup() {
   async function finish(skip=false) {
     if (!agreed && !skip) return
     setSaving(true)
+    setSaveErr(null)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { navigate('/login', { replace: true }); return }
 
@@ -94,7 +96,16 @@ export default function Setup() {
       fitness_level: skip ? null : (fitness || null),
     }, { onConflict: 'id' })
 
-    if (error) { console.error(error); setSaving(false); return }
+    if (error) {
+      console.error(error)
+      setSaving(false)
+      setSaveErr(
+        /jwt|token|auth|session|expired/i.test(error.message || '')
+          ? 'Your session has expired. Please sign in again, then finish setup.'
+          : `Could not save your setup: ${error.message}. Please try again.`
+      )
+      return
+    }
 
     if ((path === 1 || path === 5) && lastPeriod) {
       await supabase.from('cycle_data').upsert({
@@ -246,6 +257,11 @@ export default function Setup() {
       <button className="btn-primary" onClick={()=>finish(false)} disabled={!agreed||saving} style={{ marginBottom:12 }}>
         {saving?'Saving...':agreed?'Finish setup':'Agree to continue'}
       </button>
+      {saveErr && (
+        <div style={{ fontSize:13, textAlign:'center', marginBottom:12, padding:'10px 14px', borderRadius:8, background:'#fce8e8', color:'#8a2a2a', lineHeight:1.5 }}>
+          {saveErr}
+        </div>
+      )}
       <div style={{ textAlign:'center' }}>
         <button onClick={()=>finish(true)} style={{ background:'none', border:'none', fontSize:13, color:'#9a9590', cursor:'pointer', fontFamily:'inherit' }}>Skip body stats</button>
       </div>
