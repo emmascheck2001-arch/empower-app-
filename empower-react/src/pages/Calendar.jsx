@@ -215,6 +215,12 @@ export default function Calendar() {
           <strong>These phases are an estimate.</strong> Hormonal birth control can flatten your natural hormone swings, so your true cycle may differ. We base these on the period and bleed dates you log.
         </div>
       )}
+      {isHormonalBC && !hasPhaseData && (
+        <div style={{ margin:'12px 16px 0', padding:'12px 14px', background:'#f0f0f8', border:'1px solid #d8d8ec', borderRadius:12, fontSize:13, color:'#3a3550', lineHeight:1.55 }}>
+          <strong>Add your last bleed date to unlock your phases.</strong> Log the first day of your most recent period or withdrawal bleed and the calendar will fill in your phase colours and brain (neurotransmitter) guidance.{' '}
+          <button onClick={() => navigate('/log')} style={{ background:'none', border:'none', padding:0, color:'#5a4ab0', fontWeight:600, textDecoration:'underline', cursor:'pointer', fontFamily:'inherit', fontSize:13 }}>Log it now</button>
+        </div>
+      )}
 
       <div style={{ padding:'16px 16px 0' }}>
         {/* Month nav */}
