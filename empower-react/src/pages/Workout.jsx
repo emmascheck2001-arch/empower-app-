@@ -750,7 +750,7 @@ export default function Workout() {
       const s = await getTodayStatus(supabase, user.id)
       setStatus(s)
       if (s?.profile?.fitness_level) setFitnessLevel(s.profile.fitness_level === 'beginner' ? 'beginner' : s.profile.fitness_level === 'advanced' || s.profile.fitness_level === 'athlete' ? 'advanced' : 'intermediate')
-    } catch(e) {}
+    } catch { /* ignore */ }
     setLoading(false)
   }
 
@@ -1242,8 +1242,6 @@ export default function Workout() {
     const phases = getPhases(svgType)
     const exWeights = setWeights[playerIdx] || {}
     const exDone = playerDone[playerIdx] || {}
-    const allSetsComplete = Object.keys(exDone).length >= exObj.sets && Object.values(exDone).every(Boolean)
-
     function updateWeight(setIdx, delta) {
       setSetWeights(prev => {
         const ex = { ...(prev[playerIdx] || {}) }
