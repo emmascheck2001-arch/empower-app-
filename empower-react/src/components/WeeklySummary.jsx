@@ -97,26 +97,8 @@ const PHASE_EXPERIMENTS = {
   },
 }
 
-export function shouldShowWeeklySummary(logs) {
-  const key = getWeekKey()
-  if (localStorage.getItem(`${key}-shown`)) return false
-  const thisWeek = logs.filter(l => {
-    const diff = Math.floor((new Date() - new Date(l.log_date + 'T00:00:00')) / 86400000)
-    return diff < 7
-  })
-  return thisWeek.length >= 3
-}
-
-export function markWeeklySummaryShown() {
-  localStorage.setItem(`${getWeekKey()}-shown`, '1')
-}
-
 export function markWeeklySummaryDismissed() {
   localStorage.setItem(`${getWeekKey()}-dismissed`, '1')
-}
-
-export function wasDismissedToday() {
-  return !!localStorage.getItem(`${getWeekKey()}-dismissed`)
 }
 
 export function buildWeeklySummary(logs, phase, subPhase, confidence, daysUntilPeriod, cycleDay, cycleLen) {
@@ -190,7 +172,7 @@ const sLabel = { fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransfo
 
 export function WeeklySummaryModal({ summary, onDismiss }) {
   const {
-    daysLogged, workouts, currentPhase, confPct, daysUntilPeriod,
+    daysLogged, workouts, currentPhase,
     goodEnergyPct, goodSleepPct, workoutRate, topMoods,
     nextLabel, nextBullets, experiment,
     isLowerEnergyPhase, sleepEnergyCorrelation, paired,
@@ -338,7 +320,7 @@ export function WeeklySummaryModal({ summary, onDismiss }) {
 }
 
 export function WeeklySummaryCard({ summary, onClick }) {
-  const { daysLogged, workouts, currentPhase, nextLabel, goodEnergyPct, goodSleepPct, topMoods } = summary
+  const { daysLogged, goodEnergyPct, goodSleepPct, topMoods } = summary
   const topMood = topMoods?.[0]?.[0]
 
   return (
