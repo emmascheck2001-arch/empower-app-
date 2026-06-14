@@ -750,7 +750,7 @@ export default function Workout() {
       const s = await getTodayStatus(supabase, user.id)
       setStatus(s)
       if (s?.profile?.fitness_level) setFitnessLevel(s.profile.fitness_level === 'beginner' ? 'beginner' : s.profile.fitness_level === 'advanced' || s.profile.fitness_level === 'athlete' ? 'advanced' : 'intermediate')
-    } catch { /* swallow */ }
+    } catch(e) { console.error(e) }
     setLoading(false)
   }
 
