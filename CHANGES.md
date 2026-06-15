@@ -4,6 +4,18 @@ Changes made autonomously from user feedback. Most recent first.
 
 ---
 
+## 2026-06-15 — Force stale PWAs to update (Hannah re-doing setup every login)
+
+**Reported by:** Emma — "hannah keeps having to enter the 'describe your cycle right now' [setup screen] every time she logs in."
+
+**Diagnosis:** Hannah's account is `onboarding_complete=true` with one clean profile row, and the current AuthGuard reads that from the database and keeps her on the dashboard — verified by simulating her exact profile read under RLS (returns `true`). So the current code does NOT route her to setup. The "describe your cycle right now" text lives only on the setup path screen (`Setup.jsx:127`). The DB-based onboarding gate was introduced in commit `af2432d`; before that, onboarding/consent state was read from `localStorage`, which doesn't persist on her browser/PWA — so the OLD build re-showed setup on every login. Conclusion: her device is running a stale cached build from before that fix.
+
+**What was done:** Bumped the service-worker cache version (`empower-react-v1` → `v2`). The browser detects the changed `sw.js`, installs the new worker, whose install handler deletes every old cache and claims open clients — delivering the current (fixed) build to stale installed PWAs on next open. No app-logic change was needed; the routing is already correct.
+
+**Note for Emma:** if Hannah's app doesn't refresh on its own, have her fully close and reopen it (or remove and reinstall the PWA / hard-refresh in the browser) once to pick up v2. After that the DB-based gate keeps her on the dashboard.
+
+**Files changed:** empower-react/public/sw.js
+
 ## 2026-06-13 — Fix: privacy gate infinite loop locked new users out (Emily)
 
 **Reported by:** Emma — "emily couldn't get in, she was stuck in a loop."
