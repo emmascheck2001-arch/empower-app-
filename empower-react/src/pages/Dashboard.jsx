@@ -183,8 +183,6 @@ export default function Dashboard() {
   const [communityTab, setCommunityTab] = useState('community')
   const [friendsData, setFriendsData] = useState(null) // null = not loaded yet
 
-  useEffect(() => { load() }, [])
-
   async function loadFriends(userId) {
     try {
       const { data: fships } = await supabase.from('friendships').select('*').or(`requester_id.eq.${userId},addressee_id.eq.${userId}`).eq('status', 'accepted')
@@ -226,7 +224,7 @@ export default function Dashboard() {
       // Single source of truth shared with Workout/Nutrition. Fetched once here so the
       // dashboard can never disagree with those screens about the user's phase.
       let status = null
-      try { status = await getTodayStatus(supabase, user.id) } catch { /* noop */ }
+      try { status = await getTodayStatus(supabase, user.id) } catch { /* non-fatal: phase falls back to observation */ }
 
       let phase = 'observation', subPhase = null, cycleDay = null, cycleLen = 28, daysLeft = null, confidence = 0.05
       let bcProteinG = null
@@ -323,10 +321,12 @@ export default function Dashboard() {
     finally { setLoading(false) }
   }
 
+  useEffect(() => { load() }, [])
+
   if (loading) return <><div style={{ paddingTop: 60 }}><Spinner /></div><BottomNav /></>
   if (!d) return null
 
-  const { phase, subPhase, cycleDay, cycleLen, daysLeft, confidence, bw, bcProteinG, bcBleedDay, bcInBleedWindow, alreadyLogged, recentLogs, anomalyItems, alloLoad, isPath4 } = d
+  const { phase, subPhase, cycleDay, cycleLen, daysLeft, confidence, bw, bcProteinG, bcBleedDay, bcInBleedWindow, alreadyLogged, streak, recentLogs, anomalyItems, alloLoad, isPath4 } = d
   const phaseLabel = phase === 'observation' ? 'Observation mode'
     : phase === 'Perimenopause' ? 'Perimenopause'
     : phase === 'bc' ? (subPhase || 'Hormonal birth control')
@@ -443,8 +443,12 @@ export default function Dashboard() {
 
         {/* Stats row */}
         {cycleDay && (
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:12 }}>
-            {[{ label:'Cycle day', value:`Day ${cycleDay}` },{ label:'Days until period', value:daysLeft != null ? daysLeft : '—' }].map(s => (
+          <div style={{ display:'grid', gridTemplateColumns: streak > 0 ? '1fr 1fr 1fr' : '1fr 1fr', gap:8, marginBottom:12 }}>
+            {[
+              { label:'Cycle day', value:`Day ${cycleDay}` },
+              { label:'Days until period', value:daysLeft != null ? daysLeft : '—' },
+              ...(streak > 0 ? [{ label:'Day streak', value:`${streak}🔥` }] : []),
+            ].map(s => (
               <div key={s.label} className="card" style={{ textAlign:'center', padding:'12px 8px' }}>
                 <div style={{ fontSize:18, fontWeight:700 }}>{s.value}</div>
                 <div style={{ fontSize:10, color:'#9a9590', fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase', marginTop:2 }}>{s.label}</div>

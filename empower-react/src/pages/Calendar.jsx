@@ -94,10 +94,6 @@ export default function Calendar() {
   const [sheet, setSheet] = useState(null) // { dateStr, isFuture }
   const [brainExpanded, setBrainExpanded] = useState(false)
 
-  useEffect(() => { setBrainExpanded(false) }, [sheet])
-
-  useEffect(() => { init() }, [])
-
   async function init() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { navigate('/login', { replace: true }); return }
@@ -122,6 +118,10 @@ export default function Calendar() {
     } catch(e) { console.error('Calendar init error:', e) }
     setLoading(false)
   }
+
+  useEffect(() => { setBrainExpanded(false) }, [sheet])
+
+  useEffect(() => { init() }, [])
 
   if (loading) return <div style={{ paddingTop:60 }}><Spinner /></div>
 

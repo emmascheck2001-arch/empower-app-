@@ -697,6 +697,17 @@ export default function Workout() {
     : (rawPhase === 'bc-combined' || rawPhase === 'bc-progestin') ? 'observation'
     : status?.subPhase || rawPhase || 'observation'
 
+  async function init() {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { navigate('/login', { replace: true }); return }
+    try {
+      const s = await getTodayStatus(supabase, user.id)
+      setStatus(s)
+      if (s?.profile?.fitness_level) setFitnessLevel(s.profile.fitness_level === 'beginner' ? 'beginner' : s.profile.fitness_level === 'advanced' || s.profile.fitness_level === 'athlete' ? 'advanced' : 'intermediate')
+    } catch { /* non-fatal: workout continues with observation-mode phase content */ }
+    setLoading(false)
+  }
+
   useEffect(() => { init() }, [])
 
   useEffect(() => {
@@ -742,17 +753,6 @@ export default function Workout() {
     const id = setTimeout(() => setHiitSecondsLeft(s => s - 1), 1000)
     return () => clearTimeout(id)
   }, [hiitRunning, hiitSecondsLeft, hiitPhase, hiitExIdx, hiitRound, phase])
-
-  async function init() {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { navigate('/login', { replace: true }); return }
-    try {
-      const s = await getTodayStatus(supabase, user.id)
-      setStatus(s)
-      if (s?.profile?.fitness_level) setFitnessLevel(s.profile.fitness_level === 'beginner' ? 'beginner' : s.profile.fitness_level === 'advanced' || s.profile.fitness_level === 'athlete' ? 'advanced' : 'intermediate')
-    } catch { /* noop */ }
-    setLoading(false)
-  }
 
   function getPhaseWeightNote(exWeight, intensityModifier, phaseVal) {
     if (!exWeight) return null
@@ -1242,6 +1242,7 @@ export default function Workout() {
     const phases = getPhases(svgType)
     const exWeights = setWeights[playerIdx] || {}
     const exDone = playerDone[playerIdx] || {}
+
     function updateWeight(setIdx, delta) {
       setSetWeights(prev => {
         const ex = { ...(prev[playerIdx] || {}) }
