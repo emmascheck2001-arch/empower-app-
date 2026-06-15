@@ -43,7 +43,7 @@ export default function Checkin() {
     try {
       const s = await getTodayStatus(supabase, user.id)
       setStatus(s)
-    } catch(e) {}
+    } catch { /* noop */ }
     setLoading(false)
   }
 
