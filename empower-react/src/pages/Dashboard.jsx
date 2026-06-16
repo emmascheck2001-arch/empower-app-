@@ -269,6 +269,7 @@ export default function Dashboard() {
       let phase = 'observation', subPhase = null, cycleDay = null, cycleLen = 28, daysLeft = null, confidence = 0.05
       let bcProteinG = null
       let bcBleedDay = null, bcInBleedWindow = false
+      let estimated = false   // phase inferred from symptoms (no logged period)
 
       if (isPath4) {
         phase = 'Perimenopause'; confidence = 0.5
@@ -309,10 +310,16 @@ export default function Dashboard() {
           confidence = status?.confidence ?? 0.45
         }
       } else {
-        // Observation mode (no cycle data, e.g. Depo recovery): use the canonical
-        // confidence from getTodayStatus, which now grows as the logging history
-        // builds instead of sitting at 5% forever.
+        // No cycle data. getTodayStatus may have inferred a phase from the user's
+        // symptoms — if so, adopt it (flagged as an estimate) so every screen agrees.
+        // Otherwise stay in honest observation mode. Confidence comes from the shared
+        // status either way (the inference carries its own, lower confidence).
         confidence = status?.confidence ?? 0.05
+        if (status?.estimated && status?.phase && status.phase !== 'observation') {
+          phase = status.phase
+          subPhase = status.subPhase || null
+          estimated = true
+        }
       }
 
       const today = localDateStr()
@@ -358,7 +365,7 @@ export default function Dashboard() {
       // Hormonal BC users who track a bleed date now get cycle phases too, flagged as an
       // estimate (hormonal contraception can flatten the natural hormone swings).
       const bcEstimate = isHormonalBC && !!cycleData?.last_period_date
-      setD({ profile, phase, subPhase, cycleDay, cycleLen, daysLeft, confidence, bw, bcProteinG, bcBleedDay, bcInBleedWindow, alreadyLogged, streak, recentLogs, twoWeekLogs, anomalyItems, alloLoad, isPath4, bcEstimate, userEmail: user.email, todayLoggers: todayLoggers || 0 })
+      setD({ profile, phase, subPhase, cycleDay, cycleLen, daysLeft, confidence, bw, bcProteinG, bcBleedDay, bcInBleedWindow, alreadyLogged, streak, recentLogs, twoWeekLogs, anomalyItems, alloLoad, isPath4, bcEstimate, estimated, userEmail: user.email, todayLoggers: todayLoggers || 0 })
       loadFriends(user.id)
     } catch(e) { console.error(e) }
     finally { setLoading(false) }
@@ -375,7 +382,8 @@ export default function Dashboard() {
     </>
   )
 
-  const { phase, subPhase, cycleDay, cycleLen, daysLeft, confidence, bw, bcProteinG, bcBleedDay, bcInBleedWindow, alreadyLogged, recentLogs, anomalyItems, alloLoad, isPath4, bcEstimate } = d
+  const { phase, subPhase, cycleDay, cycleLen, daysLeft, confidence, bw, bcProteinG, bcBleedDay, bcInBleedWindow, alreadyLogged, recentLogs, anomalyItems, alloLoad, isPath4, bcEstimate, estimated } = d
+  const isDepoRecovery = d.profile?.user_path === '2' && /depo/i.test(d.profile?.bc_type || '')
   const phaseLabel = phase === 'observation' ? 'Observation mode'
     : phase === 'Perimenopause' ? 'Perimenopause'
     : phase === 'bc' ? (subPhase || 'Hormonal birth control')
@@ -400,8 +408,8 @@ export default function Dashboard() {
 
         {/* Hero */}
         <div style={{ borderRadius:16, padding:'28px 24px', color:'#e8e0d4', background:heroGrad, marginBottom:12 }}>
-          <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.12em', textTransform:'uppercase', color:'rgba(232,224,212,0.6)', marginBottom:6 }}>Your phase</div>
-          <div style={{ fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:24, marginBottom:6 }}>{phaseLabel}</div>
+          <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.12em', textTransform:'uppercase', color:'rgba(232,224,212,0.6)', marginBottom:6 }}>{estimated ? 'Estimated phase' : 'Your phase'}</div>
+          <div style={{ fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:24, marginBottom:6 }}>{estimated ? `Looks like ${phaseLabel}` : phaseLabel}</div>
           <div style={{ fontSize:13, color:'rgba(232,224,212,0.75)', marginBottom:14 }}>
             {phase === 'bc'
               ? (bcBleedDay
@@ -409,7 +417,9 @@ export default function Dashboard() {
                       ? `Day ${bcBleedDay} of your pill cycle · withdrawal bleed likely around now`
                       : `Day ${bcBleedDay} of your pill cycle · next bleed in about ${daysLeft} day${daysLeft === 1 ? '' : 's'}`)
                   : 'Steady hormones — tracking your symptoms')
-              : cycleDay ? `Day ${cycleDay} of ${cycleLen}, ${daysLeft} days until next period` : 'Tracking your cycle patterns'}
+              : cycleDay ? `Day ${cycleDay} of ${cycleLen}, ${daysLeft} days until next period`
+              : estimated ? 'Estimated from your recent symptoms — no period logged yet'
+              : 'Tracking your cycle patterns'}
           </div>
           <div style={{ fontSize:13, color:'rgba(232,224,212,0.8)', lineHeight:1.7, marginBottom:16 }}>
             {getPersonalisedPhaseDesc(phase, subPhase, recentLogs)}
@@ -417,6 +427,11 @@ export default function Dashboard() {
           {bcEstimate && (
             <div style={{ fontSize:12, color:'rgba(232,224,212,0.6)', lineHeight:1.55, marginBottom:16, fontStyle:'italic' }}>
               Estimated from your logged bleed dates. Hormonal birth control can flatten your natural hormone swings, so your true cycle may differ.
+            </div>
+          )}
+          {estimated && (
+            <div style={{ fontSize:12, color:'rgba(232,224,212,0.6)', lineHeight:1.55, marginBottom:16, fontStyle:'italic' }}>
+              This is read from your logged symptoms, not a confirmed cycle. {isDepoRecovery ? 'After Depo your cycle can take 9 to 18 months to return, so there may be no true cycle yet. ' : ''}Log your period when it arrives for exact tracking.
             </div>
           )}
           <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:16 }}>

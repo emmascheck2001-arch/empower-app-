@@ -553,6 +553,7 @@ function buildCycleStatus(profile, cycleData, recentLogs, mucusLogs, today, tota
   let daysUntilPeriod = null
   let confidence = 0.05
   let symptomInference = null
+  let estimated = false   // true when phase is inferred from symptoms, not a logged period
 
   if (cycleData?.last_period_date) {
     const lastPeriod = new Date(cycleData.last_period_date + 'T00:00:00')
@@ -570,18 +571,23 @@ function buildCycleStatus(profile, cycleData, recentLogs, mucusLogs, today, tota
       symptomInference = inferPhaseFromSymptoms(recentLogs, mucusLogs)
     }
   } else {
-    // No cycle data — keep symptom inference as a SUPPORTING signal only; do NOT
-    // promote it to the headline phase. Showing an inferred phase (e.g. "Luteal")
-    // with a confidence % contradicted the "observation" mode shown on the dashboard
-    // and overstated certainty — for a no-cycle-data user (e.g. Depo recovery) the
-    // honest state is observation. (CLAUDE.md: never show an inferred phase with the
-    // same confidence as a calculated one.) The inference is still returned below so
-    // screens can surface it as a clearly-labelled soft hint.
+    // No period date logged. Reading the body's signals when there's no anchor is the
+    // core job of the app, so we promote the symptom inference to the working phase —
+    // but flagged as `estimated` and carrying the inference's (lower) confidence, never
+    // the certainty of a calculated phase. Every screen reads this same value, so they
+    // stay consistent (an earlier version inferred per-screen and they disagreed).
+    // When there aren't enough signals (<3) to call it, we stay in honest observation.
+    // NOTE: estimated confidence stays below a logged-cycle's — see confidencePct.
     symptomInference = inferPhaseFromSymptoms(recentLogs, mucusLogs)
-    // Grow confidence as a logging history builds so observation mode does not sit at
-    // 5% forever. It stays modest (capped) because there is no confirmed cycle to
-    // anchor to — this reflects "learning your baseline", not certainty about a phase.
-    confidence = Math.min(0.45, 0.05 + totalLogs * 0.03)
+    if (symptomInference?.inferredPhase) {
+      phase = symptomInference.inferredPhase
+      estimated = true
+      confidence = (symptomInference.confidencePct || 30) / 100
+    } else {
+      // Not enough signal yet — grow confidence slowly so observation does not sit at
+      // 5% forever, but keep it modest (capped) since there is no cycle to anchor to.
+      confidence = Math.min(0.45, 0.05 + totalLogs * 0.03)
+    }
   }
 
   const intensityModifier = getIntensityModifier(phase, subPhase)
@@ -598,6 +604,7 @@ function buildCycleStatus(profile, cycleData, recentLogs, mucusLogs, today, tota
     cycleLen,
     daysUntilPeriod,
     bcEstimate,
+    estimated,
     confidence,
     confidenceLabel: confidence > 0.90 ? 'Fully personalised'
       : confidence > 0.75 ? 'Your personal baseline established'

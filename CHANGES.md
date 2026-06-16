@@ -4,6 +4,16 @@ Changes made autonomously from user feedback. Most recent first.
 
 ---
 
+## 2026-06-15 — Estimate phase from symptoms when no period is logged (the core promise)
+
+**Reported by:** Emma — "shouldn't you be able to figure out what cycle I'm in from the data? That's kinda why I made the app." (Her own account: Path 2, off Depo ~1 month, 11 logs, no period date → stuck in observation at 38%.)
+
+**What was done:** Turned on symptom-based phase estimation, which the engine (`inferPhaseFromSymptoms`) already supported but was being held back to a "soft hint" (an earlier version promoted it per-screen and the screens disagreed, so it was pulled). Now, in `hormoneSync.buildCycleStatus`, when there is no logged period date the inferred phase becomes the working phase — flagged `estimated: true` and carrying the inference's own (lower) confidence — as long as there are ≥3 distinct signals; otherwise it stays in honest observation. Because every screen reads this one shared value, they stay consistent (the original mismatch can't recur). The Dashboard adopts `status.estimated`/`status.phase`, labels the hero "Estimated phase" / "Looks like …", and shows an honest caveat: "read from your logged symptoms, not a confirmed cycle." For Depo-recovery users (Path 2 + Depo) the caveat adds that the cycle can take 9–18 months to return, so there may be no true cycle to detect yet.
+
+**Why the caveat matters:** for a Depo user 1 month out, ovulation is likely still suppressed, so symptom scores may reflect mood/energy that isn't cycle-driven. The estimate is surfaced (the app's job) but never presented as a confirmed cycle.
+
+**Files changed:** empower-react/src/lib/hormoneSync.js, empower-react/src/pages/Dashboard.jsx
+
 ## 2026-06-15 — Open the feedback tool to all testers (was locked to developer only)
 
 **Reported by:** Emma — "it says the feedback is only available during the beta period, what does that mean?"
