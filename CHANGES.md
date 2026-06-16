@@ -4,6 +4,19 @@ Changes made autonomously from user feedback. Most recent first.
 
 ---
 
+## 2026-06-16 — Workout demo: fix leg curl + Bulgarian split squat, add polish
+
+**Reported by:** Emma — "Bulgarian split squat is not correct; leg curl is incorrect, it's legs not arms; also make them a little more aesthetic."
+
+**What was done:**
+1. **Leg curl was animating arms.** The `curl` figure is a *biceps* curl, but `getSvgType` routed every "curl" (including Leg curl and Nordic curl) to it. Added a dedicated `legcurl` figure — lying face-down on a pad, thighs fixed, shins curling up toward the glutes — and routed "leg curl" / "nordic" / "hamstring curl" to it. Biceps curls still use the arm figure.
+2. **Bulgarian split squat fixed.** The back foot was on the floor like a normal lunge. It now sits **elevated on a bench behind** (the defining feature), with the front knee bending and hips dropping while the back knee travels down and the torso stays upright.
+3. **Aesthetic polish:** added a soft ground shadow under the figure, articulated accent-coloured joint dots (shoulders, hips, knees, elbows) for a cleaner designed look, weight plates on the ends of the bar, and a filled white head.
+
+**Note:** still authored by coordinates without a visual render here — worth re-checking the split squat and leg curl specifically look right; trivial to nudge.
+
+**Files changed:** empower-react/src/pages/Workout.jsx
+
 ## 2026-06-16 — Workout demo: stick figures now actually animate the rep
 
 **Reported by:** Emma — "make sure the animated stick figures are correct in the demo, and make them move so it's a real demo."

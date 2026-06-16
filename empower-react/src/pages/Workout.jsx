@@ -244,6 +244,7 @@ function getSvgType(name) {
   if (n.includes('lunge') || n.includes('split squat')) return 'lunge'
   if (n.includes('hip thrust') || n.includes('glute bridge')) return 'thrust'
   if (n.includes('pull-up') || n.includes('pull up') || n.includes('chin')) return 'pullup'
+  if (n.includes('leg curl') || n.includes('nordic') || n.includes('hamstring curl')) return 'legcurl'
   if (n.includes('curl') && !n.includes('calf')) return 'curl'
   if (n.includes('plank')) return 'plank'
   if (n.includes('calf')) return 'calf'
@@ -367,10 +368,15 @@ const POSES = {
   press: { floor: true, period: 2400,
     top:    { head:[120,46], neck:[120,62], hip:[120,112], k1:[114,136], f1:[112,160], k2:[127,136], f2:[129,160], e1:[112,46], h1:[104,24], e2:[128,46], h2:[136,24], bar:[[100,22],[140,22]] },
     bottom: { head:[120,46], neck:[120,62], hip:[120,112], k1:[114,136], f1:[112,160], k2:[127,136], f2:[129,160], e1:[106,66], h1:[100,50], e2:[134,66], h2:[140,50], bar:[[96,48],[144,48]] } },
-  // Bulgarian split squat — tall to bottom, back knee drops toward the floor.
-  lunge: { floor: true, period: 2600,
-    top:    { head:[105,42], neck:[105,60], hip:[106,108], k1:[104,134], f1:[100,160], k2:[140,128], f2:[160,160], e1:[100,84], h1:[98,112], e2:[114,84], h2:[112,112] },
-    bottom: { head:[105,60], neck:[105,78], hip:[106,118], k1:[100,140], f1:[98,160], k2:[150,150], f2:[162,160], e1:[100,98], h1:[98,122], e2:[114,98], h2:[112,122] } },
+  // Bulgarian split squat — back foot elevated on a bench behind; front knee bends and
+  // hips drop while the back knee travels down. Torso stays upright, dumbbells at sides.
+  lunge: { floor: true, bench:[156,126,50], period: 2600,
+    top:    { head:[100,42], neck:[100,60], hip:[100,108], k1:[98,135], f1:[96,160], k2:[150,120], f2:[178,128], e1:[92,84], h1:[90,110], e2:[110,84], h2:[108,110] },
+    bottom: { head:[100,58], neck:[100,76], hip:[100,120], k1:[90,138], f1:[96,160], k2:[150,150], f2:[178,128], e1:[92,98], h1:[90,124], e2:[110,98], h2:[108,124] } },
+  // Lying leg curl — face down on the pad, thighs fixed, shins curl up toward the glutes.
+  legcurl: { bench:[40,124,154], period: 2000,
+    top:    { head:[56,114], neck:[78,118], hip:[150,120], k1:[182,121], f1:[206,123], k2:[182,127], f2:[206,129], e1:[64,120], h1:[44,121], e2:[64,124], h2:[44,125] },
+    bottom: { head:[56,114], neck:[78,118], hip:[150,120], k1:[182,121], f1:[176,92], k2:[182,127], f2:[179,98], e1:[64,120], h1:[44,121], e2:[64,124], h2:[44,125] } },
   // Hip thrust — shoulders on bench, drive hips from low to a straight bridge.
   thrust: { floor: true, bench:[34,96,66], period: 2200,
     top:    { head:[58,92], neck:[78,98], hip:[152,100], k1:[166,126], f1:[162,160], k2:[178,126], f2:[182,160], e1:[70,104], h1:[60,118], e2:[86,104], h2:[78,120], bar:[[122,98],[182,100]] },
@@ -428,21 +434,32 @@ function StickFigure({ type }) {
   const barS = { stroke:'#c8b89a', strokeWidth:5, strokeLinecap:'round' }
   const floorS = { stroke:'#c8b89a', strokeWidth:3, strokeLinecap:'round' }
   const L = (a, b, st) => (a && b) ? <line x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} {...st} /> : null
+  const Dot = (p, r = 3.4, color = '#c8b89a') => p ? <circle cx={p[0]} cy={p[1]} r={r} fill={color} /> : null
   // neck line starts just below the head circle so it reads as a connected body
   const headBottom = J.head ? [J.head[0], J.head[1] + 14] : null
+  // soft ground shadow under the feet, grounding the figure for a more polished look
+  const feet = [J.f1, J.f2].filter(Boolean)
+  const shadowCx = feet.length ? feet.reduce((a, p) => a + p[0], 0) / feet.length : 120
+  const shadowRx = feet.length ? Math.max(24, Math.abs((J.f1?.[0] ?? shadowCx) - (J.f2?.[0] ?? shadowCx)) / 2 + 18) : 30
 
   return (
     <svg viewBox="0 0 240 175" style={{ width:'100%', height:'100%' }}>
+      {pose.floor && <ellipse cx={shadowCx} cy="166" rx={shadowRx} ry="4.5" fill="#2c2820" opacity="0.06" />}
       {pose.floor && <line x1="30" y1="162" x2="210" y2="162" {...floorS} />}
-      {pose.bench && <rect x={pose.bench[0]} y={pose.bench[1]} width={pose.bench[2]} height="11" rx="4" fill="#e8dfd0" stroke="#c8b89a" strokeWidth="2" />}
+      {pose.bench && <rect x={pose.bench[0]} y={pose.bench[1]} width={pose.bench[2]} height="11" rx="5" fill="#ece2d0" stroke="#c8b89a" strokeWidth="2" />}
       {bar && <line x1={bar[0][0]} y1={bar[0][1]} x2={bar[1][0]} y2={bar[1][1]} {...barS} />}
+      {/* bones */}
       {L(headBottom, J.neck, s)}
       {L(J.neck, J.hip, s)}
       {L(J.hip, J.k1, s)}{L(J.k1, J.f1, s)}
       {L(J.hip, J.k2, s)}{L(J.k2, J.f2, s)}
       {L(J.neck, J.e1, thin)}{L(J.e1, J.h1, thin)}
       {L(J.neck, J.e2, thin)}{L(J.e2, J.h2, thin)}
-      {J.head && <circle cx={J.head[0]} cy={J.head[1]} r="14" {...s} />}
+      {/* articulated joint dots (accent) for a cleaner, designed feel */}
+      {Dot(J.neck, 3)}{Dot(J.hip)}{Dot(J.k1)}{Dot(J.k2)}{Dot(J.e1, 3)}{Dot(J.e2, 3)}
+      {/* loaded weights on the bar ends */}
+      {bar && <><circle cx={bar[0][0]} cy={bar[0][1]} r="4" fill="#c8b89a" /><circle cx={bar[1][0]} cy={bar[1][1]} r="4" fill="#c8b89a" /></>}
+      {J.head && <circle cx={J.head[0]} cy={J.head[1]} r="14" fill="#fff" {...s} />}
     </svg>
   )
 }
