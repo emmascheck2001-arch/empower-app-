@@ -121,7 +121,6 @@ export default function Sleep() {
   const [loading, setLoading] = useState(true)
   const [phase, setPhase] = useState('observation')
   const [subPhase, setSubPhase] = useState(null)
-  const [userId, setUserId] = useState(null)
   const [hours, setHours] = useState('')
   const [quality, setQuality] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -131,7 +130,6 @@ export default function Sleep() {
     async function init() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { navigate('/login', { replace: true }); return }
-      setUserId(user.id)
       try {
         const s = await getTodayStatus(supabase, user.id)
         setPhase(s.phase || 'observation')
@@ -149,7 +147,9 @@ export default function Sleep() {
   async function saveSleep() {
     if (!quality) return
     setSaving(true)
-    const record = { user_id: userId, log_date: localDateStr(), sleep_quality: quality }
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { navigate('/login', { replace: true }); return }
+    const record = { user_id: user.id, log_date: localDateStr(), sleep_quality: quality }
     if (hours) record.notes = `Slept ${hours} hours`
     await supabase.from('daily_logs').upsert(record, { onConflict: 'user_id,log_date' })
     setSaved(true)
