@@ -327,7 +327,7 @@ export default function Dashboard() {
   if (loading) return <><div style={{ paddingTop: 60 }}><Spinner /></div><BottomNav /></>
   if (!d) return null
 
-  const { phase, subPhase, cycleDay, cycleLen, daysLeft, confidence, bw, bcProteinG, bcBleedDay, bcInBleedWindow, alreadyLogged, recentLogs, anomalyItems, alloLoad, isPath4 } = d
+  const { phase, subPhase, cycleDay, cycleLen, daysLeft, confidence, bw, bcProteinG, bcBleedDay, bcInBleedWindow, alreadyLogged, streak, recentLogs, anomalyItems, alloLoad, isPath4 } = d
   const phaseLabel = phase === 'observation' ? 'Observation mode'
     : phase === 'Perimenopause' ? 'Perimenopause'
     : phase === 'bc' ? (subPhase || 'Hormonal birth control')
@@ -444,8 +444,8 @@ export default function Dashboard() {
 
         {/* Stats row */}
         {cycleDay && (
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:12 }}>
-            {[{ label:'Cycle day', value:`Day ${cycleDay}` },{ label:'Days until period', value:daysLeft != null ? daysLeft : '—' }].map(s => (
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8, marginBottom:12 }}>
+            {[{ label:'Cycle day', value:`Day ${cycleDay}` },{ label:'Days until period', value:daysLeft != null ? daysLeft : '—' },{ label:'Day streak', value:streak > 0 ? `${streak}d` : '—' }].map(s => (
               <div key={s.label} className="card" style={{ textAlign:'center', padding:'12px 8px' }}>
                 <div style={{ fontSize:18, fontWeight:700 }}>{s.value}</div>
                 <div style={{ fontSize:10, color:'#9a9590', fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase', marginTop:2 }}>{s.label}</div>
