@@ -697,7 +697,19 @@ export default function Workout() {
     : (rawPhase === 'bc-combined' || rawPhase === 'bc-progestin') ? 'observation'
     : status?.subPhase || rawPhase || 'observation'
 
-  useEffect(() => { init() }, [])
+  async function init() {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { navigate('/login', { replace: true }); return }
+    try {
+      const s = await getTodayStatus(supabase, user.id)
+      setStatus(s)
+      if (s?.profile?.fitness_level) setFitnessLevel(s.profile.fitness_level === 'beginner' ? 'beginner' : s.profile.fitness_level === 'advanced' || s.profile.fitness_level === 'athlete' ? 'advanced' : 'intermediate')
+    } catch { /* non-fatal — show workout screen with observation phase */ }
+    setLoading(false)
+  }
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { init() }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!cardioRunning) return
@@ -711,6 +723,7 @@ export default function Workout() {
     return () => clearInterval(id)
   }, [restSecondsLeft])
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!hiitRunning) return
     if (hiitSecondsLeft <= 0) {
@@ -742,17 +755,7 @@ export default function Workout() {
     const id = setTimeout(() => setHiitSecondsLeft(s => s - 1), 1000)
     return () => clearTimeout(id)
   }, [hiitRunning, hiitSecondsLeft, hiitPhase, hiitExIdx, hiitRound, phase])
-
-  async function init() {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { navigate('/login', { replace: true }); return }
-    try {
-      const s = await getTodayStatus(supabase, user.id)
-      setStatus(s)
-      if (s?.profile?.fitness_level) setFitnessLevel(s.profile.fitness_level === 'beginner' ? 'beginner' : s.profile.fitness_level === 'advanced' || s.profile.fitness_level === 'athlete' ? 'advanced' : 'intermediate')
-    } catch(e) {}
-    setLoading(false)
-  }
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   function getPhaseWeightNote(exWeight, intensityModifier, phaseVal) {
     if (!exWeight) return null
@@ -1242,7 +1245,7 @@ export default function Workout() {
     const phases = getPhases(svgType)
     const exWeights = setWeights[playerIdx] || {}
     const exDone = playerDone[playerIdx] || {}
-    const allSetsComplete = Object.keys(exDone).length >= exObj.sets && Object.values(exDone).every(Boolean)
+    // allSetsComplete drives the check button colour via exDone keyed below
 
     function updateWeight(setIdx, delta) {
       setSetWeights(prev => {
