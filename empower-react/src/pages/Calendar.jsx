@@ -94,10 +94,6 @@ export default function Calendar() {
   const [sheet, setSheet] = useState(null) // { dateStr, isFuture }
   const [brainExpanded, setBrainExpanded] = useState(false)
 
-  useEffect(() => { setBrainExpanded(false) }, [sheet])
-
-  useEffect(() => { init() }, [])
-
   async function init() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { navigate('/login', { replace: true }); return }
@@ -122,6 +118,9 @@ export default function Calendar() {
     } catch(e) { console.error('Calendar init error:', e) }
     setLoading(false)
   }
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/set-state-in-effect
+  useEffect(() => { init() }, [])
 
   if (loading) return <div style={{ paddingTop:60 }}><Spinner /></div>
 
@@ -163,6 +162,7 @@ export default function Calendar() {
   }
 
   function openSheet(info) {
+    setBrainExpanded(false)
     setSheet({ dateStr: info.dateStr, isFuture: info.isFuture })
   }
 
@@ -354,30 +354,6 @@ export default function Calendar() {
                     }
                   }
 
-                  const WHAT_TO_EXPECT = {
-                    Menstrual:          'Estrogen is at its lowest point. Estrogen directly drives serotonin production, so when estrogen drops, serotonin drops with it. Serotonin is your mood-stabilising neurotransmitter. Its absence is why low mood, emotional sensitivity, and difficulty concentrating are so common right now. This is a measurable neurochemical change, not a character flaw.',
-                    'Early follicular':  'Estrogen is beginning to rise. Your mood, motivation, and mental clarity will start to shift over the coming days. Energy is returning but may still feel variable. Iron-rich foods are important right now as your period has been depleting your stores. Gentle movement will feel better than hard training.',
-                    Follicular:         'Estrogen is rising steadily. As estrogen climbs, so does serotonin and dopamine, your brain\'s motivation and reward chemicals. You may feel more energised, optimistic, and mentally sharp than you did last week. This is one of the best training windows in your cycle. Your body recovers faster and muscle protein synthesis responds well to resistance training.',
-                    'Late follicular':  'Estrogen is approaching its peak. Your energy, confidence, and cognitive performance are likely elevated. Strength and power output are higher than any other phase. Social drive often increases. This is a peak performance window.',
-                    Ovulatory:          'Estrogen peaks just before ovulation, triggering an LH surge that releases an egg. Alongside estrogen, testosterone briefly rises. This combination drives peak confidence, social energy, and physical performance. Your body is at its most capable right now. Estrogen also increases ligament laxity this week, so a thorough warmup matters more than usual before loading weight.',
-                    'Early luteal':     'Progesterone is rising. It converts in the brain into a calming compound that helps many women feel grounded, settled, and focused. Energy is still good. This is a productive phase for steady, focused work.',
-                    'Mid luteal':       'Progesterone is at its peak. Your resting heart rate and core temperature are measurably higher than in your follicular phase. The same workout genuinely feels harder, and that is real physiology, not lack of fitness. Serotonin stability begins to decrease. Prioritise sleep and protein. Recovery is slower.',
-                    'Late luteal':      'Both estrogen and progesterone are dropping sharply. As progesterone falls, the calming GABA effect disappears. Serotonin is at its lowest point since menstruation. This is why anxiety, irritability, and low mood peak here. PMS is a measurable neurochemical state. Gentle movement, magnesium, and warmth are the most evidence-supported interventions.',
-                    Luteal:             'Progesterone is elevated and core temperature is slightly higher than in the follicular phase. The same workout feels harder, and this is real physiology. Serotonin stability decreases through this phase. Prioritise protein, sleep, and recovery.',
-                  }
-
-                  const PLAN_AHEAD = {
-                    Menstrual:          [{ icon:'ti-meat', text:'Iron-rich foods: red meat, lentils, spinach with vitamin C' }, { icon:'ti-moon', text:'Prioritise 8 hours of sleep as hormones are at their lowest' }, { icon:'ti-walk', text:'Gentle movement only: walking, stretching, yoga' }],
-                    'Early follicular':  [{ icon:'ti-meat', text:'Iron-rich foods to replenish what your period depleted' }, { icon:'ti-walk', text:'Gentle movement returning: short walk or easy yoga' }, { icon:'ti-moon', text:'Consistent sleep times to reset your circadian rhythm' }],
-                    Follicular:         [{ icon:'ti-barbell', text:'Push your training as this is your strongest recovery window' }, { icon:'ti-egg', text:'Protein at every meal to support muscle building' }, { icon:'ti-brain', text:'Schedule demanding work as cognitive performance is rising' }],
-                    'Late follicular':  [{ icon:'ti-barbell', text:'Your strongest training window of the cycle' }, { icon:'ti-flame', text:'High intensity and heavy lifts respond well right now' }, { icon:'ti-brain', text:'Tackle the most demanding tasks this week' }],
-                    Ovulatory:          [{ icon:'ti-flame', text:'Your peak strength window, challenge yourself today' }, { icon:'ti-shield', text:'Complete a thorough warmup as ligament laxity is higher' }, { icon:'ti-users', text:'Social and collaborative work feels easier right now' }],
-                    'Early luteal':     [{ icon:'ti-barbell', text:'Steady strength training is still effective this sub-phase' }, { icon:'ti-moon', text:'Sleep quality is still good, protect it' }, { icon:'ti-salad', text:'Increase protein as progesterone raises protein breakdown' }],
-                    'Mid luteal':       [{ icon:'ti-heart-rate', text:'RHR is higher, do not compare to follicular phase data' }, { icon:'ti-meat', text:'Higher protein target: 1.8 to 2.2g per kg today' }, { icon:'ti-moon', text:'Sleep may be lighter, reduce caffeine after noon' }],
-                    'Late luteal':      [{ icon:'ti-leaf', text:'Reduce intensity as cortisol load is higher this week' }, { icon:'ti-pill', text:'Magnesium 400mg daily may reduce PMS severity' }, { icon:'ti-temperature', text:'Heat therapy for cramps: hot water bottle or warm bath' }],
-                    Luteal:             [{ icon:'ti-meat', text:'Protein priority: 1.8 to 2.2g per kg bodyweight' }, { icon:'ti-moon', text:'Protect sleep as progesterone affects sleep quality' }, { icon:'ti-activity', text:'Reduce volume if recovery feels slow' }],
-                  }
-
                   const BRAIN_STATE = {
                     Menstrual:          { state:'Low serotonin',      bg:'#ede0f0', text:'#5a3a6a', sentence:'Estrogen is at its lowest and serotonin drops with it. Any emotional heaviness you feel has a biological cause, not a personal one.' },
                     'Early follicular':  { state:'Rising serotonin',  bg:'#d8edd8', text:'#2a5a2a', sentence:'Estrogen is beginning to rise and serotonin is rising with it. The brain is coming back online after the hormonal low of menstruation.' },
@@ -395,8 +371,6 @@ export default function Calendar() {
                     Ovulatory: 105, 'Early luteal': 92, 'Mid luteal': 82, 'Late luteal': 72, Luteal: 80,
                   }
 
-                  const whatText = WHAT_TO_EXPECT[sub] || (sub ? `You will be in your ${sub} phase on this day.` : null)
-                  const planItems = PLAN_AHEAD[sub] || null
                   const brainData = BRAIN_STATE[sub] || null
                   const intensityPct = INTENSITY_LABEL[sub] || null
 
