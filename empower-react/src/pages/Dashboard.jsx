@@ -5,7 +5,8 @@ import { supabase } from '../lib/supabase'
 import { getTodayStatus, getPhase, getLutealSubPhase } from '../lib/hormoneSync'
 import BottomNav from '../components/BottomNav'
 import Spinner from '../components/Spinner'
-import { WeeklySummaryModal, WeeklySummaryCard, markWeeklySummaryDismissed, buildWeeklySummary } from '../components/WeeklySummary'
+import { WeeklySummaryModal, WeeklySummaryCard } from '../components/WeeklySummary'
+import { markWeeklySummaryDismissed, buildWeeklySummary } from '../lib/weeklyUtils'
 
 const PHASE_COLORS = {
   Menstrual:      { dot:'#e09898', bg:'#f0d8d8', text:'#5a2a28' },
@@ -182,8 +183,6 @@ export default function Dashboard() {
   const [communityTab, setCommunityTab] = useState('community')
   const [friendsData, setFriendsData] = useState(null) // null = not loaded yet
 
-  useEffect(() => { load() }, [])
-
   async function loadFriends(userId) {
     try {
       const { data: fships } = await supabase.from('friendships').select('*').or(`requester_id.eq.${userId},addressee_id.eq.${userId}`).eq('status', 'accepted')
@@ -321,6 +320,9 @@ export default function Dashboard() {
     } catch(e) { console.error(e) }
     finally { setLoading(false) }
   }
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/set-state-in-effect
+  useEffect(() => { load() }, [])
 
   if (loading) return <><div style={{ paddingTop: 60 }}><Spinner /></div><BottomNav /></>
   if (!d) return null
