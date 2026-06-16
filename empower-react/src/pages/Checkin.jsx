@@ -43,7 +43,9 @@ export default function Checkin() {
     try {
       const s = await getTodayStatus(supabase, user.id)
       setStatus(s)
-    } catch(e) {}
+    } catch {
+      /* data unavailable; screen renders with defaults */
+    }
     setLoading(false)
   }
 
