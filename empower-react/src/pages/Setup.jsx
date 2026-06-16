@@ -1,8 +1,9 @@
 // route /setup — onboarding: 5 paths (see PATH_OPTIONS), body stats, bc_type, bc_stop_date. IDs do not match display order — see CLAUDE.md.
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getPhase } from '../lib/hormoneSync'
+import Spinner from '../components/Spinner'
 
 const PATH_OPTIONS = [
   { id:1, label:'I know my last period date', icon:'ti-calendar' },
@@ -37,6 +38,8 @@ const sLabel = { fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransfo
 
 export default function Setup() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const [checking, setChecking] = useState(true)
   const [path, setPath] = useState(null)
   const [lastPeriod, setLastPeriod] = useState('')
   const [cycleLen, setCycleLen] = useState(28)
@@ -51,6 +54,25 @@ export default function Setup() {
   const [saving, setSaving] = useState(false)
   const [saveErr, setSaveErr] = useState(null)
   const [preview, setPreview] = useState(null)
+
+  // Self-correct: if an already-onboarded user lands here (an installed PWA restoring
+  // the /setup page, a stray link, or stale routing) send them to the dashboard — they
+  // must never be re-shown onboarding. The "Change information" button passes ?edit=1
+  // so a user who genuinely wants to update their details can still stay.
+  useEffect(() => {
+    let cancelled = false
+    async function guard() {
+      const editing = searchParams.get('edit') === '1'
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { if (!cancelled) setChecking(false); return }
+      const { data: prof } = await supabase.from('profiles').select('onboarding_complete').eq('id', user.id).maybeSingle()
+      if (cancelled) return
+      if (prof?.onboarding_complete && !editing) { navigate('/dashboard', { replace: true }); return }
+      setChecking(false)
+    }
+    guard()
+    return () => { cancelled = true }
+  }, [navigate, searchParams])
 
   useEffect(() => {
     if (path === 1 && lastPeriod) {
@@ -116,6 +138,7 @@ export default function Setup() {
     navigate('/dashboard', { replace: true })
   }
 
+  if (checking) return <div style={{ paddingTop:60 }}><Spinner /></div>
   if (!showStats) return (
     <div style={{ padding:'24px 16px 120px', minHeight:'100svh' }}>
       <div style={{ fontSize:13, fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase', textAlign:'center', marginBottom:24 }}>Em~power</div>

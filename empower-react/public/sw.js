@@ -3,7 +3,7 @@
 // build: the browser sees sw.js changed, installs this SW, which wipes every old
 // cache and claims open clients. v2 (2026-06-15): push the DB-based onboarding gate
 // to devices still running a pre-af2432d build that re-showed setup every login.
-const CACHE_NAME = 'empower-react-v2'
+const CACHE_NAME = 'empower-react-v3'
 
 self.addEventListener('install', event => {
   self.skipWaiting()

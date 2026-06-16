@@ -639,7 +639,7 @@ export default function Dashboard() {
         </div>
 
         <div style={{ textAlign:'center', marginTop:16, display:'flex', justifyContent:'center', gap:20 }}>
-          <button onClick={() => navigate('/setup')} style={{ background:'none', border:'none', fontSize:12, color:'#9a9590', cursor:'pointer', fontFamily:'inherit' }}>Change information</button>
+          <button onClick={() => navigate('/setup?edit=1')} style={{ background:'none', border:'none', fontSize:12, color:'#9a9590', cursor:'pointer', fontFamily:'inherit' }}>Change information</button>
           <button onClick={() => navigate('/feedback')} style={{ background:'none', border:'none', fontSize:12, color:'#9a9590', cursor:'pointer', fontFamily:'inherit' }}>Share feedback</button>
         </div>
       </div>

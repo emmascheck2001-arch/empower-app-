@@ -4,6 +4,14 @@ Changes made autonomously from user feedback. Most recent first.
 
 ---
 
+## 2026-06-15 — Setup self-corrects for onboarded users (Hannah's setup-every-login)
+
+**Reported by:** Emma — Hannah reinstalled but the setup "describe your cycle" screen still pops up every login; "just fix it for her."
+
+**What was done:** Made the setup screen self-correcting. On mount, `Setup.jsx` now checks the user's `onboarding_complete`; if they are already onboarded and did NOT arrive with `?edit=1`, it immediately redirects to `/dashboard` (showing a spinner, no flash of the form). This guarantees an onboarded user can never get stuck re-doing onboarding, regardless of how they reached `/setup` — an installed iOS PWA restoring the `/setup` page, a stray link, or any stale routing. The one legitimate edit entry point (the dashboard "Change information" button) now navigates to `/setup?edit=1` so editing details still works. Also bumped the service worker (`v2` → `v3`) to force any still-stale client to pull this build.
+
+**Files changed:** empower-react/src/pages/Setup.jsx, empower-react/src/pages/Dashboard.jsx, empower-react/public/sw.js
+
 ## 2026-06-15 — Force stale PWAs to update (Hannah re-doing setup every login)
 
 **Reported by:** Emma — "hannah keeps having to enter the 'describe your cycle right now' [setup screen] every time she logs in."
