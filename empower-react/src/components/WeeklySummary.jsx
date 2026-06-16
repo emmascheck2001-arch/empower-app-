@@ -1,4 +1,5 @@
-// Weekly summary modal + dashboard card — shown once per week on first open
+/* eslint-disable react-refresh/only-export-components */
+// Weekly summary modal + dashboard card — utility functions co-exported intentionally
 
 import { getPhase, getLutealSubPhase } from '../lib/hormoneSync'
 
@@ -190,7 +191,7 @@ const sLabel = { fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransfo
 
 export function WeeklySummaryModal({ summary, onDismiss }) {
   const {
-    daysLogged, workouts, currentPhase, confPct, daysUntilPeriod,
+    daysLogged, workouts, currentPhase,
     goodEnergyPct, goodSleepPct, workoutRate, topMoods,
     nextLabel, nextBullets, experiment,
     isLowerEnergyPhase, sleepEnergyCorrelation, paired,
@@ -338,7 +339,7 @@ export function WeeklySummaryModal({ summary, onDismiss }) {
 }
 
 export function WeeklySummaryCard({ summary, onClick }) {
-  const { daysLogged, workouts, currentPhase, nextLabel, goodEnergyPct, goodSleepPct, topMoods } = summary
+  const { daysLogged, goodEnergyPct, goodSleepPct, topMoods } = summary
   const topMood = topMoods?.[0]?.[0]
 
   return (

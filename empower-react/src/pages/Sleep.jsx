@@ -140,7 +140,9 @@ export default function Sleep() {
         const { data: existing } = await supabase.from('daily_logs')
           .select('sleep_quality').eq('user_id', user.id).eq('log_date', localDateStr()).maybeSingle()
         if (existing?.sleep_quality) setQuality(existing.sleep_quality)
-      } catch(e) {}
+      } catch {
+        /* data unavailable; screen renders with defaults */
+      }
       setLoading(false)
     }
     init()
