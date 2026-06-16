@@ -4,6 +4,16 @@ Changes made autonomously from user feedback. Most recent first.
 
 ---
 
+## 2026-06-15 — Open the feedback tool to all testers (was locked to developer only)
+
+**Reported by:** Emma — "it says the feedback is only available during the beta period, what does that mean?"
+
+**What it meant:** Despite the wording, the feedback screen was hard-restricted to a single email (`setAllowed(u.email === EMMA_EMAIL)`). Every other signed-in user — i.e. all beta testers — got the "Beta access only" lock screen and could not submit anything. This is why the `user_feedback` table has been empty the whole time: testers were silently blocked from sending feedback, so the 3-hour processing loop had nothing to find.
+
+**What was done:** Changed the gate to `setAllowed(true)` so every signed-in user can submit feedback, and removed the now-unused `EMMA_EMAIL` constant. The lock-screen branch remains in place (dead for now) in case access ever needs re-restricting.
+
+**Files changed:** empower-react/src/pages/Feedback.jsx
+
 ## 2026-06-15 — Setup self-corrects for onboarded users (Hannah's setup-every-login)
 
 **Reported by:** Emma — Hannah reinstalled but the setup "describe your cycle" screen still pops up every login; "just fix it for her."

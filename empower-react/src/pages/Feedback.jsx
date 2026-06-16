@@ -4,8 +4,6 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import TopBar from '../components/TopBar'
 
-const EMMA_EMAIL = 'emmascheck2001@gmail.com'
-
 const CATEGORIES = [
   { id:'something_broken', emoji:'🔧', label:'Something is broken', sub:'Error, crash, or not working' },
   { id:'confusing', emoji:'🤔', label:'Something is confusing', sub:'Hard to understand or use' },
@@ -116,7 +114,10 @@ export default function Feedback() {
     supabase.auth.getUser().then(({ data: { user: u } }) => {
       if (!u) { navigate('/login', { replace: true }); return }
       setUser(u)
-      setAllowed(u.email === EMMA_EMAIL)
+      // Open to every signed-in user — the whole point of the beta is to collect
+      // tester feedback. (Was restricted to the developer's email, which silently
+      // blocked all testers from submitting.)
+      setAllowed(true)
     })
   }, [navigate])
 
