@@ -338,137 +338,113 @@ function getPhases(svgType) {
   return P[svgType] || P.stand
 }
 
+// Animated stick figures. Each exercise is two real poses (start ↔ working) defined
+// as joint coordinates; the component interpolates between them every frame so the
+// figure actually performs the rep (knees bend, bars travel, arms curl). viewBox is
+// 0 0 240 175. Joints: head, neck, hip, k1/f1 + k2/f2 (legs), e1/h1 + e2/h2 (arms).
+// `bar` is the loaded implement (two points). Respects prefers-reduced-motion.
+const lerp = (a, b, t) => a + (b - a) * t
+const lp = (A, B, t) => [lerp(A[0], B[0], t), lerp(A[1], B[1], t)]
+
+const POSES = {
+  // Back squat — stand tall to deep squat, bar racked on traps the whole time.
+  squat: { floor: true, period: 2600,
+    top:    { head:[120,40], neck:[120,58], hip:[120,110], k1:[112,135], f1:[110,160], k2:[128,135], f2:[130,160], e1:[106,60], h1:[98,54], e2:[134,60], h2:[142,54], bar:[[94,52],[146,52]] },
+    bottom: { head:[120,58], neck:[120,76], hip:[116,116], k1:[95,132], f1:[108,160], k2:[141,132], f2:[132,160], e1:[104,78], h1:[96,72], e2:[136,78], h2:[144,72], bar:[[92,70],[148,70]] } },
+  // Romanian deadlift — vertical to hip-hinge, bar tracks down the legs.
+  hinge: { floor: true, period: 2800,
+    top:    { head:[120,40], neck:[120,58], hip:[120,110], k1:[116,135], f1:[114,160], k2:[127,135], f2:[129,160], e1:[119,84], h1:[117,110], e2:[125,84], h2:[123,110], bar:[[100,112],[140,112]] },
+    bottom: { head:[74,62], neck:[90,68], hip:[138,104], k1:[140,130], f1:[138,160], k2:[150,130], f2:[150,160], e1:[102,96], h1:[104,138], e2:[108,98], h2:[110,140], bar:[[86,139],[122,141]] } },
+  // Bench press — lying on a bench, press the bar up off the chest.
+  push: { floor: true, bench:[36,116,168], period: 2400,
+    top:    { head:[58,100], neck:[80,103], hip:[150,107], k1:[168,124], f1:[164,158], k2:[178,124], f2:[184,158], e1:[92,86], h1:[94,62], e2:[112,86], h2:[114,62], bar:[[82,60],[126,60]] },
+    bottom: { head:[58,100], neck:[80,103], hip:[150,107], k1:[168,124], f1:[164,158], k2:[178,124], f2:[184,158], e1:[86,98], h1:[80,86], e2:[114,98], h2:[120,86], bar:[[74,84],[126,84]] } },
+  // Bent-over row — torso fixed at a hinge, pull the bar to the lower ribs.
+  row: { floor: true, period: 2200,
+    top:    { head:[70,52], neck:[84,60], hip:[146,104], k1:[140,130], f1:[134,160], k2:[152,130], f2:[158,160], e1:[100,90], h1:[96,130], e2:[108,92], h2:[104,132], bar:[[84,130],[122,132]] },
+    bottom: { head:[70,52], neck:[84,60], hip:[146,104], k1:[140,130], f1:[134,160], k2:[152,130], f2:[158,160], e1:[104,84], h1:[120,98], e2:[112,86], h2:[128,100], bar:[[108,98],[142,100]] } },
+  // Overhead press — bar from shoulders to lockout overhead.
+  press: { floor: true, period: 2400,
+    top:    { head:[120,46], neck:[120,62], hip:[120,112], k1:[114,136], f1:[112,160], k2:[127,136], f2:[129,160], e1:[112,46], h1:[104,24], e2:[128,46], h2:[136,24], bar:[[100,22],[140,22]] },
+    bottom: { head:[120,46], neck:[120,62], hip:[120,112], k1:[114,136], f1:[112,160], k2:[127,136], f2:[129,160], e1:[106,66], h1:[100,50], e2:[134,66], h2:[140,50], bar:[[96,48],[144,48]] } },
+  // Bulgarian split squat — tall to bottom, back knee drops toward the floor.
+  lunge: { floor: true, period: 2600,
+    top:    { head:[105,42], neck:[105,60], hip:[106,108], k1:[104,134], f1:[100,160], k2:[140,128], f2:[160,160], e1:[100,84], h1:[98,112], e2:[114,84], h2:[112,112] },
+    bottom: { head:[105,60], neck:[105,78], hip:[106,118], k1:[100,140], f1:[98,160], k2:[150,150], f2:[162,160], e1:[100,98], h1:[98,122], e2:[114,98], h2:[112,122] } },
+  // Hip thrust — shoulders on bench, drive hips from low to a straight bridge.
+  thrust: { floor: true, bench:[34,96,66], period: 2200,
+    top:    { head:[58,92], neck:[78,98], hip:[152,100], k1:[166,126], f1:[162,160], k2:[178,126], f2:[182,160], e1:[70,104], h1:[60,118], e2:[86,104], h2:[78,120], bar:[[122,98],[182,100]] },
+    bottom: { head:[58,92], neck:[78,98], hip:[150,140], k1:[166,128], f1:[162,160], k2:[178,128], f2:[182,160], e1:[70,108], h1:[60,124], e2:[86,108], h2:[78,128], bar:[[120,138],[180,140]] } },
+  // Pull-up — dead hang to chin over the bar, hands fixed on the bar.
+  pullup: { period: 2400,
+    top:    { head:[120,58], neck:[120,74], hip:[120,122], k1:[112,148], f1:[110,170], k2:[128,148], f2:[130,170], e1:[112,42], h1:[100,24], e2:[128,42], h2:[140,24], bar:[[55,22],[185,22]] },
+    bottom: { head:[120,40], neck:[120,52], hip:[120,98], k1:[114,124], f1:[112,150], k2:[127,124], f2:[129,150], e1:[103,40], h1:[100,24], e2:[137,40], h2:[140,24], bar:[[55,22],[185,22]] } },
+  // Biceps curl — elbows pinned, forearms swing from extended to shoulders.
+  curl: { floor: true, period: 1900,
+    top:    { head:[120,40], neck:[120,58], hip:[120,112], k1:[112,136], f1:[110,160], k2:[128,136], f2:[130,160], e1:[112,90], h1:[108,122], e2:[128,90], h2:[132,122] },
+    bottom: { head:[120,40], neck:[120,58], hip:[120,112], k1:[112,136], f1:[110,160], k2:[128,136], f2:[130,160], e1:[112,90], h1:[104,66], e2:[128,90], h2:[136,66] } },
+  // Plank — a hold; only a small brace/breathe so it reads as "alive" not frozen.
+  plank: { floor: true, period: 4200,
+    top:    { head:[52,98], neck:[70,102], hip:[148,116], k1:[176,128], f1:[190,150], k2:[182,130], f2:[196,150], e1:[68,118], h1:[58,150], e2:[74,118], h2:[64,150] },
+    bottom: { head:[52,100], neck:[70,104], hip:[148,120], k1:[176,130], f1:[190,150], k2:[182,132], f2:[196,150], e1:[68,118], h1:[58,150], e2:[74,118], h2:[64,150] } },
+  // Calf raise — whole body rises onto the toes and lowers the heels.
+  calf: { floor: true, period: 1700,
+    top:    { head:[120,32], neck:[120,48], hip:[120,102], k1:[112,140], f1:[106,158], k2:[128,140], f2:[134,158], e1:[112,68], h1:[108,104], e2:[128,68], h2:[132,104] },
+    bottom: { head:[120,40], neck:[120,56], hip:[120,110], k1:[112,146], f1:[100,162], k2:[128,146], f2:[140,162], e1:[112,76], h1:[108,112], e2:[128,76], h2:[132,112] } },
+  // Idle stand — gentle sway so the default state isn't a frozen figure.
+  stand: { floor: true, period: 4000,
+    top:    { head:[120,40], neck:[120,58], hip:[120,112], k1:[112,136], f1:[110,160], k2:[128,136], f2:[130,160], e1:[112,70], h1:[106,108], e2:[128,70], h2:[134,108] },
+    bottom: { head:[120,43], neck:[120,61], hip:[120,113], k1:[112,137], f1:[110,160], k2:[128,137], f2:[130,160], e1:[112,72], h1:[107,110], e2:[128,72], h2:[133,110] } },
+}
+
 function StickFigure({ type }) {
+  const pose = POSES[type] || POSES.stand
+  const reduce = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  const [t, setT] = useState(reduce ? 0.5 : 0)
+
+  useEffect(() => {
+    if (reduce) return
+    let raf, start = null
+    const period = pose.period || 2400
+    const step = (ts) => {
+      if (start === null) start = ts
+      const p = ((ts - start) % period) / period          // 0..1 over the cycle
+      const tri = p < 0.5 ? p * 2 : (1 - p) * 2            // ping-pong 0→1→0
+      setT(0.5 - 0.5 * Math.cos(tri * Math.PI))            // ease in/out, dwell at ends
+      raf = requestAnimationFrame(step)
+    }
+    raf = requestAnimationFrame(step)
+    return () => cancelAnimationFrame(raf)
+  }, [pose, reduce])
+
+  const A = pose.top, B = pose.bottom
+  const J = {}
+  ;['head','neck','hip','k1','f1','k2','f2','e1','h1','e2','h2'].forEach(k => {
+    if (A[k] && B[k]) J[k] = lp(A[k], B[k], t)
+  })
+  const bar = A.bar && B.bar ? [lp(A.bar[0], B.bar[0], t), lp(A.bar[1], B.bar[1], t)] : null
   const s = { stroke:'#2c2820', strokeWidth:3, strokeLinecap:'round', fill:'none' }
-  const bar = { stroke:'#c8b89a', strokeWidth:5, strokeLinecap:'round' }
-  const floor = { stroke:'#c8b89a', strokeWidth:3, strokeLinecap:'round' }
-  const figures = {
-    squat: <svg viewBox="0 0 240 175" style={{width:'100%',height:'100%'}}>
-      <line x1="30" y1="162" x2="210" y2="162" {...floor}/>
-      <line x1="82" y1="72" x2="158" y2="72" {...bar}/>
-      <circle cx="120" cy="44" r="16" {...s}/>
-      <line x1="120" y1="60" x2="120" y2="72" {...s}/>
-      <line x1="120" y1="72" x2="118" y2="118" {...s}/>
-      <line x1="118" y1="118" x2="88" y2="144" {...s}/>
-      <line x1="118" y1="118" x2="148" y2="144" {...s}/>
-      <line x1="88" y1="144" x2="85" y2="162" {...s}/>
-      <line x1="148" y1="144" x2="151" y2="162" {...s}/>
-      <line x1="113" y1="75" x2="97" y2="72" {...{...s,strokeWidth:2.5}}/>
-      <line x1="127" y1="75" x2="143" y2="72" {...{...s,strokeWidth:2.5}}/>
-    </svg>,
-    hinge: <svg viewBox="0 0 240 175" style={{width:'100%',height:'100%'}}>
-      <line x1="30" y1="162" x2="210" y2="162" {...floor}/>
-      <circle cx="82" cy="46" r="16" {...s}/>
-      <line x1="88" y1="58" x2="148" y2="110" {...s}/>
-      <line x1="148" y1="110" x2="133" y2="162" {...s}/>
-      <line x1="148" y1="110" x2="157" y2="162" {...s}/>
-      <line x1="99" y1="70" x2="110" y2="148" {...{...s,strokeWidth:2.5}}/>
-      <line x1="116" y1="76" x2="124" y2="148" {...{...s,strokeWidth:2.5}}/>
-      <line x1="94" y1="150" x2="138" y2="150" {...bar}/>
-    </svg>,
-    push: <svg viewBox="0 0 240 175" style={{width:'100%',height:'100%'}}>
-      <rect x="38" y="118" width="165" height="10" rx="4" fill="#e8dfd0" stroke="#c8b89a" strokeWidth="2"/>
-      <circle cx="65" cy="92" r="16" {...s}/>
-      <line x1="80" y1="98" x2="158" y2="105" {...s}/>
-      <line x1="90" y1="100" x2="90" y2="62" {...{...s,strokeWidth:2.5}}/>
-      <line x1="120" y1="102" x2="120" y2="62" {...{...s,strokeWidth:2.5}}/>
-      <line x1="70" y1="62" x2="165" y2="62" {...bar}/>
-      <line x1="158" y1="105" x2="175" y2="118" {...s}/>
-      <line x1="168" y1="107" x2="185" y2="118" {...s}/>
-    </svg>,
-    row: <svg viewBox="0 0 240 175" style={{width:'100%',height:'100%'}}>
-      <line x1="30" y1="162" x2="210" y2="162" {...floor}/>
-      <circle cx="75" cy="50" r="16" {...s}/>
-      <line x1="82" y1="62" x2="145" y2="108" {...s}/>
-      <line x1="145" y1="108" x2="130" y2="162" {...s}/>
-      <line x1="145" y1="108" x2="158" y2="162" {...s}/>
-      <line x1="95" y1="74" x2="108" y2="106" {...{...s,strokeWidth:2.5}}/>
-      <line x1="112" y1="80" x2="122" y2="110" {...{...s,strokeWidth:2.5}}/>
-      <line x1="92" y1="108" x2="130" y2="110" {...bar}/>
-    </svg>,
-    press: <svg viewBox="0 0 240 175" style={{width:'100%',height:'100%'}}>
-      <line x1="30" y1="162" x2="210" y2="162" {...floor}/>
-      <circle cx="120" cy="40" r="16" {...s}/>
-      <line x1="120" y1="56" x2="120" y2="112" {...s}/>
-      <line x1="120" y1="112" x2="105" y2="162" {...s}/>
-      <line x1="120" y1="112" x2="135" y2="162" {...s}/>
-      <line x1="112" y1="68" x2="86" y2="44" {...{...s,strokeWidth:2.5}}/>
-      <line x1="128" y1="68" x2="154" y2="44" {...{...s,strokeWidth:2.5}}/>
-      <line x1="73" y1="38" x2="167" y2="38" {...bar}/>
-    </svg>,
-    lunge: <svg viewBox="0 0 240 175" style={{width:'100%',height:'100%'}}>
-      <line x1="30" y1="162" x2="210" y2="162" {...floor}/>
-      <circle cx="105" cy="42" r="16" {...s}/>
-      <line x1="105" y1="58" x2="108" y2="112" {...s}/>
-      <line x1="108" y1="112" x2="88" y2="138" {...s}/>
-      <line x1="88" y1="138" x2="78" y2="162" {...s}/>
-      <line x1="108" y1="112" x2="148" y2="130" {...s}/>
-      <line x1="148" y1="130" x2="162" y2="162" {...s}/>
-      <line x1="98" y1="68" x2="84" y2="106" {...{...s,strokeWidth:2.5}}/>
-      <line x1="118" y1="68" x2="132" y2="106" {...{...s,strokeWidth:2.5}}/>
-    </svg>,
-    thrust: <svg viewBox="0 0 240 175" style={{width:'100%',height:'100%'}}>
-      <line x1="30" y1="162" x2="210" y2="162" {...floor}/>
-      <rect x="35" y="104" width="62" height="12" rx="4" fill="#e8dfd0" stroke="#c8b89a" strokeWidth="2"/>
-      <circle cx="68" cy="88" r="16" {...s}/>
-      <line x1="82" y1="95" x2="148" y2="100" {...s}/>
-      <line x1="148" y1="100" x2="158" y2="145" {...s}/>
-      <line x1="152" y1="100" x2="168" y2="145" {...s}/>
-      <line x1="158" y1="145" x2="148" y2="162" {...s}/>
-      <line x1="168" y1="145" x2="175" y2="162" {...s}/>
-      <line x1="118" y1="100" x2="178" y2="102" {...bar}/>
-    </svg>,
-    pullup: <svg viewBox="0 0 240 175" style={{width:'100%',height:'100%'}}>
-      <line x1="55" y1="22" x2="185" y2="22" {...bar}/>
-      <circle cx="120" cy="54" r="16" {...s}/>
-      <line x1="120" y1="70" x2="120" y2="120" {...s}/>
-      <line x1="120" y1="120" x2="108" y2="162" {...s}/>
-      <line x1="120" y1="120" x2="132" y2="162" {...s}/>
-      <line x1="112" y1="58" x2="96" y2="22" {...{...s,strokeWidth:2.5}}/>
-      <line x1="128" y1="58" x2="144" y2="22" {...{...s,strokeWidth:2.5}}/>
-    </svg>,
-    curl: <svg viewBox="0 0 240 175" style={{width:'100%',height:'100%'}}>
-      <line x1="30" y1="162" x2="210" y2="162" {...floor}/>
-      <circle cx="120" cy="42" r="16" {...s}/>
-      <line x1="120" y1="58" x2="120" y2="112" {...s}/>
-      <line x1="120" y1="112" x2="108" y2="162" {...s}/>
-      <line x1="120" y1="112" x2="132" y2="162" {...s}/>
-      <line x1="112" y1="68" x2="90" y2="90" {...{...s,strokeWidth:2.5}}/>
-      <line x1="90" y1="90" x2="76" y2="72" {...{...s,strokeWidth:2.5}}/>
-      <line x1="128" y1="68" x2="150" y2="90" {...{...s,strokeWidth:2.5}}/>
-      <line x1="150" y1="90" x2="164" y2="72" {...{...s,strokeWidth:2.5}}/>
-    </svg>,
-    plank: <svg viewBox="0 0 240 175" style={{width:'100%',height:'100%'}}>
-      <line x1="30" y1="162" x2="210" y2="162" {...floor}/>
-      <circle cx="55" cy="94" r="16" {...s}/>
-      <line x1="70" y1="102" x2="182" y2="120" {...s}/>
-      <line x1="80" y1="104" x2="75" y2="130" {...{...s,strokeWidth:2.5}}/>
-      <line x1="96" y1="107" x2="91" y2="133" {...{...s,strokeWidth:2.5}}/>
-      <line x1="182" y1="120" x2="183" y2="155" {...{...s,strokeWidth:2.5}}/>
-      <line x1="176" y1="119" x2="177" y2="154" {...{...s,strokeWidth:2.5}}/>
-    </svg>,
-    calf: <svg viewBox="0 0 240 175" style={{width:'100%',height:'100%'}}>
-      <line x1="80" y1="162" x2="160" y2="162" {...floor}/>
-      <circle cx="120" cy="34" r="16" {...s}/>
-      <line x1="120" y1="50" x2="120" y2="104" {...s}/>
-      <line x1="120" y1="104" x2="108" y2="148" {...s}/>
-      <line x1="120" y1="104" x2="132" y2="148" {...s}/>
-      <line x1="108" y1="148" x2="100" y2="162" {...s}/>
-      <line x1="132" y1="148" x2="140" y2="162" {...s}/>
-      <line x1="112" y1="58" x2="95" y2="102" {...{...s,strokeWidth:2.5}}/>
-      <line x1="128" y1="58" x2="145" y2="102" {...{...s,strokeWidth:2.5}}/>
-    </svg>,
-    stand: <svg viewBox="0 0 240 175" style={{width:'100%',height:'100%'}}>
-      <line x1="30" y1="162" x2="210" y2="162" {...floor}/>
-      <circle cx="120" cy="42" r="16" {...s}/>
-      <line x1="120" y1="58" x2="120" y2="112" {...s}/>
-      <line x1="120" y1="112" x2="108" y2="162" {...s}/>
-      <line x1="120" y1="112" x2="132" y2="162" {...s}/>
-      <line x1="112" y1="68" x2="95" y2="112" {...{...s,strokeWidth:2.5}}/>
-      <line x1="128" y1="68" x2="145" y2="112" {...{...s,strokeWidth:2.5}}/>
-    </svg>,
-  }
-  return figures[type] || figures.stand
+  const thin = { ...s, strokeWidth:2.5 }
+  const barS = { stroke:'#c8b89a', strokeWidth:5, strokeLinecap:'round' }
+  const floorS = { stroke:'#c8b89a', strokeWidth:3, strokeLinecap:'round' }
+  const L = (a, b, st) => (a && b) ? <line x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} {...st} /> : null
+  // neck line starts just below the head circle so it reads as a connected body
+  const headBottom = J.head ? [J.head[0], J.head[1] + 14] : null
+
+  return (
+    <svg viewBox="0 0 240 175" style={{ width:'100%', height:'100%' }}>
+      {pose.floor && <line x1="30" y1="162" x2="210" y2="162" {...floorS} />}
+      {pose.bench && <rect x={pose.bench[0]} y={pose.bench[1]} width={pose.bench[2]} height="11" rx="4" fill="#e8dfd0" stroke="#c8b89a" strokeWidth="2" />}
+      {bar && <line x1={bar[0][0]} y1={bar[0][1]} x2={bar[1][0]} y2={bar[1][1]} {...barS} />}
+      {L(headBottom, J.neck, s)}
+      {L(J.neck, J.hip, s)}
+      {L(J.hip, J.k1, s)}{L(J.k1, J.f1, s)}
+      {L(J.hip, J.k2, s)}{L(J.k2, J.f2, s)}
+      {L(J.neck, J.e1, thin)}{L(J.e1, J.h1, thin)}
+      {L(J.neck, J.e2, thin)}{L(J.e2, J.h2, thin)}
+      {J.head && <circle cx={J.head[0]} cy={J.head[1]} r="14" {...s} />}
+    </svg>
+  )
 }
 
 const EXERCISES = {

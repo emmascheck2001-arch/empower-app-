@@ -4,6 +4,16 @@ Changes made autonomously from user feedback. Most recent first.
 
 ---
 
+## 2026-06-16 — Workout demo: stick figures now actually animate the rep
+
+**Reported by:** Emma — "make sure the animated stick figures are correct in the demo, and make them move so it's a real demo."
+
+**What was done:** Rebuilt `StickFigure` in Workout.jsx. It was a single static SVG pose per exercise. It's now a joint-based skeleton (head, neck, hip, both legs, both arms, plus the loaded bar/implement) defined as TWO real poses — start and working — per exercise. A `requestAnimationFrame` loop interpolates between them with an ease-in/out ping-pong, so the figure performs the actual movement on a loop: squat sits down and stands, RDL hinges at the hips, bench/overhead press travels the bar, row pulls to the ribs, curl swings the forearms, pull-up rises to the bar, hip thrust bridges up, calf raise lifts onto the toes; plank/stand get a subtle "alive" motion. Honoured `prefers-reduced-motion` (shows a mid-pose still). Verified the exercise→figure mapping in `getSvgType` is correct for every type.
+
+**Note:** the motion/poses were authored by coordinates and built clean, but I can't visually render them from here — worth a quick look on the workout player to confirm each looks right; easy to nudge any joint that's off.
+
+**Files changed:** empower-react/src/pages/Workout.jsx
+
 ## 2026-06-15 — Estimate phase from symptoms when no period is logged (the core promise)
 
 **Reported by:** Emma — "shouldn't you be able to figure out what cycle I'm in from the data? That's kinda why I made the app." (Her own account: Path 2, off Depo ~1 month, 11 logs, no period date → stuck in observation at 38%.)
