@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase'
 import { getTodayStatus } from '../lib/hormoneSync'
 import TopBar from '../components/TopBar'
 import BottomNav from '../components/BottomNav'
+import Disclaimer from '../components/Disclaimer'
 import Spinner from '../components/Spinner'
 
 const SLEEP_GUIDE = {
@@ -234,6 +235,7 @@ export default function Sleep() {
         </div>
 
       </div>
+      <Disclaimer>Supplement amounts mentioned here are the doses used in research, shared as general information — not a personal recommendation. Talk to your doctor before starting any supplement, especially if you are pregnant, breastfeeding, or taking medication.</Disclaimer>
       <BottomNav />
     </div>
   )

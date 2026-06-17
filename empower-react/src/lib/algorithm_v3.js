@@ -164,7 +164,7 @@ export const PHASE_PREDICTIONS = {
     intensity: 0.72,
     why: 'Both estrogen and progesterone are dropping sharply. Serotonin drops with estrogen. When progesterone drops, the calming effect it was providing disappears, which for some women triggers rebound anxiety and irritability. The combination of low serotonin and this withdrawal is the biological reason PMS feels so different from ordinary low mood. It has a specific chemical cause, and it resolves the moment your period starts and hormones reset. Source: Backstrom et al. Psychoneuroendocrinology 2014. Osborn et al. 2025.',
     training: 'Low intensity movement is most appropriate. Walking, gentle yoga, and light resistance work. Avoid high-intensity training, which adds stress to an already loaded system.',
-    nutrition: 'Natural period pain prevention: start magnesium 400mg daily now, omega-3s, and anti-inflammatory foods. Reduce ultra-processed food, alcohol, and excess caffeine, which make cramping worse.'
+    nutrition: 'For period pain, many women find magnesium (around 400mg daily in studies), omega-3s, and anti-inflammatory foods help, alongside less ultra-processed food, alcohol, and excess caffeine. Check with your doctor before starting a supplement.'
   },
   Luteal: {
     label: 'Luteal',

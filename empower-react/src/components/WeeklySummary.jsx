@@ -77,7 +77,7 @@ const PHASE_EXPERIMENTS = {
   },
   'Late luteal': {
     instead: 'Pushing through disrupted sleep',
-    tryThis:  'Try magnesium 400mg before bed each night',
+    tryThis:  'Many women find magnesium before bed helps sleep — ask your doctor if it is right for you',
     track:    'Sleep quality scores before and after to see if it makes a difference',
   },
   Luteal: {

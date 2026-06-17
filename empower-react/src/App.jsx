@@ -65,8 +65,8 @@ function PrivacyGate({ userId, onAgreed }) {
 
       <div style={{ background: '#f5f0e8', borderRadius: 12, padding: 14, marginBottom: 20 }}>
         <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#9a9590', marginBottom: 8 }}>Your rights</div>
-        {['Your data is stored securely on Supabase (AWS infrastructure) with row-level security.', 'Only you can see your data.', 'You can request access, correction, or deletion at any time by emailing emmascheck2001@gmail.com.', 'Em~power is a wellness app, not a medical device. Nothing here is medical advice.'].map((item, i) => (
-          <div key={i} style={{ display: 'flex', gap: 10, marginBottom: i < 3 ? 8 : 0 }}>
+        {['Your data is stored securely on Supabase (AWS infrastructure) with row-level security.', 'Only you can see your data.', 'You can request access, correction, or deletion at any time by emailing emmascheck2001@gmail.com.', 'Em~power is a wellness app, not a medical device. Nothing here is medical advice — always consult a qualified healthcare professional before acting on anything in the app.', 'Em~power does not prevent pregnancy and is not a method of contraception or fertility treatment. Never rely on it to avoid or plan a pregnancy.'].map((item, i) => (
+          <div key={i} style={{ display: 'flex', gap: 10, marginBottom: i < 4 ? 8 : 0 }}>
             <i className="ti ti-circle-check" style={{ color: '#c8b89a', fontSize: 15, flexShrink: 0, marginTop: 1 }} />
             <span style={{ fontSize: 13, color: '#3a3530', lineHeight: 1.6 }}>{item}</span>
           </div>

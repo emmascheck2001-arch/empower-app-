@@ -4,6 +4,19 @@ Changes made autonomously from user feedback. Most recent first.
 
 ---
 
+## 2026-06-16 — Liability / wording audit pass (not legal advice)
+
+**Reported by:** Emma — "make sure there are no liability concerns with wording and everything." (Reviewed against medical-language best practice + the project's own rules. NOT a substitute for a real femtech/healthcare attorney review before launch.)
+
+**Findings + fixes:**
+- **No contraceptive-use disclaimer** despite the app tracking fertile window, cervical fluid, and LH (the highest femtech liability). Added to the privacy/consent gate every new user sees: "Em~power does not prevent pregnancy and is not a method of contraception or fertility treatment. Never rely on it to avoid or plan a pregnancy." Also strengthened the medical-advice line there to "always consult a qualified healthcare professional before acting on anything in the app."
+- **Sleep and Workout screens had no disclaimer** despite giving supplement doses (Sleep) and exercise guidance (Workout). Added a shared `<Disclaimer>` component and placed a tailored disclaimer on each (supplements → "talk to your doctor before starting any supplement"; exercise → "carries inherent risk, stop if you feel pain, check with a professional if new/pregnant/injured"). Learn and Nutrition already had disclaimers.
+- **Directive individual supplement dosing softened** where it appeared without an adjacent disclaimer: the late-luteal nutrition tip ("start magnesium 400mg daily now") and the weekly-insight tip ("Try magnesium 400mg before bed") are now framed as "many women find … in studies — check with your doctor," not personal prescriptions.
+
+**Still worth your/a lawyer's attention (not changed):** the PMDD auto-flag names the condition (it does say "pattern observation, not a diagnosis" + see a doctor); remaining specific doses in Learn/Nutrition are now behind disclaimers but could be softened; confirm crisis-line resources appear with any crisis-level mood content. A qualified attorney should review Terms of Service and the full medical-language set before public launch.
+
+**Files changed:** empower-react/src/App.jsx, empower-react/src/components/Disclaimer.jsx (new), empower-react/src/pages/Sleep.jsx, empower-react/src/pages/Workout.jsx, empower-react/src/lib/algorithm_v3.js, empower-react/src/components/WeeklySummary.jsx
+
 ## 2026-06-16 — Workout demo: fix leg curl + Bulgarian split squat, add polish
 
 **Reported by:** Emma — "Bulgarian split squat is not correct; leg curl is incorrect, it's legs not arms; also make them a little more aesthetic."

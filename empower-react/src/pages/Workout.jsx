@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getTodayStatus } from '../lib/hormoneSync'
 import BottomNav from '../components/BottomNav'
+import Disclaimer from '../components/Disclaimer'
 import TopBar from '../components/TopBar'
 import Spinner from '../components/Spinner'
 
@@ -890,6 +891,7 @@ export default function Workout() {
           </button>
         </div>
       </div>
+      <Disclaimer>Exercise carries inherent risk. Warm up, use a load you can control with good form, and stop if you feel pain. If you are new to training, pregnant, recovering from injury, or have a health condition, check with a healthcare professional before starting.</Disclaimer>
       <BottomNav />
     </div>
   )
