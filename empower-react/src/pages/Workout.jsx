@@ -697,7 +697,19 @@ export default function Workout() {
     : (rawPhase === 'bc-combined' || rawPhase === 'bc-progestin') ? 'observation'
     : status?.subPhase || rawPhase || 'observation'
 
-  useEffect(() => { init() }, [])
+  useEffect(() => {
+    async function init() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { navigate('/login', { replace: true }); return }
+      try {
+        const s = await getTodayStatus(supabase, user.id)
+        setStatus(s)
+        if (s?.profile?.fitness_level) setFitnessLevel(s.profile.fitness_level === 'beginner' ? 'beginner' : s.profile.fitness_level === 'advanced' || s.profile.fitness_level === 'athlete' ? 'advanced' : 'intermediate')
+      } catch { /* non-fatal */ }
+      setLoading(false)
+    }
+    init()
+  }, [])
 
   useEffect(() => {
     if (!cardioRunning) return
@@ -716,6 +728,7 @@ export default function Workout() {
     if (hiitSecondsLeft <= 0) {
       const data = hiitFor(phase)
       if (hiitPhase === 'work') {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setHiitPhase('rest')
         setHiitSecondsLeft(data.rest)
       } else {
@@ -742,17 +755,6 @@ export default function Workout() {
     const id = setTimeout(() => setHiitSecondsLeft(s => s - 1), 1000)
     return () => clearTimeout(id)
   }, [hiitRunning, hiitSecondsLeft, hiitPhase, hiitExIdx, hiitRound, phase])
-
-  async function init() {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { navigate('/login', { replace: true }); return }
-    try {
-      const s = await getTodayStatus(supabase, user.id)
-      setStatus(s)
-      if (s?.profile?.fitness_level) setFitnessLevel(s.profile.fitness_level === 'beginner' ? 'beginner' : s.profile.fitness_level === 'advanced' || s.profile.fitness_level === 'athlete' ? 'advanced' : 'intermediate')
-    } catch(e) {}
-    setLoading(false)
-  }
 
   function getPhaseWeightNote(exWeight, intensityModifier, phaseVal) {
     if (!exWeight) return null
@@ -1242,8 +1244,6 @@ export default function Workout() {
     const phases = getPhases(svgType)
     const exWeights = setWeights[playerIdx] || {}
     const exDone = playerDone[playerIdx] || {}
-    const allSetsComplete = Object.keys(exDone).length >= exObj.sets && Object.values(exDone).every(Boolean)
-
     function updateWeight(setIdx, delta) {
       setSetWeights(prev => {
         const ex = { ...(prev[playerIdx] || {}) }
