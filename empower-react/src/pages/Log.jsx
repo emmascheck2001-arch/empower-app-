@@ -73,8 +73,6 @@ export default function Log() {
     hot_flash_count:'', night_sweats_severity:null, joint_pain_rating:null, brain_fog_rating:null,
   })
 
-  useEffect(()=>{ init() },[])
-
   async function init() {
     const { data:{ user } } = await supabase.auth.getUser()
     if (!user) { navigate('/login',{replace:true}); return }
@@ -115,9 +113,11 @@ export default function Log() {
       }))
     }
     if (mucus?.discharge_type) setLog(prev=>({...prev,cervical_fluid:mucus.discharge_type}))
-    } catch(e) { console.error(e) }
+    } catch(err) { console.error(err) }
     finally { setLoading(false) }
   }
+
+  useEffect(()=>{ init() },[]) // eslint-disable-line react-hooks/exhaustive-deps, react-hooks/set-state-in-effect
 
   const set = (field,val) => setLog(prev=>({...prev,[field]:val}))
   function toggleMulti(field,val) {
