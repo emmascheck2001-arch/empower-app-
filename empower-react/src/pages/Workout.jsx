@@ -704,7 +704,7 @@ export default function Workout() {
       const s = await getTodayStatus(supabase, user.id)
       setStatus(s)
       if (s?.profile?.fitness_level) setFitnessLevel(s.profile.fitness_level === 'beginner' ? 'beginner' : s.profile.fitness_level === 'advanced' || s.profile.fitness_level === 'athlete' ? 'advanced' : 'intermediate')
-    } catch (err) { console.error('Workout load error:', err) }
+    } catch { /* show workout in observation mode */ }
     setLoading(false)
   }
 
@@ -1244,7 +1244,6 @@ export default function Workout() {
     const phases = getPhases(svgType)
     const exWeights = setWeights[playerIdx] || {}
     const exDone = playerDone[playerIdx] || {}
-
     function updateWeight(setIdx, delta) {
       setSetWeights(prev => {
         const ex = { ...(prev[playerIdx] || {}) }

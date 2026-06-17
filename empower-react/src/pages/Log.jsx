@@ -113,7 +113,7 @@ export default function Log() {
       }))
     }
     if (mucus?.discharge_type) setLog(prev=>({...prev,cervical_fluid:mucus.discharge_type}))
-    } catch(err) { console.error(err) }
+    } catch(e) { console.error(e) }
     finally { setLoading(false) }
   }
 

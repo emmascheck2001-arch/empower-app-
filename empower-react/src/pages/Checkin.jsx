@@ -41,7 +41,7 @@ export default function Checkin() {
     try {
       const s = await getTodayStatus(supabase, user.id)
       setStatus(s)
-    } catch (err) { console.error('Checkin load error:', err) }
+    } catch { /* show form without phase data */ }
     setLoading(false)
   }
 

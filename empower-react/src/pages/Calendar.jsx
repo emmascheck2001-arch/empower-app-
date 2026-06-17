@@ -115,7 +115,7 @@ export default function Calendar() {
       }
       setStatus(s)
       setLogs(logData || [])
-    } catch (err) { console.error('Calendar init error:', err) }
+    } catch(e) { console.error('Calendar init error:', e) }
     setLoading(false)
   }
 

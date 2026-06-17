@@ -422,7 +422,7 @@ export default function Learn() {
       try {
         const { data: profile } = await supabase.from('profiles').select('user_path,bc_type').eq('id', user.id).single()
         if (profile?.user_path) setUserPath(profile.user_path)
-      } catch (err) { console.error('Learn load error:', err) }
+      } catch { /* show page without user path */ }
     }
     init()
   }, [navigate])

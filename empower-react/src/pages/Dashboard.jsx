@@ -170,6 +170,7 @@ const PHASE_SHEET_INFO = {
   },
 }
 
+
 export default function Dashboard() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
@@ -225,7 +226,7 @@ export default function Dashboard() {
       // Single source of truth shared with Workout/Nutrition. Fetched once here so the
       // dashboard can never disagree with those screens about the user's phase.
       let status = null
-      try { status = await getTodayStatus(supabase, user.id) } catch { /* non-fatal: use defaults */ }
+      try { status = await getTodayStatus(supabase, user.id) } catch { /* fall back to defaults below */ }
 
       let phase = 'observation', subPhase = null, cycleDay = null, cycleLen = 28, daysLeft = null, confidence = 0.05
       let bcProteinG = null
