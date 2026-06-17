@@ -4,6 +4,10 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import TopBar from '../components/TopBar'
 
+// Developer account that can view all tester feedback (the get_all_feedback() DB
+// function enforces this server-side too — this is only the client-side gate).
+const ADMIN_EMAIL = 'emmascheck2001@gmail.com'
+
 const CATEGORIES = [
   { id:'something_broken', emoji:'🔧', label:'Something is broken', sub:'Error, crash, or not working' },
   { id:'confusing', emoji:'🤔', label:'Something is confusing', sub:'Hard to understand or use' },
@@ -109,6 +113,7 @@ export default function Feedback() {
   const [frustration, setFrustration] = useState(null)
   const [saving, setSaving] = useState(false)
   const [done, setDone] = useState(false)
+  const [adminFeedback, setAdminFeedback] = useState(null)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user: u } }) => {
@@ -118,6 +123,10 @@ export default function Feedback() {
       // tester feedback. (Was restricted to the developer's email, which silently
       // blocked all testers from submitting.)
       setAllowed(true)
+      // Developer-only: pull every tester's feedback via the secure admin function.
+      if (u.email === ADMIN_EMAIL) {
+        supabase.rpc('get_all_feedback').then(({ data }) => setAdminFeedback(data || []))
+      }
     })
   }, [navigate])
 
@@ -201,6 +210,26 @@ export default function Feedback() {
     <div style={{ paddingBottom:40 }}>
       <TopBar title="FEEDBACK" backTo="/dashboard" />
       <div style={{ padding:'16px 16px 40px' }}>
+
+        {adminFeedback && (
+          <div style={{ background:'#fff', border:'1px solid #ede8e0', borderRadius:14, padding:16, marginBottom:20 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:12 }}>
+              <span style={sLabel}>All tester feedback ({adminFeedback.length})</span>
+              <span style={{ fontSize:11, color:'#9a9590' }}>{adminFeedback.filter(f => f.status === 'pending').length} pending</span>
+            </div>
+            {adminFeedback.length === 0 && <div style={{ fontSize:13, color:'#7a7268' }}>No feedback yet.</div>}
+            {adminFeedback.map(f => (
+              <div key={f.id} style={{ borderTop:'1px solid #f0ece4', padding:'10px 0' }}>
+                <div style={{ display:'flex', justifyContent:'space-between', gap:8, marginBottom:4 }}>
+                  <span style={{ fontSize:12, fontWeight:600, color:'#3a3530' }}>{(CATEGORIES.find(c => c.id === f.category)?.label) || f.category}</span>
+                  <span style={{ fontSize:10, fontWeight:600, padding:'2px 8px', borderRadius:10, background: f.status === 'pending' ? '#fdf3e0' : '#eef5ee', color: f.status === 'pending' ? '#8a5a10' : '#2a5a2a' }}>{f.status}</span>
+                </div>
+                <div style={{ fontSize:13, color:'#3a3530', lineHeight:1.5, marginBottom:4 }}>{f.description}</div>
+                <div style={{ fontSize:11, color:'#9a9590' }}>{f.user_email} · {f.screen}{f.frustration_rating ? ` · frustration ${f.frustration_rating}/5` : ''} · {new Date(f.created_at).toLocaleDateString()}</div>
+              </div>
+            ))}
+          </div>
+        )}
 
         <div style={{ background:'#2c2820', borderRadius:14, padding:20, marginBottom:20 }}>
           <div style={{ fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:18, color:'#f5f0e8', marginBottom:8 }}>You are building this app.</div>
