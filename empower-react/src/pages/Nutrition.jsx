@@ -98,7 +98,7 @@ const PHASE_DATA = {
     science: 'As estrogen declines, the body tends to store more fat around the abdomen and becomes less responsive to insulin. Protein needs are higher during this transition to support muscle maintenance.',
     sectionLabel: 'Foods that support your transition',
     foods: [
-      { icon:'🥛', name:'Dairy or fortified alternatives', why:'Calcium 1000mg daily plus vitamin D is essential as estrogen falls and bone turnover accelerates.' },
+      { icon:'🥛', name:'Dairy or fortified alternatives', why:'Calcium and vitamin D matter more as estrogen falls and bone turnover accelerates.' },
       { icon:'🥩', name:'Lean protein at every meal', why:'1.8g per kg of body weight daily. Muscle mass is one of the strongest protective factors through the menopause transition and beyond.' },
       { icon:'🐟', name:'Salmon or sardines', why:'Omega-3 supports heart health and brain function, both of which are affected as estrogen declines. Aim for two to three servings a week.' },
       { icon:'🫘', name:'Soy foods', why:'Phytoestrogens may modestly support symptom management in some women. Evidence is emerging and effects vary individually.' },
@@ -184,7 +184,7 @@ const DIET_FOODS = {
       { icon:'🫘', name:'Lentils', why:'Plant protein, iron, and soluble fibre for stable blood sugar when energy fluctuates most.' },
     ],
     Perimenopause: [
-      { icon:'🧀', name:'Greek yogurt', why:'Calcium 1000mg daily is essential as estrogen falls and bone turnover accelerates. Protein supports muscle maintenance.' },
+      { icon:'🧀', name:'Greek yogurt', why:'Calcium is a priority as estrogen falls and bone turnover accelerates. Protein supports muscle maintenance.' },
       { icon:'🥚', name:'Eggs', why:'Complete protein at every meal. 1.8g per kg daily supports muscle mass through the transition.' },
       { icon:'🫘', name:'Tofu', why:'Phytoestrogens may modestly support symptom management. Also a complete protein for vegetarian diets.' },
       { icon:'🥬', name:'Leafy greens', why:'Magnesium and folate support mood and sleep, both commonly disrupted during the perimenopause transition.' },
@@ -284,7 +284,7 @@ const DIET_FOODS = {
       { icon:'🐟', name:'Sardines', why:'Omega-3 and anti-inflammatory effect specifically useful in the second half of the luteal phase.' },
     ],
     Perimenopause: [
-      { icon:'🧀', name:'Greek yogurt', why:'Calcium and protein. Calcium 1000mg daily is essential as estrogen falls and bone turnover accelerates.' },
+      { icon:'🧀', name:'Greek yogurt', why:'Calcium and protein both matter more as estrogen falls and bone turnover accelerates.' },
       { icon:'🐟', name:'Salmon', why:'Omega-3 fatty acids support cardiovascular and cognitive health both affected by declining estrogen.' },
       { icon:'🐟', name:'Sardines with bones', why:'Calcium from bone-in fish plus omega-3. One of the highest combined calcium-protein sources available.' },
       { icon:'🥚', name:'Eggs', why:'Complete protein at every meal to meet 1.8g/kg target for muscle maintenance through the transition.' },
@@ -384,7 +384,7 @@ const DIET_FOODS = {
       { icon:'🫘', name:'Lentils', why:'Plant protein and fibre for stable blood sugar. Naturally gluten-free.' },
     ],
     Perimenopause: [
-      { icon:'🧀', name:'Greek yogurt', why:'Calcium and protein. Naturally gluten-free. Calcium 1000mg daily essential as bone turnover accelerates.' },
+      { icon:'🧀', name:'Greek yogurt', why:'Calcium and protein. Naturally gluten-free. Calcium matters more as bone turnover accelerates.' },
       { icon:'🥩', name:'Lean protein at every meal', why:'1.8g per kg daily. All whole protein sources are naturally gluten-free.' },
       { icon:'🐟', name:'Salmon or sardines', why:'Omega-3 for heart health and brain function. Naturally gluten-free.' },
       { icon:'🫘', name:'Soy foods (GF tamari)', why:'Phytoestrogens may modestly support symptom management. Use gluten-free tamari instead of soy sauce.' },
@@ -403,7 +403,7 @@ const DIET_FOODS = {
   dairy_free: {
     Menstrual: [
       { icon:'🥩', name:'Red meat', why:'The most absorbable form of iron, making it the most effective for replacing what is lost during bleeding.' },
-      { icon:'🥛', name:'Fortified oat or soy milk', why:'Calcium and B12. These are especially important without dairy — aim for 1000mg calcium daily from fortified sources and leafy greens.' },
+      { icon:'🥛', name:'Fortified oat or soy milk', why:'Calcium and B12, especially important without dairy. Prioritise fortified sources and leafy greens.' },
       { icon:'🥬', name:'Leafy greens with citrus', why:'Calcium, iron, and vitamin C. Kale and bok choy have the highest calcium bioavailability of any plant source.' },
       { icon:'🐟', name:'Salmon or sardines', why:'Omega-3 helps reduce the hormones that cause cramping and keeps inflammation lower during bleeding.' },
       { icon:'🎃', name:'Pumpkin seeds', why:'Magnesium and zinc, both depleted during menstruation. Dairy-free source.' },
@@ -434,7 +434,7 @@ const DIET_FOODS = {
       { icon:'🫘', name:'Lentils', why:'Plant protein, iron, and fibre for stable blood sugar. Naturally dairy-free.' },
     ],
     Perimenopause: [
-      { icon:'🥛', name:'Fortified soy or oat milk', why:'Calcium, vitamin D, and B12. Active planning is required without dairy — aim 1000mg calcium from fortified foods, leafy greens, and fish bones.' },
+      { icon:'🥛', name:'Fortified soy or oat milk', why:'Calcium, vitamin D, and B12 need active planning without dairy. Prioritise fortified foods, leafy greens, and fish bones.' },
       { icon:'🥩', name:'Lean protein at every meal', why:'1.8g per kg daily. Muscle mass is one of the strongest protective factors through the transition.' },
       { icon:'🐟', name:'Salmon or sardines', why:'Omega-3 for heart health and brain function. Sardines with bones are also one of the best non-dairy calcium sources.' },
       { icon:'🥢', name:'Tofu (if soy OK)', why:'Phytoestrogens and protein. Calcium-set tofu is a significant non-dairy calcium source.' },
