@@ -536,7 +536,7 @@ export default function Nutrition() {
   const [editDiets, setEditDiets] = useState([])
   const [savingStats, setSavingStats] = useState(false)
 
-  useEffect(() => { init() }, [])
+  useEffect(() => { init() }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function init() {
     const { data: { user } } = await supabase.auth.getUser()

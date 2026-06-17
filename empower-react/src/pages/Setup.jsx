@@ -1,5 +1,5 @@
 // route /setup — onboarding: 5 paths (see PATH_OPTIONS), body stats, bc_type, bc_stop_date. IDs do not match display order — see CLAUDE.md.
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getPhase } from '../lib/hormoneSync'
@@ -49,18 +49,17 @@ export default function Setup() {
   const [fitness, setFitness] = useState(null)
   const [agreed, setAgreed] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [preview, setPreview] = useState(null)
-
-  useEffect(() => {
+  const preview = (() => {
     if (path === 1 && lastPeriod) {
       const last = new Date(lastPeriod + 'T00:00:00')
       const now = new Date(); now.setHours(0,0,0,0)
       const cd = Math.floor((now - last) / 86400000) + 1
       if (cd >= 1 && cd <= cycleLen + 7) {
-        setPreview({ cd, phase: getPhase(cd, cycleLen), daysLeft: Math.max(0, cycleLen - cd + 1) })
-      } else setPreview(null)
-    } else setPreview(null)
-  }, [path, lastPeriod, cycleLen])
+        return { cd, phase: getPhase(cd, cycleLen), daysLeft: Math.max(0, cycleLen - cd + 1) }
+      }
+    }
+    return null
+  })()
 
   const canContinue = () => {
     if (!path) return false

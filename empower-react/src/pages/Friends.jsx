@@ -54,7 +54,7 @@ export default function Friends() {
   const [addStatus, setAddStatus] = useState('') // '' | sending | sent | not_found | already | error
   const [savingVis, setSavingVis] = useState(false)
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function load() {
     try {
@@ -113,7 +113,7 @@ export default function Friends() {
       setAddStatus('sent')
       setEmail('')
       load()
-    } catch(e) { setAddStatus('error') }
+    } catch { setAddStatus('error') }
   }
 
   async function respond(friendshipId, accept) {
@@ -218,7 +218,7 @@ export default function Friends() {
         ) : friends.length > 0 && (
           <>
             <span style={{ ...sLabel, marginBottom:8 }}>Your friends</span>
-            {friends.map(({ friendship_id, friend_id, card }) => {
+            {friends.map(({ friendship_id, card }) => {
               if (!card) return null
               const phase = card.last_period_date ? phaseForCard(card) : null
               const pc = phase ? (PHASE_COLORS[phase] || PHASE_COLORS.observation) : null
