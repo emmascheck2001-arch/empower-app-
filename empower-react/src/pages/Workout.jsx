@@ -241,7 +241,8 @@ function getSvgType(name) {
   if (n.includes('bench press') || n.includes('push-up')) return 'push'
   if (n.includes('row') && !n.includes('pull')) return 'row'
   if (n.includes('overhead press') || n.includes('shoulder press')) return 'press'
-  if (n.includes('lunge') || n.includes('split squat')) return 'lunge'
+  if (n.includes('bulgarian') || n.includes('split squat')) return 'splitsquat'
+  if (n.includes('lunge')) return 'lunge'
   if (n.includes('hip thrust') || n.includes('glute bridge')) return 'thrust'
   if (n.includes('pull-up') || n.includes('pull up') || n.includes('chin')) return 'pullup'
   if (n.includes('leg curl') || n.includes('nordic') || n.includes('hamstring curl')) return 'legcurl'
@@ -314,9 +315,12 @@ function getPhases(svgType) {
     press:   [{ label:'Start position', desc:'Bar at collar-bone height. Grip shoulder-width, elbows slightly forward of bar.' },
                { label:'Lower / working phase', desc:'Controlled descent back to collar-bone. Maintain core brace throughout.' },
                { label:'Finish position', desc:'Press bar straight up. Head moves slightly back to clear path. Lock out overhead.' }],
-    lunge:   [{ label:'Start position', desc:'Upright torso, front foot flat. Back foot raised on bench for split squat.' },
-               { label:'Lower / working phase', desc:'Lower back knee toward the floor. Front knee tracks over toes — not past foot.' },
-               { label:'Finish position', desc:'Press through front heel to return. Squeeze glutes and stand fully tall.' }],
+    lunge:   [{ label:'Start position', desc:'Upright torso, feet hip-width. Step forward into the lunge.' },
+               { label:'Lower / working phase', desc:'Lower the back knee toward the floor. Front knee tracks over the ankle, not past the toes.' },
+               { label:'Finish position', desc:'Press through the front heel back to standing. Squeeze glutes and stand fully tall.' }],
+    splitsquat: [{ label:'Start position', desc:'Back foot raised behind you on a bench. Front foot planted, torso upright.' },
+               { label:'Lower / working phase', desc:'Lower straight down, back knee toward the floor. Front knee tracks over the ankle.' },
+               { label:'Finish position', desc:'Drive through the front heel to standing. Keep your torso tall throughout.' }],
     thrust:  [{ label:'Start position', desc:'Upper back on bench, bar padded across hip crease. Feet flat, shoulder-width.' },
                { label:'Lower / working phase', desc:'Lower hips slowly toward floor. Maintain control — do not drop.' },
                { label:'Finish position', desc:'Drive hips up until body is a straight line from knees to shoulders. Hard glute squeeze.' }],
@@ -370,9 +374,16 @@ const POSES = {
     bottom: { head:[120,46], neck:[120,62], hip:[120,112], k1:[114,136], f1:[112,160], k2:[127,136], f2:[129,160], e1:[106,66], h1:[100,50], e2:[134,66], h2:[140,50], bar:[[96,48],[144,48]] } },
   // Bulgarian split squat — back foot elevated on a bench behind; front knee bends and
   // hips drop while the back knee travels down. Torso stays upright, dumbbells at sides.
-  lunge: { floor: true, bench:[156,126,50], period: 2600,
+  // Bulgarian split squat — back foot elevated on a bench behind; front knee bends and
+  // hips drop while the back knee travels down. Torso upright, dumbbells at sides.
+  splitsquat: { floor: true, bench:[156,126,50], period: 2600,
     top:    { head:[100,42], neck:[100,60], hip:[100,108], k1:[98,135], f1:[96,160], k2:[150,120], f2:[178,128], e1:[92,84], h1:[90,110], e2:[110,84], h2:[108,110] },
     bottom: { head:[100,58], neck:[100,76], hip:[100,120], k1:[90,138], f1:[96,160], k2:[150,150], f2:[178,128], e1:[92,98], h1:[90,124], e2:[110,98], h2:[108,124] } },
+  // Walking / forward lunge — step forward, front knee bends to ~90°, back knee drops
+  // toward the floor with the back foot on its toe. No bench.
+  lunge: { floor: true, period: 2400,
+    top:    { head:[120,42], neck:[120,60], hip:[120,110], k1:[114,135], f1:[112,160], k2:[126,135], f2:[128,160], e1:[114,76], h1:[110,110], e2:[126,76], h2:[130,110] },
+    bottom: { head:[106,52], neck:[106,70], hip:[106,116], k1:[92,138], f1:[88,160], k2:[140,150], f2:[160,158], e1:[100,96], h1:[98,120], e2:[114,96], h2:[112,120] } },
   // Lying leg curl — face down on the pad, thighs fixed, shins curl up toward the glutes.
   legcurl: { bench:[40,124,154], period: 2000,
     top:    { head:[56,114], neck:[78,118], hip:[150,120], k1:[182,121], f1:[206,123], k2:[182,127], f2:[206,129], e1:[64,120], h1:[44,121], e2:[64,124], h2:[44,125] },
@@ -573,6 +584,45 @@ const GYM_ACCESSORIES = {
     ex('Plank', 3, 40, 'Bodyweight', '40 seconds. Hips level, brace your core, do not let your back sag.'),
     ex('Face pull', 3, 15, '12 to 25kg', 'Pull to face level, elbows high and wide. Rear delts.'),
   ],
+}
+
+// Per-muscle exercise pool for CUSTOM workouts. Selecting "Core" gives core work, "Glutes"
+// gives glute work, etc. Fixes the old bug where custom collapsed into the full/upper/lower
+// presets, so selecting only Core wrongly returned the entire full-body plan.
+const MUSCLE_EXERCISES = {
+  Chest:      [ex('Bench press', 4, 8, '30 to 50kg', 'Retract shoulder blades. Bar to mid-chest, press straight up.'),
+               ex('Push-up', 3, 12, 'Bodyweight', 'Hands shoulder-width, body in one line. Knees down if needed.')],
+  Back:       [ex('Barbell row', 4, 8, '30 to 50kg', 'Hinge to 45 degrees. Pull the bar to your lower ribs, control the descent.'),
+               ex('Pull-up', 3, 8, 'Bodyweight or assisted', 'Full hang to chin over the bar. Control the way down.')],
+  Shoulders:  [ex('Overhead press', 3, 10, '25 to 40kg', 'Brace your core hard. Press the bar straight overhead.'),
+               ex('Dumbbell lateral raise', 3, 12, '6 to 12kg each', 'Slight lean forward. Lead with the elbows, not the wrists.')],
+  Biceps:     [ex('Bicep curl', 3, 12, '6 to 12kg each', 'Elbows pinned to your ribs. Squeeze at the top, lower with control.'),
+               ex('Hammer curl', 3, 12, '6 to 12kg each', 'Neutral grip, thumbs up. No swinging.')],
+  Triceps:    [ex('Tricep pushdown', 3, 12, '15 to 30kg', 'Elbows pinned to your ribs. Full extension at the bottom.'),
+               ex('Tricep dip', 3, 10, 'Bodyweight', 'Hands on a bench, lower until your elbows are at 90 degrees.')],
+  Quads:      [ex('Barbell squat', 4, 8, '40 to 60kg', 'Bar on traps, brace your core. Drive knees out, sit deep.'),
+               ex('Walking lunge', 3, 12, 'Dumbbells or bodyweight', 'Step forward, lower the back knee. Front knee over the ankle.')],
+  Hamstrings: [ex('Romanian deadlift', 4, 10, '40 to 65kg', 'Soft knees, hinge from the hips. Bar stays close to your legs.'),
+               ex('Leg curl', 3, 12, '15 to 35kg', 'Lying or seated. Curl your heels toward your glutes, control the return.')],
+  Glutes:     [ex('Hip thrust', 4, 10, '40 to 70kg', 'Upper back on a bench, bar across the hips. Drive to full lockout.'),
+               ex('Bulgarian split squat', 3, 10, 'Dumbbells or bodyweight', 'Back foot on a bench behind you. Lower straight down, drive through the front heel.')],
+  Calves:     [ex('Calf raise', 4, 15, 'Bodyweight or dumbbells', 'Rise onto your toes as high as possible, pause, lower with a full stretch.'),
+               ex('Seated calf raise', 3, 15, '20 to 40kg', 'Knees bent, drive through the balls of your feet. Full range.')],
+  Core:       [ex('Plank', 3, 40, 'Bodyweight', '40 seconds. Hips level, brace your core, do not let your back sag.'),
+               ex('Hanging leg raise', 3, 12, 'Bodyweight', 'Hang from a bar. Raise your legs to hip height with control, no swinging.'),
+               ex('Dead bug', 3, 12, 'Bodyweight', 'On your back, extend the opposite arm and leg slowly. Keep your low back flat.')],
+}
+function buildCustomExercises(muscles, level) {
+  const list = (muscles || []).filter(m => MUSCLE_EXERCISES[m])
+  if (!list.length) return EXERCISES.full[level] || EXERCISES.full.intermediate
+  const perMuscle = list.length >= 4 ? 1 : 2   // keep the session a sensible length
+  const out = [], seen = new Set()
+  for (const m of list) {
+    for (const e of MUSCLE_EXERCISES[m].slice(0, perMuscle)) {
+      if (!seen.has(e.name)) { seen.add(e.name); out.push(e) }
+    }
+  }
+  return out
 }
 
 const FEEL_OPTIONS = ['Felt strong','Felt average','Felt hard','Rest day','Skipped']
@@ -789,7 +839,9 @@ export default function Workout() {
   }
 
   function getExercises() {
-    const key = muscleGroup === 'custom' ? (customMuscles.some(m => ['Chest','Shoulders','Triceps'].includes(m)) ? 'upper' : customMuscles.some(m => ['Quads','Hamstrings','Glutes','Calves'].includes(m)) ? 'lower' : 'full') : (muscleGroup || 'full')
+    // Custom builds directly from the muscles the user picked (Core -> core work, etc.).
+    if (muscleGroup === 'custom') return buildCustomExercises(customMuscles, fitnessLevel)
+    const key = muscleGroup || 'full'
     const base = EXERCISES[key]?.[fitnessLevel] || EXERCISES.full.intermediate
     // Keep the main compound lifts (first 4) fixed for progression; rotate the
     // remaining accessory slots day to day from an expanded pool. Deterministic by
@@ -1318,7 +1370,7 @@ export default function Workout() {
                   <div style={{ fontSize:10, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#7a6a50', marginBottom:2 }}>WEIGHT TODAY</div>
                   <div style={{ fontSize:20, fontWeight:700, color:'#2c2820' }}>~{weightNote.weight}</div>
                 </div>
-                {playerIdx === 0 && <div style={{ flex:1, fontSize:12, color:'#5a4a3a', lineHeight:1.5 }}>{weightNote.note}</div>}
+                {/* The phase rationale lives in the Phase Guidance accordion below — no duplicate here. */}
               </div>
             ) : null
           })()}
