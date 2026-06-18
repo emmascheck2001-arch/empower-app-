@@ -690,7 +690,19 @@ export default function Workout() {
     : (rawPhase === 'bc-combined' || rawPhase === 'bc-progestin') ? 'observation'
     : status?.subPhase || rawPhase || 'observation'
 
-  useEffect(() => { init() }, [])
+  useEffect(() => {
+    async function init() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { navigate('/login', { replace: true }); return }
+      try {
+        const s = await getTodayStatus(supabase, user.id)
+        setStatus(s)
+        if (s?.profile?.fitness_level) setFitnessLevel(s.profile.fitness_level === 'beginner' ? 'beginner' : s.profile.fitness_level === 'advanced' || s.profile.fitness_level === 'athlete' ? 'advanced' : 'intermediate')
+      } catch { /* ignore */ }
+      setLoading(false)
+    }
+    init()
+  }, [navigate])
 
   useEffect(() => {
     if (!cardioRunning) return
@@ -708,6 +720,7 @@ export default function Workout() {
     if (!hiitRunning) return
     if (hiitSecondsLeft <= 0) {
       const data = hiitFor(phase)
+      /* eslint-disable react-hooks/set-state-in-effect */
       if (hiitPhase === 'work') {
         setHiitPhase('rest')
         setHiitSecondsLeft(data.rest)
@@ -730,22 +743,14 @@ export default function Workout() {
           }
         }
       }
+      /* eslint-enable react-hooks/set-state-in-effect */
       return
     }
     const id = setTimeout(() => setHiitSecondsLeft(s => s - 1), 1000)
     return () => clearTimeout(id)
   }, [hiitRunning, hiitSecondsLeft, hiitPhase, hiitExIdx, hiitRound, phase])
 
-  async function init() {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { navigate('/login', { replace: true }); return }
-    try {
-      const s = await getTodayStatus(supabase, user.id)
-      setStatus(s)
-      if (s?.profile?.fitness_level) setFitnessLevel(s.profile.fitness_level === 'beginner' ? 'beginner' : s.profile.fitness_level === 'advanced' || s.profile.fitness_level === 'athlete' ? 'advanced' : 'intermediate')
-    } catch { /* ignore */ }
-    setLoading(false)
-  }
+
 
   function getPhaseWeightNote(exWeight, intensityModifier, phaseVal) {
     if (!exWeight) return null
