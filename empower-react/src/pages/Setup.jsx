@@ -130,9 +130,17 @@ export default function Setup() {
     }
 
     if ((path === 1 || path === 5) && lastPeriod) {
-      await supabase.from('cycle_data').upsert({
+      // Surface failures — a silently-failed cycle_data save was losing users' period
+      // dates (their cycle never started). Never proceed to the dashboard as if it worked.
+      const { error: cycleErr } = await supabase.from('cycle_data').upsert({
         user_id: user.id, last_period_date: lastPeriod, cycle_length: cycleLen
       }, { onConflict: 'user_id' })
+      if (cycleErr) {
+        console.error(cycleErr)
+        setSaving(false)
+        setSaveErr(`Could not save your period date: ${cycleErr.message}. Please try again.`)
+        return
+      }
     }
 
     navigate('/dashboard', { replace: true })
