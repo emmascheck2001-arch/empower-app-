@@ -536,13 +536,9 @@ export default function Nutrition() {
   const [editDiets, setEditDiets] = useState([])
   const [savingStats, setSavingStats] = useState(false)
 
-  useEffect(() => { init() }, [])
-
-  async function init() {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { navigate('/login', { replace: true }); return }
+  async function loadData(userId) {
     try {
-      const status = await getTodayStatus(supabase, user.id)
+      const status = await getTodayStatus(supabase, userId)
       const prof = status?.profile || null
       setProfile(prof)
       setEditDiets(parseDiets(prof?.diet_preference))
@@ -557,6 +553,15 @@ export default function Nutrition() {
     setLoading(false)
   }
 
+  useEffect(() => {
+    async function init() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { navigate('/login', { replace: true }); return }
+      await loadData(user.id)
+    }
+    init()
+  }, [navigate])
+
   async function saveStats() {
     setSavingStats(true)
     const { data: { user } } = await supabase.auth.getUser()
@@ -569,9 +574,8 @@ export default function Nutrition() {
     }
     setSavingStats(false)
     setShowUpdateSheet(false)
-    // Re-run init so the protein target (and vegan multiplier) reflect the new weight
-    // and diet immediately — getTodayStatus recomputes nutritionTargets from the DB.
-    await init()
+    // Reload data so protein target reflects new weight/diet immediately
+    await loadData(user.id)
   }
 
   if (loading) return <div style={{ paddingTop:60 }}><Spinner /></div>
