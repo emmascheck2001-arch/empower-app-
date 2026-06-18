@@ -5,7 +5,8 @@ import { supabase } from '../lib/supabase'
 import { getTodayStatus, getPhase, getLutealSubPhase } from '../lib/hormoneSync'
 import BottomNav from '../components/BottomNav'
 import Spinner from '../components/Spinner'
-import { WeeklySummaryModal, WeeklySummaryCard, markWeeklySummaryDismissed, buildWeeklySummary } from '../components/WeeklySummary'
+import { WeeklySummaryModal, WeeklySummaryCard } from '../components/WeeklySummary'
+import { markWeeklySummaryDismissed, buildWeeklySummary } from '../components/weeklySummaryUtils'
 
 const PHASE_COLORS = {
   Menstrual:      { dot:'#e09898', bg:'#f0d8d8', text:'#5a2a28' },
@@ -170,41 +171,6 @@ const PHASE_SHEET_INFO = {
   },
 }
 
-function ActivityPulse({ twoWeekLogs }) {
-  const energyCounts = { 'Very low':0, 'Low':0, 'Normal':0, 'High':0 }
-  const logs = twoWeekLogs || []
-  // Checkin saves "Good", Log saves "Normal" — same concept, normalise for display
-  logs.forEach(l => {
-    const e = l.energy === 'Good' ? 'Normal' : l.energy
-    if (e && energyCounts[e] !== undefined) energyCounts[e]++
-  })
-  const total = Object.values(energyCounts).reduce((a,b)=>a+b,0)
-  const workouts = logs.filter(l => l.workout_feel && l.workout_feel !== 'Rest day' && l.workout_feel !== 'Skipped').length
-  const ENERGY_COLORS = { 'Very low':'#e09898', 'Low':'#e0c070', 'Normal':'#88c088', 'High':'#4a9a4a' }
-  if (total === 0) return null
-  return (
-    <div className="card" style={{ marginBottom:12 }}>
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:10 }}>
-        <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590' }}>Your 2-week pattern</div>
-        {workouts > 0 && <div style={{ fontSize:12, color:'#7a7268' }}>{workouts} workout{workouts!==1?'s':''} logged</div>}
-      </div>
-      <div style={{ fontSize:11, color:'#9a9590', marginBottom:6 }}>Energy distribution</div>
-      <div style={{ display:'flex', gap:6, alignItems:'flex-end', height:44 }}>
-        {Object.entries(energyCounts).map(([label, count]) => {
-          const pct = count / total
-          const barH = Math.max(4, Math.round(pct * 36))
-          return (
-            <div key={label} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:3 }}>
-              <div style={{ fontSize:10, color:'#7a7268', fontWeight:600 }}>{count||''}</div>
-              <div style={{ width:'100%', height:barH, background:ENERGY_COLORS[label], borderRadius:3 }} />
-              <div style={{ fontSize:9, color:'#9a9590', textAlign:'center' }}>{label==='Very low'?'V.low':label}</div>
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
 
 export default function Dashboard() {
   const navigate = useNavigate()
@@ -217,8 +183,6 @@ export default function Dashboard() {
   const [pendingFriends, setPendingFriends] = useState(0)
   const [communityTab, setCommunityTab] = useState('community')
   const [friendsData, setFriendsData] = useState(null) // null = not loaded yet
-
-  useEffect(() => { load() }, [])
 
   async function loadFriends(userId) {
     try {
@@ -233,135 +197,116 @@ export default function Dashboard() {
     } catch { setFriendsData([]) }
   }
 
-  async function load() {
-    try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { navigate('/login', { replace: true }); return }
+  useEffect(() => {
+    async function load() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) { navigate('/login', { replace: true }); return }
 
-      const todayStr = localDateStr()
-      const [{ data: profile }, { data: cycleData }, { data: recentLogs }, { data: twoWeekLogs }, { count: todayLoggers }, { data: pendingRequests }] = await Promise.all([
-        supabase.from('profiles').select('*').eq('id', user.id).single(),
-        supabase.from('cycle_data').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(1).maybeSingle(),
-        supabase.from('daily_logs').select('energy,resting_hr,wrist_temp,log_date,sleep_quality,disruptors').eq('user_id', user.id).order('log_date', { ascending: false }).limit(7),
-        supabase.from('daily_logs').select('log_date,energy,sleep_quality,mood,workout_feel').eq('user_id', user.id).order('log_date', { ascending: false }).limit(14),
-        supabase.from('daily_logs').select('*', { count: 'exact', head: true }).eq('log_date', todayStr),
-        supabase.from('friendships').select('id').eq('addressee_id', user.id).eq('status', 'pending'),
-      ])
-      setPendingFriends(pendingRequests?.length || 0)
+        const todayStr = localDateStr()
+        const [{ data: profile }, { data: cycleData }, { data: recentLogs }, { data: twoWeekLogs }, { count: todayLoggers }, { data: pendingRequests }] = await Promise.all([
+          supabase.from('profiles').select('*').eq('id', user.id).single(),
+          supabase.from('cycle_data').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+          supabase.from('daily_logs').select('energy,resting_hr,wrist_temp,log_date,sleep_quality,disruptors').eq('user_id', user.id).order('log_date', { ascending: false }).limit(7),
+          supabase.from('daily_logs').select('log_date,energy,sleep_quality,mood,workout_feel').eq('user_id', user.id).order('log_date', { ascending: false }).limit(14),
+          supabase.from('daily_logs').select('*', { count: 'exact', head: true }).eq('log_date', todayStr),
+          supabase.from('friendships').select('id').eq('addressee_id', user.id).eq('status', 'pending'),
+        ])
+        setPendingFriends(pendingRequests?.length || 0)
 
-      if (profile && !profile.onboarding_complete) { navigate('/setup', { replace: true }); return }
+        if (profile && !profile.onboarding_complete) { navigate('/setup', { replace: true }); return }
 
-      const bw = profile?.body_weight_kg || 65
-      const isPath4 = profile?.user_path === '4'
-      // Hormonal BC (path 5, excluding the non-hormonal copper IUD) suppresses the
-      // natural cycle — these users have no real cycle phase even if a last-period
-      // date exists in cycle_data, so we must not compute one.
-      const isHormonalBC = profile?.user_path === '5' && profile?.bc_type !== 'copper-iud'
+        const bw = profile?.body_weight_kg || 65
+        const isPath4 = profile?.user_path === '4'
+        const isHormonalBC = profile?.user_path === '5' && profile?.bc_type !== 'copper-iud'
 
-      // Single source of truth shared with Workout/Nutrition. Fetched once here so the
-      // dashboard can never disagree with those screens about the user's phase.
-      let status = null
-      try { status = await getTodayStatus(supabase, user.id) } catch(e) {}
+        let status = null
+        try { status = await getTodayStatus(supabase, user.id) } catch { /* non-fatal */ }
 
-      let phase = 'observation', subPhase = null, cycleDay = null, cycleLen = 28, daysLeft = null, confidence = 0.05
-      let bcProteinG = null
-      let bcBleedDay = null, bcInBleedWindow = false
+        let phase = 'observation', subPhase = null, cycleDay = null, cycleLen = 28, daysLeft = null, confidence = 0.05
+        let bcProteinG = null
+        let bcBleedDay = null, bcInBleedWindow = false
 
-      if (isPath4) {
-        phase = 'Perimenopause'; confidence = 0.5
-      } else if (isHormonalBC && status) {
-        // On hormonal birth control the natural cycle is suppressed and ovulation is
-        // usually paused — so we never label Follicular/Ovulatory/Luteal phases.
-        // BUT these users still get a withdrawal bleed and period-like symptoms, so
-        // if they gave a bleed date we still track their pill-pack cycle and predict
-        // the next bleed. This is accurate (the pack repeats on a fixed schedule) and
-        // keeps the screen genuinely useful for them.
-        phase = 'bc'
-        subPhase = status.subPhase            // e.g. "Combined pill", "Hormonal IUD"
-        confidence = status.confidence || 0.3
-        bcProteinG = status.nutritionTargets?.proteinG || null
-        if (cycleData?.last_period_date) {
-          const lastBleed = new Date(cycleData.last_period_date + 'T00:00:00')
+        if (isPath4) {
+          phase = 'Perimenopause'; confidence = 0.5
+        } else if (isHormonalBC && status) {
+          phase = 'bc'
+          subPhase = status.subPhase
+          confidence = status.confidence || 0.3
+          bcProteinG = status.nutritionTargets?.proteinG || null
+          if (cycleData?.last_period_date) {
+            const lastBleed = new Date(cycleData.last_period_date + 'T00:00:00')
+            const today = new Date(); today.setHours(0,0,0,0)
+            cycleLen = cycleData.cycle_length || 28
+            let day = Math.floor((today - lastBleed) / 86400000) + 1
+            if (day > cycleLen) day = ((day - 1) % cycleLen) + 1
+            bcBleedDay = day
+            daysLeft = Math.max(0, cycleLen - day + 1)
+            bcInBleedWindow = day <= 5 || daysLeft <= 2
+          }
+        } else if (cycleData?.last_period_date) {
+          const lastPeriod = new Date(cycleData.last_period_date + 'T00:00:00')
           const today = new Date(); today.setHours(0,0,0,0)
+          cycleDay = Math.floor((today - lastPeriod) / 86400000) + 1
           cycleLen = cycleData.cycle_length || 28
-          let day = Math.floor((today - lastBleed) / 86400000) + 1
-          if (day > cycleLen) day = ((day - 1) % cycleLen) + 1   // fold into the current pack
-          bcBleedDay = day
-          daysLeft = Math.max(0, cycleLen - day + 1)
-          // Period-like symptoms cluster around the withdrawal bleed (pack start / end)
-          bcInBleedWindow = day <= 5 || daysLeft <= 2
+          daysLeft = Math.max(0, cycleLen - cycleDay + 1)
+          if (cycleDay > 0 && cycleDay <= cycleLen + 7) {
+            phase = getPhase(cycleDay, cycleLen)
+            subPhase = phase === 'Luteal' ? getLutealSubPhase(cycleDay, cycleLen) : null
+            confidence = status?.confidence ?? 0.45
+          }
+        } else {
+          confidence = status?.confidence ?? 0.05
         }
-      } else if (cycleData?.last_period_date) {
-        const lastPeriod = new Date(cycleData.last_period_date + 'T00:00:00')
-        const today = new Date(); today.setHours(0,0,0,0)
-        cycleDay = Math.floor((today - lastPeriod) / 86400000) + 1
-        cycleLen = cycleData.cycle_length || 28
-        daysLeft = Math.max(0, cycleLen - cycleDay + 1)
-        if (cycleDay > 0 && cycleDay <= cycleLen + 7) {
-          phase = getPhase(cycleDay, cycleLen)
-          subPhase = phase === 'Luteal' ? getLutealSubPhase(cycleDay, cycleLen) : null
-          // Use the canonical confidence from getTodayStatus — it grows with the
-          // user's whole logging history and never resets. Falling back to a small
-          // base only if the shared status failed to load.
-          confidence = status?.confidence ?? 0.45
+
+        const today = localDateStr()
+        const { data: todayLog } = await supabase.from('daily_logs').select('id').eq('user_id', user.id).eq('log_date', today).maybeSingle()
+        const alreadyLogged = !!todayLog
+
+        let streak = 0
+        if (recentLogs?.length) {
+          const check = new Date(); check.setHours(0,0,0,0)
+          for (const log of recentLogs) {
+            const diff = Math.floor((check - new Date(log.log_date + 'T00:00:00')) / 86400000)
+            if (diff === streak) { streak++; check.setDate(check.getDate() - 1) } else break
+          }
         }
-      } else {
-        // Observation mode (no cycle data, e.g. Depo recovery): use the canonical
-        // confidence from getTodayStatus, which now grows as the logging history
-        // builds instead of sitting at 5% forever.
-        confidence = status?.confidence ?? 0.05
-      }
 
-      const today = localDateStr()
-      const { data: todayLog } = await supabase.from('daily_logs').select('id').eq('user_id', user.id).eq('log_date', today).maybeSingle()
-      const alreadyLogged = !!todayLog
+        let anomalyItems = []
+        if (status?.anomalies?.length) anomalyItems.push(...status.anomalies.map(a => ({ type: 'anomaly', text: a.text || a.message })))
+        if (status?.moodInsight?.message) anomalyItems.push({ type: 'mood', text: status.moodInsight.message })
 
-      let streak = 0
-      if (recentLogs?.length) {
-        const check = new Date(); check.setHours(0,0,0,0)
-        for (const log of recentLogs) {
-          const diff = Math.floor((check - new Date(log.log_date + 'T00:00:00')) / 86400000)
-          if (diff === streak) { streak++; check.setDate(check.getDate() - 1) } else break
+        let alloLoad = 0
+        if (recentLogs?.length >= 3) {
+          if (phase === 'Menstrual') alloLoad++
+          if (subPhase === 'Late luteal') alloLoad++
+          if (recentLogs.filter(l => l.sleep_quality === 'Poor').length >= 2) alloLoad += 2
+          if (recentLogs.filter(l => l.energy === 'Very low').length >= 2) alloLoad += 2
+          recentLogs.forEach(l => { if (l.disruptors?.length) alloLoad += Math.min(l.disruptors.length, 2) })
+          alloLoad = Math.min(10, alloLoad)
         }
-      }
 
-      let anomalyItems = []
-      if (status?.anomalies?.length) anomalyItems.push(...status.anomalies.map(a => ({ type: 'anomaly', text: a.text || a.message })))
-      if (status?.moodInsight?.message) anomalyItems.push({ type: 'mood', text: status.moodInsight.message })
-
-      let alloLoad = 0
-      if (recentLogs?.length >= 3) {
-        if (phase === 'Menstrual') alloLoad++
-        if (subPhase === 'Late luteal') alloLoad++
-        if (recentLogs.filter(l => l.sleep_quality === 'Poor').length >= 2) alloLoad += 2
-        if (recentLogs.filter(l => l.energy === 'Very low').length >= 2) alloLoad += 2
-        recentLogs.forEach(l => { if (l.disruptors?.length) alloLoad += Math.min(l.disruptors.length, 2) })
-        alloLoad = Math.min(10, alloLoad)
-      }
-
-      // Weekly summary — show as a non-intrusive card whenever there are at least 3
-      // logs this calendar week. Tapping the card opens the full modal. It no longer
-      // auto-opens as a modal, and no longer depends on localStorage to dedupe (which
-      // some browsers clear, making the insight pop up again every day).
-      if (twoWeekLogs) {
-        const thisWeekCount = twoWeekLogs.filter(l => Math.floor((new Date() - new Date(l.log_date + 'T00:00:00')) / 86400000) < 7).length
-        if (thisWeekCount >= 3) {
-          const summary = buildWeeklySummary(twoWeekLogs, phase, subPhase, confidence, daysLeft, cycleDay, cycleData?.cycle_length || 28)
-          setWeeklySummary(summary)
-          setWeeklyCard(true)
+        if (twoWeekLogs) {
+          const thisWeekCount = twoWeekLogs.filter(l => Math.floor((new Date() - new Date(l.log_date + 'T00:00:00')) / 86400000) < 7).length
+          if (thisWeekCount >= 3) {
+            const summary = buildWeeklySummary(twoWeekLogs, phase, subPhase, confidence, daysLeft, cycleDay, cycleData?.cycle_length || 28)
+            setWeeklySummary(summary)
+            setWeeklyCard(true)
+          }
         }
-      }
 
-      setD({ profile, phase, subPhase, cycleDay, cycleLen, daysLeft, confidence, bw, bcProteinG, bcBleedDay, bcInBleedWindow, alreadyLogged, streak, recentLogs, twoWeekLogs, anomalyItems, alloLoad, isPath4, userEmail: user.email, todayLoggers: todayLoggers || 0 })
-      loadFriends(user.id)
-    } catch(e) { console.error(e) }
-    finally { setLoading(false) }
-  }
+        setD({ profile, phase, subPhase, cycleDay, cycleLen, daysLeft, confidence, bw, bcProteinG, bcBleedDay, bcInBleedWindow, alreadyLogged, streak, recentLogs, twoWeekLogs, anomalyItems, alloLoad, isPath4, userEmail: user.email, todayLoggers: todayLoggers || 0 })
+        loadFriends(user.id)
+      } catch(e) { console.error(e) }
+      finally { setLoading(false) }
+    }
+    load()
+  }, [navigate])
 
   if (loading) return <><div style={{ paddingTop: 60 }}><Spinner /></div><BottomNav /></>
   if (!d) return null
 
-  const { phase, subPhase, cycleDay, cycleLen, daysLeft, confidence, bw, bcProteinG, bcBleedDay, bcInBleedWindow, alreadyLogged, streak, recentLogs, twoWeekLogs, anomalyItems, alloLoad, isPath4, userEmail, todayLoggers } = d
+  const { phase, subPhase, cycleDay, cycleLen, daysLeft, confidence, bw, bcProteinG, bcBleedDay, bcInBleedWindow, alreadyLogged, recentLogs, anomalyItems, alloLoad, isPath4 } = d
   const phaseLabel = phase === 'observation' ? 'Observation mode'
     : phase === 'Perimenopause' ? 'Perimenopause'
     : phase === 'bc' ? (subPhase || 'Hormonal birth control')
