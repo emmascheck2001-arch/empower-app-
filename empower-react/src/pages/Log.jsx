@@ -11,6 +11,10 @@ function localDateStr() {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
 }
+function addDaysStr(dateStr, days) {
+  const d = new Date(dateStr+'T00:00:00'); d.setDate(d.getDate()+days)
+  return d.toLocaleDateString(undefined,{month:'short',day:'numeric'})
+}
 
 const ENERGY_OPTS  = ['Very low','Low','Normal','High']
 const SLEEP_OPTS   = ['Poor','Fair','Good','Excellent']
@@ -69,6 +73,10 @@ export default function Log() {
   const [periodDate, setPeriodDate] = useState(localDateStr())
   const [savingPeriod, setSavingPeriod] = useState(false)
   const [periodSaved, setPeriodSaved] = useState(false)
+  const [lastPeriodDate, setLastPeriodDate] = useState(null)
+  const [cycleDay, setCycleDay] = useState(null)
+  const [periodLen, setPeriodLen] = useState(null)
+  const [periodEnded, setPeriodEnded] = useState(false)
   const [log, setLog] = useState({
     energy:null, sleep_quality:null, resting_hr:null, resting_hr_exact:'',
     wrist_temp:'', cervical_fluid:null, lh_result:null, mood:[], symptoms:[], disruptors:[],
@@ -96,6 +104,7 @@ export default function Log() {
       const cd = Math.floor((now-last)/86400000)+1
       const p = getPhase(cd, cycleData.cycle_length||28)
       setPhase(p); setIsMenstrual(p==='Menstrual')
+      setLastPeriodDate(cycleData.last_period_date); setCycleDay(cd); setPeriodLen(cycleData.period_length || null)
     }
     const today = localDateStr()
     const [{ data:existing },{ data:mucus }] = await Promise.all([
@@ -142,8 +151,24 @@ export default function Log() {
       const cd = Math.floor((now-last)/86400000)+1
       const p = getPhase(cd, cycleLen)
       setPhase(p); setIsMenstrual(p==='Menstrual'); setPeriodSaved(true)
+      setLastPeriodDate(periodDate); setCycleDay(cd); setPeriodEnded(false)
     } catch(e) { console.error(e) }
     setSavingPeriod(false)
+  }
+
+  // Mark the period as finished today → records its length so the app can show an
+  // expected end next time and learn the user's personal period length.
+  async function markPeriodEnded() {
+    if (!lastPeriodDate || !cycleDay) return
+    try {
+      const { data:{ user } } = await supabase.auth.getUser()
+      if (!user) return
+      await supabase.from('cycle_data').upsert(
+        { user_id:user.id, last_period_date:lastPeriodDate, cycle_length:cycleLen, period_length:cycleDay },
+        { onConflict:'user_id' }
+      )
+      setPeriodLen(cycleDay); setPeriodEnded(true)
+    } catch(e) { console.error(e) }
   }
 
   const set = (field,val) => setLog(prev=>({...prev,[field]:val}))
@@ -281,6 +306,12 @@ export default function Log() {
           <span style={sLabel}>Pain level</span>
           <PillRow opts={PAIN_OPTS} selected={log.pain_rating} single onToggle={v=>set('pain_rating',v)}/>
           <div style={{fontSize:11,color:'#9a9590',fontStyle:'italic',marginBottom:16}}>Pain that disrupts your daily life is not normal. Log it and we will track the pattern.</div>
+          {/* Compact period-length predictor — only ever shown while menstruating */}
+          <div style={{fontSize:11,color:'#9a9590',marginBottom:16,lineHeight:1.5}}>
+            {periodEnded
+              ? `Period logged as ${periodLen} day${periodLen===1?'':'s'}.`
+              : <>Day {cycleDay||1}. {periodLen ? `Yours usually last about ${periodLen} days` : 'Most periods last 3 to 7 days'}{lastPeriodDate?`, likely easing by ${addDaysStr(lastPeriodDate,(periodLen||7)-1)}`:''}. <button onClick={markPeriodEnded} style={{background:'none',border:'none',padding:0,color:'#c05858',fontWeight:600,textDecoration:'underline',cursor:'pointer',fontFamily:'inherit',fontSize:11}}>It ended</button></>}
+          </div>
         </>}
 
         {/* ── Add more detail (collapsed by default) ───────────────────────── */}
