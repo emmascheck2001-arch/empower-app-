@@ -40,6 +40,8 @@ const gridBtn = (active) => ({
   fontWeight: active?500:400, fontSize:13, cursor:'pointer', textAlign:'center', fontFamily:'inherit'
 })
 const sLabel = { fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590', marginBottom:8, display:'block' }
+// Subtle section divider — groups the form into scannable chunks without hiding anything.
+const sectionHead = { fontSize:12, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'#5a5248', display:'block', marginTop:24, marginBottom:14, paddingTop:16, borderTop:'1px solid #ede8e0' }
 
 function PillRow({ opts, selected, onToggle, single=false }) {
   return (
@@ -273,6 +275,7 @@ export default function Log() {
         <PillRow opts={MOOD_NEG} selected={log.mood} onToggle={v=>toggleMulti('mood',v)}/>
 
         {!isPath4&&<>
+          <span style={sectionHead}>Cycle tracking</span>
           <span style={sLabel}>Cervical fluid</span>
           <div id="cervicalFluidWhy" style={{fontSize:11,color:'#9a9590',marginBottom:8,fontStyle:'italic'}}>One of the strongest ovulation indicators, tracks fertile window with 80% sensitivity (Bigelow et al. 2004)</div>
           <PillRow opts={FLUID_OPTS} selected={log.cervical_fluid} single onToggle={v=>set('cervical_fluid',v)}/>
@@ -288,6 +291,7 @@ export default function Log() {
         <PillRow opts={SYMPTOMS} selected={log.symptoms} onToggle={v=>toggleMulti('symptoms',v)}/>
 
         {isPath4&&<>
+          <span style={sectionHead}>Symptoms to track</span>
           <span style={sLabel}>Hot flashes this week</span>
           <input type="number" min="0" placeholder="Count" value={log.hot_flash_count} onChange={e=>set('hot_flash_count',e.target.value)}
             style={{width:'100%',padding:'12px 14px',borderRadius:10,border:'1px solid #ede8e0',fontSize:15,fontFamily:'inherit',marginBottom:16}}/>
@@ -301,6 +305,7 @@ export default function Log() {
 
         {/* Flow + pain stay in the quick view during the period — they matter most then */}
         {isMenstrual&&<>
+          <span style={sectionHead}>Your period</span>
           <span style={sLabel}>Flow today</span>
           <PillRow opts={FLOW_OPTS} selected={log.flow_volume} single onToggle={v=>set('flow_volume',v)}/>
           <span style={sLabel}>Pain level</span>
