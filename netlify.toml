@@ -1,5 +1,13 @@
+# The deployable app is the React + Vite SPA in empower-react/. The repo root also
+# contains LEGACY vanilla HTML (index.html, dashboard.html, ...) that must NEVER be
+# published. base=empower-react makes Netlify build and publish only the React app.
 [build]
-  publish = "."
+  base = "empower-react"
+  command = "npm run build"
+  publish = "dist"
 
-[context.production]
-  publish = "."
+# SPA routing — every path serves the built index.html so React Router can handle it.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
