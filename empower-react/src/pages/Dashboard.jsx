@@ -382,7 +382,7 @@ export default function Dashboard() {
     </>
   )
 
-  const { phase, subPhase, cycleDay, cycleLen, daysLeft, confidence, bw, bcProteinG, bcBleedDay, bcInBleedWindow, alreadyLogged, recentLogs, anomalyItems, alloLoad, isPath4, bcEstimate, estimated } = d
+  const { phase, subPhase, cycleDay, cycleLen, daysLeft, confidence, bw, bcProteinG, bcBleedDay, bcInBleedWindow, alreadyLogged, recentLogs, twoWeekLogs, anomalyItems, alloLoad, isPath4, bcEstimate, estimated } = d
   const isDepoRecovery = d.profile?.user_path === '2' && /depo/i.test(d.profile?.bc_type || '')
   const phaseLabel = phase === 'observation' ? 'Observation mode'
     : phase === 'Perimenopause' ? 'Perimenopause'
@@ -473,6 +473,9 @@ export default function Dashboard() {
           </div>
         )}
 
+
+        {/* 2-week energy distribution chart */}
+        <ActivityPulse twoWeekLogs={twoWeekLogs} />
 
         {/* Anomaly only — mood insight removed (shown in calendar instead) */}
         {anomalyItems.filter(i => i.type !== 'mood').map((item, i) => (

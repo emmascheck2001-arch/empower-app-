@@ -2,6 +2,20 @@
 // All phase logic lives here. Import getTodayStatus into every screen.
 import { interpretMoodSignal, detectPMDDPattern, getMoodContextFeedback, checkFlag, getPersonalisedNutritionFocus, getPersonalisedWorkoutReadiness } from './algorithm_v3.js'
 
+// Converts the stored RHR bucket string to a representative numeric midpoint.
+// parseFloat("Over 75") → NaN, so the elevated-RHR anomaly check and luteal
+// confidence boost silently skip users who log the highest bucket. Using
+// midpoints makes the arithmetic correct across all four buckets.
+function parseRHRBucket(str) {
+  if (!str || str === 'No data') return NaN
+  if (str === 'Under 55')  return 50
+  if (str === '55 to 65')  return 60
+  if (str === '65 to 75')  return 70
+  if (str === 'Over 75')   return 80
+  const n = parseFloat(str)
+  return isNaN(n) ? NaN : n
+}
+
 // ── Phase calculation (canonical — never duplicate this elsewhere) ──────────
 export function getPhase(cycleDay, cycleLen) {
   const ovulation = Math.round(cycleLen / 2)
@@ -106,7 +120,7 @@ function calcConfidence(phase, subPhase, recentLogs, mucusLogs, totalLogs = 0) {
     }
     const rhrData = recentLogs
       .filter(l => l.resting_hr)
-      .map(l => parseFloat(l.resting_hr))
+      .map(l => parseRHRBucket(l.resting_hr))
       .filter(n => !isNaN(n))
     if (rhrData.length >= 3 && phase === 'Luteal') {
       const avg = rhrData.slice(0, 3).reduce((a, b) => a + b, 0) / 3
@@ -209,7 +223,7 @@ function detectAnomalies(recentLogs, phase, cycleLen, flagStats) {
     anomalies.push({ type: 'energy_high_menstrual', text: 'Interesting — high energy during your period. Some women notice a brief energy surge on day 1 or 2 before cramps set in, as the drop in hormones briefly lifts mood. Log how your training feels today.' })
   }
 
-  const rhr = parseFloat(latest.resting_hr)
+  const rhr = parseRHRBucket(latest.resting_hr)
   if (canObserve && !isNaN(rhr) && rhr > 75 && (phase === 'Follicular' || phase === 'Ovulatory')) {
     anomalies.push({ type: 'rhr_elevated', text: 'Your resting heart rate is on the higher side for this phase. This can reflect poor recovery, early illness, or a stressful few days. Consider dialling back intensity today and prioritising sleep. If it stays elevated for a week, worth mentioning to your doctor.' })
   }
@@ -325,8 +339,8 @@ export function inferPhaseFromSymptoms(recentLogs, mucusLogs = []) {
   const energyValues = logs.map(l => l.energy).filter(Boolean)
   const sleepValues = logs.map(l => l.sleep_quality).filter(Boolean)
   const allFluid = mucus.map(m => m.discharge_type).filter(Boolean)
-  const rhrValues = logs.map(l => parseFloat(l.resting_hr)).filter(n => !isNaN(n))
-  const latestRHR = parseFloat(latestLog.resting_hr)
+  const rhrValues = logs.map(l => parseRHRBucket(l.resting_hr)).filter(n => !isNaN(n))
+  const latestRHR = parseRHRBucket(latestLog.resting_hr)
   // Baseline = average of all logged RHR except the most recent (Zhu et al. 2021)
   const rhrBaseline = rhrValues.length > 1
     ? rhrValues.slice(1).reduce((a, b) => a + b, 0) / (rhrValues.length - 1)
