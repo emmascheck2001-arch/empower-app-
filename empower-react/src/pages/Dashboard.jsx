@@ -173,7 +173,6 @@ const PHASE_SHEET_INFO = {
 function ActivityPulse({ twoWeekLogs }) {
   const energyCounts = { 'Very low':0, 'Low':0, 'Normal':0, 'High':0 }
   const logs = twoWeekLogs || []
-  // Checkin saves "Good", Log saves "Normal" — same concept, normalise for display
   logs.forEach(l => {
     const e = l.energy === 'Good' ? 'Normal' : l.energy
     if (e && energyCounts[e] !== undefined) energyCounts[e]++
@@ -382,7 +381,7 @@ export default function Dashboard() {
     </>
   )
 
-  const { phase, subPhase, cycleDay, cycleLen, daysLeft, confidence, bw, bcProteinG, bcBleedDay, bcInBleedWindow, alreadyLogged, recentLogs, anomalyItems, alloLoad, isPath4, bcEstimate, estimated } = d
+  const { phase, subPhase, cycleDay, cycleLen, daysLeft, confidence, bw, bcProteinG, bcBleedDay, bcInBleedWindow, alreadyLogged, recentLogs, twoWeekLogs, anomalyItems, alloLoad, isPath4, bcEstimate, estimated } = d
   const isDepoRecovery = d.profile?.user_path === '2' && /depo/i.test(d.profile?.bc_type || '')
   const phaseLabel = phase === 'observation' ? 'Observation mode'
     : phase === 'Perimenopause' ? 'Perimenopause'
@@ -531,6 +530,9 @@ export default function Dashboard() {
             </div>
           </div>
         )}
+
+        {/* 2-week energy pattern */}
+        <ActivityPulse twoWeekLogs={twoWeekLogs} />
 
         {/* Community / Friends tabbed card */}
         {(() => {
