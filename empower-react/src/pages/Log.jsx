@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { getPhase } from '../lib/hormoneSync'
+import { getPhase, interpretHormones } from '../lib/hormoneSync'
 import TopBar from '../components/TopBar'
 import BottomNav from '../components/BottomNav'
 import Spinner from '../components/Spinner'
@@ -358,6 +358,16 @@ export default function Log() {
                 </div>
               ))}
             </div>}
+            {showHormones && (() => {
+              const h = interpretHormones(log)
+              if (!h) return null
+              return (
+                <div style={{marginTop:12,padding:'10px 12px',background:'#f5f0e8',borderRadius:10,fontSize:11,color:'#5a5248',lineHeight:1.55}}>
+                  {h.notes.map((n,i)=><div key={i} style={{marginBottom:4}}>{n}</div>)}
+                  <div style={{color:'#9a9590',marginTop:4,fontStyle:'italic'}}>{h.caveat}</div>
+                </div>
+              )
+            })()}
           </div>
         </>}
 

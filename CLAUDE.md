@@ -936,9 +936,21 @@ A GP, registered dietitian, certified personal trainer, and reproductive endocri
 
 ## Phase calculation — use this exact logic everywhere via hormoneSync.js, never duplicate it
 
+**Ovulation timing (updated 2026-06-18 — never revert to mid-cycle):** the luteal phase is
+biologically near-fixed at ~14 days, so ovulation is ~14 days BEFORE the next period
+(`cycleLen − 14`), NOT mid-cycle (`cycleLen / 2`). Mid-cycle is only correct for a 28-day
+cycle and misplaces the fertile window for everyone else (a 35-day cycle ovulates ~day 21,
+not 18). This matters for the planned fertility-window feature. Use `getOvulationDay()`.
+For a 28-day cycle the result is identical (day 14), so existing behaviour is unchanged.
+
 ```javascript
+const LUTEAL_LENGTH = 14
+function getOvulationDay(cycleLen) {
+  return Math.max(8, Math.round((cycleLen || 28) - LUTEAL_LENGTH))  // clamp for short cycles
+}
+
 function getPhase(cycleDay, cycleLen) {
-  const ovulation = Math.round(cycleLen / 2)
+  const ovulation = getOvulationDay(cycleLen)
   if (cycleDay <= 5) return 'Menstrual'
   if (cycleDay <= ovulation - 2) return 'Follicular'
   if (cycleDay <= ovulation + 1) return 'Ovulatory'
@@ -946,13 +958,19 @@ function getPhase(cycleDay, cycleLen) {
 }
 
 function getLutealSubPhase(cycleDay, cycleLen) {
-  const ovulation = Math.round(cycleLen / 2)
+  const ovulation = getOvulationDay(cycleLen)
   const lutealDay = cycleDay - ovulation - 1
   if (lutealDay <= 4) return 'Early luteal'
   if (lutealDay <= 9) return 'Mid luteal'
   return 'Late luteal'
 }
 ```
+
+**Logged hormone labs are used (added 2026-06-18):** `interpretHormones(log)` in hormoneSync.js
+reads logged progesterone/LH/estradiol. Progesterone ≥10 nmol/L confirms ovulation occurred
+(sets `ovulationConfirmed`, boosts confidence); LH ≥8 IU/L is a surge. getTodayStatus exposes
+`ovulationConfirmed` and `hormoneSignals` for the future fertility feature. Do not let these
+labs become dead-captured data again.
 
 ## Intensity modifiers — use these exact values
 - Menstrual: 0.70

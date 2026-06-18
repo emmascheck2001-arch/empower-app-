@@ -293,7 +293,9 @@ export function detectPMDDPattern(logs, cycleLen) {
   if (!logs || logs.length < 14) return null
 
   const cl = cycleLen || 28
-  const ovulation = Math.round(cl / 2)
+  // Ovulation ~14 days before next period (luteal phase is near-fixed), not mid-cycle.
+  // Mirrors getOvulationDay() in hormoneSync.js (kept inline to avoid a circular import).
+  const ovulation = Math.max(8, Math.round(cl - 14))
   const NEGATIVE_MOODS = new Set(['Irritable', 'Anxious', 'Low', 'Overwhelmed', 'Sad'])
   const POSITIVE_MOODS = new Set(['Energised', 'Energetic', 'Happy', 'Motivated', 'Confident', 'Social'])
 

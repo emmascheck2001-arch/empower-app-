@@ -3,8 +3,18 @@
 import { interpretMoodSignal, detectPMDDPattern, getMoodContextFeedback, checkFlag, getPersonalisedNutritionFocus, getPersonalisedWorkoutReadiness } from './algorithm_v3.js'
 
 // ── Phase calculation (canonical — never duplicate this elsewhere) ──────────
+// Ovulation timing: the luteal phase is biologically near-fixed at ~14 days, so
+// ovulation falls ~14 days BEFORE the next period (cycleLen − 14), NOT at mid-cycle.
+// A mid-cycle (cycleLen/2) assumption is only correct for a 28-day cycle and misplaces
+// the fertile window for everyone else (e.g. a 35-day cycle ovulates ~day 21, not 18).
+// Clamped to a sensible floor for very short cycles. (Luteal length: Münster 2021.)
+export const LUTEAL_LENGTH = 14
+export function getOvulationDay(cycleLen) {
+  return Math.max(8, Math.round((cycleLen || 28) - LUTEAL_LENGTH))
+}
+
 export function getPhase(cycleDay, cycleLen) {
-  const ovulation = Math.round(cycleLen / 2)
+  const ovulation = getOvulationDay(cycleLen)
   if (cycleDay <= 5) return 'Menstrual'
   if (cycleDay <= ovulation - 2) return 'Follicular'
   if (cycleDay <= ovulation + 1) return 'Ovulatory'
@@ -12,7 +22,7 @@ export function getPhase(cycleDay, cycleLen) {
 }
 
 export function getLutealSubPhase(cycleDay, cycleLen) {
-  const ovulation = Math.round(cycleLen / 2)
+  const ovulation = getOvulationDay(cycleLen)
   const lutealDay = cycleDay - ovulation - 1
   if (lutealDay <= 4) return 'Early luteal'
   if (lutealDay <= 9) return 'Mid luteal'
@@ -38,6 +48,50 @@ export const predictNextPeriod = (lastPeriodDate, avgCycleLength, cyclesTracked)
 function getFollicularSubPhase(cycleDay) {
   // Early follicular: days 6-9, late follicular: day 10+
   return cycleDay <= 9 ? 'Early follicular' : 'Late follicular'
+}
+
+// Robustly turn a logged resting HR into a number. The log stores either an exact bpm
+// or a range label, so map ranges to their midpoint instead of losing the signal.
+function rhrToNum(v) {
+  if (v == null || v === '' || v === 'No data') return NaN
+  const map = { 'Under 55': 52, '55 to 65': 60, '65 to 75': 70, 'Over 75': 78 }
+  if (map[v] != null) return map[v]
+  const n = parseFloat(v)
+  return isNaN(n) ? NaN : n
+}
+
+// Interpret logged hormone lab values into ovulation signals + plain-language notes.
+// Progesterone >=10 nmol/L confirms ovulation has occurred (mid-luteal); LH >=8 IU/L is a
+// surge (ovulation imminent). Ranges per CLAUDE.md HORMONE_REFS / Münster 2021.
+export function interpretHormones(log) {
+  if (!log) return null
+  const prog = parseFloat(log.hormone_progesterone)
+  const lh = parseFloat(log.hormone_lh)
+  const e2 = parseFloat(log.hormone_estradiol)
+  const notes = []
+  let ovulationConfirmed = false, lhSurge = false
+  if (!isNaN(prog)) {
+    if (prog >= 10) { ovulationConfirmed = true; notes.push('Progesterone ' + prog + ' nmol/L confirms ovulation has occurred. You are in your luteal phase.') }
+    else if (prog >= 2) notes.push('Progesterone ' + prog + ' nmol/L is in the early-luteal range.')
+    else notes.push('Progesterone ' + prog + ' nmol/L is in the follicular range, before ovulation.')
+  }
+  if (!isNaN(lh)) {
+    if (lh >= 8) { lhSurge = true; notes.push('LH ' + lh + ' IU/L is a surge. Ovulation is likely within 12 to 36 hours.') }
+    else notes.push('LH ' + lh + ' IU/L is at baseline, no surge detected.')
+  }
+  if (!isNaN(e2)) {
+    if (e2 >= 600) notes.push('Estradiol ' + e2 + ' pmol/L is high, consistent with the pre-ovulatory peak.')
+    else notes.push('Estradiol ' + e2 + ' pmol/L logged.')
+  }
+  if (!notes.length) return null
+  return {
+    ovulationConfirmed, lhSurge,
+    progesterone: isNaN(prog) ? null : prog,
+    lh: isNaN(lh) ? null : lh,
+    estradiol: isNaN(e2) ? null : e2,
+    notes,
+    caveat: 'These are population reference ranges. Your personal normal may differ; what matters most is your pattern across cycles.'
+  }
 }
 
 // ── Intensity modifiers ─────────────────────────────────────────────────────
@@ -286,7 +340,7 @@ function getImmediateFeedback(latestLog, phase, subPhase, confidence) {
 function getPredictions(phase, cycleDay, cycleLen) {
   if (!cycleDay || !cycleLen) return []
   const predictions = []
-  const ovulation = Math.round(cycleLen / 2)
+  const ovulation = getOvulationDay(cycleLen)
 
   if (phase === 'Follicular') {
     const daysToOvulation = ovulation - cycleDay
@@ -325,8 +379,8 @@ export function inferPhaseFromSymptoms(recentLogs, mucusLogs = []) {
   const energyValues = logs.map(l => l.energy).filter(Boolean)
   const sleepValues = logs.map(l => l.sleep_quality).filter(Boolean)
   const allFluid = mucus.map(m => m.discharge_type).filter(Boolean)
-  const rhrValues = logs.map(l => parseFloat(l.resting_hr)).filter(n => !isNaN(n))
-  const latestRHR = parseFloat(latestLog.resting_hr)
+  const rhrValues = logs.map(l => rhrToNum(l.resting_hr)).filter(n => !isNaN(n))
+  const latestRHR = rhrToNum(latestLog.resting_hr)
   // Baseline = average of all logged RHR except the most recent (Zhu et al. 2021)
   const rhrBaseline = rhrValues.length > 1
     ? rhrValues.slice(1).reduce((a, b) => a + b, 0) / (rhrValues.length - 1)
@@ -596,6 +650,11 @@ function buildCycleStatus(profile, cycleData, recentLogs, mucusLogs, today, tota
   // estimate — hormonal contraception can flatten the natural hormone swings, so the
   // true cycle may differ from what the bleed-date maths predicts.
   const bcEstimate = profile?.user_path === '5' && profile?.bc_type !== 'copper-iud' && cycleDay != null
+  // Logged hormone labs confirm the picture: progesterone >=10 nmol/L confirms ovulation,
+  // so trust the cycle much more when a lab backs it up, and expose the confirmation for
+  // the future fertility feature. (Previously these labs were captured but never used.)
+  const hormoneSignals = interpretHormones(recentLogs[0])
+  if (hormoneSignals?.ovulationConfirmed) confidence = Math.max(confidence, 0.85)
 
   return {
     phase,
@@ -605,6 +664,8 @@ function buildCycleStatus(profile, cycleData, recentLogs, mucusLogs, today, tota
     daysUntilPeriod,
     bcEstimate,
     estimated,
+    ovulationConfirmed: hormoneSignals?.ovulationConfirmed || false,
+    hormoneSignals,
     confidence,
     confidenceLabel: confidence > 0.90 ? 'Fully personalised'
       : confidence > 0.75 ? 'Your personal baseline established'

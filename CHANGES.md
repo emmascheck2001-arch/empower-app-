@@ -4,6 +4,18 @@ Changes made autonomously from user feedback. Most recent first.
 
 ---
 
+## 2026-06-18 — Algorithm airtight pass (groundwork for the fertility-window feature)
+
+**Reported by:** Emma — "fix everything" from the data-integrity audit.
+
+**1. Ovulation timing corrected (the big one).** `getPhase`/`getLutealSubPhase` assumed ovulation at mid-cycle (`cycleLen/2`), which is only right for a 28-day cycle and misplaced the fertile window for everyone else (a 35-day cycle ovulates ~day 21, the app said 18). Replaced with the luteal-phase-fixed model `getOvulationDay() = max(8, cycleLen − 14)`, applied consistently in getPhase, getLutealSubPhase, getPredictions (hormoneSync) and detectPMDDPattern (algorithm_v3, inlined to avoid a circular import). 28-day cycles are unchanged; non-28 cycles are now accurate. CLAUDE.md phase-calc section updated so it can't be reverted.
+
+**2. Logged hormone labs now used (were dead-captured).** Added `interpretHormones()` — progesterone ≥10 nmol/L confirms ovulation occurred (sets `ovulationConfirmed`, raises confidence to ≥0.85), LH ≥8 IU/L flags a surge, estradiol interpreted. getTodayStatus now exposes `ovulationConfirmed` + `hormoneSignals` for the future fertility feature, and the Log screen shows a plain-language interpretation under the hormone inputs (with the population-average caveat). Previously estradiol/progesterone/LH were saved and never read.
+
+**3. Resting-HR signal precision.** Inference parsed range labels lossily (`"Under 55"`→NaN). Added `rhrToNum()` mapping ranges to midpoints so the RHR phase signal is consistent whether the user picks a range or types an exact bpm.
+
+**Files changed:** empower-react/src/lib/hormoneSync.js, empower-react/src/lib/algorithm_v3.js, empower-react/src/pages/Log.jsx, CLAUDE.md
+
 ## 2026-06-18 — Can't log that your period started (+ silent cycle-save bug)
 
 **Reported by:** Emma (emmascheck2001, Path 2 / off Depo since Feb 13) — "I just got my period today but I can't log it."
