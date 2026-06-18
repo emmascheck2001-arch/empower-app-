@@ -4,6 +4,18 @@ Changes made autonomously from user feedback. Most recent first.
 
 ---
 
+## 2026-06-18 — Can't log that your period started (+ silent cycle-save bug)
+
+**Reported by:** Emma (emmascheck2001, Path 2 / off Depo since Feb 13) — "I just got my period today but I can't log it."
+
+**Two bugs found:**
+1. **No in-app way to log a period start.** The React Log screen only wrote `daily_logs`/`mucus_logs` — the "period started" control from the old app was never ported. Flow/pain fields only appear once you're already in Menstrual phase (which needs cycle data), so an observation/Depo-recovery user whose period returns had no way to record it. Added a "Did your period start?" card to the Log screen (non-perimenopause): a date picker (defaults to today, allows an earlier date) + "Log period start" button that writes `cycle_data`, recomputes the phase, and reveals flow/pain. This is the milestone moment for Depo-recovery users — their cycle returning.
+2. **`cycle_data` unique constraint on `user_id` was missing** — so every `onConflict:'user_id'` upsert errored. This silently broke **Setup's** period-date save for all path-1/5 signups since ~Jun 9 (e.g. Cassidy: path 1, required period date never saved → stuck in observation). Restored the constraint via migration (`cycle_data_user_id_key`, no duplicates existed). This fixes Setup going forward and powers the new period-start control.
+
+**Follow-up:** existing affected users (e.g. Cassidy) still have no cycle data — their original Setup date was lost. They can now set it via the new Log "period started" control or by re-entering in Setup.
+
+**Files changed:** empower-react/src/pages/Log.jsx + DB migration cycle_data_user_id_key.
+
 ## 2026-06-16 — Liability / wording audit pass (not legal advice)
 
 **Reported by:** Emma — "make sure there are no liability concerns with wording and everything." (Reviewed against medical-language best practice + the project's own rules. NOT a substitute for a real femtech/healthcare attorney review before launch.)

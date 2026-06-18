@@ -65,6 +65,10 @@ export default function Log() {
   const [isPath4, setIsPath4] = useState(false)
   const [showMore, setShowMore] = useState(false)
   const [showHormones, setShowHormones] = useState(false)
+  const [cycleLen, setCycleLen] = useState(28)
+  const [periodDate, setPeriodDate] = useState(localDateStr())
+  const [savingPeriod, setSavingPeriod] = useState(false)
+  const [periodSaved, setPeriodSaved] = useState(false)
   const [log, setLog] = useState({
     energy:null, sleep_quality:null, resting_hr:null, resting_hr_exact:'',
     wrist_temp:'', cervical_fluid:null, lh_result:null, mood:[], symptoms:[], disruptors:[],
@@ -80,11 +84,12 @@ export default function Log() {
     if (!user) { navigate('/login',{replace:true}); return }
     try {
     const [{ data:profile },{ data:cycleData }] = await Promise.all([
-      supabase.from('profiles').select('user_path').eq('id',user.id).maybeSingle(),
+      supabase.from('profiles').select('user_path,cycle_length').eq('id',user.id).maybeSingle(),
       supabase.from('cycle_data').select('*').eq('user_id',user.id).order('created_at',{ascending:false}).limit(1).maybeSingle(),
     ])
     const path4 = profile?.user_path==='4'
     setIsPath4(path4)
+    setCycleLen(cycleData?.cycle_length || profile?.cycle_length || 28)
     if (!path4 && cycleData?.last_period_date) {
       const last = new Date(cycleData.last_period_date+'T00:00:00')
       const now = new Date(); now.setHours(0,0,0,0)
@@ -117,6 +122,28 @@ export default function Log() {
     if (mucus?.discharge_type) setLog(prev=>({...prev,cervical_fluid:mucus.discharge_type}))
     } catch(e) { console.error(e) }
     finally { setLoading(false) }
+  }
+
+  // Log the first day of a period — writes cycle_data so the cycle starts tracking.
+  // This is the only place (besides Setup) a user can record a period; essential for
+  // observation/Depo-recovery users whose cycle returns and who have no cycle data yet.
+  async function logPeriodStart() {
+    setSavingPeriod(true)
+    try {
+      const { data:{ user } } = await supabase.auth.getUser()
+      if (!user) { navigate('/login',{replace:true}); return }
+      const { error } = await supabase.from('cycle_data').upsert(
+        { user_id:user.id, last_period_date:periodDate, cycle_length:cycleLen },
+        { onConflict:'user_id' }
+      )
+      if (error) { console.error(error); setSavingPeriod(false); return }
+      const last = new Date(periodDate+'T00:00:00')
+      const now = new Date(); now.setHours(0,0,0,0)
+      const cd = Math.floor((now-last)/86400000)+1
+      const p = getPhase(cd, cycleLen)
+      setPhase(p); setIsMenstrual(p==='Menstrual'); setPeriodSaved(true)
+    } catch(e) { console.error(e) }
+    setSavingPeriod(false)
   }
 
   const set = (field,val) => setLog(prev=>({...prev,[field]:val}))
@@ -184,6 +211,28 @@ export default function Log() {
           <div style={{fontSize:14,fontWeight:600,marginBottom:4}}>Today's check-in</div>
           <div style={{fontSize:13,color:'#7a7268'}}>The quick questions take under a minute. Add more detail anytime below.</div>
         </div>
+
+        {/* Period start — the only in-app way to record a period and begin cycle tracking.
+            Shown to non-perimenopause users until they are in their period; essential for
+            observation/Depo-recovery users whose first period returns. */}
+        {!isPath4 && (!isMenstrual || periodSaved) && (
+          <div className="card" style={{marginBottom:20, background:'#fdf0f0', border:'1px solid #f0d8d8'}}>
+            {periodSaved ? (
+              <div style={{fontSize:13,color:'#5a2a28',lineHeight:1.5}}>Period start logged 🌿 Your cycle is now tracking from {periodDate}. Flow and pain are below.</div>
+            ) : (
+              <>
+                <div style={{fontSize:14,fontWeight:600,marginBottom:4,color:'#5a2a28'}}>Did your period start?</div>
+                <div style={{fontSize:12,color:'#7a7268',marginBottom:10,lineHeight:1.5}}>Log the first day to start tracking your cycle. (If it began earlier, pick that date.)</div>
+                <input type="date" value={periodDate} max={localDateStr()} onChange={e=>setPeriodDate(e.target.value)}
+                  style={{width:'100%',padding:'10px 14px',borderRadius:10,border:'1px solid #ede8e0',fontSize:14,fontFamily:'inherit',marginBottom:10,boxSizing:'border-box'}}/>
+                <button onClick={logPeriodStart} disabled={savingPeriod}
+                  style={{width:'100%',padding:'12px',borderRadius:10,background:'#c05858',color:'#fff',border:'none',fontSize:14,fontWeight:500,cursor:'pointer',fontFamily:'inherit'}}>
+                  {savingPeriod?'Saving...':'Log period start'}
+                </button>
+              </>
+            )}
+          </div>
+        )}
 
         {/* ── Quick daily check-in (always visible) ───────────────────────── */}
         <span style={sLabel}>Energy today</span>
