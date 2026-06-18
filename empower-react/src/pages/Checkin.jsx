@@ -63,9 +63,10 @@ export default function Checkin() {
         energy: log.energy, sleep_quality: log.sleep_quality,
         resting_hr: log.resting_hr, mood: log.mood, symptoms: log.symptoms,
       }, { onConflict: 'user_id,log_date' })
-      if (log.mucus && log.mucus !== 'Nothing') {
+      if (log.mucus) {
         await supabase.from('mucus_logs').upsert({
-          user_id: user.id, log_date: today, discharge_type: log.mucus
+          user_id: user.id, log_date: today,
+          discharge_type: log.mucus === 'Nothing' ? null : log.mucus
         }, { onConflict: 'user_id,log_date' })
       }
       const newStatus = await getTodayStatus(supabase, user.id)
