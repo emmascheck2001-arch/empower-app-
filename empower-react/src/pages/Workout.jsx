@@ -236,17 +236,21 @@ function ex(name, sets, reps, weight, tip) { return { name, sets, reps, weight, 
 
 function getSvgType(name) {
   const n = name.toLowerCase()
+  // Order matters: more specific matches first (e.g. "split squat" before "squat").
+  if (n.includes('bulgarian') || n.includes('split squat')) return 'splitsquat'
   if (n.includes('squat') || n.includes('goblet')) return 'squat'
   if (n.includes('deadlift')) return 'hinge'
+  if (n.includes('lateral raise')) return 'lateralraise'
   if (n.includes('bench press') || n.includes('push-up')) return 'push'
   if (n.includes('row') && !n.includes('pull')) return 'row'
   if (n.includes('overhead press') || n.includes('shoulder press')) return 'press'
-  if (n.includes('bulgarian') || n.includes('split squat')) return 'splitsquat'
   if (n.includes('lunge')) return 'lunge'
   if (n.includes('hip thrust') || n.includes('glute bridge')) return 'thrust'
   if (n.includes('pull-up') || n.includes('pull up') || n.includes('chin')) return 'pullup'
   if (n.includes('leg curl') || n.includes('nordic') || n.includes('hamstring curl')) return 'legcurl'
+  if (n.includes('pushdown') || n.includes('tricep extension')) return 'pushdown'
   if (n.includes('curl') && !n.includes('calf')) return 'curl'
+  if (n.includes('leg raise') || n.includes('hanging')) return 'legraise'
   if (n.includes('plank')) return 'plank'
   if (n.includes('calf')) return 'calf'
   return 'stand'
@@ -336,6 +340,15 @@ function getPhases(svgType) {
     calf:    [{ label:'Start position', desc:'Stand with balls of feet on edge of a step or flat on the floor.' },
                { label:'Lower / working phase', desc:'Lower heels all the way down — feel the full stretch in the calf.' },
                { label:'Finish position', desc:'Rise onto toes as high as possible. Pause at the top before lowering.' }],
+    lateralraise: [{ label:'Start position', desc:'Stand tall, dumbbells at your sides with a slight bend in the elbows.' },
+               { label:'Lower / working phase', desc:'Lower the dumbbells with control. Resist the weight on the way down.' },
+               { label:'Finish position', desc:'Raise the dumbbells out to shoulder height, leading with the elbows.' }],
+    pushdown: [{ label:'Start position', desc:'Upper arms pinned to your sides, forearms up, elbows bent.' },
+               { label:'Lower / working phase', desc:'Return with control, keeping your elbows pinned in place.' },
+               { label:'Finish position', desc:'Extend your forearms fully down until your elbows are straight.' }],
+    legraise: [{ label:'Start position', desc:'Hang from the bar, core engaged, legs straight down.' },
+               { label:'Lower / working phase', desc:'Lower your legs slowly with control. No swinging.' },
+               { label:'Finish position', desc:'Raise your legs to hip height, leading with control.' }],
     stand:   [{ label:'Start position', desc:'Controlled starting position. Brace your core before initiating the movement.' },
                { label:'Lower / working phase', desc:'Move through the full range of motion with control.' },
                { label:'Finish position', desc:'Return to start with control. Do not rush the descent.' }],
@@ -408,6 +421,18 @@ const POSES = {
   calf: { floor: true, period: 1700,
     top:    { head:[120,32], neck:[120,48], hip:[120,102], k1:[112,140], f1:[106,158], k2:[128,140], f2:[134,158], e1:[112,68], h1:[108,104], e2:[128,68], h2:[132,104] },
     bottom: { head:[120,40], neck:[120,56], hip:[120,110], k1:[112,146], f1:[100,162], k2:[128,146], f2:[140,162], e1:[112,76], h1:[108,112], e2:[128,76], h2:[132,112] } },
+  // Lateral raise — standing, arms raise from the sides out to shoulder height.
+  lateralraise: { floor: true, period: 2200,
+    top:    { head:[120,40], neck:[120,58], hip:[120,112], k1:[112,136], f1:[110,160], k2:[128,136], f2:[130,160], e1:[112,74], h1:[108,108], e2:[128,74], h2:[132,108] },
+    bottom: { head:[120,40], neck:[120,58], hip:[120,112], k1:[112,136], f1:[110,160], k2:[128,136], f2:[130,160], e1:[106,64], h1:[80,62], e2:[134,64], h2:[160,62] } },
+  // Tricep pushdown — upper arms pinned to the sides, forearms extend from bent to straight.
+  pushdown: { floor: true, period: 1800,
+    top:    { head:[120,40], neck:[120,58], hip:[120,112], k1:[112,136], f1:[110,160], k2:[128,136], f2:[130,160], e1:[112,92], h1:[110,72], e2:[128,92], h2:[130,72] },
+    bottom: { head:[120,40], neck:[120,58], hip:[120,112], k1:[112,136], f1:[110,160], k2:[128,136], f2:[130,160], e1:[112,92], h1:[111,116], e2:[128,92], h2:[129,116] } },
+  // Hanging leg raise — hang from the bar, raise the legs from straight-down to horizontal.
+  legraise: { period: 2400,
+    top:    { head:[120,42], neck:[120,58], hip:[120,116], k1:[116,142], f1:[114,168], k2:[126,142], f2:[128,168], e1:[112,52], h1:[100,24], e2:[128,52], h2:[140,24], bar:[[55,22],[185,22]] },
+    bottom: { head:[120,42], neck:[120,58], hip:[120,116], k1:[138,118], f1:[164,114], k2:[138,124], f2:[164,120], e1:[112,52], h1:[100,24], e2:[128,52], h2:[140,24], bar:[[55,22],[185,22]] } },
   // Idle stand — gentle sway so the default state isn't a frozen figure.
   stand: { floor: true, period: 4000,
     top:    { head:[120,40], neck:[120,58], hip:[120,112], k1:[112,136], f1:[110,160], k2:[128,136], f2:[130,160], e1:[112,70], h1:[106,108], e2:[128,70], h2:[134,108] },
@@ -599,7 +624,7 @@ const MUSCLE_EXERCISES = {
   Biceps:     [ex('Bicep curl', 3, 12, '6 to 12kg each', 'Elbows pinned to your ribs. Squeeze at the top, lower with control.'),
                ex('Hammer curl', 3, 12, '6 to 12kg each', 'Neutral grip, thumbs up. No swinging.')],
   Triceps:    [ex('Tricep pushdown', 3, 12, '15 to 30kg', 'Elbows pinned to your ribs. Full extension at the bottom.'),
-               ex('Tricep dip', 3, 10, 'Bodyweight', 'Hands on a bench, lower until your elbows are at 90 degrees.')],
+               ex('Close-grip bench press', 4, 8, '25 to 45kg', 'Hands shoulder-width, elbows tucked. Drives the triceps hard.')],
   Quads:      [ex('Barbell squat', 4, 8, '40 to 60kg', 'Bar on traps, brace your core. Drive knees out, sit deep.'),
                ex('Walking lunge', 3, 12, 'Dumbbells or bodyweight', 'Step forward, lower the back knee. Front knee over the ankle.')],
   Hamstrings: [ex('Romanian deadlift', 4, 10, '40 to 65kg', 'Soft knees, hinge from the hips. Bar stays close to your legs.'),
@@ -609,8 +634,7 @@ const MUSCLE_EXERCISES = {
   Calves:     [ex('Calf raise', 4, 15, 'Bodyweight or dumbbells', 'Rise onto your toes as high as possible, pause, lower with a full stretch.'),
                ex('Seated calf raise', 3, 15, '20 to 40kg', 'Knees bent, drive through the balls of your feet. Full range.')],
   Core:       [ex('Plank', 3, 40, 'Bodyweight', '40 seconds. Hips level, brace your core, do not let your back sag.'),
-               ex('Hanging leg raise', 3, 12, 'Bodyweight', 'Hang from a bar. Raise your legs to hip height with control, no swinging.'),
-               ex('Dead bug', 3, 12, 'Bodyweight', 'On your back, extend the opposite arm and leg slowly. Keep your low back flat.')],
+               ex('Hanging leg raise', 3, 12, 'Bodyweight', 'Hang from a bar. Raise your legs to hip height with control, no swinging.')],
 }
 function buildCustomExercises(muscles, level) {
   const list = (muscles || []).filter(m => MUSCLE_EXERCISES[m])
@@ -1418,9 +1442,9 @@ export default function Workout() {
             })}
           </div>
 
-          {/* Rest timer strip */}
+          {/* Rest timer strip — fixed to the bottom so it stays visible while you rest */}
           {restSecondsLeft > 0 && (
-            <div style={{ background:'#2c2820', borderRadius:14, padding:'14px 16px', marginBottom:12, display:'flex', alignItems:'center', gap:12 }}>
+            <div style={{ position:'fixed', left:0, right:0, bottom:0, zIndex:50, maxWidth:420, margin:'0 auto', background:'#2c2820', borderRadius:'14px 14px 0 0', padding:'14px 16px', display:'flex', alignItems:'center', gap:12, boxShadow:'0 -4px 18px rgba(0,0,0,0.18)' }}>
               <div style={{ flex:1 }}>
                 <div style={{ fontSize:10, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590', marginBottom:2 }}>REST</div>
                 <div style={{ fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:28, color:'#f5f0e8', lineHeight:1 }}>
