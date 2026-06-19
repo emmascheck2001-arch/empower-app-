@@ -160,7 +160,7 @@ function calcConfidence(phase, subPhase, recentLogs, mucusLogs, totalLogs = 0) {
     }
     const rhrData = recentLogs
       .filter(l => l.resting_hr)
-      .map(l => parseFloat(l.resting_hr))
+      .map(l => rhrToNum(l.resting_hr))
       .filter(n => !isNaN(n))
     if (rhrData.length >= 3 && phase === 'Luteal') {
       const avg = rhrData.slice(0, 3).reduce((a, b) => a + b, 0) / 3
@@ -263,7 +263,7 @@ function detectAnomalies(recentLogs, phase, cycleLen, flagStats) {
     anomalies.push({ type: 'energy_high_menstrual', text: 'Interesting — high energy during your period. Some women notice a brief energy surge on day 1 or 2 before cramps set in, as the drop in hormones briefly lifts mood. Log how your training feels today.' })
   }
 
-  const rhr = parseFloat(latest.resting_hr)
+  const rhr = rhrToNum(latest.resting_hr)
   if (canObserve && !isNaN(rhr) && rhr > 75 && (phase === 'Follicular' || phase === 'Ovulatory')) {
     anomalies.push({ type: 'rhr_elevated', text: 'Your resting heart rate is on the higher side for this phase. This can reflect poor recovery, early illness, or a stressful few days. Consider dialling back intensity today and prioritising sleep. If it stays elevated for a week, worth mentioning to your doctor.' })
   }
