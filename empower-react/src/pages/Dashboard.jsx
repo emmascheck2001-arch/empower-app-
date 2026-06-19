@@ -170,41 +170,6 @@ const PHASE_SHEET_INFO = {
   },
 }
 
-function ActivityPulse({ twoWeekLogs }) {
-  const energyCounts = { 'Very low':0, 'Low':0, 'Normal':0, 'High':0 }
-  const logs = twoWeekLogs || []
-  // Checkin saves "Good", Log saves "Normal" — same concept, normalise for display
-  logs.forEach(l => {
-    const e = l.energy === 'Good' ? 'Normal' : l.energy
-    if (e && energyCounts[e] !== undefined) energyCounts[e]++
-  })
-  const total = Object.values(energyCounts).reduce((a,b)=>a+b,0)
-  const workouts = logs.filter(l => l.workout_feel && l.workout_feel !== 'Rest day' && l.workout_feel !== 'Skipped').length
-  const ENERGY_COLORS = { 'Very low':'#e09898', 'Low':'#e0c070', 'Normal':'#88c088', 'High':'#4a9a4a' }
-  if (total === 0) return null
-  return (
-    <div className="card" style={{ marginBottom:12 }}>
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:10 }}>
-        <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590' }}>Your 2-week pattern</div>
-        {workouts > 0 && <div style={{ fontSize:12, color:'#7a7268' }}>{workouts} workout{workouts!==1?'s':''} logged</div>}
-      </div>
-      <div style={{ fontSize:11, color:'#9a9590', marginBottom:6 }}>Energy distribution</div>
-      <div style={{ display:'flex', gap:6, alignItems:'flex-end', height:44 }}>
-        {Object.entries(energyCounts).map(([label, count]) => {
-          const pct = count / total
-          const barH = Math.max(4, Math.round(pct * 36))
-          return (
-            <div key={label} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:3 }}>
-              <div style={{ fontSize:10, color:'#7a7268', fontWeight:600 }}>{count||''}</div>
-              <div style={{ width:'100%', height:barH, background:ENERGY_COLORS[label], borderRadius:3 }} />
-              <div style={{ fontSize:9, color:'#9a9590', textAlign:'center' }}>{label==='Very low'?'V.low':label}</div>
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
 
 export default function Dashboard() {
   const navigate = useNavigate()
@@ -238,13 +203,11 @@ export default function Dashboard() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { navigate('/login', { replace: true }); return }
 
-      const todayStr = localDateStr()
-      const [{ data: profile }, { data: cycleData }, { data: recentLogs }, { data: twoWeekLogs }, { count: todayLoggers }, { data: pendingRequests }] = await Promise.all([
+      const [{ data: profile }, { data: cycleData }, { data: recentLogs }, { data: twoWeekLogs }, { data: pendingRequests }] = await Promise.all([
         supabase.from('profiles').select('*').eq('id', user.id).maybeSingle(),
         supabase.from('cycle_data').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(1).maybeSingle(),
         supabase.from('daily_logs').select('energy,resting_hr,wrist_temp,log_date,sleep_quality,disruptors').eq('user_id', user.id).order('log_date', { ascending: false }).limit(7),
         supabase.from('daily_logs').select('log_date,energy,sleep_quality,mood,workout_feel').eq('user_id', user.id).order('log_date', { ascending: false }).limit(14),
-        supabase.from('daily_logs').select('*', { count: 'exact', head: true }).eq('log_date', todayStr),
         supabase.from('friendships').select('id').eq('addressee_id', user.id).eq('status', 'pending'),
       ])
       setPendingFriends(pendingRequests?.length || 0)
@@ -365,7 +328,7 @@ export default function Dashboard() {
       // Hormonal BC users who track a bleed date now get cycle phases too, flagged as an
       // estimate (hormonal contraception can flatten the natural hormone swings).
       const bcEstimate = isHormonalBC && !!cycleData?.last_period_date
-      setD({ profile, phase, subPhase, cycleDay, cycleLen, daysLeft, confidence, bw, bcProteinG, bcBleedDay, bcInBleedWindow, alreadyLogged, streak, recentLogs, twoWeekLogs, anomalyItems, alloLoad, isPath4, bcEstimate, estimated, userEmail: user.email, todayLoggers: todayLoggers || 0 })
+      setD({ profile, phase, subPhase, cycleDay, cycleLen, daysLeft, confidence, bw, bcProteinG, bcBleedDay, bcInBleedWindow, alreadyLogged, streak, recentLogs, twoWeekLogs, anomalyItems, alloLoad, isPath4, bcEstimate, estimated, userEmail: user.email })
       loadFriends(user.id)
     } catch(e) { console.error(e) }
     finally { setLoading(false) }
