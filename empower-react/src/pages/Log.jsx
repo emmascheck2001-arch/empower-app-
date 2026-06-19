@@ -87,8 +87,6 @@ export default function Log() {
     hot_flash_count:'', night_sweats_severity:null, joint_pain_rating:null, brain_fog_rating:null,
   })
 
-  useEffect(()=>{ init() },[])
-
   async function init() {
     const { data:{ user } } = await supabase.auth.getUser()
     if (!user) { navigate('/login',{replace:true}); return }
@@ -134,6 +132,9 @@ export default function Log() {
     } catch(e) { console.error(e) }
     finally { setLoading(false) }
   }
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
+  useEffect(()=>{ init() },[])
 
   // Log the first day of a period — writes cycle_data so the cycle starts tracking.
   // This is the only place (besides Setup) a user can record a period; essential for
