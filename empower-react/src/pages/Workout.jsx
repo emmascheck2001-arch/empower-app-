@@ -239,9 +239,11 @@ function getSvgType(name) {
   // Order matters: more specific matches first (e.g. "split squat" before "squat").
   if (n.includes('bulgarian') || n.includes('split squat')) return 'splitsquat'
   if (n.includes('squat') || n.includes('goblet')) return 'squat'
+  if (n.includes('leg press')) return 'legpress'
   if (n.includes('deadlift')) return 'hinge'
   if (n.includes('lateral raise')) return 'lateralraise'
-  if (n.includes('bench press') || n.includes('push-up')) return 'push'
+  if (n.includes('bench press') || n.includes('push-up') || n.includes('incline')) return 'push'
+  if (n.includes('face pull') || n.includes('pull-apart')) return 'facepull'
   if (n.includes('row') && !n.includes('pull')) return 'row'
   if (n.includes('overhead press') || n.includes('shoulder press')) return 'press'
   if (n.includes('lunge')) return 'lunge'
@@ -249,6 +251,7 @@ function getSvgType(name) {
   if (n.includes('pull-up') || n.includes('pull up') || n.includes('chin')) return 'pullup'
   if (n.includes('leg curl') || n.includes('nordic') || n.includes('hamstring curl')) return 'legcurl'
   if (n.includes('pushdown') || n.includes('tricep extension')) return 'pushdown'
+  if (n.includes('dip')) return 'dip'
   if (n.includes('curl') && !n.includes('calf')) return 'curl'
   if (n.includes('leg raise') || n.includes('hanging')) return 'legraise'
   if (n.includes('plank')) return 'plank'
@@ -267,7 +270,8 @@ function getMuscles(name) {
   if (n.includes('dumbbell row')) return 'Back, biceps'
   if (n.includes('cable row')) return 'Back, biceps'
   if (n.includes('overhead press') || n.includes('shoulder press')) return 'Shoulders, triceps, core'
-  if (n.includes('face pull') || n.includes('lateral raise')) return 'Rear delts, rotator cuff'
+  if (n.includes('lateral raise')) return 'Side delts'
+  if (n.includes('face pull') || n.includes('pull-apart')) return 'Rear delts, rotator cuff'
   if (n.includes('bulgarian split squat')) return 'Quads, glutes, hamstrings'
   if (n.includes('walking lunge')) return 'Quads, glutes, hamstrings'
   if (n.includes('hip thrust')) return 'Glutes, hamstrings'
@@ -281,6 +285,7 @@ function getMuscles(name) {
   if (n.includes('plank')) return 'Core, shoulders'
   if (n.includes('nordic')) return 'Hamstrings'
   if (n.includes('calf')) return 'Calves'
+  if (n.includes('leg raise') || n.includes('hanging')) return 'Abs, core, hip flexors'
   if (n.includes('band pull-apart')) return 'Rear delts, rotator cuff'
   if (n.includes('incline')) return 'Upper chest, triceps, front delts'
   return 'Multiple muscle groups'
@@ -299,6 +304,9 @@ function getEquipment(name) {
   if (n.includes('hip thrust') || n.includes('glute bridge')) return 'Barbell or dumbbell'
   if (n.includes('walking lunge') || n.includes('split squat')) return 'Dumbbells or bodyweight'
   if (n.includes('calf')) return 'Bodyweight or dumbbell'
+  if (n.includes('leg raise') || n.includes('hanging')) return 'Bodyweight (pull-up bar)'
+  if (n.includes('pushdown')) return 'Cable machine'
+  if (n.includes('face pull') || n.includes('pull-apart')) return 'Cable or band'
   return 'Barbell or dumbbells'
 }
 
@@ -340,6 +348,15 @@ function getPhases(svgType) {
     calf:    [{ label:'Start position', desc:'Stand with balls of feet on edge of a step or flat on the floor.' },
                { label:'Lower / working phase', desc:'Lower heels all the way down — feel the full stretch in the calf.' },
                { label:'Finish position', desc:'Rise onto toes as high as possible. Pause at the top before lowering.' }],
+    dip: [{ label:'Start position', desc:'Hands on a bench behind you, legs out in front, arms straight.' },
+               { label:'Lower / working phase', desc:'Bend your elbows to lower your hips until they reach about 90 degrees.' },
+               { label:'Finish position', desc:'Press through your palms to straighten your arms back up.' }],
+    legpress: [{ label:'Start position', desc:'Seated against the pad, feet shoulder-width on the platform, knees bent.' },
+               { label:'Lower / working phase', desc:'Lower the platform under control until your knees reach about 90 degrees.' },
+               { label:'Finish position', desc:'Press through your whole foot to extend, without locking your knees.' }],
+    facepull: [{ label:'Start position', desc:'Arms extended forward holding the cable or band, shoulders relaxed.' },
+               { label:'Lower / working phase', desc:'Return forward with control. Keep the tension on your rear delts.' },
+               { label:'Finish position', desc:'Pull toward your face, elbows high and wide. Squeeze the rear delts.' }],
     lateralraise: [{ label:'Start position', desc:'Stand tall, dumbbells at your sides with a slight bend in the elbows.' },
                { label:'Lower / working phase', desc:'Lower the dumbbells with control. Resist the weight on the way down.' },
                { label:'Finish position', desc:'Raise the dumbbells out to shoulder height, leading with the elbows.' }],
@@ -425,6 +442,18 @@ const POSES = {
   lateralraise: { floor: true, period: 2200,
     top:    { head:[120,40], neck:[120,58], hip:[120,112], k1:[112,136], f1:[110,160], k2:[128,136], f2:[130,160], e1:[112,74], h1:[108,108], e2:[128,74], h2:[132,108] },
     bottom: { head:[120,40], neck:[120,58], hip:[120,112], k1:[112,136], f1:[110,160], k2:[128,136], f2:[130,160], e1:[106,64], h1:[80,62], e2:[134,64], h2:[160,62] } },
+  // Tricep dip — hands on a bench behind, body lowers in front by bending the elbows.
+  dip: { floor: true, bench:[72,116,46], period: 2000,
+    top:    { head:[122,68], neck:[120,86], hip:[116,120], k1:[150,126], f1:[150,158], k2:[156,126], f2:[156,158], e1:[104,102], h1:[94,116], e2:[110,102], h2:[100,116] },
+    bottom: { head:[122,82], neck:[120,100], hip:[116,132], k1:[150,126], f1:[150,158], k2:[156,126], f2:[156,158], e1:[100,108], h1:[94,116], e2:[106,108], h2:[100,116] } },
+  // Leg press — reclined against the pad, legs extend to push the platform up and away.
+  legpress: { bench:[44,124,92], period: 2200,
+    top:    { head:[56,112], neck:[76,116], hip:[120,120], k1:[156,100], f1:[190,86], k2:[156,108], f2:[190,94], e1:[84,118], h1:[68,126], e2:[92,118], h2:[76,126] },
+    bottom: { head:[56,112], neck:[76,116], hip:[120,120], k1:[140,108], f1:[170,96], k2:[140,116], f2:[170,104], e1:[84,118], h1:[68,126], e2:[92,118], h2:[76,126] } },
+  // Face pull / band pull-apart — pull from arms-forward to elbows high and wide (rear delts).
+  facepull: { floor: true, period: 2000,
+    top:    { head:[120,40], neck:[120,58], hip:[120,112], k1:[112,136], f1:[110,160], k2:[128,136], f2:[130,160], e1:[116,72], h1:[150,68], e2:[124,72], h2:[150,78] },
+    bottom: { head:[120,40], neck:[120,58], hip:[120,112], k1:[112,136], f1:[110,160], k2:[128,136], f2:[130,160], e1:[98,64], h1:[110,56], e2:[142,64], h2:[130,56] } },
   // Tricep pushdown — upper arms pinned to the sides, forearms extend from bent to straight.
   pushdown: { floor: true, period: 1800,
     top:    { head:[120,40], neck:[120,58], hip:[120,112], k1:[112,136], f1:[110,160], k2:[128,136], f2:[130,160], e1:[112,92], h1:[110,72], e2:[128,92], h2:[130,72] },
