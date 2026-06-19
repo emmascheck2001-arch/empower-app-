@@ -1,4 +1,6 @@
 // Weekly summary modal + dashboard card — shown once per week on first open
+// Utility functions are intentionally exported alongside components here.
+/* eslint-disable react-refresh/only-export-components */
 
 import { getPhase, getLutealSubPhase } from '../lib/hormoneSync'
 
