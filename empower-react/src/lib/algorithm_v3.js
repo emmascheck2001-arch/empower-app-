@@ -399,7 +399,7 @@ export function getMoodContextFeedback(latestLog, phase, subPhase) {
 
   const isLateLuteal = effectivePhase === 'Late luteal' || effectivePhase === 'Mid luteal'
 
-  if (isLateLuteal && isLow && isVeryLow) {
+  if (isLateLuteal && (isLow || isVeryLow)) {
     return {
       type: 'mood_context',
       icon: 'brain',

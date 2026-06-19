@@ -536,8 +536,6 @@ export default function Nutrition() {
   const [editDiets, setEditDiets] = useState([])
   const [savingStats, setSavingStats] = useState(false)
 
-  useEffect(() => { init() }, [])
-
   async function init() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { navigate('/login', { replace: true }); return }
@@ -556,6 +554,8 @@ export default function Nutrition() {
     } catch(e) { console.error(e) }
     setLoading(false)
   }
+
+  useEffect(() => { init() }, [])
 
   async function saveStats() {
     setSavingStats(true)
