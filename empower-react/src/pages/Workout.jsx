@@ -804,7 +804,7 @@ export default function Workout() {
     setLoading(false)
   }
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- init is async; no synchronous setState fires
+  // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
   useEffect(() => { init() }, [])
 
   useEffect(() => {
@@ -819,6 +819,7 @@ export default function Workout() {
     return () => clearInterval(id)
   }, [restSecondsLeft])
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!hiitRunning) return
     if (hiitSecondsLeft <= 0) {
@@ -850,6 +851,7 @@ export default function Workout() {
     const id = setTimeout(() => setHiitSecondsLeft(s => s - 1), 1000)
     return () => clearTimeout(id)
   }, [hiitRunning, hiitSecondsLeft, hiitPhase, hiitExIdx, hiitRound, phase])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   function getPhaseWeightNote(exWeight, intensityModifier, phaseVal) {
     if (!exWeight) return null

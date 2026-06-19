@@ -555,6 +555,7 @@ export default function Nutrition() {
     setLoading(false)
   }
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
   useEffect(() => { init() }, [])
 
   async function saveStats() {

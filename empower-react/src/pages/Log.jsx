@@ -133,7 +133,7 @@ export default function Log() {
     finally { setLoading(false) }
   }
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- init is async; no synchronous setState fires
+  // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
   useEffect(()=>{ init() },[])
 
   // Log the first day of a period — writes cycle_data so the cycle starts tracking.

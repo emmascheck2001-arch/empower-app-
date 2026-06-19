@@ -45,7 +45,7 @@ export default function Checkin() {
     setLoading(false)
   }
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- init is async; no synchronous setState fires
+  // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
   useEffect(() => { init() }, [])
 
   const set = (f, v) => setLog(p => ({ ...p, [f]: v }))

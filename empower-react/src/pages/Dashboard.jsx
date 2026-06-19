@@ -182,7 +182,7 @@ export default function Dashboard() {
   const [communityTab, setCommunityTab] = useState('community')
   const [friendsData, setFriendsData] = useState(null) // null = not loaded yet
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function loadFriends(userId) {
     try {

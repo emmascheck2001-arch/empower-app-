@@ -126,7 +126,7 @@ export default function Calendar() {
     setLoading(false)
   }
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- init is async; no synchronous setState fires
+  // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
   useEffect(() => { init() }, [])
 
   if (loading) return <div style={{ paddingTop:60 }}><Spinner /></div>
@@ -172,8 +172,8 @@ export default function Calendar() {
   }
 
   function openSheet(info) {
-    setBrainExpanded(false)
     setSheet({ dateStr: info.dateStr, isFuture: info.isFuture })
+    setBrainExpanded(false)
   }
 
   const sheetInfo = (() => {
@@ -318,7 +318,7 @@ export default function Calendar() {
       {/* Bottom sheet overlay */}
       {sheet && (
         <>
-          <div onClick={() => setSheet(null)} style={{ position:'fixed', inset:0, background:'rgba(44,40,32,0.4)', zIndex:100 }} />
+          <div onClick={() => { setSheet(null); setBrainExpanded(false) }} style={{ position:'fixed', inset:0, background:'rgba(44,40,32,0.4)', zIndex:100 }} />
           <div style={{ position:'fixed', bottom:0, left:'50%', transform:'translateX(-50%)', width:'100%', maxWidth:420, background:'#faf8f5', borderRadius:'20px 20px 0 0', zIndex:101, padding:'16px 20px 48px', maxHeight:'80vh', overflowY:'auto' }}>
             {/* Handle */}
             <div style={{ width:36, height:4, background:'#c8b89a', borderRadius:2, margin:'0 auto 16px' }} />
