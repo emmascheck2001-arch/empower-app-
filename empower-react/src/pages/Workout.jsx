@@ -929,12 +929,15 @@ export default function Workout() {
   async function saveClass() {
     if (!classType) return
     setSaving(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    const notes = classDuration ? `${CLASS_TYPES.find(c=>c.id===classType)?.label} class, ${classDuration} min` : `${CLASS_TYPES.find(c=>c.id===classType)?.label} class`
-    await supabase.from('daily_logs').upsert({
-      user_id: user.id, log_date: localDateStr(), workout_feel: 'Felt average', notes
-    }, { onConflict: 'user_id,log_date' })
-    setScreen('done')
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      const notes = classDuration ? `${CLASS_TYPES.find(c=>c.id===classType)?.label} class, ${classDuration} min` : `${CLASS_TYPES.find(c=>c.id===classType)?.label} class`
+      const { error } = await supabase.from('daily_logs').upsert({
+        user_id: user.id, log_date: localDateStr(), workout_feel: 'Felt average', notes
+      }, { onConflict: 'user_id,log_date' })
+      if (error) throw error
+      setScreen('done')
+    } catch(e) { console.error(e) }
     setSaving(false)
   }
 
