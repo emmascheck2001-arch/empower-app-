@@ -1,4 +1,5 @@
 // Weekly summary modal + dashboard card — shown once per week on first open
+/* eslint-disable react-refresh/only-export-components */
 
 import { getPhase, getLutealSubPhase } from '../lib/hormoneSync'
 
@@ -97,28 +98,12 @@ const PHASE_EXPERIMENTS = {
   },
 }
 
-export function shouldShowWeeklySummary(logs) {
-  const key = getWeekKey()
-  if (localStorage.getItem(`${key}-shown`)) return false
-  const thisWeek = logs.filter(l => {
-    const diff = Math.floor((new Date() - new Date(l.log_date + 'T00:00:00')) / 86400000)
-    return diff < 7
-  })
-  return thisWeek.length >= 3
-}
-
-export function markWeeklySummaryShown() {
-  localStorage.setItem(`${getWeekKey()}-shown`, '1')
-}
-
+// eslint-disable-next-line react-refresh/only-export-components
 export function markWeeklySummaryDismissed() {
   localStorage.setItem(`${getWeekKey()}-dismissed`, '1')
 }
 
-export function wasDismissedToday() {
-  return !!localStorage.getItem(`${getWeekKey()}-dismissed`)
-}
-
+// eslint-disable-next-line react-refresh/only-export-components
 export function buildWeeklySummary(logs, phase, subPhase, confidence, daysUntilPeriod, cycleDay, cycleLen) {
   const now = new Date()
   const thisWeek = logs.filter(l => Math.floor((now - new Date(l.log_date + 'T00:00:00')) / 86400000) < 7)

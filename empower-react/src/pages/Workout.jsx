@@ -793,6 +793,18 @@ export default function Workout() {
     : (rawPhase === 'bc-combined' || rawPhase === 'bc-progestin') ? 'observation'
     : status?.subPhase || rawPhase || 'observation'
 
+  async function init() {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { navigate('/login', { replace: true }); return }
+    try {
+      const s = await getTodayStatus(supabase, user.id)
+      setStatus(s)
+      if (s?.profile?.fitness_level) setFitnessLevel(s.profile.fitness_level === 'beginner' ? 'beginner' : s.profile.fitness_level === 'advanced' || s.profile.fitness_level === 'athlete' ? 'advanced' : 'intermediate')
+    } catch { /* ignore */ }
+    setLoading(false)
+  }
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/set-state-in-effect
   useEffect(() => { init() }, [])
 
   useEffect(() => {
@@ -807,6 +819,7 @@ export default function Workout() {
     return () => clearInterval(id)
   }, [restSecondsLeft])
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!hiitRunning) return
     if (hiitSecondsLeft <= 0) {
@@ -838,17 +851,7 @@ export default function Workout() {
     const id = setTimeout(() => setHiitSecondsLeft(s => s - 1), 1000)
     return () => clearTimeout(id)
   }, [hiitRunning, hiitSecondsLeft, hiitPhase, hiitExIdx, hiitRound, phase])
-
-  async function init() {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { navigate('/login', { replace: true }); return }
-    try {
-      const s = await getTodayStatus(supabase, user.id)
-      setStatus(s)
-      if (s?.profile?.fitness_level) setFitnessLevel(s.profile.fitness_level === 'beginner' ? 'beginner' : s.profile.fitness_level === 'advanced' || s.profile.fitness_level === 'athlete' ? 'advanced' : 'intermediate')
-    } catch { /* ignore */ }
-    setLoading(false)
-  }
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   function getPhaseWeightNote(exWeight, intensityModifier, phaseVal) {
     if (!exWeight) return null
@@ -926,12 +929,16 @@ export default function Workout() {
   async function saveClass() {
     if (!classType) return
     setSaving(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    const notes = classDuration ? `${CLASS_TYPES.find(c=>c.id===classType)?.label} class, ${classDuration} min` : `${CLASS_TYPES.find(c=>c.id===classType)?.label} class`
-    await supabase.from('daily_logs').upsert({
-      user_id: user.id, log_date: localDateStr(), workout_feel: 'Felt average', notes
-    }, { onConflict: 'user_id,log_date' })
-    setScreen('done')
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { navigate('/login', { replace: true }); return }
+      const notes = classDuration ? `${CLASS_TYPES.find(c=>c.id===classType)?.label} class, ${classDuration} min` : `${CLASS_TYPES.find(c=>c.id===classType)?.label} class`
+      const { error } = await supabase.from('daily_logs').upsert({
+        user_id: user.id, log_date: localDateStr(), workout_feel: 'Felt average', notes
+      }, { onConflict: 'user_id,log_date' })
+      if (error) throw error
+      setScreen('done')
+    } catch(e) { console.error(e) }
     setSaving(false)
   }
 
