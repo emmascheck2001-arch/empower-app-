@@ -931,6 +931,7 @@ export default function Workout() {
     setSaving(true)
     try {
       const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { navigate('/login', { replace: true }); return }
       const notes = classDuration ? `${CLASS_TYPES.find(c=>c.id===classType)?.label} class, ${classDuration} min` : `${CLASS_TYPES.find(c=>c.id===classType)?.label} class`
       const { error } = await supabase.from('daily_logs').upsert({
         user_id: user.id, log_date: localDateStr(), workout_feel: 'Felt average', notes

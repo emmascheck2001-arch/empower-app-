@@ -237,7 +237,7 @@ export default function Dashboard() {
 
       if (isPath4) {
         phase = 'Perimenopause'; confidence = 0.5
-      } else if (isHormonalBC && status && !cycleData?.last_period_date) {
+      } else if (isHormonalBC && status) {
         // On hormonal birth control the natural cycle is suppressed and ovulation is
         // usually paused — so we never label Follicular/Ovulatory/Luteal phases.
         // BUT these users still get a withdrawal bleed and period-like symptoms, so
