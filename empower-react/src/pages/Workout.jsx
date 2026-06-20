@@ -793,8 +793,6 @@ export default function Workout() {
     : (rawPhase === 'bc-combined' || rawPhase === 'bc-progestin') ? 'observation'
     : status?.subPhase || rawPhase || 'observation'
 
-  useEffect(() => { init() }, [])
-
   useEffect(() => {
     if (!cardioRunning) return
     const id = setInterval(() => setCardioSeconds(s => s + 1), 1000)
@@ -812,6 +810,7 @@ export default function Workout() {
     if (hiitSecondsLeft <= 0) {
       const data = hiitFor(phase)
       if (hiitPhase === 'work') {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setHiitPhase('rest')
         setHiitSecondsLeft(data.rest)
       } else {
@@ -849,6 +848,9 @@ export default function Workout() {
     } catch { /* ignore */ }
     setLoading(false)
   }
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/set-state-in-effect
+  useEffect(() => { init() }, [])
 
   function getPhaseWeightNote(exWeight, intensityModifier, phaseVal) {
     if (!exWeight) return null
