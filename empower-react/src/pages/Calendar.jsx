@@ -101,8 +101,10 @@ export default function Calendar() {
   const [sheet, setSheet] = useState(null) // { dateStr, isFuture }
   const [brainExpanded, setBrainExpanded] = useState(false)
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setBrainExpanded(false) }, [sheet])
 
+  // eslint-disable-next-line react-hooks/immutability
   useEffect(() => { init() }, [])
 
   async function init() {

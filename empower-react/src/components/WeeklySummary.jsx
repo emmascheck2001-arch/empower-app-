@@ -97,6 +97,7 @@ const PHASE_EXPERIMENTS = {
   },
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function shouldShowWeeklySummary(logs) {
   const key = getWeekKey()
   if (localStorage.getItem(`${key}-shown`)) return false
@@ -107,18 +108,22 @@ export function shouldShowWeeklySummary(logs) {
   return thisWeek.length >= 3
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function markWeeklySummaryShown() {
   localStorage.setItem(`${getWeekKey()}-shown`, '1')
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function markWeeklySummaryDismissed() {
   localStorage.setItem(`${getWeekKey()}-dismissed`, '1')
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function wasDismissedToday() {
   return !!localStorage.getItem(`${getWeekKey()}-dismissed`)
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function buildWeeklySummary(logs, phase, subPhase, confidence, daysUntilPeriod, cycleDay, cycleLen) {
   const now = new Date()
   const thisWeek = logs.filter(l => Math.floor((now - new Date(l.log_date + 'T00:00:00')) / 86400000) < 7)

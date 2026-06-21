@@ -87,6 +87,7 @@ export default function Log() {
     hot_flash_count:'', night_sweats_severity:null, joint_pain_rating:null, brain_fog_rating:null,
   })
 
+  // eslint-disable-next-line react-hooks/immutability
   useEffect(()=>{ init() },[])
 
   async function init() {

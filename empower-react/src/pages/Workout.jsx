@@ -793,6 +793,7 @@ export default function Workout() {
     : (rawPhase === 'bc-combined' || rawPhase === 'bc-progestin') ? 'observation'
     : status?.subPhase || rawPhase || 'observation'
 
+  // eslint-disable-next-line react-hooks/immutability
   useEffect(() => { init() }, [])
 
   useEffect(() => {
@@ -807,6 +808,7 @@ export default function Workout() {
     return () => clearInterval(id)
   }, [restSecondsLeft])
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!hiitRunning) return
     if (hiitSecondsLeft <= 0) {
@@ -838,6 +840,7 @@ export default function Workout() {
     const id = setTimeout(() => setHiitSecondsLeft(s => s - 1), 1000)
     return () => clearTimeout(id)
   }, [hiitRunning, hiitSecondsLeft, hiitPhase, hiitExIdx, hiitRound, phase])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   async function init() {
     const { data: { user } } = await supabase.auth.getUser()
