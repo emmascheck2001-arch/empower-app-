@@ -536,6 +536,7 @@ export default function Nutrition() {
   const [editDiets, setEditDiets] = useState([])
   const [savingStats, setSavingStats] = useState(false)
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { init() }, [])
 
   async function init() {

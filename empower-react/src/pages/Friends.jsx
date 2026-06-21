@@ -54,6 +54,7 @@ export default function Friends() {
   const [addStatus, setAddStatus] = useState('') // '' | sending | sent | not_found | already | error
   const [savingVis, setSavingVis] = useState(false)
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load() }, [])
 
   async function load() {
