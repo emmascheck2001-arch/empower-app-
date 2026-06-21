@@ -35,6 +35,7 @@ export default function Checkin() {
     mood: [], symptoms: []
   })
 
+  // eslint-disable-next-line react-hooks/immutability
   useEffect(() => { init() }, [])
 
   async function init() {
