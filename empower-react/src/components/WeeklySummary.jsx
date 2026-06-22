@@ -1,4 +1,5 @@
 // Weekly summary modal + dashboard card — shown once per week on first open
+/* eslint-disable react-refresh/only-export-components -- utility fns intentionally co-located with the component that owns them */
 
 import { getPhase, getLutealSubPhase } from '../lib/hormoneSync'
 
