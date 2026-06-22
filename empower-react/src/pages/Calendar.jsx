@@ -101,10 +101,6 @@ export default function Calendar() {
   const [sheet, setSheet] = useState(null) // { dateStr, isFuture }
   const [brainExpanded, setBrainExpanded] = useState(false)
 
-  useEffect(() => { setBrainExpanded(false) }, [sheet])
-
-  useEffect(() => { init() }, [])
-
   async function init() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { navigate('/login', { replace: true }); return }
@@ -129,6 +125,13 @@ export default function Calendar() {
     } catch(e) { console.error('Calendar init error:', e) }
     setLoading(false)
   }
+
+  // Reset sheet-specific expanded state when a different sheet opens.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { setBrainExpanded(false) }, [sheet])
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/set-state-in-effect
+  useEffect(() => { init() }, [])
 
   if (loading) return <div style={{ paddingTop:60 }}><Spinner /></div>
 
