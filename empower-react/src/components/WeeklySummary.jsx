@@ -97,7 +97,7 @@ const PHASE_EXPERIMENTS = {
   },
 }
 
-export function shouldShowWeeklySummary(logs) {
+export function shouldShowWeeklySummary(logs) { // eslint-disable-line react-refresh/only-export-components
   const key = getWeekKey()
   if (localStorage.getItem(`${key}-shown`)) return false
   const thisWeek = logs.filter(l => {
@@ -107,19 +107,19 @@ export function shouldShowWeeklySummary(logs) {
   return thisWeek.length >= 3
 }
 
-export function markWeeklySummaryShown() {
+export function markWeeklySummaryShown() { // eslint-disable-line react-refresh/only-export-components
   localStorage.setItem(`${getWeekKey()}-shown`, '1')
 }
 
-export function markWeeklySummaryDismissed() {
+export function markWeeklySummaryDismissed() { // eslint-disable-line react-refresh/only-export-components
   localStorage.setItem(`${getWeekKey()}-dismissed`, '1')
 }
 
-export function wasDismissedToday() {
+export function wasDismissedToday() { // eslint-disable-line react-refresh/only-export-components
   return !!localStorage.getItem(`${getWeekKey()}-dismissed`)
 }
 
-export function buildWeeklySummary(logs, phase, subPhase, confidence, daysUntilPeriod, cycleDay, cycleLen) {
+export function buildWeeklySummary(logs, phase, subPhase, confidence, daysUntilPeriod, cycleDay, cycleLen) { // eslint-disable-line react-refresh/only-export-components
   const now = new Date()
   const thisWeek = logs.filter(l => Math.floor((now - new Date(l.log_date + 'T00:00:00')) / 86400000) < 7)
 
