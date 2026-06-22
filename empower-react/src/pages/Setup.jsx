@@ -74,15 +74,17 @@ export default function Setup() {
     return () => { cancelled = true }
   }, [navigate, searchParams])
 
+  // Derives cycle preview from the entered period date — intentional setState in effect.
   useEffect(() => {
     if (path === 1 && lastPeriod) {
       const last = new Date(lastPeriod + 'T00:00:00')
       const now = new Date(); now.setHours(0,0,0,0)
       const cd = Math.floor((now - last) / 86400000) + 1
       if (cd >= 1 && cd <= cycleLen + 7) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setPreview({ cd, phase: getPhase(cd, cycleLen), daysLeft: Math.max(0, cycleLen - cd + 1) })
-      } else setPreview(null)
-    } else setPreview(null)
+      } else setPreview(null)  
+    } else setPreview(null)  
   }, [path, lastPeriod, cycleLen])
 
   const canContinue = () => {
