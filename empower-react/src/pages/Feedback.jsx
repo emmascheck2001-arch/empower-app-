@@ -148,7 +148,7 @@ export default function Feedback() {
     try {
       const priority = PRIORITY_MAP[category] || 'LOW'
       const instruction = buildClaudeInstruction(category, screen || 'general', description, followup, frustration)
-      await supabase.from('user_feedback').insert({
+      const { error } = await supabase.from('user_feedback').insert({
         user_id: user.id,
         user_email: user.email,
         category,
@@ -160,7 +160,8 @@ export default function Feedback() {
         claude_code_instruction: instruction,
         status: 'pending',
       })
-      setDone(true)
+      if (!error) setDone(true)
+      else console.error('Feedback save error:', error)
     } catch(e) { console.error(e) }
     setSaving(false)
   }
