@@ -182,8 +182,6 @@ export default function Dashboard() {
   const [communityTab, setCommunityTab] = useState('community')
   const [friendsData, setFriendsData] = useState(null) // null = not loaded yet
 
-  useEffect(() => { load() }, [])
-
   async function loadFriends(userId) {
     try {
       const { data: fships } = await supabase.from('friendships').select('*').or(`requester_id.eq.${userId},addressee_id.eq.${userId}`).eq('status', 'accepted')
@@ -332,6 +330,8 @@ export default function Dashboard() {
     } catch(e) { console.error(e) }
     finally { setLoading(false) }
   }
+
+  useEffect(() => { load() }, []) // eslint-disable-line react-hooks/exhaustive-deps, react-hooks/set-state-in-effect
 
   if (loading) return <><div style={{ paddingTop: 60 }}><Spinner /></div><BottomNav /></>
   if (!d) return (
