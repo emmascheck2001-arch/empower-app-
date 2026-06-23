@@ -218,7 +218,8 @@ export default function Log() {
       const { error } = await supabase.from('daily_logs').upsert(payload,{onConflict:'user_id,log_date'})
       if (error) throw error
       if (log.cervical_fluid) {
-        await supabase.from('mucus_logs').upsert({user_id:user.id,log_date:today,discharge_type:log.cervical_fluid},{onConflict:'user_id,log_date'})
+        const { error: mucusErr } = await supabase.from('mucus_logs').upsert({user_id:user.id,log_date:today,discharge_type:log.cervical_fluid},{onConflict:'user_id,log_date'})
+        if (mucusErr) console.warn('mucus_logs save failed:', mucusErr)
       }
       navigate('/dashboard')
     } catch(e) { console.error(e); setSaving(false) }
