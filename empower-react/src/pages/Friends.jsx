@@ -54,8 +54,6 @@ export default function Friends() {
   const [addStatus, setAddStatus] = useState('') // '' | sending | sent | not_found | already | error
   const [savingVis, setSavingVis] = useState(false)
 
-  useEffect(() => { load() }, [])
-
   async function load() {
     try {
       const { data: { user: u } } = await supabase.auth.getUser()
@@ -85,6 +83,9 @@ export default function Friends() {
     } catch(e) { console.error(e) }
     finally { setLoading(false) }
   }
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/set-state-in-effect
+  useEffect(() => { load() }, [])
 
   async function saveVis(newVis) {
     setVis(newVis)
