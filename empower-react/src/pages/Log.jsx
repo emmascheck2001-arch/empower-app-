@@ -133,7 +133,7 @@ export default function Log() {
     finally { setLoading(false) }
   }
 
-  useEffect(()=>{ init() },[])
+  useEffect(() => { init() }, []) // eslint-disable-line react-hooks/exhaustive-deps,react-hooks/set-state-in-effect
 
   // Log the first day of a period — writes cycle_data so the cycle starts tracking.
   // This is the only place (besides Setup) a user can record a period; essential for

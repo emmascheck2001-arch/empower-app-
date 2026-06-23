@@ -5,7 +5,8 @@ import { supabase } from '../lib/supabase'
 import { getTodayStatus, getPhase, getLutealSubPhase } from '../lib/hormoneSync'
 import BottomNav from '../components/BottomNav'
 import Spinner from '../components/Spinner'
-import { WeeklySummaryModal, WeeklySummaryCard, markWeeklySummaryDismissed, buildWeeklySummary } from '../components/WeeklySummary'
+import { WeeklySummaryModal, WeeklySummaryCard } from '../components/WeeklySummary'
+import { markWeeklySummaryDismissed, buildWeeklySummary } from '../lib/weeklySummaryUtils'
 
 const PHASE_COLORS = {
   Menstrual:      { dot:'#e09898', bg:'#f0d8d8', text:'#5a2a28' },

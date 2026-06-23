@@ -126,9 +126,7 @@ export default function Calendar() {
     setLoading(false)
   }
 
-  useEffect(() => { setBrainExpanded(false) }, [sheet])
-
-  useEffect(() => { init() }, [])
+  useEffect(() => { init() }, []) // eslint-disable-line react-hooks/exhaustive-deps,react-hooks/set-state-in-effect
 
   if (loading) return <div style={{ paddingTop:60 }}><Spinner /></div>
 
@@ -173,6 +171,7 @@ export default function Calendar() {
   }
 
   function openSheet(info) {
+    setBrainExpanded(false)
     setSheet({ dateStr: info.dateStr, isFuture: info.isFuture })
   }
 
