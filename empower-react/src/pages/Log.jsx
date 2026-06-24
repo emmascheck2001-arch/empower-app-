@@ -87,8 +87,6 @@ export default function Log() {
     hot_flash_count:'', night_sweats_severity:null, joint_pain_rating:null, brain_fog_rating:null,
   })
 
-  useEffect(()=>{ init() },[])
-
   async function init() {
     const { data:{ user } } = await supabase.auth.getUser()
     if (!user) { navigate('/login',{replace:true}); return }
@@ -134,6 +132,8 @@ export default function Log() {
     } catch(e) { console.error(e) }
     finally { setLoading(false) }
   }
+
+  useEffect(() => { init() }, []) // eslint-disable-line react-hooks/exhaustive-deps,react-hooks/set-state-in-effect
 
   // Log the first day of a period — writes cycle_data so the cycle starts tracking.
   // This is the only place (besides Setup) a user can record a period; essential for
@@ -218,7 +218,8 @@ export default function Log() {
       const { error } = await supabase.from('daily_logs').upsert(payload,{onConflict:'user_id,log_date'})
       if (error) throw error
       if (log.cervical_fluid) {
-        await supabase.from('mucus_logs').upsert({user_id:user.id,log_date:today,discharge_type:log.cervical_fluid},{onConflict:'user_id,log_date'})
+        const { error: mucusErr } = await supabase.from('mucus_logs').upsert({user_id:user.id,log_date:today,discharge_type:log.cervical_fluid},{onConflict:'user_id,log_date'})
+        if (mucusErr) console.warn('mucus_logs save failed:', mucusErr)
       }
       navigate('/dashboard')
     } catch(e) { console.error(e); setSaving(false) }
