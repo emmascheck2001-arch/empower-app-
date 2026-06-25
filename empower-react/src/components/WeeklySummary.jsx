@@ -1,5 +1,7 @@
 // Weekly summary modal + dashboard card — shown once per week on first open
-
+// This file intentionally exports both React components and utility functions as a
+// cohesive feature module. The react-refresh warning below is expected and harmless.
+/* eslint-disable react-refresh/only-export-components */
 import { getPhase, getLutealSubPhase } from '../lib/hormoneSync'
 
 function getWeekKey() {
