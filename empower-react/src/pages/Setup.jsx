@@ -1,5 +1,5 @@
 // route /setup — onboarding: 5 paths (see PATH_OPTIONS), body stats, bc_type, bc_stop_date. IDs do not match display order — see CLAUDE.md.
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getPhase } from '../lib/hormoneSync'
@@ -53,8 +53,6 @@ export default function Setup() {
   const [agreed, setAgreed] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saveErr, setSaveErr] = useState(null)
-  const [preview, setPreview] = useState(null)
-
   // Self-correct: if an already-onboarded user lands here (an installed PWA restoring
   // the /setup page, a stray link, or stale routing) send them to the dashboard — they
   // must never be re-shown onboarding. The "Change information" button passes ?edit=1
@@ -74,15 +72,15 @@ export default function Setup() {
     return () => { cancelled = true }
   }, [navigate, searchParams])
 
-  useEffect(() => {
-    if (path === 1 && lastPeriod) {
-      const last = new Date(lastPeriod + 'T00:00:00')
-      const now = new Date(); now.setHours(0,0,0,0)
-      const cd = Math.floor((now - last) / 86400000) + 1
-      if (cd >= 1 && cd <= cycleLen + 7) {
-        setPreview({ cd, phase: getPhase(cd, cycleLen), daysLeft: Math.max(0, cycleLen - cd + 1) })
-      } else setPreview(null)
-    } else setPreview(null)
+  const preview = useMemo(() => {
+    if (path !== 1 || !lastPeriod) return null
+    const last = new Date(lastPeriod + 'T00:00:00')
+    const now = new Date(); now.setHours(0,0,0,0)
+    const cd = Math.floor((now - last) / 86400000) + 1
+    if (cd >= 1 && cd <= cycleLen + 7) {
+      return { cd, phase: getPhase(cd, cycleLen), daysLeft: Math.max(0, cycleLen - cd + 1) }
+    }
+    return null
   }, [path, lastPeriod, cycleLen])
 
   const canContinue = () => {
