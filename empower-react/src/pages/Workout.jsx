@@ -793,6 +793,20 @@ export default function Workout() {
     : (rawPhase === 'bc-combined' || rawPhase === 'bc-progestin') ? 'observation'
     : status?.subPhase || rawPhase || 'observation'
 
+  async function init() {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { navigate('/login', { replace: true }); return }
+    try {
+      const s = await getTodayStatus(supabase, user.id)
+      setStatus(s)
+      if (s?.profile?.fitness_level) setFitnessLevel(s.profile.fitness_level === 'beginner' ? 'beginner' : s.profile.fitness_level === 'advanced' || s.profile.fitness_level === 'athlete' ? 'advanced' : 'intermediate')
+    } catch { /* ignore */ }
+    setLoading(false)
+  }
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/set-state-in-effect
+  useEffect(() => { init() }, [])
+
   useEffect(() => {
     if (!cardioRunning) return
     const id = setInterval(() => setCardioSeconds(s => s + 1), 1000)
@@ -809,6 +823,7 @@ export default function Workout() {
   useEffect(() => {
     if (!hiitRunning) return
     if (hiitSecondsLeft <= 0) {
+      /* eslint-disable react-hooks/set-state-in-effect */
       const data = hiitFor(phase)
       if (hiitPhase === 'work') {
         setHiitPhase('rest')
@@ -832,24 +847,12 @@ export default function Workout() {
           }
         }
       }
+      /* eslint-enable react-hooks/set-state-in-effect */
       return
     }
     const id = setTimeout(() => setHiitSecondsLeft(s => s - 1), 1000)
     return () => clearTimeout(id)
   }, [hiitRunning, hiitSecondsLeft, hiitPhase, hiitExIdx, hiitRound, phase])
-
-  async function init() {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { navigate('/login', { replace: true }); return }
-    try {
-      const s = await getTodayStatus(supabase, user.id)
-      setStatus(s)
-      if (s?.profile?.fitness_level) setFitnessLevel(s.profile.fitness_level === 'beginner' ? 'beginner' : s.profile.fitness_level === 'advanced' || s.profile.fitness_level === 'athlete' ? 'advanced' : 'intermediate')
-    } catch { /* ignore */ }
-    setLoading(false)
-  }
-
-  useEffect(() => { init() }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   function getPhaseWeightNote(exWeight, intensityModifier, phaseVal) {
     if (!exWeight) return null

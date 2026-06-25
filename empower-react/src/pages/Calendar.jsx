@@ -101,6 +101,9 @@ export default function Calendar() {
   const [sheet, setSheet] = useState(null) // { dateStr, isFuture }
   const [brainExpanded, setBrainExpanded] = useState(false)
 
+  // Wrapper so opening/closing a sheet always resets the brain-detail expansion
+  function openSheet(val) { setBrainExpanded(false); setSheet(val) }
+
   async function init() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { navigate('/login', { replace: true }); return }
@@ -126,7 +129,8 @@ export default function Calendar() {
     setLoading(false)
   }
 
-  useEffect(() => { init() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/set-state-in-effect
+  useEffect(() => { init() }, [])
 
   if (loading) return <div style={{ paddingTop:60 }}><Spinner /></div>
 
@@ -168,11 +172,6 @@ export default function Calendar() {
     const sub = phaseInfo?.sub || phaseInfo?.phase || null
     const pc = sub ? (PC[sub] || PC.Luteal) : PC.observation
     return { day, dateStr, isToday, isFuture, phaseInfo, log, pc, sub }
-  }
-
-  function openSheet(info) {
-    setBrainExpanded(false)
-    setSheet({ dateStr: info.dateStr, isFuture: info.isFuture })
   }
 
   const sheetInfo = (() => {
@@ -317,7 +316,7 @@ export default function Calendar() {
       {/* Bottom sheet overlay */}
       {sheet && (
         <>
-          <div onClick={() => setSheet(null)} style={{ position:'fixed', inset:0, background:'rgba(44,40,32,0.4)', zIndex:100 }} />
+          <div onClick={() => openSheet(null)} style={{ position:'fixed', inset:0, background:'rgba(44,40,32,0.4)', zIndex:100 }} />
           <div style={{ position:'fixed', bottom:0, left:'50%', transform:'translateX(-50%)', width:'100%', maxWidth:420, background:'#faf8f5', borderRadius:'20px 20px 0 0', zIndex:101, padding:'16px 20px 48px', maxHeight:'80vh', overflowY:'auto' }}>
             {/* Handle */}
             <div style={{ width:36, height:4, background:'#c8b89a', borderRadius:2, margin:'0 auto 16px' }} />
@@ -482,7 +481,7 @@ export default function Calendar() {
                       </div>
                     )}
 
-                    <button onClick={() => { setSheet(null); navigate('/log') }} style={{ width:'100%', padding:'12px', borderRadius:10, background:'#f5f0e8', border:'1px solid #ede8e0', fontSize:13, cursor:'pointer', fontFamily:'inherit' }}>
+                    <button onClick={() => { openSheet(null); navigate('/log') }} style={{ width:'100%', padding:'12px', borderRadius:10, background:'#f5f0e8', border:'1px solid #ede8e0', fontSize:13, cursor:'pointer', fontFamily:'inherit' }}>
                       Log today
                     </button>
                   </>
@@ -538,7 +537,7 @@ export default function Calendar() {
                   )}
                 </div>
 
-                <button onClick={() => { setSheet(null); navigate('/log') }} style={{ width:'100%', padding:'12px', borderRadius:10, background:'#f5f0e8', border:'1px solid #ede8e0', fontSize:13, cursor:'pointer', fontFamily:'inherit' }}>
+                <button onClick={() => { openSheet(null); navigate('/log') }} style={{ width:'100%', padding:'12px', borderRadius:10, background:'#f5f0e8', border:'1px solid #ede8e0', fontSize:13, cursor:'pointer', fontFamily:'inherit' }}>
                   Edit this log
                 </button>
               </div>
@@ -546,7 +545,7 @@ export default function Calendar() {
               /* Past day, no data */
               <div>
                 <div style={{ fontSize:13, color:'#9a9590', marginBottom:16, lineHeight:1.6 }}>No data logged for this day.</div>
-                <button onClick={() => { setSheet(null); navigate('/log') }} style={{ width:'100%', padding:'12px', borderRadius:10, background:'#f5f0e8', border:'1px solid #ede8e0', fontSize:13, cursor:'pointer', fontFamily:'inherit' }}>
+                <button onClick={() => { openSheet(null); navigate('/log') }} style={{ width:'100%', padding:'12px', borderRadius:10, background:'#f5f0e8', border:'1px solid #ede8e0', fontSize:13, cursor:'pointer', fontFamily:'inherit' }}>
                   Log this day
                 </button>
               </div>
