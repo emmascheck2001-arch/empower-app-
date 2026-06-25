@@ -152,10 +152,15 @@ export default function Sleep() {
     setSaving(true)
     const record = { user_id: userId, log_date: localDateStr(), sleep_quality: quality }
     if (hours) record.notes = `Slept ${hours} hours`
-    await supabase.from('daily_logs').upsert(record, { onConflict: 'user_id,log_date' })
-    setSaved(true)
+    try {
+      const { error } = await supabase.from('daily_logs').upsert(record, { onConflict: 'user_id,log_date' })
+      if (error) throw error
+      setSaved(true)
+      setTimeout(() => navigate('/dashboard'), 1200)
+    } catch(e) {
+      console.error('Sleep save failed:', e)
+    }
     setSaving(false)
-    setTimeout(() => navigate('/dashboard'), 1200)
   }
 
   if (loading) return <div style={{ paddingTop:60 }}><Spinner /></div>
