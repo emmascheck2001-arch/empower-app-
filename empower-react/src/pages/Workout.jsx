@@ -804,7 +804,7 @@ export default function Workout() {
     setLoading(false)
   }
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/set-state-in-effect
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { init() }, [])
 
   useEffect(() => {
@@ -823,7 +823,6 @@ export default function Workout() {
   useEffect(() => {
     if (!hiitRunning) return
     if (hiitSecondsLeft <= 0) {
-      /* eslint-disable react-hooks/set-state-in-effect */
       const data = hiitFor(phase)
       if (hiitPhase === 'work') {
         setHiitPhase('rest')
@@ -847,7 +846,6 @@ export default function Workout() {
           }
         }
       }
-      /* eslint-enable react-hooks/set-state-in-effect */
       return
     }
     const id = setTimeout(() => setHiitSecondsLeft(s => s - 1), 1000)

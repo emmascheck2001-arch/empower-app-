@@ -129,7 +129,7 @@ export default function Calendar() {
     setLoading(false)
   }
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/set-state-in-effect
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { init() }, [])
 
   if (loading) return <div style={{ paddingTop:60 }}><Spinner /></div>
