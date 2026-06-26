@@ -99,10 +99,8 @@ export default function Calendar() {
   const [now] = useState(new Date())
   const [month, setMonth] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1))
   const [sheet, setSheet] = useState(null) // { dateStr, isFuture }
-  const [brainExpanded, setBrainExpanded] = useState(false)
-
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { setBrainExpanded(false) }, [sheet])
+  const [brainExpandedFor, setBrainExpandedFor] = useState(null)
+  const brainExpanded = brainExpandedFor === sheet?.dateStr
 
   useEffect(() => {
     async function init() {
@@ -436,7 +434,7 @@ export default function Calendar() {
                         {BRAIN_DETAIL[sub] && (
                           <>
                             <button
-                              onClick={() => setBrainExpanded(x => !x)}
+                              onClick={() => setBrainExpandedFor(x => x === sheet?.dateStr ? null : sheet?.dateStr)}
                               style={{ background:'none', border:'none', padding:0, cursor:'pointer', display:'flex', alignItems:'center', gap:4, color:'#7a7268', fontSize:12, fontFamily:'inherit' }}
                             >
                               <span>{brainExpanded ? 'Less' : 'Full explanation'}</span>
