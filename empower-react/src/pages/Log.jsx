@@ -166,10 +166,11 @@ export default function Log() {
     try {
       const { data:{ user } } = await supabase.auth.getUser()
       if (!user) return
-      await supabase.from('cycle_data').upsert(
+      const { error: endErr } = await supabase.from('cycle_data').upsert(
         { user_id:user.id, last_period_date:lastPeriodDate, cycle_length:cycleLen, period_length:cycleDay },
         { onConflict:'user_id' }
       )
+      if (endErr) { console.error(endErr); return }
       setPeriodLen(cycleDay); setPeriodEnded(true)
     } catch(e) { console.error(e) }
   }
