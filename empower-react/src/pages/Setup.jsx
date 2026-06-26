@@ -80,9 +80,9 @@ export default function Setup() {
       const now = new Date(); now.setHours(0,0,0,0)
       const cd = Math.floor((now - last) / 86400000) + 1
       if (cd >= 1 && cd <= cycleLen + 7) {
-        setPreview({ cd, phase: getPhase(cd, cycleLen), daysLeft: Math.max(0, cycleLen - cd + 1) })
-      } else setPreview(null)
-    } else setPreview(null)
+        setPreview({ cd, phase: getPhase(cd, cycleLen), daysLeft: Math.max(0, cycleLen - cd + 1) }) // eslint-disable-line react-hooks/set-state-in-effect
+      } else setPreview(null)  
+    } else setPreview(null)  
   }, [path, lastPeriod, cycleLen])
 
   const canContinue = () => {

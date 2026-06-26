@@ -793,7 +793,18 @@ export default function Workout() {
     : (rawPhase === 'bc-combined' || rawPhase === 'bc-progestin') ? 'observation'
     : status?.subPhase || rawPhase || 'observation'
 
-  useEffect(() => { init() }, [])
+  async function init() {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { navigate('/login', { replace: true }); return }
+    try {
+      const s = await getTodayStatus(supabase, user.id)
+      setStatus(s)
+      if (s?.profile?.fitness_level) setFitnessLevel(s.profile.fitness_level === 'beginner' ? 'beginner' : s.profile.fitness_level === 'advanced' || s.profile.fitness_level === 'athlete' ? 'advanced' : 'intermediate')
+    } catch { /* ignore */ }
+    setLoading(false)
+  }
+
+  useEffect(() => { init() }, []) // eslint-disable-line react-hooks/exhaustive-deps, react-hooks/set-state-in-effect
 
   useEffect(() => {
     if (!cardioRunning) return
@@ -812,24 +823,24 @@ export default function Workout() {
     if (hiitSecondsLeft <= 0) {
       const data = hiitFor(phase)
       if (hiitPhase === 'work') {
-        setHiitPhase('rest')
-        setHiitSecondsLeft(data.rest)
+        setHiitPhase('rest') // eslint-disable-line react-hooks/set-state-in-effect
+        setHiitSecondsLeft(data.rest)  
       } else {
         const nextEx = hiitExIdx + 1
         if (nextEx < data.exercises.length) {
-          setHiitExIdx(nextEx)
-          setHiitPhase('work')
-          setHiitSecondsLeft(data.work)
+          setHiitExIdx(nextEx)  
+          setHiitPhase('work')  
+          setHiitSecondsLeft(data.work)  
         } else {
           const nextRound = hiitRound + 1
           if (nextRound <= data.rounds) {
-            setHiitRound(nextRound)
-            setHiitExIdx(0)
-            setHiitPhase('work')
-            setHiitSecondsLeft(data.work)
+            setHiitRound(nextRound)  
+            setHiitExIdx(0)  
+            setHiitPhase('work')  
+            setHiitSecondsLeft(data.work)  
           } else {
-            setHiitRunning(false)
-            setScreen('feel')
+            setHiitRunning(false)  
+            setScreen('feel')  
           }
         }
       }
@@ -838,17 +849,6 @@ export default function Workout() {
     const id = setTimeout(() => setHiitSecondsLeft(s => s - 1), 1000)
     return () => clearTimeout(id)
   }, [hiitRunning, hiitSecondsLeft, hiitPhase, hiitExIdx, hiitRound, phase])
-
-  async function init() {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { navigate('/login', { replace: true }); return }
-    try {
-      const s = await getTodayStatus(supabase, user.id)
-      setStatus(s)
-      if (s?.profile?.fitness_level) setFitnessLevel(s.profile.fitness_level === 'beginner' ? 'beginner' : s.profile.fitness_level === 'advanced' || s.profile.fitness_level === 'athlete' ? 'advanced' : 'intermediate')
-    } catch { /* ignore */ }
-    setLoading(false)
-  }
 
   function getPhaseWeightNote(exWeight, intensityModifier, phaseVal) {
     if (!exWeight) return null

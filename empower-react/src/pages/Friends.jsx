@@ -54,7 +54,7 @@ export default function Friends() {
   const [addStatus, setAddStatus] = useState('') // '' | sending | sent | not_found | already | error
   const [savingVis, setSavingVis] = useState(false)
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function load() {
     try {
