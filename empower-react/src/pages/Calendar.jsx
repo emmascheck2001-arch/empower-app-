@@ -99,36 +99,36 @@ export default function Calendar() {
   const [now] = useState(new Date())
   const [month, setMonth] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1))
   const [sheet, setSheet] = useState(null) // { dateStr, isFuture }
-  const [brainExpanded, setBrainExpanded] = useState(false)
+  const [brainExpandedFor, setBrainExpandedFor] = useState(null)
+  const brainExpanded = brainExpandedFor === sheet?.dateStr
 
-  useEffect(() => { setBrainExpanded(false) }, [sheet])
-
-  useEffect(() => { init() }, [])
-
-  async function init() {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { navigate('/login', { replace: true }); return }
-    try {
-      const [s, { data: logData }] = await Promise.all([
-        getTodayStatus(supabase, user.id),
-        supabase.from('daily_logs')
-          .select('log_date,energy,mood,symptoms,sleep_quality,workout_feel,resting_hr')
-          .eq('user_id', user.id)
-          .gte('log_date', localDateStr(new Date(now.getFullYear(), now.getMonth() - 2, 1))),
-      ])
-      // Derive lastPeriodDate from getTodayStatus cycleDay — avoids maybeSingle() failing
-      // when user has multiple cycle_data rows (getTodayStatus already picks the most recent)
-      if (s?.cycleDay > 0 && s.cycleLen) {
-        const todayDate = new Date(); todayDate.setHours(0, 0, 0, 0)
-        const lastP = new Date(todayDate)
-        lastP.setDate(lastP.getDate() - (s.cycleDay - 1))
-        s.lastPeriodDate = localDateStr(lastP)
-      }
-      setStatus(s)
-      setLogs(logData || [])
-    } catch(e) { console.error('Calendar init error:', e) }
-    setLoading(false)
-  }
+  useEffect(() => {
+    async function init() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { navigate('/login', { replace: true }); return }
+      try {
+        const [s, { data: logData }] = await Promise.all([
+          getTodayStatus(supabase, user.id),
+          supabase.from('daily_logs')
+            .select('log_date,energy,mood,symptoms,sleep_quality,workout_feel,resting_hr')
+            .eq('user_id', user.id)
+            .gte('log_date', localDateStr(new Date(now.getFullYear(), now.getMonth() - 2, 1))),
+        ])
+        // Derive lastPeriodDate from getTodayStatus cycleDay — avoids maybeSingle() failing
+        // when user has multiple cycle_data rows (getTodayStatus already picks the most recent)
+        if (s?.cycleDay > 0 && s.cycleLen) {
+          const todayDate = new Date(); todayDate.setHours(0, 0, 0, 0)
+          const lastP = new Date(todayDate)
+          lastP.setDate(lastP.getDate() - (s.cycleDay - 1))
+          s.lastPeriodDate = localDateStr(lastP)
+        }
+        setStatus(s)
+        setLogs(logData || [])
+      } catch(e) { console.error('Calendar init error:', e) }
+      setLoading(false)
+    }
+    init()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) return <div style={{ paddingTop:60 }}><Spinner /></div>
 
@@ -434,7 +434,7 @@ export default function Calendar() {
                         {BRAIN_DETAIL[sub] && (
                           <>
                             <button
-                              onClick={() => setBrainExpanded(x => !x)}
+                              onClick={() => setBrainExpandedFor(x => x === sheet?.dateStr ? null : sheet?.dateStr)}
                               style={{ background:'none', border:'none', padding:0, cursor:'pointer', display:'flex', alignItems:'center', gap:4, color:'#7a7268', fontSize:12, fontFamily:'inherit' }}
                             >
                               <span>{brainExpanded ? 'Less' : 'Full explanation'}</span>

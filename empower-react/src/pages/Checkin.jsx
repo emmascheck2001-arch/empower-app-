@@ -35,17 +35,18 @@ export default function Checkin() {
     mood: [], symptoms: []
   })
 
-  useEffect(() => { init() }, [])
-
-  async function init() {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { navigate('/login', { replace: true }); return }
-    try {
-      const s = await getTodayStatus(supabase, user.id)
-      setStatus(s)
-    } catch { /* ignore */ }
-    setLoading(false)
-  }
+  useEffect(() => {
+    async function init() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { navigate('/login', { replace: true }); return }
+      try {
+        const s = await getTodayStatus(supabase, user.id)
+        setStatus(s)
+      } catch { /* ignore */ }
+      setLoading(false)
+    }
+    init()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const set = (f, v) => setLog(p => ({ ...p, [f]: v }))
   const toggleMood = (v) => setLog(p => ({ ...p, mood: p.mood.includes(v) ? p.mood.filter(x => x !== v) : [...p.mood, v] }))
