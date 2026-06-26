@@ -87,53 +87,54 @@ export default function Log() {
     hot_flash_count:'', night_sweats_severity:null, joint_pain_rating:null, brain_fog_rating:null,
   })
 
-  useEffect(()=>{ init() },[])
-
-  async function init() {
-    const { data:{ user } } = await supabase.auth.getUser()
-    if (!user) { navigate('/login',{replace:true}); return }
-    try {
-    const [{ data:profile },{ data:cycleData }] = await Promise.all([
-      supabase.from('profiles').select('user_path,cycle_length').eq('id',user.id).maybeSingle(),
-      supabase.from('cycle_data').select('*').eq('user_id',user.id).order('created_at',{ascending:false}).limit(1).maybeSingle(),
-    ])
-    const path4 = profile?.user_path==='4'
-    setIsPath4(path4)
-    setCycleLen(cycleData?.cycle_length || profile?.cycle_length || 28)
-    if (!path4 && cycleData?.last_period_date) {
-      const last = new Date(cycleData.last_period_date+'T00:00:00')
-      const now = new Date(); now.setHours(0,0,0,0)
-      const cd = Math.floor((now-last)/86400000)+1
-      const p = getPhase(cd, cycleData.cycle_length||28)
-      setPhase(p); setIsMenstrual(p==='Menstrual')
-      setLastPeriodDate(cycleData.last_period_date); setCycleDay(cd); setPeriodLen(cycleData.period_length || null)
+  useEffect(()=>{
+    async function init() {
+      const { data:{ user } } = await supabase.auth.getUser()
+      if (!user) { navigate('/login',{replace:true}); return }
+      try {
+      const [{ data:profile },{ data:cycleData }] = await Promise.all([
+        supabase.from('profiles').select('user_path,cycle_length').eq('id',user.id).maybeSingle(),
+        supabase.from('cycle_data').select('*').eq('user_id',user.id).order('created_at',{ascending:false}).limit(1).maybeSingle(),
+      ])
+      const path4 = profile?.user_path==='4'
+      setIsPath4(path4)
+      setCycleLen(cycleData?.cycle_length || profile?.cycle_length || 28)
+      if (!path4 && cycleData?.last_period_date) {
+        const last = new Date(cycleData.last_period_date+'T00:00:00')
+        const now = new Date(); now.setHours(0,0,0,0)
+        const cd = Math.floor((now-last)/86400000)+1
+        const p = getPhase(cd, cycleData.cycle_length||28)
+        setPhase(p); setIsMenstrual(p==='Menstrual')
+        setLastPeriodDate(cycleData.last_period_date); setCycleDay(cd); setPeriodLen(cycleData.period_length || null)
+      }
+      const today = localDateStr()
+      const [{ data:existing },{ data:mucus }] = await Promise.all([
+        supabase.from('daily_logs').select('*').eq('user_id',user.id).eq('log_date',today).maybeSingle(),
+        supabase.from('mucus_logs').select('discharge_type').eq('user_id',user.id).eq('log_date',today).maybeSingle(),
+      ])
+      if (existing) {
+        setLog(prev=>({...prev,
+          energy:existing.energy||null, sleep_quality:existing.sleep_quality||null,
+          resting_hr:existing.resting_hr||null, resting_hr_exact:existing.resting_hr_exact?String(existing.resting_hr_exact):'',
+          wrist_temp:existing.wrist_temp?String(existing.wrist_temp):'',
+          lh_result:existing.lh_result||null, mood:existing.mood||[], symptoms:existing.symptoms||[], disruptors:existing.disruptors||[],
+          workout_feel:existing.workout_feel||null,
+          flow_volume:existing.flow_volume||null, pain_rating:existing.pain_rating||null,
+          hot_flash_count:existing.hot_flash_count?String(existing.hot_flash_count):'',
+          night_sweats_severity:existing.night_sweats_severity||null,
+          joint_pain_rating:existing.joint_pain_rating||null, brain_fog_rating:existing.brain_fog_rating||null,
+          hormone_estradiol:existing.hormone_estradiol?String(existing.hormone_estradiol):'',
+          hormone_progesterone:existing.hormone_progesterone?String(existing.hormone_progesterone):'',
+          hormone_lh:existing.hormone_lh?String(existing.hormone_lh):'',
+          hormone_cortisol:existing.hormone_cortisol?String(existing.hormone_cortisol):'',
+        }))
+      }
+      if (mucus?.discharge_type) setLog(prev=>({...prev,cervical_fluid:mucus.discharge_type}))
+      } catch(e) { console.error(e) }
+      finally { setLoading(false) }
     }
-    const today = localDateStr()
-    const [{ data:existing },{ data:mucus }] = await Promise.all([
-      supabase.from('daily_logs').select('*').eq('user_id',user.id).eq('log_date',today).maybeSingle(),
-      supabase.from('mucus_logs').select('discharge_type').eq('user_id',user.id).eq('log_date',today).maybeSingle(),
-    ])
-    if (existing) {
-      setLog(prev=>({...prev,
-        energy:existing.energy||null, sleep_quality:existing.sleep_quality||null,
-        resting_hr:existing.resting_hr||null, resting_hr_exact:existing.resting_hr_exact?String(existing.resting_hr_exact):'',
-        wrist_temp:existing.wrist_temp?String(existing.wrist_temp):'',
-        lh_result:existing.lh_result||null, mood:existing.mood||[], symptoms:existing.symptoms||[], disruptors:existing.disruptors||[],
-        workout_feel:existing.workout_feel||null,
-        flow_volume:existing.flow_volume||null, pain_rating:existing.pain_rating||null,
-        hot_flash_count:existing.hot_flash_count?String(existing.hot_flash_count):'',
-        night_sweats_severity:existing.night_sweats_severity||null,
-        joint_pain_rating:existing.joint_pain_rating||null, brain_fog_rating:existing.brain_fog_rating||null,
-        hormone_estradiol:existing.hormone_estradiol?String(existing.hormone_estradiol):'',
-        hormone_progesterone:existing.hormone_progesterone?String(existing.hormone_progesterone):'',
-        hormone_lh:existing.hormone_lh?String(existing.hormone_lh):'',
-        hormone_cortisol:existing.hormone_cortisol?String(existing.hormone_cortisol):'',
-      }))
-    }
-    if (mucus?.discharge_type) setLog(prev=>({...prev,cervical_fluid:mucus.discharge_type}))
-    } catch(e) { console.error(e) }
-    finally { setLoading(false) }
-  }
+    init()
+  },[]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Log the first day of a period — writes cycle_data so the cycle starts tracking.
   // This is the only place (besides Setup) a user can record a period; essential for
