@@ -1,4 +1,7 @@
 // Weekly summary modal + dashboard card — shown once per week on first open
+// This file exports both a component and utility functions. Fast Refresh limitation is
+// intentional — the utilities are tightly coupled to the component's logic.
+/* eslint-disable react-refresh/only-export-components */
 
 import { getPhase, getLutealSubPhase } from '../lib/hormoneSync'
 

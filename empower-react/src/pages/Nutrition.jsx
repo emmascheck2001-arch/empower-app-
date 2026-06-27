@@ -1,5 +1,5 @@
 // route /nutrition — phase-aware food guidance, protein targets, symptom relief accordion, diet preference
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getTodayStatus } from '../lib/hormoneSync'
@@ -536,9 +536,7 @@ export default function Nutrition() {
   const [editDiets, setEditDiets] = useState([])
   const [savingStats, setSavingStats] = useState(false)
 
-  useEffect(() => { init() }, [])
-
-  async function init() {
+  const loadStatus = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { navigate('/login', { replace: true }); return }
     try {
@@ -555,7 +553,11 @@ export default function Nutrition() {
       }
     } catch(e) { console.error(e) }
     setLoading(false)
-  }
+  }, [navigate])
+
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => { loadStatus() }, [loadStatus])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   async function saveStats() {
     setSavingStats(true)
@@ -569,9 +571,9 @@ export default function Nutrition() {
     }
     setSavingStats(false)
     setShowUpdateSheet(false)
-    // Re-run init so the protein target (and vegan multiplier) reflect the new weight
-    // and diet immediately — getTodayStatus recomputes nutritionTargets from the DB.
-    await init()
+    // Re-run loadStatus so the protein target (and vegan multiplier) reflect the new
+    // weight and diet immediately — getTodayStatus recomputes nutritionTargets from the DB.
+    await loadStatus()
   }
 
   if (loading) return <div style={{ paddingTop:60 }}><Spinner /></div>
