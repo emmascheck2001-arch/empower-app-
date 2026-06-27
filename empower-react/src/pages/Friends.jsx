@@ -54,6 +54,8 @@ export default function Friends() {
   const [addStatus, setAddStatus] = useState('') // '' | sending | sent | not_found | already | error
   const [savingVis, setSavingVis] = useState(false)
 
+  // load() is also called from accept/decline handlers so it must stay top-level.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load() }, [])
 
   async function load() {

@@ -793,7 +793,19 @@ export default function Workout() {
     : (rawPhase === 'bc-combined' || rawPhase === 'bc-progestin') ? 'observation'
     : status?.subPhase || rawPhase || 'observation'
 
-  useEffect(() => { init() }, [])
+  useEffect(() => {
+    async function init() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { navigate('/login', { replace: true }); return }
+      try {
+        const s = await getTodayStatus(supabase, user.id)
+        setStatus(s)
+        if (s?.profile?.fitness_level) setFitnessLevel(s.profile.fitness_level === 'beginner' ? 'beginner' : s.profile.fitness_level === 'advanced' || s.profile.fitness_level === 'athlete' ? 'advanced' : 'intermediate')
+      } catch { /* ignore */ }
+      setLoading(false)
+    }
+    init()
+  }, [navigate])
 
   useEffect(() => {
     if (!cardioRunning) return
@@ -807,6 +819,10 @@ export default function Workout() {
     return () => clearInterval(id)
   }, [restSecondsLeft])
 
+  // HIIT state machine: transitions phase/exercise/round when timer hits zero.
+  // The setState calls inside hiitSecondsLeft <= 0 are intentional state transitions,
+  // not unwanted side effects — they drive the work/rest/round cycle.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!hiitRunning) return
     if (hiitSecondsLeft <= 0) {
@@ -838,17 +854,7 @@ export default function Workout() {
     const id = setTimeout(() => setHiitSecondsLeft(s => s - 1), 1000)
     return () => clearTimeout(id)
   }, [hiitRunning, hiitSecondsLeft, hiitPhase, hiitExIdx, hiitRound, phase])
-
-  async function init() {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { navigate('/login', { replace: true }); return }
-    try {
-      const s = await getTodayStatus(supabase, user.id)
-      setStatus(s)
-      if (s?.profile?.fitness_level) setFitnessLevel(s.profile.fitness_level === 'beginner' ? 'beginner' : s.profile.fitness_level === 'advanced' || s.profile.fitness_level === 'athlete' ? 'advanced' : 'intermediate')
-    } catch { /* ignore */ }
-    setLoading(false)
-  }
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   function getPhaseWeightNote(exWeight, intensityModifier, phaseVal) {
     if (!exWeight) return null

@@ -74,6 +74,8 @@ export default function Setup() {
     return () => { cancelled = true }
   }, [navigate, searchParams])
 
+  // Derive preview from path/lastPeriod/cycleLen — intentional computed-state sync.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (path === 1 && lastPeriod) {
       const last = new Date(lastPeriod + 'T00:00:00')
@@ -84,6 +86,7 @@ export default function Setup() {
       } else setPreview(null)
     } else setPreview(null)
   }, [path, lastPeriod, cycleLen])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const canContinue = () => {
     if (!path) return false

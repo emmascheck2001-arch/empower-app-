@@ -101,34 +101,37 @@ export default function Calendar() {
   const [sheet, setSheet] = useState(null) // { dateStr, isFuture }
   const [brainExpanded, setBrainExpanded] = useState(false)
 
+  // Reset brain detail when sheet closes/changes — intentional derived-state reset
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setBrainExpanded(false) }, [sheet])
 
-  useEffect(() => { init() }, [])
-
-  async function init() {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { navigate('/login', { replace: true }); return }
-    try {
-      const [s, { data: logData }] = await Promise.all([
-        getTodayStatus(supabase, user.id),
-        supabase.from('daily_logs')
-          .select('log_date,energy,mood,symptoms,sleep_quality,workout_feel,resting_hr')
-          .eq('user_id', user.id)
-          .gte('log_date', localDateStr(new Date(now.getFullYear(), now.getMonth() - 2, 1))),
-      ])
-      // Derive lastPeriodDate from getTodayStatus cycleDay — avoids maybeSingle() failing
-      // when user has multiple cycle_data rows (getTodayStatus already picks the most recent)
-      if (s?.cycleDay > 0 && s.cycleLen) {
-        const todayDate = new Date(); todayDate.setHours(0, 0, 0, 0)
-        const lastP = new Date(todayDate)
-        lastP.setDate(lastP.getDate() - (s.cycleDay - 1))
-        s.lastPeriodDate = localDateStr(lastP)
-      }
-      setStatus(s)
-      setLogs(logData || [])
-    } catch(e) { console.error('Calendar init error:', e) }
-    setLoading(false)
-  }
+  useEffect(() => {
+    async function init() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { navigate('/login', { replace: true }); return }
+      try {
+        const [s, { data: logData }] = await Promise.all([
+          getTodayStatus(supabase, user.id),
+          supabase.from('daily_logs')
+            .select('log_date,energy,mood,symptoms,sleep_quality,workout_feel,resting_hr')
+            .eq('user_id', user.id)
+            .gte('log_date', localDateStr(new Date(now.getFullYear(), now.getMonth() - 2, 1))),
+        ])
+        // Derive lastPeriodDate from getTodayStatus cycleDay — avoids maybeSingle() failing
+        // when user has multiple cycle_data rows (getTodayStatus already picks the most recent)
+        if (s?.cycleDay > 0 && s.cycleLen) {
+          const todayDate = new Date(); todayDate.setHours(0, 0, 0, 0)
+          const lastP = new Date(todayDate)
+          lastP.setDate(lastP.getDate() - (s.cycleDay - 1))
+          s.lastPeriodDate = localDateStr(lastP)
+        }
+        setStatus(s)
+        setLogs(logData || [])
+      } catch(e) { console.error('Calendar init error:', e) }
+      setLoading(false)
+    }
+    init()
+  }, [navigate, now])
 
   if (loading) return <div style={{ paddingTop:60 }}><Spinner /></div>
 
