@@ -1,4 +1,4 @@
-// route /checkin — quick 5-question morning check-in: energy, cervical fluid, sleep, RHR, mood, symptoms
+// route /checkin, quick 5-question morning check-in: energy, cervical fluid, sleep, RHR, mood, symptoms
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
@@ -53,10 +53,10 @@ export default function Checkin() {
 
   async function save() {
     setSaving(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { navigate('/login', { replace: true }); return }
-    const today = localDateStr()
     try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { navigate('/login', { replace: true }); return }
+      const today = localDateStr()
       await supabase.from('daily_logs').upsert({
         user_id: user.id, log_date: today,
         energy: log.energy, sleep_quality: log.sleep_quality,
@@ -66,6 +66,9 @@ export default function Checkin() {
         await supabase.from('mucus_logs').upsert({
           user_id: user.id, log_date: today, discharge_type: log.mucus
         }, { onConflict: 'user_id,log_date' })
+      } else if (log.mucus === 'Nothing') {
+        // Explicitly "Nothing" clears any earlier mucus entry for today
+        await supabase.from('mucus_logs').delete().eq('user_id', user.id).eq('log_date', today)
       }
       const newStatus = await getTodayStatus(supabase, user.id)
       const pct = Math.round((newStatus.confidence || 0) * 100)
@@ -97,7 +100,7 @@ export default function Checkin() {
   return (
     <div>
       {/* Top bar */}
-      <div style={{ background:'#f5f0e8', padding:'16px 20px', borderBottom:'1px solid #ede8e0', textAlign:'center' }}>
+      <div style={{ background:'#f5f0e8', padding:'calc(16px + var(--sat)) 20px 16px', borderBottom:'1px solid #ede8e0', textAlign:'center' }}>
         <div style={{ fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:20 }}>{phase}</div>
         <div style={{ fontSize:12, color:'#9a9590', marginTop:4 }}>
           {status?.cycleDay ? `Day ${status.cycleDay}` : 'Building baseline'}

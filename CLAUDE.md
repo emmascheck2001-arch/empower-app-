@@ -21,12 +21,21 @@ Anon key: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6I
 - Feedback.jsx — route `/feedback` — trial user feedback screen, stores to user_feedback table
 - Nutrition.jsx — route `/nutrition` — phase-aware nutrition screen with symptom relief accordion
 - Calendar.jsx — route `/calendar` — colour-coded cycle calendar with future day planning
+
+**PERMANENT — Daily Coach & Weekly Insights rules (added 2026-06-29):**
+- **Daily Coach** (dashboard, top, above the hero): `lib/dailyCoach.js` `buildDailyCoach(status, hour, name)` is a PURE synthesis of existing getTodayStatus output — invents nothing (no wearable/recovery score we don't have, no fabricated numbers). The dashboard card renders ONLY "Today's Focus" (greeting + focus label/sub + a recovery note that appears ONLY when the user's OWN logs support it — poor sleep / very low energy / heavy disruptors, hedged "may be lower"). `buildDailyCoach` still computes training/nutrition/sleep/mindset (unit-tested, kept for future use) but the card does NOT render them. Pregnancy NEVER gets an auto-prescribed workout.
+- **Weekly Insights** (`components/WeeklySummary.jsx`): surfaces ONLY on Sundays (`new Date().getDay() === 0`) and only with ≥3 logs that week. It must contain ONLY the user's own logged data — NO generic "many women notice" phase predictions, NO prescribed "experiments", no fabrication. The `weeklyHighlights.js` recap lines ("you trained N days", "energy was highest on <day>", "slept ~X min more than last week") are all factual statements about logged data, comparisons gated on data existing in both weeks, and a peak day is named ONLY when there is a single unique maximum. Never reintroduce population predictions into Weekly Insights.
 - Learn.jsx — route `/learn` — science articles and perimenopause education
-- Privacy.jsx — route `/privacy` — privacy policy
+- Privacy.jsx — route `/privacy` — privacy policy + self-serve account deletion
+- Terms.jsx — route `/terms` — Terms of Use (added 2026-06-29; public route). Not-medical-advice/not-a-device, assumption of risk, "as is" pilot, limitation of liability, Saskatchewan/Canada governing law. Linked from the signup form, Setup consent, and Privacy page. Login.jsx now has a real self-serve signup ('signup' mode via supabase.auth.signUp); Setup consent references BOTH Terms and Privacy. Pilot-readiness work for handing the app to strangers.
 - Sleep.jsx — route `/sleep` — sleep tracking and guidance
+- Ask.jsx — route `/ask` — "Ask Em~power" assistant (added 2026-06-26). One-directional: user asks, app answers. Answers ONLY from (a) the user's own logged data and (b) hand-written, cited content in the topic bank — NO LLM, NO generated medical claims, nothing made up. Red-flag questions (heavy bleeding, severe pain, possible pregnancy, crisis) route to seek-care / 988 before anything else. Unknown questions are NOT guessed — the user is offered a "Send to Em~power" button that inserts into `user_feedback` with `category:'assistant_question', screen:'ask'`. "Read more" links deep-link into Learn via `/learn?article=<id>`. Entry point: a dashboard card. Permanent rules: never let it fabricate, never strip the red-flag routing, keep the unknown→submit path. A future Phase 2 (true conversational AI) would need a Supabase Edge Function calling Claude server-side (key never in the client), per-query cost, and a tighter FDA/safety review.
+
+- VisitPrep.jsx — route `/visit-prep` (added 2026-06-29) — turns the user's OWN tracked data into a doctor-ready summary ("walk in with data" — the antidote to being dismissed; product pillar #4 / appointment prep). READ-ONLY (writes nothing). Pure logic in `lib/visitPrep.js` (`buildVisitSummary` + `summaryToText`, unit-tested in `visitPrep.test.js`). Fetches profile + cycle_data + last 120 daily_logs + user_baselines; renders snapshot (life stage/age/tracking span/cycle), "what I have been tracking" (aggregated symptom/pain/flow/mood/sleep + peri tallies), "patterns worth discussing" (NEUTRAL — NEVER names PCOS/endo/etc., always "not a diagnosis"), questions to ask, tests worth asking about (path-tailored; iron/ferritin surfaced for heavy-flow/low-energy per Burden 2015). "Copy summary" + "Print/PDF". Dashboard entry card (`ti-clipboard-heart`). PERMANENT: keep never-name-a-condition + not-a-diagnosis framing.
 
 **Shared library (empower-react/src/lib/):**
 - hormoneSync.js — getTodayStatus shared function, getPhase, getLutealSubPhase, inferPhaseFromSymptoms
+- visitPrep.js — buildVisitSummary + summaryToText (pure, tested): compile tracked data into a doctor-ready visit summary for VisitPrep.jsx. Never names a condition; always "not a diagnosis."
 - algorithm_v3.js — processAllSignals, getNutritionTargets, getIntensityModifier, PHASE_PREDICTIONS, BRAIN_STATE_STYLES
 
 **Components (empower-react/src/components/):**
@@ -40,15 +49,16 @@ Anon key: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6I
 - empower-react/public/manifest.json — PWA manifest
 
 ## Database tables
-- profiles — id, email, name, user_path, bc_type, bc_stop_date, cycle_length, body_weight_kg, fitness_level, onboarding_complete, diet_preference
+- profiles — id, email, name, user_path, bc_type, bc_stop_date, cycle_length, body_weight_kg, fitness_level, onboarding_complete, diet_preference, birth_year (added 2026-06-26: captured at onboarding for the 13+ age gate and age-aware guidance; year only, never full DOB), ethnicity (added 2026-06-26: optional, self-reported, JSON array of codes for mixed heritage; sensitive data used ONLY to surface ancestry-linked health info in Learn's "Relevant for you" card — additive, never restrictive, never used to assume diet; disclosed in the privacy policy), pregnancy_due_date (added 2026-06-29: date, set only for the pregnancy path; trimester + gestational week computed from it)
 - cycle_data — id, user_id, last_period_date, cycle_length, notes
-- daily_logs — id, user_id, log_date, energy, symptoms[], workout_feel, mood[], sleep_quality, resting_hr, resting_hr_exact, disruptors[], wrist_temp, temp_deviation, lh_result, hormone_estradiol, hormone_progesterone, hormone_lh, hormone_cortisol, flow_volume, pain_rating, hot_flash_count, night_sweats_severity, joint_pain_rating, joint_pain_location[], brain_fog_rating, notes, created_at. Unique constraint on (user_id, log_date).
+- daily_logs — id, user_id, log_date, energy, symptoms[], workout_feel, mood[], sleep_quality, resting_hr, resting_hr_exact, disruptors[], wrist_temp, temp_deviation, lh_result, hormone_estradiol, hormone_progesterone, hormone_lh, hormone_cortisol, flow_volume, pain_rating, hot_flash_count, night_sweats_severity, joint_pain_rating, joint_pain_location[], brain_fog_rating, sleep_hours (added 2026-06-26: dedicated column for Sleep-screen hours so saving sleep never overwrites the shared `notes` field), stress_level (1-5, added 2026-06-27, in the quick-log view; feeds allostatic load), libido ('Low'/'Normal'/'High', added 2026-06-27, an ovulation-approaching signal in "add more detail"), notes, created_at. Unique constraint on (user_id, log_date).
 - mucus_logs — id, user_id, log_date, discharge_type, spotting_type, notes. Unique constraint on (user_id, log_date).
 - cycle_summaries — id, user_id, cycle_number, cycle dates, phase lengths, ovulation data
 - user_baselines — id, avg_cycle_length, avg_luteal_length, temp_follicular_baseline, rhr_follicular_baseline, pms_days_before, peak_energy_day, cycles_tracked, model_confidence
 - user_feedback — id, user_id, user_email, category, screen, description, followup_answer, frustration_rating, priority, status, claude_code_instruction, developer_notes, resolved_at
 - friendships — id, requester_id, addressee_id, status ('pending' | 'accepted'). RLS scoped to requester or addressee. Powers the Friends feature.
 - friend_visibility — owner-only flags controlling which fields a friend can see (e.g. sleep_quality, workout_feel). RLS owner-only.
+- exercise_history (added 2026-06-26) — user_id, exercise, last_weight, last_reps, last_date, updated_at. PK (user_id, exercise). RLS own-rows only. Powers workout progression: the player shows "last time" and nudges progressive overload. Written on gym-workout finish (top working weight per exercise). Included in delete_my_account.
 
 Always use upsert with onConflict: 'user_id,log_date' when saving daily data.
 
@@ -60,6 +70,10 @@ Two Postgres functions power the Friends feature. Both are `SECURITY DEFINER` (t
 - **`find_user_by_email(search_email)`** — returns a user's UUID for the add-friend-by-email flow. `EXECUTE` REVOKEd from `anon`/`PUBLIC` — authenticated callers only. Never re-grant anon access (it would become an email-enumeration oracle).
 - Both functions, plus `get_claude_instructions`, have a pinned `search_path = public`.
 - Rule for any future `SECURITY DEFINER` function: it bypasses RLS, so it must check `auth.uid()` against the data it returns, and `EXECUTE` should never be granted to `anon` unless the data is genuinely public.
+
+**Security state (audited 2026-06-26):** All 10 public tables have RLS enabled with policies scoped to `auth.uid()` — no user can read another's data. The client ships only the anon key (RLS-protected); the service-role key is never in the bundle. Friends is ACTIVE again (re-enabled 2026-06-26), so `EXECUTE` on `find_user_by_email` AND `get_friend_card` is GRANTed to `authenticated` (still REVOKEd from `anon`/`public`). Both functions keep their internal guards (get_friend_card requires an `accepted` friendship between `auth.uid()` and the target; find_user_by_email requires a logged-in caller). Do NOT grant to anon. The dashboard Friends card shows when the user has any accepted friend or pending request, loaded via `get_friend_card`. `get_all_feedback` stays callable by `authenticated` but self-checks Emma's uid (the one remaining advisor WARN is expected/safe).
+
+**`delete_my_account()` (added 2026-06-26):** SECURITY DEFINER, `search_path=public`, EXECUTE granted only to `authenticated`. Deletes the caller's rows from every table (daily_logs, mucus_logs, cycle_data, cycle_summaries, user_baselines[id=uid], user_feedback, friendships, friend_visibility, analytics_events, exercise_history, profiles) then their `auth.users` row, all gated to `auth.uid()` so a user can only ever delete THEIR OWN account. Surfaced as the self-serve "Delete my account and all my data" button on the Privacy page (/privacy), linked from the dashboard footer. If a NEW user-data table is ever added, add its delete to this function so erasure stays complete.
 
 ---
 
@@ -80,6 +94,16 @@ Each phase must show a 4-item `bullets` array under "What is happening". No open
 If a future task involves editing dashboard.html for any reason, read these rules first and verify no hormone numbers have been introduced into direction, patterns, or bullets fields. Run a final check before finishing: `grep -n "pmol\|nmol\|IU/L" dashboard.html` and confirm every match is inside a `ranges:` string, not a `direction:`, `patterns:`, or `bullets:` entry.
 
 ---
+
+## Pregnancy mode (path 6) — PERMANENT RULES (added 2026-06-29)
+
+Onboarding path `user_path === '6'` ("I am pregnant") with a `pregnancy_due_date`. `getTodayStatus` early-exits to `buildPregnancyStatus` (phase `'Pregnancy'`, subPhase = trimester from `getPregnancyWeek`/`getTrimester`, no cycle, prenatal nutrition targets: protein ~1.1 g/kg, +0/+340/+450 kcal by trimester). Dashboard, Workout, Nutrition, and Learn all branch on pregnancy:
+- **Dashboard** renders a dedicated pregnancy home (trimester + week, a prominent "When to get care now" safety net, provider-led framing) — never cycle cards.
+- **Workout** NEVER auto-prescribes a workout for a pregnant user — it shows general SOGC/ACOG movement guidance + the stop-and-call-your-provider signs + "get cleared by your provider first."
+- **Nutrition** shows prenatal nutrition (Health Canada/ACOG): supplements, +calories by trimester, foods to avoid, morning-sickness help.
+- **Learn** shows the `PREG_SECTIONS` guide (warning signs, trimesters, safe movement, nutrition, mental health, loss) and hides the cycle articles.
+
+RULES: prenatal content is the HIGHEST-liability content in the app. It must (1) trace to SOGC 2019 / ACOG 804 / Health Canada prenatal guidelines / CDC-ACOG urgent maternal warning signs (all cited in-app), (2) stay conservative and defer to her doctor/midwife everywhere, (3) NEVER auto-prescribe prenatal exercise, (4) always surface the warning-signs safety net. **Before this feature is relied on by the public, an OB/midwife/prenatal-fitness professional should review it** — flag this to Emma whenever pregnancy content is touched. Pregnancy-loss content must stay gentle and emphasise it is almost never the mother's fault (Quenby 2021). 988 crisis line in the mental-health content.
 
 ## Behaviour rules — follow these exactly
 - Never ask clarifying questions. Make a reasonable decision and state what you chose.
@@ -574,7 +598,7 @@ The following clinical terms have been replaced everywhere in the app. Never rei
 | Protein catabolism | "your body breaks down muscle protein faster" |
 | HPA axis | remove entirely |
 | Dysmenorrhea | "period cramps" (in UI text; APA reference titles are exempt) |
-| Prostaglandins | "pain-causing hormones" or "period pain" (in UI text) |
+| Prostaglandins | ALLOWED (Emma, 2026-06-24): keep the term, but the sentence must explain it, e.g. "prostaglandins, the pain-causing hormones behind cramps." Do not strip it to plain language. This relaxation applies to genuine scientific terms in general: keep them if the sentence makes them understandable. |
 | Haem iron / Non-haem iron | "iron from red meat" / "plant-based iron" |
 | Oily fish | specific fish names: "salmon and sardines" or "salmon, sardines, or mackerel" |
 | ALA omega-3 / EPA/DHA | "plant-based omega-3" / "omega-3" |
@@ -612,7 +636,11 @@ Always pass `--site 11d125ac-cd81-4060-8dc1-2b6b580265ed` explicitly. Production
 
 **Path 4 early exit in getTodayStatus — permanent rule:** The very first thing getTodayStatus does after loading data is check `profile?.user_path === '4'`. If true it immediately returns a perimenopause status object with `phase: 'Perimenopause'` and skips ALL cycle phase calculations. This is critical — Path 4 users may have a `last_period_date` in cycle_data from before they chose Path 4, and without this guard they would receive regular cycle phase calculations. NEVER remove this early exit. The perimenopause return object includes: perimenopause nutrition targets (1.8g/kg protein), intensity modifier 0.82, perimenopause-specific anomaly detection (fatigue and sleep patterns, not cycle patterns), empty predictions array, and the stage label (Early perimenopause / Late perimenopause / Postmenopause) as subPhase.
 
+**Hormonal birth control — steady state, NEVER fake cycle phases (permanent rule, added 2026-06-21):** In getTodayStatus, hormonal BC (`user_path === '5'` and `bc_type !== 'copper-iud'`) ALWAYS returns `buildPath5Status` (a steady BC baseline with `phase: 'bc-combined' | 'bc-progestin'`, `cycleDay: null`, no predictions), regardless of whether a `last_period_date`/withdrawal-bleed date exists. Combined pills/patch/ring (and Depo, implant, hormonal IUD) suppress ovulation and hold the body's own estrogen and progesterone low and flat, so there are NO follicular/ovulatory/luteal phases — showing rotating phases to these users is medically inaccurate and a credibility risk (a knowledgeable tester immediately flagged it). Do NOT reintroduce phase estimation for hormonal BC (the old `bcEstimate` flag was removed). Dashboard mirrors this: `else if (isHormonalBC && status)` routes them to the steady `phase === 'bc'` branch (still predicts the next withdrawal bleed from a logged bleed date, which is accurate because the pill pack repeats on a fixed schedule). The copper IUD is non-hormonal and keeps a natural cycle, so it always uses the normal cycle path. Calendar excludes hormonal BC from `hasPhaseData` and shows a steady-state note instead of phase colours.
+
 **getNutritionTargets — Perimenopause key:** `targets.Perimenopause` exists with multiplier 1.8, extra 0, focus on protein and bone protection. Never remove this key.
+
+**getNutritionTargets is the SINGLE source of truth for protein (permanent, added 2026-06-23):** Protein multipliers — Menstrual 1.5, Follicular 1.7, Ovulatory 1.8, Luteal 2.0 (with +250 kcal), observation 1.6, bc-combined 1.6, bc-progestin 1.7, Perimenopause 1.8 (all within ISSN 2023 ranges; luteal cited 1.8 to 2.2). The vegan +15% (Rogerson 2017) is baked in here via the `dietPreference` arg, NOT re-applied in the UI. Every screen must read `status.nutritionTargets.proteinG` — Dashboard no longer has its own `PROTEIN_MULT` table and Nutrition no longer re-multiplies for vegan. Do NOT reintroduce a second protein calculation anywhere; it caused the dashboard and nutrition page to show different numbers.
 
 **getIntensityModifier — Perimenopause:** Returns 0.82. Added before the observation fallback. Never remove.
 
@@ -623,6 +651,8 @@ Always pass `--site 11d125ac-cd81-4060-8dc1-2b6b580265ed` explicitly. Production
 **getMoodContextFeedback — perimenopause branch:** Checks `phase === 'Perimenopause'` FIRST, before all cycle-based branches. Returns estrogen-variability framing for low mood, estrogen-surge framing for high energy. Never move this branch below the cycle-based branches.
 
 **Podcast sources:** Never reference any podcast (including Diary of a CEO) in user-visible text. All science claims must cite peer-reviewed sources by name.
+
+**Fertility window is AWARENESS-ONLY — never contraceptive guidance (PERMANENT, FDA line, added 2026-08-05):** The app may show fertility *information* (estimated fertile window, ovulation estimate, "days you are most likely to conceive") but must NEVER give contraceptive *instructions*. Absolutely no "safe/unsafe to have unprotected sex", no green/red "safe day" framing, no language a user could act on to prevent pregnancy. Telling a user it is safe to skip protection is a contraceptive claim that makes the app a Class II medical device requiring FDA 510(k) clearance (the bar Natural Cycles had to clear) — doing it without clearance is both a regulatory violation and a real unplanned-pregnancy harm risk (predictions are wrong; sperm survive ~5 days; irregular cycles). EVERY place the fertile window appears must carry the "this is an estimate for awareness, not birth control … use a proven contraceptive method and talk to your doctor" disclaimer. The fertile-window card lives in `Calendar.jsx` (future-day sheet), is gated on `hasPhaseData` (so hormonal-BC and Path 4 users never see it), and computes the window as ovulation (cycleLen−14) minus 5 days through +1. Never soften the disclaimer or add safe-day language, even if asked to make it "more useful".
 
 ---
 
@@ -865,6 +895,26 @@ A GP, registered dietitian, certified personal trainer, and reproductive endocri
 - Herzberg SD et al. Orthopaedic Journal of Sports Medicine 2017;5(7) — systematic review and meta-analysis. Knee ligament laxity is significantly increased in the ovulatory phase vs follicular, and ACL injury risk is higher around ovulation (peak estradiol reduces type I collagen synthesis in the ACL). This is the verifying source for claim #8 (peak estrogen increases ACL injury risk) — previously SOURCE NEEDED. Use for the ovulatory warmup/ACL caution instead of Kissow 2022.
 - Daley AJ et al. (exercise and dysmenorrhea) — gentle/aerobic exercise reduces menstrual pain. Source for the menstrual cardio "movement eases cramps" notes (walk/cycle/swim), replacing the previously mis-attributed Hackney 2006.
 
+**Safety, adolescent, and population-difference sources (added 2026-06-26 — multi-persona clinical review):**
+- ACOG — Heavy Menstrual Bleeding (FAQ) and acute pelvic pain / ectopic pregnancy guidance. Basis for the Log red-flag card: soaking a pad/tampon every 1–2h for several hours or clots larger than a coin = seek same-day care; sudden one-sided pain + faintness/shoulder-tip pain or possible pregnancy = emergency. Also the postmenopausal-bleeding "always get it checked" rule in Learn.
+- ACOG Committee Opinion 651 — Menstruation in Girls and Adolescents: Using the Menstrual Cycle as a Vital Sign. Cycles are commonly irregular for the first 1–3 years after menarche. Basis for the teen reassurance card (shown to users ≤19 with irregular/observation cycles).
+- Eltoukhi HM et al. American Journal of Obstetrics and Gynecology 2014 — uterine fibroid burden and racial disparities: fibroids more common, earlier, and more severe in Black women. Basis for the new Fibroids section in Learn.
+- Gold EB et al. SWAN Study, American Journal of Public Health 2011 — Black and Hispanic/Latina women enter perimenopause earlier with a longer, more symptomatic transition. Basis for the ethnicity note in the perimenopause-onset box.
+- Abbasi B et al. Journal of Research in Medical Sciences 2012 — magnesium and insomnia (the correct citation for the Sleep magnesium tip; Facchinetti 1991 is PMS-specific and was mis-attributed before).
+- 988 Suicide and Crisis Lifeline — call/text, 24/7, live in Canada (since Nov 2023) and the US. Used by the reusable `CrisisSupport.jsx` component, surfaced on any low-mood log (was previously buried in one perimenopause article).
+
+**Permanent rules from the 2026-06-26 multi-persona review — never revert:**
+- **Age gate:** Setup collects `birth_year` and requires age ≥13 to continue (under-13 blocked with a guardian message; 13–17 see a guardian-awareness note). Never remove the gate.
+- **Acute red-flag safety net (Log.jsx):** very heavy/heavy flow OR pain ≥4 shows the "When to seek care today" card. Never gate this behind a toggle or remove it.
+- **Late-period/pregnancy pathway:** `buildCycleStatus` exposes `latePeriod`/`daysLate` (cycleDay > cycleLen+1); Dashboard shows the late-period + pregnancy-test card at ≥2 days late. Never let late users silently keep seeing "PMS, period in 0 days".
+- **Crisis line everywhere:** `CrisisSupport` renders on any low-mood/sad log. Keep it reachable beyond Path 4.
+- **Hormone interpretation is never overstated:** progesterone ≥10 "supports ovulation when measured mid-luteal" (not "confirms"); a single LH ≥8 is "consistent with an approaching surge" with the PCOS caveat (not a guaranteed surge). Keep the hedged wording.
+- **Nutrition accuracy:** no food is described as "as effective as ibuprofen" except ginger, which keeps the real Ozgoli 2009 RCT framing PLUS "alongside, not instead of, your usual pain relief". Omega-3 = "may modestly reduce" (Rahbar 2012). No olive-oil/ibuprofen comparison. Nutrition disclaimer must keep the allergen-swap + disordered-eating + supplement-dose lines. Vegan protein capped at 2.2 g/kg.
+- **Inclusivity (never re-narrow):** default foods lead with affordable global staples (beans/lentils alongside meat/fish); calcium guidance never leads with dairy alone; Learn must keep the South-Asian PCOS note, the Fibroids section, the ferritin/blood-trait caveat, vitamin-D-by-skin-tone, and the earlier-perimenopause-in-Black/Latina note.
+- **Ethnicity (optional, added 2026-06-26):** collected at signup (multi-select, skippable, "prefer not to say"), stored in `profiles.ethnicity` as a JSON array. Drives the Learn "Relevant for you" card via `ETHNICITY_NOTES`. RULE: additive only — it surfaces relevant health info and NEVER hides content, NEVER assumes diet (the diet-preference selector owns food), and is always framed as "population patterns, not a diagnosis." It is sensitive data: keep it optional and keep the privacy-policy disclosure. New source added: WHO Expert Consultation, Lancet 2004 — lower BMI thresholds / higher type-2-diabetes risk in Asian populations.
+- **Postmenopause label:** Dashboard hero uses `subPhase` for Path 4, so a "Menopause 12+ months" user reads "Postmenopause", never "Perimenopause".
+- **Workout progression:** `exercise_history` + the player "last time" hint and progressive-overload nudge are the strength-tracking core. Keep persisting top working weight on gym finish.
+
 **Nutrition:**
 - ISSN 2023 position stand — luteal phase protein 1.8 to 2.2g per kg bodyweight. Energy +200 to 300 kcal above follicular. Progesterone increases protein catabolism.
 - Larivière F et al. American Journal of Physiology. 2006 — luteal phase amino acid utilisation changes.
@@ -897,6 +947,16 @@ A GP, registered dietitian, certified personal trainer, and reproductive endocri
 - Crawford N. Diary of a CEO October 2025 — the 5 fertility non-negotiables: sleep 7 to 9 hours, manage stress, do not smoke, maintain a weight the hormonal system can support, take folate if any chance of pregnancy.
 - World Health Organization fertility awareness guidelines.
 - Fertility Awareness Method clinical guidelines.
+
+**Sleep (the Sleep screen recommendations trace to these):**
+- Okamoto-Mizuno K, Mizuno K. Journal of Physiological Anthropology 2012;31(1):14 — effects of thermal environment on sleep. A cool room (~18 to 20°C) supports faster sleep onset and more slow-wave/REM sleep. Basis for the "cool room around 18°C" advice.
+- Haghayegh S et al. Sleep Medicine Reviews 2019;46:124-135 — meta-analysis: a warm bath/shower (40 to 42°C) 1 to 2 hours before bed improves sleep onset latency and quality by accelerating the core-temperature drop. Basis for the "warm bath before bed" advice (esp. menstrual).
+- Drake C et al. Journal of Clinical Sleep Medicine 2013;9(11):1195 — caffeine taken even 6 hours before bed measurably disrupts sleep. Basis for "cut caffeine after 2pm".
+- Chang AM et al. PNAS 2015;112(4):1232 — evening screen/blue-light exposure suppresses melatonin and delays sleep. Basis for "screens away an hour before bed".
+- Abbasi B et al. Journal of Research in Medical Sciences 2012;17(12):1161 — magnesium supplementation improved insomnia severity, sleep time, and onset in a randomized trial. Moderate evidence; phrase magnesium as "may help / try", not a guarantee. Basis for the 400mg magnesium glycinate suggestion (cross-reference Facchinetti 1991 for the menstrual-cramp angle).
+- Charkoudian N, Stachenfeld NS. Comprehensive Physiology 2014;4(2):793 — progesterone raises core temperature 0.3 to 0.5°C in the luteal phase, which is why cooling matters more then. (Already in the foundation; reused for the luteal sleep advice.)
+- De Martin Topranin et al. 2023 IJSPP — sleep quality measurably impaired in the mid-luteal phase. Basis for the luteal "sleep gets lighter" framing.
+- Morning light / circadian anchoring and consistent sleep-wake timing are well-established circadian-health principles (light exposure within ~30 min of waking; regularity > duration alone). SOURCE: add a named circadian reference (e.g. Czeisler) before any strong on-screen claim beyond general guidance.
 
 **Wearables and temperature:**
 - Oura Ring 2025 validation study — 96.4% ovulation detection accuracy, error ±1.26 days.
@@ -1081,6 +1141,12 @@ hormoneSync.js must export getTodayStatus which returns:
 }
 ```
 Every screen imports this. No screen calculates phase independently.
+
+## Daily-log fields ↔ inference label sync — PERMANENT RULE (added 2026-06-27)
+
+The daily log's option strings are the INPUTS to `inferPhaseFromSymptoms` in hormoneSync.js, which scores them by exact string match. A 2026-06-27 research review (competitor + peer-reviewed) found the engine was silently IGNORING much of what users logged because the option labels in Log.jsx had drifted from the strings the engine checked (e.g. log saved `'Cramping'` but engine looked for `'Cramps'`; `'Breast tenderness'` vs `'Sore breasts'`; `'Creamy or lotion-like'`/`'Sticky or crumbly'` vs `'Creamy'`/`'Sticky'`; `'Stronger than usual'` vs `'Strong'`; `'Low mood'` vs `'Low'`). All now fixed and verified. **RULE: whenever you change a symptom/mood/cervical-fluid/workout option label in Log.jsx, update the matching string in `inferPhaseFromSymptoms` (and vice-versa). Never let them drift — the mismatch silently degrades cycle inference with no error.** The engine now also uses: `pain_rating` (menstrual), `Ovulation pain` symptom (ovulatory/mittelschmerz), `libido === 'High'` (ovulatory), and logged `hormone_progesterone >= 10` (luteal/ovulation-confirmed) — so it can infer the cycle for users with NO period date from labs + signals, not just a calendar.
+
+Cycle-inference design principle (research-backed): the cycle is reconstructed from three signal classes — **menstrual anchor** (flow), **ovulation-approaching** (cervical mucus, LH, libido, ovulation pain), **ovulation-confirmed** (sustained temperature rise, RHR rise, progesterone). Cervical fluid is the strongest device-free daily predictor, so it lives in the QUICK log view (not buried). Mood/energy/generic symptoms enrich guidance but are weak phase predictors — do not over-weight them. Wearable temperature/RHR sync is the future unlock for passive inference.
 
 ## inferPhaseFromSymptoms — symptom-based fallback phase detection
 hormoneSync.js exports inferPhaseFromSymptoms(recentLogs, mucusLogs).

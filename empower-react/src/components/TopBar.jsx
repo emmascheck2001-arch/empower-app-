@@ -4,7 +4,7 @@ export default function TopBar({ title, subtitle, subtitleColor, backTo, childre
   const navigate = useNavigate()
   return (
     <div style={{
-      background: '#f5f0e8', padding: '16px 20px',
+      background: '#f5f0e8', padding: 'calc(16px + var(--sat)) 20px 16px',
       borderBottom: '1px solid #ede8e0',
       display: 'flex', alignItems: 'center', gap: 12,
       position: 'sticky', top: 0, zIndex: 10

@@ -1,4 +1,4 @@
-// route /friends — social feature: friend requests, friend phase cards, pending invites
+// route /friends, social feature: friend requests, friend phase cards, pending invites
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
@@ -105,7 +105,7 @@ export default function Friends() {
       const { data: inserted, error } = await supabase.from('friendships').insert({
         requester_id: user.id,
         addressee_id: targetId,
-        requester_email: email.trim().toLowerCase(),
+        requester_email: user.email,
         requester_name: prof?.name || email.split('@')[0],
       }).select('id')
       if (error?.code === '23505') { setAddStatus('already'); return }
@@ -129,10 +129,10 @@ export default function Friends() {
   if (loading) return <><TopBar title="FRIENDS" backTo="/dashboard" /><div style={{ paddingTop:60 }}><Spinner /></div></>
 
   const VIS_OPTIONS = [
-    { key:'show_phase',   label:'Cycle phase',   desc:'Your current phase of cycle' },
-    { key:'show_streak',  label:'Log streak',    desc:'How many days in a row you have logged' },
-    { key:'show_sleep',   label:'Sleep quality', desc:'Last night\'s sleep rating' },
-    { key:'show_workout', label:'Workout feel',  desc:'How your last workout felt' },
+    { key:'show_phase',  label:'Cycle phase',  desc:'Your current phase of cycle' },
+    { key:'show_streak', label:'Log streak',   desc:'How many days in a row you have logged' },
+    { key:'show_sleep',  label:'Sleep quality', desc:'Last night\'s sleep rating' },
+    { key:'show_workout', label:'Workout feel', desc:'How your last workout felt' },
   ]
 
   return (
@@ -178,7 +178,7 @@ export default function Friends() {
 
           {pendingOut.length > 0 && (
             <div style={{ marginTop:12, paddingTop:12, borderTop:'1px solid #f5f0e8' }}>
-              <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase', color:'#9a9590', marginBottom:8 }}>Pending — waiting for them</div>
+              <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase', color:'#9a9590', marginBottom:8 }}>Pending, waiting for them</div>
               {pendingOut.map(f => (
                 <div key={f.id} style={{ fontSize:13, color:'#7a7268', marginBottom:4 }}>
                   <i className="ti ti-clock" style={{ marginRight:6, color:'#c8b89a' }} />

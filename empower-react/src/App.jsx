@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { supabase } from './lib/supabase'
+import { track } from './lib/analytics'
+import { sessionFlags } from './lib/session'
 import Spinner from './components/Spinner'
 
 import Login    from './pages/Login'
@@ -15,82 +17,22 @@ import Privacy  from './pages/Privacy'
 import Learn    from './pages/Learn'
 import Sleep    from './pages/Sleep'
 import Friends  from './pages/Friends'
+import Ask      from './pages/Ask'
+import Terms    from './pages/Terms'
+import VisitPrep from './pages/VisitPrep'
 
 // Lightweight "active today" tracking. Stamps profiles.last_active_at at most once
 // per 30 minutes per app session, fire-and-forget so it never blocks rendering or
 // errors visibly. Lets us measure real daily active users (returning sessions don't
 // refresh auth.last_sign_in_at, so that alone undercounts activity).
-let lastActiveStamp = 0
+// Throttled per-user so switching accounts on the same tab still stamps the new user
+// (a single module-level timer would suppress the second user for up to 30 min).
+const lastActiveByUser = new Map()
 function stampActive(uid) {
   const now = Date.now()
-  if (now - lastActiveStamp < 30 * 60 * 1000) return
-  lastActiveStamp = now
+  if (now - (lastActiveByUser.get(uid) || 0) < 30 * 60 * 1000) return
+  lastActiveByUser.set(uid, now)
   supabase.from('profiles').update({ last_active_at: new Date().toISOString() }).eq('id', uid).then(() => {}, () => {})
-}
-
-// Privacy consent for not-yet-onboarded users. We persist it to localStorage, but some
-// browsers (Safari private mode, some iOS PWA storage partitions) silently drop or block
-// the write — which made the gate re-appear forever in a loop because resolve() re-reads
-// localStorage right after writing it. This in-memory set, module-level so it survives
-// route changes within the session, guarantees we always move forward after agreeing.
-const consentedThisSession = new Set()
-function rememberConsent(uid) {
-  consentedThisSession.add(uid)
-  try { localStorage.setItem(`ep_privacy_${uid}`, '1') } catch { /* storage may be blocked */ }
-}
-function hasConsent(uid) {
-  if (consentedThisSession.has(uid)) return true
-  try { return !!localStorage.getItem(`ep_privacy_${uid}`) } catch { return false }
-}
-
-function PrivacyGate({ userId, onAgreed }) {
-  const [checked, setChecked] = useState(false)
-
-  function agree() {
-    if (!checked) return
-    rememberConsent(userId)
-    onAgreed()
-  }
-
-  return (
-    <div style={{ minHeight: '100svh', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '32px 20px', maxWidth: 420, margin: '0 auto' }}>
-      <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', textAlign: 'center', marginBottom: 32 }}>Em~power</div>
-
-      <div style={{ background: '#fff', border: '1px solid #ede8e0', borderRadius: 14, padding: 20, marginBottom: 16 }}>
-        <div style={{ fontFamily: 'Georgia,serif', fontStyle: 'italic', fontSize: 18, marginBottom: 10 }}>Before you continue</div>
-        <p style={{ fontSize: 13, color: '#3a3530', lineHeight: 1.7, marginBottom: 0 }}>
-          Em~power collects health data you enter — cycle data, symptoms, biometrics, and workout logs. This data is used only to personalise your experience inside the app. It is never sold, never shared, and never used for advertising.
-        </p>
-      </div>
-
-      <div style={{ background: '#f5f0e8', borderRadius: 12, padding: 14, marginBottom: 20 }}>
-        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#9a9590', marginBottom: 8 }}>Your rights</div>
-        {['Your data is stored securely on Supabase (AWS infrastructure) with row-level security.', 'Only you can see your data.', 'You can request access, correction, or deletion at any time by emailing emmascheck2001@gmail.com.', 'Em~power is a wellness app, not a medical device. Nothing here is medical advice — always consult a qualified healthcare professional before acting on anything in the app.', 'Em~power does not prevent pregnancy and is not a method of contraception or fertility treatment. Never rely on it to avoid or plan a pregnancy.'].map((item, i) => (
-          <div key={i} style={{ display: 'flex', gap: 10, marginBottom: i < 4 ? 8 : 0 }}>
-            <i className="ti ti-circle-check" style={{ color: '#c8b89a', fontSize: 15, flexShrink: 0, marginTop: 1 }} />
-            <span style={{ fontSize: 13, color: '#3a3530', lineHeight: 1.6 }}>{item}</span>
-          </div>
-        ))}
-      </div>
-
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: 16, background: '#fff', border: '1px solid #ede8e0', borderRadius: 12, marginBottom: 20 }}>
-        <input type="checkbox" id="privacyCheck" checked={checked} onChange={e => setChecked(e.target.checked)}
-          style={{ width: 18, height: 18, marginTop: 2, accentColor: '#2c2820', flexShrink: 0, cursor: 'pointer' }} />
-        <label htmlFor="privacyCheck" style={{ fontSize: 13, color: '#3a3530', lineHeight: 1.6, cursor: 'pointer' }}>
-          I have read and agree to the{' '}
-          <a href="/privacy" target="_blank" rel="noreferrer" style={{ color: '#c8b89a', textDecoration: 'underline' }}>Privacy Policy</a>.
-          I understand Em~power is a wellness app and not a substitute for medical advice.
-        </label>
-      </div>
-
-      <button
-        onClick={agree}
-        disabled={!checked}
-        style={{ width: '100%', padding: 16, borderRadius: 12, border: 'none', background: checked ? '#2c2820' : '#c8c0b8', color: '#f5f0e8', fontSize: 15, fontWeight: 500, cursor: checked ? 'pointer' : 'default', fontFamily: 'inherit' }}>
-        {checked ? 'I agree — continue' : 'Check the box above to continue'}
-      </button>
-    </div>
-  )
 }
 
 // requireOnboarded: when true (default), a signed-in user whose profile is not
@@ -98,58 +40,69 @@ function PrivacyGate({ userId, onAgreed }) {
 // the user can actually complete onboarding. This prevents the logged-in-but-pathless
 // state where a user could reach /log etc. without ever choosing a path.
 function AuthGuard({ children, requireOnboarded = true }) {
-  const [state, setState] = useState('loading') // loading | authed | unauthed | needs-privacy | needs-setup
-  const [userId, setUserId] = useState(null)
+  const [state, setState] = useState('loading') // loading | authed | unauthed | needs-setup
 
   async function resolve(session) {
     if (!session) { setState('unauthed'); return }
     const uid = session.user.id
-    setUserId(uid)
-    // Onboarded users already agreed to the privacy policy during setup, so never
-    // re-prompt them — and don't rely on localStorage for this, since some browsers
-    // clear it between sessions (which made the privacy gate reappear every login).
-    const { data: prof } = await supabase.from('profiles').select('onboarding_complete').eq('id', uid).maybeSingle()
-    if (prof) stampActive(uid)
-    const onboarded = !!prof?.onboarding_complete
-    if (onboarded) {
-      rememberConsent(uid)
+    let prof = null
+    try {
+      const { data, error } = await supabase.from('profiles').select('onboarding_complete').eq('id', uid).maybeSingle()
+      if (error) throw error
+      prof = data
+    } catch {
+      // Network/DB hiccup, never strand the user on the spinner. Let them through;
+      // the destination page runs its own load and has its own error/retry handling.
       setState('authed'); return
     }
-    // New user: show the privacy gate once, then route them into setup. Uses the
-    // in-memory-or-localStorage check so a browser that drops localStorage writes
-    // (Safari private mode, some iOS PWAs) can never loop back to the gate.
-    if (!hasConsent(uid)) { setState('needs-privacy'); return }
+    if (prof) stampActive(uid)
+    // sessionFlags.justOnboardedUid covers the moment right after setup finishes, so a
+    // lagging read-after-write can never bounce a just-onboarded user back into setup.
+    // Tied to the uid so a different account signing in on the same tab never inherits it.
+    const onboarded = !!prof?.onboarding_complete || sessionFlags.justOnboardedUid === uid
+    if (onboarded) { setState('authed'); return }
+    // New, un-onboarded user: straight to setup. Privacy consent is collected there
+    // (a required checkbox) before they can finish, no separate gate, no loop.
     if (requireOnboarded) { setState('needs-setup'); return }
     setState('authed')
   }
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => resolve(session))
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
-      if (!session) setState('unauthed')
+    // React to live auth changes: a fresh sign-in (e.g. on another tab, or magic-link
+    // return) re-resolves the guard; sign-out drops to /login. TOKEN_REFRESHED and
+    // USER_UPDATED are intentionally ignored, the session is unchanged for guard
+    // purposes, so we avoid a redundant profiles read and any redirect churn.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT' || !session) { setState('unauthed'); return }
+      if (event === 'SIGNED_IN') resolve(session)
     })
     return () => subscription.unsubscribe()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  function reResolve() {
-    setState('loading')
-    supabase.auth.getSession().then(({ data: { session } }) => resolve(session))
-  }
-
   if (state === 'loading') return <div style={{ paddingTop: 60 }}><Spinner /></div>
   if (state === 'unauthed') return <Navigate to="/login" replace />
-  if (state === 'needs-privacy') return <PrivacyGate userId={userId} onAgreed={reResolve} />
   if (state === 'needs-setup') return <Navigate to="/setup" replace />
   return children
+}
+
+// Records a pageview on every route change so we can see the activation funnel
+// (login -> setup -> dashboard -> log) and where people drop off.
+function PageTracker() {
+  const loc = useLocation()
+  useEffect(() => { track('pageview', { path: loc.pathname }) }, [loc.pathname])
+  return null
 }
 
 export default function App() {
   return (
     <BrowserRouter>
+      <PageTracker />
       <Routes>
         <Route path="/login"   element={<Login />} />
         <Route path="/privacy" element={<Privacy />} />
+        <Route path="/terms"   element={<Terms />} />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<AuthGuard><Dashboard /></AuthGuard>} />
         <Route path="/setup"     element={<AuthGuard requireOnboarded={false}><Setup /></AuthGuard>} />
@@ -162,6 +115,8 @@ export default function App() {
         <Route path="/feedback"  element={<AuthGuard><Feedback /></AuthGuard>} />
         <Route path="/learn"     element={<AuthGuard><Learn /></AuthGuard>} />
         <Route path="/sleep"     element={<AuthGuard><Sleep /></AuthGuard>} />
+        <Route path="/ask"       element={<AuthGuard><Ask /></AuthGuard>} />
+        <Route path="/visit-prep" element={<AuthGuard><VisitPrep /></AuthGuard>} />
         <Route path="/friends"   element={<AuthGuard><Friends /></AuthGuard>} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>

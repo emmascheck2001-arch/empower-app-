@@ -1,20 +1,20 @@
 import { useLocation, useNavigate } from 'react-router-dom'
 
 const NAV_ITEMS = [
-  { label: 'Home',      icon: 'ti-home',     path: '/dashboard' },
-  { label: 'Workout',   icon: 'ti-barbell',  path: '/workout' },
-  { label: 'Log',       icon: 'ti-pencil',   path: '/log' },
-  { label: 'Nutrition', icon: 'ti-salad',    path: '/nutrition' },
-  { label: 'Learn',     icon: 'ti-book-2',   path: '/learn' },
+  { label: 'Home',     icon: 'ti-home',    path: '/dashboard' },
+  { label: 'Workout',  icon: 'ti-barbell', path: '/workout' },
+  { label: 'Log',      icon: 'ti-pencil',  path: '/log' },
+  { label: 'Nutrition', icon: 'ti-salad',   path: '/nutrition' },
+  { label: 'Learn',    icon: 'ti-book-2',  path: '/learn' },
 ]
 
 const DASHBOARD_NAV = [
-  { label: 'Home',      icon: 'ti-home',     path: '/dashboard' },
-  { label: 'Workout',   icon: 'ti-barbell',  path: '/workout' },
-  { label: 'Calendar',  icon: 'ti-calendar', path: '/calendar' },
-  { label: 'Log',       icon: 'ti-pencil',   path: '/log' },
-  { label: 'Nutrition', icon: 'ti-salad',    path: '/nutrition' },
-  { label: 'Learn',     icon: 'ti-book-2',   path: '/learn' },
+  { label: 'Home',     icon: 'ti-home',    path: '/dashboard' },
+  { label: 'Workout',  icon: 'ti-barbell', path: '/workout' },
+  { label: 'Calendar', icon: 'ti-calendar', path: '/calendar' },
+  { label: 'Log',      icon: 'ti-pencil',  path: '/log' },
+  { label: 'Nutrition', icon: 'ti-salad',   path: '/nutrition' },
+  { label: 'Learn',    icon: 'ti-book-2',  path: '/learn' },
 ]
 
 export default function BottomNav() {

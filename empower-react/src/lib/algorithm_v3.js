@@ -1,5 +1,5 @@
-// algorithm_v3.js — Mood signal weights, phase brain states, PMDD detection
-// Imported by hormoneSync.js. Do not import supabase here — pure computation only.
+// algorithm_v3.js. Mood signal weights, phase brain states, PMDD detection
+// Imported by hormoneSync.js. Do not import supabase here, pure computation only.
 //
 // Source: Backstrom et al. Archives of Women's Mental Health 2008
 // Source: Backstrom et al. Psychoneuroendocrinology 2014
@@ -8,12 +8,12 @@
 
 // ── Flag confidence thresholds ───────────────────────────────────────────────
 // Before any insight card, flag, or pattern observation appears, the algorithm
-// must meet these minimum conditions. If not met, return nothing — no placeholder.
-// Source: principle of minimal harm — do not flag patterns that may be statistical noise
+// must meet these minimum conditions. If not met, return nothing, no placeholder.
+// Source: principle of minimal harm, do not flag patterns that may be statistical noise
 export const FLAG_THRESHOLDS = {
-  basic_phase_insight:       { minDaysLogged: 1,  minConfidence: 0.05 },
-  nutrition_suggestion:      { minDaysLogged: 3,  minConfidence: 0.10 },
-  pattern_observation:       { minDaysLogged: 7,  minConfidence: 0.20 },
+  basic_phase_insight:       { minDaysLogged: 1, minConfidence: 0.05 },
+  nutrition_suggestion:      { minDaysLogged: 3, minConfidence: 0.10 },
+  pattern_observation:       { minDaysLogged: 7, minConfidence: 0.20 },
   cycle_return_signal:       { minDaysLogged: 14, minSignalCount: 2 },
   health_pattern_flag:       { minCycles: 2, minConfidence: 0.55, minConsecutiveDaysMatching: 3 },
   pcos_pattern_flag:         { minCycles: 2, minConsecutiveLongCycles: 2, minConfidence: 0.60 },
@@ -23,17 +23,26 @@ export const FLAG_THRESHOLDS = {
   bone_density_education:    { minDaysLogged: 30, requiresDepoPath: true }
 }
 
-// checkFlag — returns true only if the given threshold type is met
-// stats: { daysLogged, confidence, cyclesTracked, userPath, bcType }
+// checkFlag, returns true only if EVERY condition for the threshold type is met.
+// Honours all the keys a threshold can declare, not just the simple ones, a flag
+// that declares minConsecutiveDaysMatching / requiresCyclicalContrast etc. must not
+// pass on day-count + confidence alone. The caller is responsible for supplying the
+// matching stat; an unsupplied stat reads as 0/false, so the gate stays closed (the
+// safe direction) until the pipeline computes it. Sensitive flags (pmdd, pcos, endo)
+// rely on this, never loosen it back to a partial check.
+// stats: { daysLogged, confidence, cyclesTracked, signalCount, consecutiveDaysMatching,
+//          consecutiveLongCycles, highPainDaysPerCycle, hasCyclicalContrast, userPath, bcType }
 export function checkFlag(type, stats = {}) {
   const t = FLAG_THRESHOLDS[type]
   if (!t) return false
-  const days = stats.daysLogged || 0
-  const conf = stats.confidence || 0
-  const cycles = stats.cyclesTracked || 0
-  if (t.minDaysLogged && days < t.minDaysLogged) return false
-  if (t.minConfidence && conf < t.minConfidence) return false
-  if (t.minCycles && cycles < t.minCycles) return false
+  if (t.minDaysLogged && (stats.daysLogged || 0) < t.minDaysLogged) return false
+  if (t.minConfidence && (stats.confidence || 0) < t.minConfidence) return false
+  if (t.minCycles && (stats.cyclesTracked || 0) < t.minCycles) return false
+  if (t.minSignalCount && (stats.signalCount || 0) < t.minSignalCount) return false
+  if (t.minConsecutiveDaysMatching && (stats.consecutiveDaysMatching || 0) < t.minConsecutiveDaysMatching) return false
+  if (t.minConsecutiveLongCycles && (stats.consecutiveLongCycles || 0) < t.minConsecutiveLongCycles) return false
+  if (t.minHighPainDaysPerCycle && (stats.highPainDaysPerCycle || 0) < t.minHighPainDaysPerCycle) return false
+  if (t.requiresCyclicalContrast && !stats.hasCyclicalContrast) return false
   if (t.requiresDepoPath && stats.bcType !== 'depo' && stats.userPath !== '2') return false
   return true
 }
@@ -57,7 +66,7 @@ export const MOOD_PHASE_SIGNALS = {
     energy: ['Good', 'Low', null],
     phaseSignal: 'Early luteal',
     confidenceBonus: 0.06,
-    note: 'The calmer, more settled feeling in the first half of the luteal phase comes from rising progesterone — it has a mild calming effect via the brain\'s GABA receptors.'
+    note: 'The calmer, more settled feeling in the first half of the luteal phase comes from rising progesterone, it has a mild calming effect via the brain\'s GABA receptors.'
   },
   follicular: {
     moods: ['Energised', 'Energetic', 'Happy', 'Motivated', 'Social'],
@@ -95,7 +104,7 @@ export const MOOD_PHASE_SIGNALS = {
 
 // ── Brain state per phase ─────────────────────────────────────────────────────
 // Pill colour: background and text for each state
-// Matches app palette — warm, never clinical
+// Matches app palette, warm, never clinical
 export const BRAIN_STATE_STYLES = {
   'Low serotonin':       { bg: '#ede0f0', text: '#5a3a6a' },
   'Rising serotonin':    { bg: '#d8edd8', text: '#2a5a2a' },
@@ -104,7 +113,12 @@ export const BRAIN_STATE_STYLES = {
   'GABA calm':           { bg: '#d5e0f0', text: '#2a3a5a' },
   'Serotonin dropping':  { bg: '#f5e0c0', text: '#5a3800' },
   'Serotonin crash':     { bg: '#f0d0c0', text: '#5a2a10' },
-  'Low estrogen':        { bg: '#e8e5e0', text: '#4a4540' }
+  'Low estrogen':        { bg: '#e8e5e0', text: '#4a4540' },
+  // States used by the contraception and perimenopause phase predictions, kept here so a
+  // lookup for any brain_state in PHASE_PREDICTIONS always resolves to a styled pill.
+  'Stable synthetic hormones': { bg: '#e3e8ec', text: '#3a4a52' },
+  'Progestin dominant':        { bg: '#eadfe8', text: '#4a2f42' },
+  'Fluctuating estrogen':      { bg: '#efe2d8', text: '#5a3f2c' }
 }
 
 // ── Phase predictions with brain state and neurotransmitter why ───────────────
@@ -114,7 +128,7 @@ export const PHASE_PREDICTIONS = {
     label: 'Menstrual',
     brain_state: 'Low serotonin',
     intensity: 0.70,
-    why: 'Estrogen is at its lowest point. Estrogen directly drives serotonin production — so when estrogen drops, serotonin drops with it. Serotonin is your mood-stabilising neurotransmitter. Its absence is why low mood, emotional sensitivity, and difficulty concentrating are so common right now. This is a measurable neurochemical change — not a personal failing. Source: Lokuge et al. 2011. Backstrom et al. 2008.',
+    why: 'Estrogen is at its lowest point. Estrogen directly drives serotonin production, so when estrogen drops, serotonin drops with it. Serotonin is your mood-stabilising neurotransmitter. Its absence is why low mood, emotional sensitivity, and difficulty concentrating are so common right now. This is a measurable neurochemical change, not a personal failing. Source: Lokuge et al. 2011. Backstrom et al. 2008.',
     training: 'Light movement is genuinely optimal right now. Walking, yoga, and gentle stretching help reduce period pain without adding stress to your system.',
     nutrition: 'Prioritise iron (lost through bleeding), omega-3s (help reduce cramping), and complex carbohydrates. Your body needs more nutrient-dense food right now, not less.'
   },
@@ -122,7 +136,7 @@ export const PHASE_PREDICTIONS = {
     label: 'Early follicular',
     brain_state: 'Rising serotonin',
     intensity: 0.95,
-    why: 'Estrogen is beginning to rise and serotonin is rising with it. Dopamine — your motivation and reward neurotransmitter — is also starting to increase. The brain is coming back online after the hormonal low of menstruation. You may notice a gradual lift in mood and energy over the next several days. Source: Lokuge et al. 2011. Backstrom et al. 2008.',
+    why: 'Estrogen is beginning to rise and serotonin is rising with it. Dopamine, your motivation and reward neurotransmitter, is also starting to increase. The brain is coming back online after the hormonal low of menstruation. You may notice a gradual lift in mood and energy over the next several days. Source: Lokuge et al. 2011. Backstrom et al. 2008.',
     training: 'Energy returning. Good time to ease back into structured training. Strength work will feel more manageable over the coming days.',
     nutrition: 'Rising estrogen improves carbohydrate utilisation. Fuel your returning energy with quality whole foods and adequate protein.'
   },
@@ -130,7 +144,7 @@ export const PHASE_PREDICTIONS = {
     label: 'Late follicular',
     brain_state: 'Peak dopamine',
     intensity: 1.05,
-    why: 'Estrogen is near its peak and so are serotonin and dopamine. Dopamine drives motivation, focus, creativity, and reward-seeking. Norepinephrine — your alertness neurotransmitter — is also elevated. This is why late follicular feels mentally sharp, creative, and socially energised. The brain during this phase is measurably different to the brain during late luteal — same person, different neurochemistry. Source: Backstrom et al. 2008. Osborn et al. 2025.',
+    why: 'Estrogen is near its peak and so are serotonin and dopamine. Dopamine drives motivation, focus, creativity, and reward-seeking. Norepinephrine, your alertness neurotransmitter, is also elevated. This is why late follicular feels mentally sharp, creative, and socially energised. The brain during this phase is measurably different to the brain during late luteal, same person, different neurochemistry. Source: Backstrom et al. 2008. Osborn et al. 2025.',
     training: 'Peak training window. Your neuromuscular coordination, motivation, and pain tolerance are all elevated. Aim for your hardest sessions this week.',
     nutrition: 'Your body is efficient at using carbohydrates now. Fuel hard sessions well and support muscle protein synthesis with adequate protein at every meal.'
   },
@@ -138,8 +152,8 @@ export const PHASE_PREDICTIONS = {
     label: 'Ovulatory',
     brain_state: 'Neurochemical peak',
     intensity: 1.05,
-    why: 'Peak estrogen means peak serotonin, dopamine, and norepinephrine all together. The brief testosterone surge adds to this. Every mood, motivation, and clarity brain chemical is at or near its highest point simultaneously. This is why ovulation often feels like the best version of yourself — in measurable brain chemistry terms, it genuinely is. Source: Backstrom et al. 2008. Lokuge et al. 2011.',
-    training: 'Your highest performance window. Warm up thoroughly — peak estrogen increases ligament laxity slightly. Attempt load increases on key lifts.',
+    why: 'Peak estrogen means peak serotonin, dopamine, and norepinephrine all together. The brief testosterone surge adds to this. Every mood, motivation, and clarity brain chemical is at or near its highest point simultaneously. This is why ovulation often feels like the best version of yourself, in measurable brain chemistry terms, it genuinely is. Source: Backstrom et al. 2008. Lokuge et al. 2011.',
+    training: 'Your highest performance window. Warm up thoroughly, peak estrogen increases ligament laxity slightly. Attempt load increases on key lifts.',
     nutrition: 'Peak energy demand. Fuel generously with whole foods, quality protein, and complex carbohydrates. Your body is primed to use nutrients effectively right now.'
   },
   'Early luteal': {
@@ -147,16 +161,16 @@ export const PHASE_PREDICTIONS = {
     brain_state: 'GABA calm',
     intensity: 0.92,
     why: 'Progesterone is rising and converts in the brain into a calming compound that works on the same receptors as anti-anxiety medication. This is why early luteal often feels more settled and peaceful than the week before. It is progesterone directly affecting your brain chemistry. Source: Backstrom et al. Psychoneuroendocrinology 2014.',
-    training: 'Slightly reduced intensity but still strong. Your body temperature is rising slightly — take a little longer to warm up and stay well hydrated.',
-    nutrition: 'Protein needs are rising as progesterone causes your body to break down muscle protein faster. Aim for the higher end of your protein range. Progesterone drives real hunger — fuel it with whole foods.'
+    training: 'Slightly reduced intensity but still strong. Your body temperature is rising slightly, take a little longer to warm up and stay well hydrated.',
+    nutrition: 'Protein needs are rising as progesterone causes your body to break down muscle protein faster. Aim for the higher end of your protein range. Progesterone drives real hunger, fuel it with whole foods.'
   },
   'Mid luteal': {
     label: 'Mid luteal',
     brain_state: 'Serotonin dropping',
     intensity: 0.82,
-    why: 'Estrogen is declining and serotonin stability is reducing with it. Progesterone is at its peak which continues the GABA-calming effect, but dropping estrogen means less serotonin support. This creates a mixed neurochemical environment — some calming from progesterone, less mood stability from falling serotonin. The mildly unpredictable mood that characterises mid-luteal has this specific chemical cause. Source: Backstrom et al. 2008. Osborn et al. 2025.',
-    training: 'Perceived effort may feel higher at the same load. This is physiological — resting heart rate rises about 1.7 bpm in this phase (De Martin Topranin 2023). Adjust expectations, not effort.',
-    nutrition: 'Energy intake naturally increases by 200 to 300 kcal in this phase (ISSN 2023). This is biological — not a failure of willpower. Honour it with nutrient-dense food.'
+    why: 'Estrogen is declining and serotonin stability is reducing with it. Progesterone is at its peak which continues the GABA-calming effect, but dropping estrogen means less serotonin support. This creates a mixed neurochemical environment, some calming from progesterone, less mood stability from falling serotonin. The mildly unpredictable mood that characterises mid-luteal has this specific chemical cause. Source: Backstrom et al. 2008. Osborn et al. 2025.',
+    training: 'Perceived effort may feel higher at the same load. This is physiological, resting heart rate rises about 1.7 bpm in this phase (De Martin Topranin 2023). Adjust expectations, not effort.',
+    nutrition: 'Energy intake naturally increases by 200 to 300 kcal in this phase (ISSN 2023). This is biological, not a failure of willpower. Honour it with nutrient-dense food.'
   },
   'Late luteal': {
     label: 'Late luteal',
@@ -170,7 +184,7 @@ export const PHASE_PREDICTIONS = {
     label: 'Luteal',
     brain_state: 'Serotonin dropping',
     intensity: 0.82,
-    why: 'Progesterone is rising and estrogen is beginning to decline. Progesterone has a calming effect while falling estrogen means less serotonin support. This creates the mixed feeling of the luteal phase — some calm, some mood unpredictability. Source: Backstrom et al. 2008.',
+    why: 'Progesterone is rising and estrogen is beginning to decline. Progesterone has a calming effect while falling estrogen means less serotonin support. This creates the mixed feeling of the luteal phase, some calm, some mood unpredictability. Source: Backstrom et al. 2008.',
     training: 'Moderate intensity. Perceived effort may feel higher at the same load as resting heart rate rises slightly in this phase.',
     nutrition: 'Protein needs are higher in the luteal phase because progesterone causes your body to break down muscle protein faster (ISSN 2023). Eat at the higher end of your protein range and add 200 to 300 extra calories from whole foods.'
   },
@@ -186,7 +200,7 @@ export const PHASE_PREDICTIONS = {
     label: 'Observation mode',
     brain_state: 'Low estrogen',
     intensity: 0.72,
-    why: 'Without a confirmed cycle the low-estrogen environment of Depo recovery or hypothalamic amenorrhea means reduced serotonin and dopamine support. The brain chemistry in this state is similar to the menstrual phase — the mood effects of low estrogen are present without the cyclical relief of a returning follicular phase. This is temporary. When your cycle returns your neurochemistry will cycle with it. Source: Sims ST. ROAR 2024.',
+    why: 'Without a confirmed cycle the low-estrogen environment of Depo recovery or hypothalamic amenorrhea means reduced serotonin and dopamine support. The brain chemistry in this state is similar to the menstrual phase, the mood effects of low estrogen are present without the cyclical relief of a returning follicular phase. This is temporary. When your cycle returns your neurochemistry will cycle with it. Source: Sims ST. ROAR 2024.',
     training: 'Low to moderate intensity. Prioritise recovery. Resistance training actively supports hormonal recovery in this phase.',
     nutrition: 'Consistent, adequate nutrition is the foundation. Do not under-eat. Your body is working to restore hormonal function and needs consistent energy and protein.'
   },
@@ -194,7 +208,7 @@ export const PHASE_PREDICTIONS = {
     label: 'On combined hormonal contraception',
     brain_state: 'Stable synthetic hormones',
     intensity: 0.90,
-    why: 'Combined hormonal contraception (pill, patch, or ring) delivers synthetic estrogen and progestin at steady levels throughout the month. Your natural cycle is suppressed — there is no LH surge, no ovulation, no natural progesterone rise. The result is a more consistent hormonal environment with no PMS, no luteal phase fatigue, and no cycle-driven dips. Research suggests training adaptation may be slightly different on OCs. Natural testosterone is reduced, which can affect strength progress, and the muscle-building boost from peak natural estrogen in the follicular phase is absent. This does not mean you cannot build strength — you can, and consistently. It just means the dramatic week-to-week variability that naturally cycling women experience does not apply to you in the same way. Source: Elliott-Sale KJ et al. Sports Medicine 2020. Wikstrom-Frisen L et al. JSCR 2017.',
+    why: 'Combined hormonal contraception (pill, patch, or ring) delivers synthetic estrogen and progestin at steady levels throughout the month. Your natural cycle is suppressed, there is no LH surge, no ovulation, no natural progesterone rise. The result is a more consistent hormonal environment with no PMS, no luteal phase fatigue, and no cycle-driven dips. Research suggests training adaptation may be slightly different on OCs. Natural testosterone is reduced, which can affect strength progress, and the muscle-building boost from peak natural estrogen in the follicular phase is absent. This does not mean you cannot build strength, you can, and consistently. It just means the dramatic week-to-week variability that naturally cycling women experience does not apply to you in the same way. Source: Elliott-Sale KJ et al. Sports Medicine 2020. Wikstrom-Frisen L et al. JSCR 2017.',
     training: 'Your energy and recovery are more consistent than naturally cycling women. You can train at good intensity year-round without phase-based adjustments. Focus on progressive overload across weeks rather than cycle-based periodisation. Strength training remains the most important thing you can do for long-term hormonal health.',
     nutrition: 'Consistent protein intake is the priority. No luteal phase protein increase is needed because there is no natural progesterone surge causing your body to break down muscle protein faster. A standard 1.6g per kg of body weight supports muscle maintenance and performance. Eating enough total calories matters more than timing.'
   },
@@ -202,7 +216,7 @@ export const PHASE_PREDICTIONS = {
     label: 'On progestin-only contraception',
     brain_state: 'Progestin dominant',
     intensity: 0.85,
-    why: 'Progestin-only methods (mini pill, implant, Depo-Provera, hormonal IUD) have minimal systemic estrogen. Natural estrogen and testosterone are suppressed to varying degrees. Some women on progestin-only methods still ovulate — particularly those on the hormonal IUD — and may notice residual cyclical patterns. If you do, trust those signals. Progestin without the counterbalancing effect of natural estrogen can affect mood in some women. This is well documented and not psychological. If you notice consistent low mood, fatigue, or reduced libido, it is worth discussing with your doctor. You deserve to feel well. Source: Skovlund CW et al. JAMA Psychiatry 2016.',
+    why: 'Progestin-only methods (mini pill, implant, Depo-Provera, hormonal IUD) have minimal systemic estrogen. Natural estrogen and testosterone are suppressed to varying degrees. Some women on progestin-only methods still ovulate, particularly those on the hormonal IUD, and may notice residual cyclical patterns. If you do, trust those signals. Progestin without the counterbalancing effect of natural estrogen can affect mood in some women. This is well documented and not psychological. If you notice consistent low mood, fatigue, or reduced libido, it is worth discussing with your doctor. You deserve to feel well. Source: Skovlund CW et al. JAMA Psychiatry 2016.',
     training: 'Train at moderate to good intensity. Your energy may be somewhat flatter than a naturally cycling woman in her follicular phase. Pay attention to how you feel day to day and adjust accordingly. Resistance training is especially valuable for maintaining muscle mass and bone density when estrogen is low.',
     nutrition: 'Protein 1.6 to 1.8g per kg bodyweight supports muscle and bone maintenance. Calcium and vitamin D are particularly important when estrogen is low, as estrogen plays a direct role in bone protection. Adequate iron intake matters if you are still having periods.'
   },
@@ -210,9 +224,9 @@ export const PHASE_PREDICTIONS = {
     label: 'Perimenopause',
     brain_state: 'Fluctuating estrogen',
     intensity: 0.82,
-    why: 'Estrogen is no longer cycling predictably. Estrogen directly drives serotonin production and receptor sensitivity — when estrogen fluctuates unpredictably, so does the neurochemistry that depends on it. Hot flashes, sleep disruption, brain fog, and mood changes are neurological effects of estrogen variability, not just hormonal inconvenience. The days that feel harder have a measurable chemical cause. Source: Osborn et al. Frontiers in Pharmacology 2025. Backstrom et al. Archives of Women\'s Mental Health 2008.',
+    why: 'Estrogen is no longer cycling predictably. Estrogen directly drives serotonin production and receptor sensitivity, when estrogen fluctuates unpredictably, so does the neurochemistry that depends on it. Hot flashes, sleep disruption, brain fog, and mood changes are neurological effects of estrogen variability, not just hormonal inconvenience. The days that feel harder have a measurable chemical cause. Source: Osborn et al. Frontiers in Pharmacology 2025. Backstrom et al. Archives of Women\'s Mental Health 2008.',
     training: 'Train to how you feel. Strength training 2 to 3 times per week is the single most protective thing you can do for bone density, muscle mass, and insulin sensitivity through this transition. Every resistance session stimulates bone formation. (Kohrt et al. MSSE 2004)',
-    nutrition: 'Protein 1.8g per kg per day supports muscle maintenance as anabolic signalling declines. Calcium and vitamin D every day for bone protection. Limit alcohol — it worsens hot flashes and disrupts sleep independently. Source: ISSN 2023; Kohrt et al. 2004.'
+    nutrition: 'Protein 1.8g per kg per day supports muscle maintenance as anabolic signalling declines. Calcium and vitamin D every day for bone protection. Limit alcohol, it worsens hot flashes and disrupts sleep independently. Source: ISSN 2023; Kohrt et al. 2004.'
   }
 }
 
@@ -254,7 +268,7 @@ export function interpretMoodSignal(todayLog, recentLogs, calendarPhase, calenda
         result.insight = {
           type: 'mood_phase_mismatch',
           priority: 'medium',
-          message: 'How you feel today looks more like ' + pattern.phaseSignal + ' than ' + calendarPhase + '. Your cycle may be running slightly ahead of or behind the calendar estimate. Keep logging — the algorithm will update as the pattern becomes clearer.',
+          message: 'How you feel today looks more like ' + pattern.phaseSignal + ' than ' + calendarPhase + '. Your cycle may be running slightly ahead of or behind the calendar estimate. Keep logging, the algorithm will update as the pattern becomes clearer.',
           science: 'Source: Backstrom et al. 2008.'
         }
       }
@@ -276,7 +290,7 @@ export function interpretMoodSignal(todayLog, recentLogs, calendarPhase, calenda
       result.insight = {
         type: 'persistent_negative_mood_signal',
         priority: 'high',
-        message: 'You have logged lower mood for a few days in a row. This kind of pattern often appears in the days before a period as hormones drop. If your period arrives soon this will confirm the pattern — and it will ease once it does.',
+        message: 'You have logged lower mood for a few days in a row. This kind of pattern often appears in the days before a period as hormones drop. If your period arrives soon this will confirm the pattern, and it will ease once it does.',
         science: 'Source: Backstrom et al. Archives of Women\'s Mental Health 2008.'
       }
     }
@@ -287,32 +301,35 @@ export function interpretMoodSignal(todayLog, recentLogs, calendarPhase, calenda
 
 // ── PMDD pattern detection ───────────────────────────────────────────────────
 // Looks for the cyclical contrast pattern: severe negative mood in luteal,
-// absent in follicular — the DSM-5 diagnostic criterion for PMDD
+// absent in follicular, the DSM-5 diagnostic criterion for PMDD
 // Source: DSM-5 PMDD criteria. Osborn et al. Frontiers in Pharmacology 2025.
-export function detectPMDDPattern(logs, cycleLen) {
+export function detectPMDDPattern(logs, cycleLen, cycleDayToday) {
   if (!logs || logs.length < 14) return null
+  // Need a real anchor (today's cycle day) to place each log in the cycle.
+  // Without it the phase assignment would be fictional, so skip entirely.
+  if (!cycleDayToday) return null
 
   const cl = cycleLen || 28
   // Ovulation ~14 days before next period (luteal phase is near-fixed), not mid-cycle.
   // Mirrors getOvulationDay() in hormoneSync.js (kept inline to avoid a circular import).
   const ovulation = Math.max(8, Math.round(cl - 14))
   const NEGATIVE_MOODS = new Set(['Irritable', 'Anxious', 'Low', 'Overwhelmed', 'Sad'])
-  const POSITIVE_MOODS = new Set(['Energised', 'Energetic', 'Happy', 'Motivated', 'Confident', 'Social'])
 
   // Score luteal days vs follicular days
   let lutealNegativeCount = 0
   let lutealDayCount = 0
-  let follicularPositiveCount = 0
+  let follicularNegativeCount = 0
   let follicularDayCount = 0
 
   for (const log of logs) {
     if (!log.log_date || !log.mood?.length) continue
-    // Estimate cycle day from log date — rough approximation
+    // Estimate cycle day from log date, rough approximation
     const logDate = new Date(log.log_date + 'T00:00:00')
     const today = new Date(); today.setHours(0, 0, 0, 0)
     const daysAgo = Math.floor((today - logDate) / 86400000)
-    // Map to approximate cycle position using modular arithmetic
-    const approxCycleDay = ((cl - daysAgo % cl) % cl) + 1
+    // Anchor each log to its real cycle day: today is cycleDayToday, so a log
+    // daysAgo days back sits that many days earlier in the cycle (wrapping mod cl).
+    const approxCycleDay = (((cycleDayToday - 1 - daysAgo) % cl) + cl) % cl + 1
     const isLuteal = approxCycleDay > ovulation + 1
     const isFollicular = approxCycleDay > 5 && approxCycleDay <= ovulation - 2
 
@@ -322,21 +339,25 @@ export function detectPMDDPattern(logs, cycleLen) {
     }
     if (isFollicular) {
       follicularDayCount++
-      if (log.mood.some(m => POSITIVE_MOODS.has(m))) follicularPositiveCount++
+      if (log.mood.some(m => NEGATIVE_MOODS.has(m))) follicularNegativeCount++
     }
   }
 
   if (lutealDayCount < 3 || follicularDayCount < 3) return null
 
   const lutealNegativeRate = lutealNegativeCount / lutealDayCount
-  const follicularPositiveRate = follicularPositiveCount / follicularDayCount
+  const follicularNegativeRate = follicularNegativeCount / follicularDayCount
 
-  // Cyclical contrast: high negative in luteal AND positive in follicular
-  if (lutealNegativeRate >= 0.6 && follicularPositiveRate >= 0.5) {
+  // PMDD is defined by luteal symptoms that REMIT after menstruation, i.e. low negative
+  // mood in the follicular phase, not by positive follicular mood. A user may simply log
+  // nothing notable in follicular yet still have clear remission from severe luteal symptoms,
+  // so we require the remission (low follicular negativity), not the presence of good mood.
+  // Source: DSM-5 PMDD criteria (luteal symptoms with follicular remission).
+  if (lutealNegativeRate >= 0.6 && follicularNegativeRate <= 0.25) {
     return {
       type: 'possible_pmdd_pattern',
       severity: 'informational',
-      message: 'Over your recent logs we have detected a consistent pattern of significant mood changes in the luteal phase that resolve around menstruation. This cyclical pattern — difficult in luteal, more positive in follicular — is associated with PMDD, Premenstrual Dysphoric Disorder. PMDD affects approximately 3 to 8% of women and is frequently misdiagnosed as general anxiety or depression because doctors do not ask about cycle timing. If this pattern is disrupting your daily life please discuss it with a doctor and specifically mention the cyclical timing. Effective treatments exist. This is a pattern observation — not a diagnosis.',
+      message: 'Over your recent logs we have detected a consistent pattern of significant mood changes in the luteal phase that resolve around menstruation. This cyclical pattern, difficult in luteal, more positive in follicular, is associated with PMDD, Premenstrual Dysphoric Disorder. PMDD affects approximately 3 to 8% of women and is frequently misdiagnosed as general anxiety or depression because doctors do not ask about cycle timing. If this pattern is disrupting your daily life please discuss it with a doctor and specifically mention the cyclical timing. Effective treatments exist. This is a pattern observation, not a diagnosis.',
       science: 'PMDD requires cyclical symptoms in luteal phase with remission in follicular phase (DSM-5). Source: Osborn et al. Frontiers in Pharmacology 2025.'
     }
   }
@@ -383,15 +404,15 @@ export function getMoodContextFeedback(latestLog, phase, subPhase) {
         type: 'mood_context',
         icon: 'brain',
         headline: 'This is estrogen variability, not you',
-        body: 'The irritability, anxiety, or low mood you are feeling right now has a direct neurological cause. Estrogen drives serotonin production and receptor sensitivity. When estrogen fluctuates unpredictably in perimenopause, serotonin stability goes with it. This is a measurable neurochemical effect of estrogen variability — not anxiety, not weakness, not ageing. It has a biological explanation and there are effective approaches. Source: Osborn et al. Frontiers in Pharmacology 2025. Backstrom et al. 2008.'
+        body: 'The irritability, anxiety, or low mood you are feeling right now has a direct neurological cause. Estrogen drives serotonin production and receptor sensitivity. When estrogen fluctuates unpredictably in perimenopause, serotonin stability goes with it. This is a measurable neurochemical effect of estrogen variability, not anxiety, not weakness, not ageing. It has a biological explanation and there are effective approaches. Source: Osborn et al. Frontiers in Pharmacology 2025. Backstrom et al. 2008.'
       }
     }
     if (isHighEnergy) {
       return {
         type: 'mood_context',
         icon: 'brain',
-        headline: 'Estrogen surge — make the most of it',
-        body: 'Good mood and high energy in perimenopause often signal an estrogen surge. Estrogen drives dopamine and serotonin — when it peaks, mood, motivation, and mental clarity peak with it. These windows are worth planning around for training and demanding work. Source: Backstrom et al. Archives of Women\'s Mental Health 2008.'
+        headline: 'Estrogen surge, make the most of it',
+        body: 'Good mood and high energy in perimenopause often signal an estrogen surge. Estrogen drives dopamine and serotonin, when it peaks, mood, motivation, and mental clarity peak with it. These windows are worth planning around for training and demanding work. Source: Backstrom et al. Archives of Women\'s Mental Health 2008.'
       }
     }
     return null
@@ -415,7 +436,7 @@ export function getMoodContextFeedback(latestLog, phase, subPhase) {
       type: 'mood_context',
       icon: 'brain',
       headline: 'This energy is real and biological',
-      body: 'The motivation and positive mood right now are driven by rising estrogen and dopamine. This is not luck — it is measurable neurochemistry. Make the most of this window. Your brain is genuinely performing at a higher level right now. Source: Backstrom et al. 2008. Lokuge et al. 2011.'
+      body: 'The motivation and positive mood right now are driven by rising estrogen and dopamine. This is not luck, it is measurable neurochemistry. Make the most of this window. Your brain is genuinely performing at a higher level right now. Source: Backstrom et al. 2008. Lokuge et al. 2011.'
     }
   }
 
@@ -424,7 +445,7 @@ export function getMoodContextFeedback(latestLog, phase, subPhase) {
       type: 'mood_context',
       icon: 'brain',
       headline: 'Progesterone is your natural calm',
-      body: 'The settled feeling right now is progesterone converting in your brain into a calming compound — the same type targeted by anti-anxiety medications. This is your body\'s own calming mechanism. Source: Backstrom et al. Psychoneuroendocrinology 2014.'
+      body: 'The settled feeling right now is progesterone converting in your brain into a calming compound, the same type targeted by anti-anxiety medications. This is your body\'s own calming mechanism. Source: Backstrom et al. Psychoneuroendocrinology 2014.'
     }
   }
 
@@ -432,7 +453,7 @@ export function getMoodContextFeedback(latestLog, phase, subPhase) {
     return {
       type: 'mood_context',
       icon: 'brain',
-      headline: 'The lowest point of the cycle — hormonally',
+      headline: 'The lowest point of the cycle, hormonally',
       body: 'Both estrogen and progesterone are at their lowest right now and serotonin is at its lowest with them. This is the measurable neurochemical reason for low mood and low energy during menstruation. It is not a reflection of your character or your health. Source: Lokuge et al. 2011.'
     }
   }
@@ -445,7 +466,17 @@ export function getMoodContextFeedback(latestLog, phase, subPhase) {
 // Source: symptom-nutrition links from Facchinetti 1991, Rahbar 2012, Angeli 2016, ISSN 2023
 export function getPersonalisedNutritionFocus(recentLogs) {
   if (!recentLogs?.length) return null
-  const recent = recentLogs.slice(0, 7)
+  // Only look at the last few DAYS, not just the last 7 log entries. Otherwise a symptom
+  // logged two weeks ago keeps driving "you logged X recently" until 7 newer logs push it
+  // out, so the note would never change for someone who logs infrequently.
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  const recent = recentLogs.filter(l => {
+    if (!l.log_date) return false
+    const days = Math.floor((today - new Date(l.log_date + 'T00:00:00')) / 86400000)
+    return days >= 0 && days <= 3   // today and the previous 3 days
+  })
+  if (!recent.length) return null
+
   const allSymptoms = recent.flatMap(l => l.symptoms || [])
   const allMoods = recent.flatMap(l => l.mood || [])
   const energyValues = recent.map(l => l.energy).filter(Boolean)
@@ -458,12 +489,12 @@ export function getPersonalisedNutritionFocus(recentLogs) {
   const negMoodCount = allMoods.filter(m => ['Anxious','Irritable','Low','Sad'].includes(m)).length
   const hasBrainFog = allMoods.some(m => m === 'Brain fog') || recent.some(l => (l.brain_fog_rating || 0) >= 3)
 
-  if (hasCramps) return { focus: 'cramping', reason: 'You logged cramps recently — anti-inflammatory foods are your priority right now.' }
-  if (bloatingCount >= 2) return { focus: 'bloating', reason: 'You logged bloating recently — probiotic and gut-settling foods help most here.' }
-  if (negMoodCount >= 2) return { focus: 'pms', reason: 'You logged low or anxious mood recently — magnesium and complex carbohydrates support this directly.' }
-  if (hasBrainFog) return { focus: 'brainfog', reason: 'You logged brain fog recently — iron, omega-3, and eggs and leafy greens support focus.' }
-  if (lowEnergyCount >= 2) return { focus: 'fatigue', reason: 'You logged low energy recently — iron and B12 are your focus right now.' }
-  if (poorSleepCount >= 2) return { focus: 'fatigue', reason: 'You logged poor sleep recently — magnesium glycinate and stable blood sugar through the day help most.' }
+  if (hasCramps) return { focus: 'cramping', reason: 'You logged cramps recently, so anti-inflammatory foods are your priority right now.' }
+  if (bloatingCount >= 2) return { focus: 'bloating', reason: 'You logged bloating recently. Probiotic and gut-settling foods help most here.' }
+  if (negMoodCount >= 2) return { focus: 'pms', reason: 'You logged low or anxious mood recently. Magnesium and complex carbohydrates support this directly.' }
+  if (hasBrainFog) return { focus: 'brainfog', reason: 'You logged brain fog recently. Iron, omega-3, and eggs and leafy greens support focus.' }
+  if (lowEnergyCount >= 2) return { focus: 'fatigue', reason: 'You logged low energy recently. Iron and B12 are your focus right now.' }
+  if (poorSleepCount >= 2) return { focus: 'fatigue', reason: 'You logged poor sleep recently. Magnesium glycinate and stable blood sugar through the day help most.' }
   return null
 }
 
@@ -471,18 +502,23 @@ export function getPersonalisedNutritionFocus(recentLogs) {
 // Used to replace or supplement the generic intensity guide in Workout.jsx.
 export function getPersonalisedWorkoutReadiness(recentLogs) {
   if (!recentLogs?.length) return null
-  const recent = recentLogs.slice(0, 7)
-  const todayLog = recent[0]
+  // Time-bound to real recent days, so a log from weeks ago can't be called "today".
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  const daysAgo = (l) => l.log_date ? Math.floor((today - new Date(l.log_date + 'T00:00:00')) / 86400000) : Infinity
+  const recent = recentLogs.filter(l => { const d = daysAgo(l); return d >= 0 && d <= 6 }) // last week
+  if (!recent.length) return null
+  // "today / last night" claims only when the newest log is genuinely today or yesterday.
+  const todayLog = daysAgo(recentLogs[0]) <= 1 ? recentLogs[0] : null
   const workoutFeels = recent.slice(0, 5).map(l => l.workout_feel).filter(Boolean)
   const recentDisruptors = recent.flatMap(l => l.disruptors || [])
 
   const hardCount = workoutFeels.filter(f => ['Felt hard','Hard'].includes(f)).length
   const strongCount = workoutFeels.filter(f => ['Felt strong','Strong','Stronger than usual'].includes(f)).length
 
-  if (todayLog?.energy === 'Very low') return 'You logged very low energy today. Start at 80% and adjust from there — your body is telling you something real.'
+  if (todayLog?.energy === 'Very low') return 'You logged very low energy today. Start at 80% and adjust from there. Your body is telling you something real.'
   if (todayLog?.sleep_quality === 'Poor') return 'You logged poor sleep last night. Trust how you feel over your targets today.'
   if (hardCount >= 3) return `Your last ${hardCount} sessions have felt hard. A lighter session today actively supports recovery.`
   if (strongCount >= 2) return 'Your recent sessions have felt strong. This is a good window to work toward the top of your ranges.'
-  if (recentDisruptors.some(d => ['High stress','Very poor sleep','Illness'].includes(d))) return 'Recent stressors logged. Stress adds hormonal load — factor that into your effort today.'
+  if (recentDisruptors.some(d => ['High stress','Very poor sleep','Illness'].includes(d))) return 'Recent stressors logged. Stress adds hormonal load, so factor that into your effort today.'
   return null
 }

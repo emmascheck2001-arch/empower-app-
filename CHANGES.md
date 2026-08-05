@@ -4,6 +4,195 @@ Changes made autonomously from user feedback. Most recent first.
 
 ---
 
+## 2026-08-06 — Weekly review: first-open-of-week trigger + real data gate
+**Emma said:** trigger on first open of the week (not Sunday), make sure it's truly once-a-week (not daily), and only show it when there's enough logged data to be meaningful — skip it otherwise.
+**What was done:**
+- Trigger changed from Sunday-only to **first app-open of the calendar week**. Dedup is per-week (localStorage week key); we now mark it shown ONLY when it actually opens, so a thin early-week review can still appear later once there's content.
+- **Data gate:** raised `WEEKLY_MIN_LOGS` from 3 to **4** logged days in the past week, AND require real content (≥1 highlight or a logged workout) — below that, no weekly review that week (no hollow insights).
+**Files changed:** components/WeeklySummary.jsx, pages/Dashboard.jsx
+## 2026-08-06 — Weekly insights become a once-a-week moment; doctor prep moved to Learn
+**Emma said:** move "Prep for a doctor visit" into Learn; don't show "Insights this week" every day — show it one day a week (7th day), with confetti on open; make the insights richer (the good things logged that week vs last week, all positive, plus one observation). Both web + app.
+**What was done:**
+- **Doctor prep** removed from the home screen, added as a card at the top of the **Learn** tab (→ /visit-prep).
+- **Insights this week** daily card removed. The Weekly Review now **auto-opens once a week on Sunday** (only if ≥3 logs that week and not already shown), with a **confetti burst** (`components/Confetti.jsx`, dependency-free). Dedup is per-week via localStorage, so it never repeats within a week.
+- **Richer content:** the modal now shows a "Your wins this week" section (it already computed the highlights + last-week comparisons but never displayed them) — trained N days, N more than last week, energy peak, slept more — filtered to positives, with the single constructive note kept in "One observation."
+- Also (native polish, native-only earlier): iOS text-size-adjust so native matches web, 16px inputs to stop iOS focus-zoom, safe-area on every remaining top bar (Check-in, Learn, Workout sub-screen, pregnancy home). Confetti keyframes added to index.css.
+**Files changed:** pages/Dashboard.jsx, pages/Learn.jsx, components/WeeklySummary.jsx, components/Confetti.jsx, index.css
+## 2026-08-05 — Autonomous polish batch (dashes, log, onboarding, QA)
+**Emma said:** take out all dashes + fix grammar; polish recent work especially the calendar; think hard about the log and clean it; make signup simple/clean; go over everything for bugs, correct algorithm, data saved + used for personalization, and a beautiful clean feel.
+**What was done:**
+- **Dashes:** removed all 421 em/en dashes across 37 files (ranges to "to", em dashes to commas/periods by grammar). Hand-polished the highest-visibility copy (movementToday titles/details, cyclePlan session pools, GoalPicker intro) so nothing reads like a machine comma-swap.
+- **Log:** cervical fluid now has a "Not sure" option (no forced guessing) and plain relatable descriptions ("clear and stretchy, like raw egg white") shown on selection — Emma's flagged pain point. Reviewed the rest of the log; kept clean.
+- **Onboarding:** verified clean after the dash sweep; fixed a comma splice in the GoalPicker intro. (Name capture, progress steps, signup-first, path-1 "not sure" escape all in place from earlier.)
+- **QA:** all 146 tests pass across 12 files; build clean; no dead imports. Verified the learning engine is live (`user_baselines` now populating, was 0). Fixed a data bug: `avg_cycle_length` was computing an implausible 17-day average from one short breakthrough-bleed gap — now averages only typical (21 to 45 day) cycles and falls back to the set cycle length, so the doctor summary won't show a misleading number.
+**Files changed:** ~38 files (dash sweep); notably lib/movementToday.js, lib/cyclePlan.js, lib/hormoneSync.js, pages/Log.jsx, components/GoalPicker.jsx
+## 2026-08-05 — Monthly plan: tappable weeks + current-week highlight
+**Emma said:** the monthly view is flat/generic; clicking a week should give the structured week; the week you're on should be highlighted.
+**What was done:**
+- Monthly is now anchored to the cycle (built from cycle day 1, not rolled from today), so the 4 weeks map to the canonical cycle and "this week" is meaningful.
+- Each week card is now tappable → expands to that week's full 7-day structured plan (`assignSessions` on that week's slice), each day labelled by cycle day + phase.
+- The current week (the one containing today's cycle day) is highlighted with a bolded 2px border + "· This week" label.
+**Files changed:** empower-react/src/pages/Workout.jsx
+## 2026-08-05 — Weekly plan: de-repeated + personalised from past cycles
+**Emma said:** the weekly plan is repetitive (same "Strong day — build" 4×) and not personal — it should look back at what she logged on those cycle days last cycle and let her choose to adapt.
+**What was done:**
+- `assignSessions` in cyclePlan.js turns the phase-per-day plan into a varied week: rotates strength (lower/upper/full), cardio, yoga/walks, places ~2 rest days (1 for a consistency goal), softens hard days for calmer goals. No more identical same-phase cards.
+- New `lib/cycleHistory.js` (`cycleDayForDate`, `buildCycleDayHistory`): maps past ~70 days of logs to cycle days and, per cycle day, notes lower/higher energy patterns. Workout init fetches the logs + period history and builds it.
+- Weekly plan now shows a per-day note ("Cycle day 22: you logged lower energy around here last cycle") with an optional **"Make it lighter"** button (and Undo) — the user chooses to adapt; the app never forces it. `lighterSession()` provides the swapped session.
+- 11 new tests (146 total).
+**Files changed:** empower-react/src/lib/cyclePlan.js, empower-react/src/lib/cycleHistory.js, empower-react/src/lib/cycleHistory.test.js, empower-react/src/lib/cyclePlan.test.js, empower-react/src/pages/Workout.jsx
+## 2026-08-05 — Workout tab: cycle-aware daily/weekly/monthly plans + basic mode
+**Emma said:** keep the phase banner; the intensity line should say what to do based on cycle+goal; remove the no-op "recent stressors" note; "+ Log a class" should become "Build your plan" → daily/weekly/monthly; weekly/monthly switches the page to show a workout for every day; add a "back to basic mode" button.
+**What was done:**
+- Banner intensity line ("X% of max effort") + the "recent stressors logged" note both removed; replaced with a concrete "Today: [movement]" recommendation from cycle phase + the user's saved goal (GOAL_NOTE).
+- New `lib/cyclePlan.js` (`buildCyclePlan` rolls the phase forward day-by-day from today's cycle day; `weekBlocks` groups 28 days into 4 weeks). Tested (138 total).
+- Workout landing now has two modes: **basic** (activity picker + a prominent "Build my plan" button, "Log a class" kept as secondary) and **plan** (weekly = 7-day list, monthly = week-by-week cycle overview), with a "Basic mode" button to switch back. Degrades to a goal-based generic week when there's no confident cycle (irregular/BC/no date).
+**Files changed:** empower-react/src/lib/cyclePlan.js, empower-react/src/lib/cyclePlan.test.js, empower-react/src/pages/Workout.jsx
+## 2026-08-05 — One-time workout goal picker (foundation for cycle-aware plans)
+**Emma said:** first time someone taps Workout, ask their goal (lose weight, feel better, structured movement, etc.), better than other fitness apps; users should be able to get daily/weekly/monthly plans built around their cycle.
+**What was done:**
+- New `components/GoalPicker.jsx` — a one-time, wellness-framed goal sheet shown on the first Workout-tab visit (feel better / build strength / move consistently / support cycle & hormones / manage weight healthily / reduce stress). Supportive framing, not diet-culture. Stored in localStorage for now (no DB migration needed to validate); can move to a profiles column later. Exposes `getFitnessGoal()` for the upcoming plan generator.
+- The "20× better" angle: goal → a plan that flexes with the cycle (build in follicular, recover in luteal) — no mainstream fitness app does cycle-aware planning.
+**Files changed:** empower-react/src/components/GoalPicker.jsx, empower-react/src/pages/Workout.jsx
+## 2026-08-05 — Calendar day-sheet: cleaner, sex-drive per day, compact disclaimer
+**Emma said:** make the calendar day view cleaner/easier to read; add libido and a protection note per day; shrink the big "NOT BIRTH CONTROL" box to a small red line.
+**What was done:**
+- Fertile-window disclaimer shrunk from a large boxed paragraph to one small red line ("Not birth control — an estimate only. If you're avoiding pregnancy, use protection…"), folding the protection reminder in. Substance kept; bulk removed.
+- Added a per-day "Sex drive" chip (phase-based expectation: peaks near ovulation, lower menstrual/late-luteal) next to energy + movement.
+- Protection note only appears on fertile days — never a "safe day" note on other days (FDA line).
+- Cleaner sheet: "Your brain this day" + "Plan ahead" now collapse behind a single "More about this day" toggle so the key info shows first.
+**Files changed:** empower-react/src/pages/Calendar.jsx
+## 2026-08-05 — Late-period flag → small bottom flag; fixed wording; concrete calendar chip
+**Emma said:** the big "2 days late" card takes over the home screen — make it a little clickable red flag at the bottom instead; and "a late period usually is not pregnancy" sounds bad/incorrect, fix the language; also the calendar still showed a useless "95% intensity" chip.
+**What was done:**
+- Late-period flag is now a small tap-to-open **flag pill fixed at the bottom** of the dashboard (above the nav), not a big top card. Tapping opens a bottom sheet with the personalised contributors + guidance.
+- Removed "A late period usually is not pregnancy." Wording now leads with "A late period is common and has many causes" and keeps the pregnancy-test option as a neutral, non-leading line.
+- Calendar day-sheet "{n}% intensity" chip replaced with the concrete movement recommendation (getMovementToday), matching the dashboard/workout screen.
+**Files changed:** empower-react/src/pages/Dashboard.jsx, empower-react/src/pages/Calendar.jsx
+## 2026-08-05 — Nutrition screen: clearer protein target + framed symptom relief
+**Emma said:** the nutrition protein and symptom relief look messy and not good.
+**What was done:**
+- Protein/targets card: removed the confusing giant "0 Extra kcal" tile (it showed 0 for every phase except luteal) — now a single centered protein target when there's no extra fuel, two tiles only in luteal. Added a plain-language, phase-aware explainer of what the number means (PROTEIN_NOTE) and a weight-awareness line ("Based on your weight and phase" vs "Set your weight above to personalise this").
+- Symptom relief tab: added a short intro framing ("Tap a symptom for food-based relief… alongside, never instead of, your usual care") so it doesn't open as a bare list.
+- Content itself was already strong/cited — this was layout + clarity.
+**Files changed:** empower-react/src/pages/Nutrition.jsx
+## 2026-08-05 — Remove personal info; onboarding polish
+**Emma said:** take my email/contact info out of everything, set up a dedicated Em~power inbox; plus signup-first + a "not sure of date" escape.
+**What was done:**
+- New `lib/appConfig.js` with `SUPPORT_EMAIL` (placeholder `empowerhealthapp@gmail.com` — to be swapped for the real inbox) and `APP_OWNER` ("the Em~power team"). Removed the hard-coded personal email + name from Privacy.jsx (contact, who-we-are, delete-fallback), Terms.jsx (contact), and Feedback.jsx. "Emma has been notified" → "The Em~power team has been notified."
+- Feedback admin view no longer hard-codes a personal email: `get_all_feedback()` is already uid-gated server-side, so we just call it and show the admin view when it returns rows. Verified no personal email/name remains in shipped source.
+- Onboarding: name capture (personalises the greeting), Step 1/2 progress + "takes less than a minute", birth-year reason, activity marked optional (prior commit); Login now defaults to signup-first; path-1 has a "Not sure of your exact date? Track as irregular instead" escape.
+**Files changed:** empower-react/src/lib/appConfig.js, pages/Privacy.jsx, pages/Terms.jsx, pages/Feedback.jsx, pages/Login.jsx, pages/Setup.jsx
+## 2026-08-05 — Retention: install prompt + first-log activation nudge
+**Context:** retention is down (weekly active 8→2; 40% of signups never logged). Two of the four agreed retention fixes.
+**What was done:**
+- **Install prompt** (`components/InstallPrompt.jsx`): the app had a PWA manifest but never asked anyone to install it, so users lived in browser tabs (terrible return rates). New dismissible dashboard banner — real Install button on Android/Chrome via `beforeinstallprompt`, "Add to Home Screen via Share" instructions on iOS. Hidden when already running standalone.
+- **Activation nudge:** new users were dropped on the dashboard after onboarding with nothing pulling them to log (where the 40% bounced). Added a prominent "Start with a 30-second check-in" card shown only to users with zero logs, linking to /checkin.
+**Files changed:** empower-react/src/components/InstallPrompt.jsx, empower-react/src/pages/Dashboard.jsx
+## 2026-08-05 — Late period: personalized "what's contributing" from each user's own data
+**Emma said:** the late-period flag should work for everyone and "go deeper" — pregnancy is the easy thought; look at the data for what could actually be causing it.
+**What was done:**
+- New pure, tested `getLatePeriodInsights(recentLogs, profile, cycleInfo)` in hormoneSync.js. When a user is late, it reads their OWN recent logs and names likely contributors: high stress (disruptor or stress_level ≥4), illness, travel, repeated poor sleep, repeated very-low energy / heavy training (RED-S / under-fuelling), repeated alcohol, coming off birth control (path 2), and personal cycle-length variability (tracked gaps differing ≥7 days). All framed as "may contribute", never a diagnosis; no GnRH/PCOS naming; defers to doctor. 8 unit tests (129 total passing).
+- Surfaced in `status.latePeriodInsights`; the dashboard late-period card now leads with "A late period usually is not pregnancy — from what you've logged, these may be contributing:" + a personalized bullet list, then the pregnancy-test + see-a-doctor lines. Falls back to the generic copy when there are no signals.
+- Applies to every cycle user, not just the reporter.
+**Files changed:** empower-react/src/lib/hormoneSync.js, empower-react/src/pages/Dashboard.jsx, empower-react/src/lib/latePeriodInsights.test.js
+## 2026-08-05 — Late-period flag moved to top of dashboard (was buried)
+**Emma said:** on cycle day 31, unsure if correct, and "if my period is late the app should flag that ... in the app not just on here."
+**What was done:**
+- Verified her data: last period July 5, no flow logged since, so day 31 is CORRECT (not corrupted) and she is genuinely ~2–3 days late.
+- The late-period card logic was firing correctly, but it rendered LOW on the dashboard — below the cycle hero and the entire "Today's Plan" grid — so it was easy to miss. Moved it to the TOP of the dashboard (right under the greeting) and made it a prominent amber callout with an alert icon. Same fertility-aware copy (benign causes + pregnancy-test prompt + see-your-doctor).
+**Files changed:** empower-react/src/pages/Dashboard.jsx
+
+## 2026-08-05 — Learning engine, sex-drive signal, and fertility-window (awareness-only)
+**Emma said:** her confidence was stuck at 85% despite daily use since launch; wanted sex drive tracked and a fertility window, "but make sure it doesnt blur any fda regulations."
+**What was done:**
+- **Root cause of the 85% ceiling:** confidence was hard-capped at 0.92 (100% impossible), the history component maxed at 0.80 after ~30 logs, and `user_baselines`/`cycle_summaries` had ZERO rows app-wide — the baseline-learning engine was read in code but never written. Confidence was a rolling daily signal score, not accumulated learning.
+- **Learning engine:** added `computeCycleHistory` (counts real cycles from recorded period-start gaps, 15–60 days). `calcConfidence` now grows with cycles tracked (caps ~3 cycles) AND log volume; cap raised 0.92→0.99 so "fully personalised" is reachable. Progression: new user 55% → Emma now 84% (no regression) → 93% at 2 cycles → 99% at 3. `getTodayStatus` now best-effort upserts `user_baselines` (cycles_tracked, avg_cycle_length, model_confidence) so VisitPrep/baseline card finally have data.
+- **Sex drive:** libido was already scored toward Ovulatory in inference but never shown back — added a "Sex drive" row to the calendar day detail.
+- **Fertility window (FDA-safe):** calendar future-day sheet now shows an estimated fertile window / ovulation card for AWARENESS + conception only, with a mandatory "this is not birth control" disclaimer and NO safe/unsafe-for-unprotected-sex language. Excluded for hormonal-BC and Path 4 users. Rule recorded: the app may show fertility *information*, never contraceptive *instructions* (that needs FDA clearance).
+**Files changed:** empower-react/src/lib/hormoneSync.js, empower-react/src/pages/Calendar.jsx
+
+## 2026-07-09 — Ask assistant now answers "why do I need higher protein today?"
+**User said (queued Ask question):** "Why do I need higher protein todsy"
+**What was done:**
+- The Ask engine already had a correct protein answer (explains luteal progesterone raises protein breakdown), but its keyword list didn't include "why", "higher protein", "more protein", or "protein today", so the question fell through to the unanswered-question queue.
+- Widened the `protein` topic keywords to catch why/higher/more/extra/need-more-protein and "protein today" phrasings.
+- Fix is deployed; the feedback row is still marked `pending` (the resolve-status DB write needs explicit approval).
+**Files changed:** empower-react/src/lib/askEngine.js
+
+## 2026-07-09 — "Period ended" now actually moves you out of the menstrual phase
+**User said:** "now i clicked period ended and i still show up in the menstrual cycle"
+**What was done:**
+- Root cause: `getPhase` hardcoded "cycle day 1–5 = Menstrual" and never looked at the recorded `period_length`, so marking a period ended (which saves `period_length`) had zero effect on the displayed phase.
+- `getPhase(cycleDay, cycleLen, periodLength)` now takes an optional period length (defaults to 5, so existing 2-arg callers are unchanged) and ends the menstrual window at the real bleeding length, clamped to `ovulation-3`. `buildCycleStatus` passes `cycleData.period_length` and now exposes `periodLength` in the returned status. Calendar threads it through `getPhaseForDate` so today's cell and past months stay consistent.
+- `markPeriodEnded` (Log.jsx) now records the length from the LAST day flow was actually logged this period, instead of today's cycle day — tapping "It ended" days after bleeding stopped no longer records a too-long period that kept the user stuck on "Menstrual".
+- General fix affecting every user who ends a period, not just the reporter.
+**Files changed:** empower-react/src/lib/hormoneSync.js, empower-react/src/pages/Calendar.jsx, empower-react/src/pages/Log.jsx
+
+## 2026-07-06 — Calendar: logging a new period no longer blanks earlier months
+**User said:** "I logged my period on the 4th and then it deleted all my info for the calendar in June."
+**What was done:**
+- Confirmed first that NO data was lost — all 25 of the user's June daily logs (energy, mood, symptoms) are intact in `daily_logs`. This was a calendar *display* bug, not deletion.
+- Root cause: an uncommitted half-finished refactor. `getPhaseForDate` had been rewritten to take a `periodStarts` array, but the two call sites still passed the single `lastPeriod` string, so it received a string, iterated its characters, and returned null for every day (would have blanked ALL months if shipped). The previously-deployed version single-anchored to the newest period start, so every date before it (all of June) lost phase colouring after a July period was logged.
+- Fix: `getPhaseForDate` now picks the nearest recorded period start at/before each date and, for dates before the earliest recorded start, extrapolates the cycle backward (normalised modulo) instead of returning null. Added `phaseAnchors` (recorded period-start history + derived last-period date, deduped/sorted) and passed it to both call sites.
+- Note: the working-tree `logPeriodStart` (Log.jsx) already appends to period-start history via `mergePeriodStartsNotes`, so future period logs preserve past periods.
+**Files changed:** empower-react/src/pages/Calendar.jsx
+
+## 2026-06-21 — Birth control: steady state, no fake cycle phases
+**Why:** A tester (on continuous pills) correctly pointed out that hormonal birth control suppresses ovulation and holds hormones flat, so there are no real follicular/ovulatory/luteal phases. Showing rotating phases to BC users was medically inaccurate and a credibility risk.
+**What was done:**
+- Hormonal BC (combined pill/patch/ring, Depo, implant, hormonal IUD) now always shows a **steady BC state** with no cycle phases, even if a withdrawal-bleed date is logged. Removed the old "estimated phases" path (`bcEstimate`).
+- The copper IUD (non-hormonal) still gets a real cycle.
+- Dashboard, Calendar, Workout, and Nutrition all now agree (single source of truth in `getTodayStatus`). Calendar no longer colours phases for BC and shows a plain steady-state note.
+- Onboarding (Setup, path 5) now explains the steady state and makes clear the bleed date is optional (skip if you take pills continuously or do not bleed), so no one is forced to invent a cycle length.
+- Documented as a permanent rule in CLAUDE.md so it is never reverted.
+**Files changed:** lib/hormoneSync.js, pages/Dashboard.jsx, pages/Calendar.jsx, pages/Setup.jsx, CLAUDE.md, public/sw.js (cache v8)
+
+---
+
+## 2026-06-20 — Dashboard, Sleep, Nutrition & copy polish
+**Emma asked for:** collapse previously-sent feedback; shrink the cycle-day/days-until stats and make cycle day tappable to see what was logged; less performative wording (e.g. "biological priority"); Sleep should log first with "why sleep matters" collapsible and cycle-aware tips; remove em dashes everywhere they aren't correct grammar; declutter the dashboard; fix the symptom-relief panel (cramping spacing, wrong emojis, too few symptoms); keep everything matching the research.
+**What was done:**
+- **Dashboard cycle day:** replaced the two big "Cycle day / Days until period" cards with one compact card. Tapping it reveals exactly what you logged today (energy, sleep, mood, symptoms, RHR, temp, flow, pain) or prompts you to log. Days-until is no longer duplicated (it is already in the hero).
+- **Wording:** rewrote the phase descriptions and insight lines to sound natural and human, removing "biological priority", "real biology", "not a coincidence", "highest-priority", and similar performative phrasing across Dashboard and Calendar.
+- **Sleep:** the log form is now the first thing on the screen; phase-specific tips follow; "Why sleep matters for your hormones" is collapsed by default at the bottom. Fixed the +/- stepper defaults.
+- **Symptom relief (Nutrition):** fixed the weird spacing (no dangling divider before "Limit"), corrected emojis (cramping 🩸, fatigue 🔋), and expanded from 5 to 9 symptoms (added Headaches & migraines, Breast tenderness, Skin breakouts, Cravings), each with research-grounded remedies.
+- **Clinical language:** removed banned terms that had crept back in ("GABA"/"GABA withdrawal", "functional iron deficiency", "prostaglandin") and replaced an "(SOURCE: ACL research pending)" placeholder with the now-verified citation (Herzberg et al. 2017).
+- **Em dashes:** removed em/en dashes from user-facing copy app-wide (Dashboard, Sleep, Nutrition, Calendar, Learn, Setup, Privacy, Login, Log, Checkin, Friends, Workout, Weekly summary), replacing them with natural punctuation. Kept compound hyphens, minus-sign buttons, middots, arrows, and APA citation page ranges.
+- **Feedback:** the admin "All tester feedback" list now collapses each item to a compact one-line row (status, category, who, date) that expands on tap.
+- No algorithm or research numbers changed; phase math, intensity, and nutrition targets are untouched.
+**Files changed:** pages/Dashboard.jsx, pages/Sleep.jsx, pages/Nutrition.jsx, pages/Calendar.jsx, pages/Feedback.jsx, pages/Learn.jsx, pages/Setup.jsx, pages/Privacy.jsx, pages/Login.jsx, pages/Log.jsx, pages/Checkin.jsx, pages/Friends.jsx, pages/Workout.jsx, components/WeeklySummary.jsx, public/sw.js (cache v5)
+
+---
+
+## 2026-06-19 — Cosmetic cleanup (2 fixes)
+**Context:** Follow-up polish after the bug audit.
+**What was done:**
+- **HIIT "Skip" now works while paused.** It used to set the timer to 0 and rely on the running clock to advance, so tapping Skip while paused did nothing. It now advances the work/rest/round directly.
+- **Weight-field placeholder** no longer shows the word "Bodyweight" in a number input for bodyweight moves — it shows "kg" instead (numeric ranges still show their starting number).
+- *Left intentionally:* the glute-bridge demo figure still reuses the hip-thrust figure (same hip-extension pattern) — hand-authoring a floor variant means guessing joint coordinates that can't be visually verified, so it wasn't worth the regression risk.
+**Files changed:** pages/Workout.jsx
+
+---
+
+## 2026-06-18 — Senior-level bug audit (12 fixes)
+**Context:** Full codebase audit (parallel review of every page + the algorithm libs) to find real and "secret" bugs.
+**What was done (verified bugs only — false positives discarded):**
+- **AuthGuard infinite spinner:** the profile lookup had no error handling, so a single network hiccup left users stuck on the loading spinner forever. Now caught — users fall through to their page (which has its own retry).
+- **Friends showed the wrong email:** outgoing requests stored the *target's* email as `requester_email`, so recipients saw their own address instead of the sender's. Now stores the sender's real email.
+- **Calendar off-by-one:** "in X days" / period-prediction math compared a timestamped `now` against midnight dates, so day counts flipped depending on time of day. `now` is now normalised to midnight.
+- **PMDD detector cycle-day math:** the per-log cycle-day mapping was inverted and not anchored to the real period date (latent — the detector also requires ≥14 logs, which it doesn't yet receive). Math corrected and anchored to today's cycle day; guarded to skip when no real cycle.
+- **Workout mid-session reshuffle:** accessory exercises were re-picked from a live day-seed every render, so a gym session crossing midnight could re-bind already-entered set weights to different exercises. Seed is now captured once per session.
+- **Stuck "Saving…":** Log + Check-in called `getUser()` outside their try/catch, so a network failure there left the save button stuck forever. Now guarded.
+- **Check-in "Nothing" for mucus** now clears an earlier same-day mucus entry instead of silently leaving the stale one.
+- **Setup path switch** now clears `bc_stop_date` (was left stale when switching away from "just came off birth control").
+- **Period length sanity bound:** "It ended" now clamps the recorded period length to 1–14 days so stale cycle data can't save a nonsense value.
+- **Sleep hours stepper:** +/− from the empty field now start at a sensible 7.5h instead of jumping to 0.5h / doing nothing.
+- **Dashboard phase sheet:** added a defensive optional-chain so a future hormone entry without a patterns list can't crash the sheet.
+**Files changed:** App.jsx, pages/Calendar.jsx, pages/Dashboard.jsx, pages/Friends.jsx, pages/Setup.jsx, pages/Log.jsx, pages/Checkin.jsx, pages/Sleep.jsx, pages/Workout.jsx, lib/hormoneSync.js, lib/algorithm_v3.js, public/sw.js (cache v4)
+
+---
+
 ## 2026-06-18 — Algorithm airtight pass (groundwork for the fertility-window feature)
 
 **Reported by:** Emma — "fix everything" from the data-integrity audit.
@@ -393,3 +582,68 @@ Verified by simulating the lookup for every phase × stroke: all resolve to spec
 
 **What was done:** Wired all 8 previously unsaved fields (wrist_temp, flow_volume, disruptors, pain_rating, brain_fog_rating, hot_flash_count, night_sweats_severity, joint_pain_rating) into the algorithm. These were saving to the database but not being read by hormoneSync.js or algorithm_v3.js. Now: wrist temperature boosts confidence and phase inference; flow volume confirms menstrual phase; disruptors reduce signal reliability and trigger luteal allostatic load warning; pain_rating ≥4 during menstrual triggers endometriosis-awareness card; Path 4 fields (hot_flash_count, night_sweats_severity, joint_pain_rating, brain_fog_rating) now drive perimenopause-specific anomaly cards. Confirmed all 27 daily_logs columns accept upsert successfully via test insert. Fixed em-dash in log.html visible text ("Hormone test results (optional)").
 **Files changed:** hormoneSync.js, log.html, www/log.html, www/hormoneSync.js, ios/App/App/public/hormoneSync.js, ios/App/App/public/log.html
+
+## 2026-06-26 — Multi-persona review fixes (safety, accuracy, inclusivity, progression)
+**Context:** Ran the app as 8 expert personas (OB-GYN, GP, dietitian, strength coach, inclusivity reviewer, life-stage personas, investor, competitor). Fixed everything they flagged.
+
+**Safety (#1–4):**
+- Acute red-flag card in the daily log for very heavy bleeding or severe pain (ACOG: soaking through protection hourly / clots / sudden one-sided pain / possible pregnancy → seek same-day care).
+- Late/missed-period card on the dashboard that prompts a pregnancy test instead of silently continuing "PMS" framing.
+- Crisis support (988, call or text) now surfaces on any low-mood log, not just one perimenopause article.
+- Age gate at onboarding (13+) with a guardian note for under-18s; teen reassurance card that irregular cycles are normal in the first years after menarche (ACOG 651).
+- Postmenopausal-bleeding "always get it checked" warning added.
+
+**Accuracy (#5–7):**
+- Softened overstated claims: omega-3/olive-oil are no longer "as effective as ibuprofen"; ginger keeps its real RCT framing but with "alongside, not instead of, pain relief". Hormone readouts no longer "confirm" ovulation or call a single LH a guaranteed surge.
+- Nutrition disclaimer now covers allergens, disordered-eating safety, and supplement doses; vegan protein capped at 2.2 g/kg.
+- Postmenopausal users are now labelled "Postmenopause", not "Perimenopause".
+- Sleep magnesium tip re-cited correctly (Abbasi 2012, not Facchinetti).
+
+**Inclusivity (#9):**
+- Default foods lead with affordable global staples (beans/lentils); calcium guidance no longer defaults to dairy.
+- Learn now covers PCOS in South Asian women, fibroids (disproportionately affect Black women), the ferritin/blood-trait caveat (thalassemia/sickle cell), vitamin D by skin tone, and earlier perimenopause in Black and Latina women.
+
+**Workout progression (#8):**
+- New exercise_history table + a "last time" hint and progressive-overload nudge in the workout player, so the app finally tracks strength across sessions, not just displays a workout.
+
+**Also fixed earlier the same day:** sleep hours no longer overwrite the shared notes field (own column).
+**Files:** Setup, Log, Dashboard, Nutrition, Learn, Sleep, Workout, hormoneSync, CrisisSupport (new), session, App; migrations: birth_year, sleep_hours, exercise_history, delete_my_account.
+
+## 2026-06-29 — Feedback fix + prenatal verification
+**User said:** "I tried to log yesterdays bc I missed it but it showed up as my log today when I tried to fix it and log my yesterdays results it wouldn't save. Also I'm on my period so I don't think I would have any type of cervical mucus. And that's an option in the log"
+**What was done:** Added a date picker at the top of the daily log so any missed day can be backfilled (previously the log always saved to today unless reached from the calendar); the form now resets and reloads that day's saved data when the date changes. Hid the cervical-fluid question during the menstrual phase — flow masks it, so it is not a meaningful signal then. Also ran a clinical cross-reference pass on all pregnancy/prenatal content: corrected a misattributed miscarriage stat (kept "~15% of recognised pregnancies, Quenby 2021", removed the incorrect "1 in 4 women" claim), softened the postpartum-emergency wording to match CDC framing, and rounded out the high-mercury fish list (added king mackerel, tilefish).
+**Files changed:** src/pages/Log.jsx, src/pages/Learn.jsx, src/pages/Nutrition.jsx, public/sw.js
+
+## 2026-06-29 — New feature: Visit Prep (appointment prep)
+**Why:** Product pillar #4 — help women prepare for appointments and understand symptoms. Was the weakest pillar (scattered Learn mentions, no data-driven tool).
+**What was done:** New /visit-prep screen that compiles a user's own tracked data (last 120 logs + cycle data + baselines) into a doctor-ready summary: snapshot, what they've been tracking (aggregated pain/flow/mood/sleep/peri symptoms), neutral "patterns worth discussing" (never names a condition, always "not a diagnosis"), questions to ask, and tests worth requesting (path-tailored; iron/ferritin for heavy flow + fatigue). Copy-to-clipboard + print/PDF. Entry card on the dashboard. Pure logic in lib/visitPrep.js with 10 unit tests.
+**Files changed:** src/lib/visitPrep.js (new), src/lib/visitPrep.test.js (new), src/pages/VisitPrep.jsx (new), src/App.jsx, src/pages/Dashboard.jsx, public/sw.js, CLAUDE.md
+
+## 2026-06-29 — Personalised, cycle-aware weight progression
+**Why:** The workout should actively get HER stronger (up the weights), not just show a generic level-based range. Foundation existed (exercise_history + "last time" hint) but the prescribed weight was static and the +2.5kg nudge was hardcoded text.
+**What was done:** New lib/progression.js (pure, 9 unit tests) computes the day's target from her OWN last lift AND her cycle phase: in a favourable phase (follicular/ovulatory, intensity ≥0.95) it prescribes +2.5kg (upper) or +5kg (lower-body compound) with a "+Xkg" badge; in early luteal it holds and says save the jump for follicular; in the demanding luteal/menstrual phases it holds and reframes that the same load feels harder (physiology). The player's "WEIGHT TODAY" box and set-input placeholder now show this personalised target; first-time lifts still fall back to the level-based starting range. Sources: Schoenfeld 2017/ACSM (overload), Kissow 2022, De Martin Topranin 2023, Hackney 2006.
+**Files changed:** src/lib/progression.js (new), src/lib/progression.test.js (new), src/pages/Workout.jsx, public/sw.js, CHANGES.md
+
+## 2026-06-29 — Daily Coach (morning briefing)
+**Why:** Make the app feel like a coach — a morning summary of Today's Focus + Training, Nutrition, Sleep, Mindset.
+**What was done:** New lib/dailyCoach.js (pure, 10 unit tests) synthesises a morning briefing ENTIRELY from data getTodayStatus already produces (phase, intensity modifier, nutrition targets, recent logs) — no new data source, no DB writes, no fabricated metrics. Time-aware greeting with first name; Today's Focus (phase-derived); Training scaled to the phase intensity (and NEVER auto-prescribed in pregnancy); Nutrition from the real protein/calorie targets + iron when menstruating; Sleep with phase-aware + poor-night acknowledgement; Mindset from the phase. A recovery caution appears ONLY when her own logs (poor sleep / very low energy / heavy disruptors) support it — never invented. Rendered as a card at the top of the dashboard: focus always visible, full plan expands on tap. Degrades gracefully on sparse data.
+**Files changed:** src/lib/dailyCoach.js (new), src/lib/dailyCoach.test.js (new), src/pages/Dashboard.jsx, public/sw.js, CHANGES.md
+
+## 2026-06-29 — Coach + Weekly Insights polish
+**What was done:** (1) Daily Coach card simplified to just "Today's Focus" (greeting + focus + a recovery note only when the user's own logs warrant it); removed the expandable training/nutrition/sleep/mindset plan and the "smart call, not the soft one" wording. (2) Weekly Insights now appears ONLY on Sundays. (3) Weekly Insights is now strictly the user's own logged data — removed the generic "Trend to watch" (population "many women notice" predictions) and "Your experiment this week" (generic prescriptions); tightened the sleep line to pure logged data.
+**Files changed:** src/lib/dailyCoach.js, src/pages/Dashboard.jsx, src/components/WeeklySummary.jsx
+**Deploy note:** `netlify deploy --prod` returned Forbidden (draft deploy worked; published via `netlify api restoreSiteDeploy`). Not a code issue — likely a token-rotation/permission change on the Netlify side. Worth checking team role / new token scope.
+
+## 2026-06-30 — Symptom Coach (cycle-symptom pattern detection)
+**Why:** The "over the last months your headaches usually appear around ovulation" feature — the differentiator. Built with strict honesty rules so it only claims a pattern when the data earns it.
+**What was done:** New lib/symptomPatterns.js (pure, 9 unit tests) analyses a user's own logged symptoms and reports which cluster in a consistent part of the cycle vs which don't. Honesty gates: a symptom must be logged 4+ times across 2+ cycles, with 60%+ of occurrences in one phase window, before it's called cyclical; always hedged ("has tended to show up"), never causal, never names a condition, always "a pattern in your own data, not a diagnosis." The null result is first-class: "did not line up with your cycle — worth mentioning to your provider." Needs 14+ placed logs or it says "keep logging." Surfaced in Visit Prep as a "How my symptoms line up with my cycle" section (also included in the copy/print text). Cycle day per past log is projected from last_period_date at avg cycle length (approximate for irregular cycles — hence the hedged wording + strong-clustering requirement).
+**Files changed:** src/lib/symptomPatterns.js (new), src/lib/symptomPatterns.test.js (new), src/pages/VisitPrep.jsx
+
+## 2026-08-06 — Cross-platform wearable integration + cycle guardian
+**What was built:** One wearable integration that works on BOTH iOS (Apple Health / Apple Watch) and Android (Health Connect) via @capgo/capacitor-health. Because it reads the phone's central health store, connecting once passively covers most wearables (Oura, Apple Watch, Whoop, Fitbit, Garmin, Samsung) that sync into it. Reads overnight/basal/body temperature, resting HR, and HRV; re-reads on every app open so data keeps integrating daily. Detects ovulation from the temperature shift (3-over-6 coverline, Marshall 1968).
+**Cycle guardian:** confirmed wearable ovulation is fed back into getTodayStatus, so the phase everywhere in the app (dashboard, calendar, workout, nutrition) anchors to the body's own signal instead of the calendar — the key unlock for irregular cycles and users with no period date. Conservative: only acts on a CONFIRMED temperature shift, never touches BC/pregnancy/perimenopause, and is a complete no-op on web and for non-connected users (reads a localStorage signal that only native writes).
+**Files:** src/lib/healthkit.js (cross-platform reader), src/lib/wearableCycle.js (ovulation engine), src/lib/cycleGuardian.js (+test), src/components/HealthConnect.jsx (platform-aware connect card), src/lib/hormoneSync.js (guardian wired into getTodayStatus), android privacypolicy.html. 160 tests pass. NOT deployed to web (native only, per standing instruction).
+
+## 2026-08-06 — Wearable auto-fills the daily log (manual override wins)
+**What was built:** When a wearable is connected (iOS Apple Health / Android Health Connect), the dashboard auto-writes each day's temperature (wrist_temp), resting heart rate (resting_hr_exact), and sleep (sleep_hours) into daily_logs, so the algorithm uses them and the user never re-enters them. Today's Focus tiles show Temp / Sleep / Heart rate / Cycle live from the wearable (blank when no data that day — never faked). The auto-sync only FILLS empty fields, so a manual value typed in the Log always wins and is never overwritten. "Logged today" + streak now count manual engagement only, so a wearable-only row never fakes the streak. Not-connected users see the unchanged Energy/Sleep/Mood/Cycle tiles and log by hand.
+**Files:** src/pages/Dashboard.jsx, src/components/HealthConnect.jsx, src/lib/healthkit.js (added sleep read). Native only; no web behaviour change.

@@ -13,9 +13,24 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
     <link rel="manifest" href="/manifest.json">
+    <style>
+      /* Branded boot splash — shown for the 1-2s before the app mounts so users never see a
+         white flash. It lives inside #root, so React replaces it automatically on mount
+         (createRoot clears the container). Pure CSS, no JS — cannot break the app. */
+      html, body { margin: 0; background: #faf8f5; }
+      #boot-splash { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #faf8f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; z-index: 9999; }
+      #boot-splash .wm { font-size: 15px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: #2c2820; margin-bottom: 22px; }
+      #boot-splash .sp { width: 32px; height: 32px; border: 3px solid #ede8e0; border-top-color: #c8b89a; border-radius: 50%; animation: bootspin 0.8s linear infinite; }
+      @keyframes bootspin { to { transform: rotate(360deg); } }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div id="boot-splash">
+        <div class="wm">Em~power</div>
+        <div class="sp"></div>
+      </div>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
     <script>
       if ('serviceWorker' in navigator) {

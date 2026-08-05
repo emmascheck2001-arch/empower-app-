@@ -1,9 +1,16 @@
-// route /workout — activity picker, muscle group selector, guided workout player with timers and phase-adapted weights
+// route /workout, activity picker, muscle group selector, guided workout player with timers and phase-adapted weights
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { getTodayStatus } from '../lib/hormoneSync'
+import { getTodayStatus, parsePeriodStarts } from '../lib/hormoneSync'
+import { buildCycleDayHistory } from '../lib/cycleHistory'
+import { getProgressionTarget } from '../lib/progression'
+import { getMovementToday } from '../lib/movementToday'
+import { buildCyclePlan, weekBlocks, assignSessions, lighterSession } from '../lib/cyclePlan'
+import GoalPicker, { getFitnessGoal } from '../components/GoalPicker'
+import { track } from '../lib/analytics'
 import BottomNav from '../components/BottomNav'
+import Disclaimer from '../components/Disclaimer'
 import TopBar from '../components/TopBar'
 import Spinner from '../components/Spinner'
 
@@ -29,7 +36,7 @@ const CUSTOM_MUSCLES = ['Chest','Back','Shoulders','Biceps','Triceps','Quads','H
 
 const CARDIO_GUIDES = {
   walk: {
-    Menstrual:      { duration:'20 to 30 min', pace:'Easy, conversational', note:'Movement reduces prostaglandins, and even 10 minutes makes a measurable difference. Keep the pace gentle.', science:'Gentle walking reduces prostaglandin-driven cramping. (Daley et al. 2015)' },
+    Menstrual:      { duration:'20 to 30 min', pace:'Easy, conversational', note:'Movement eases prostaglandins, the pain-causing hormones behind cramps, and even 10 minutes makes a measurable difference. Keep the pace gentle.', science:'Gentle walking eases period cramps. (Daley et al. 2015)' },
     Follicular:     { duration:'30 to 45 min', pace:'Brisk, purposeful', note:'Rising estrogen supports endurance. Push pace. This is one of your best cardio windows.', science:'Women rely more on fat oxidation, which supports steady aerobic work. (Hamadeh et al. 2005)' },
     'Late follicular':{ duration:'40 to 60 min', pace:'Fast, interval-friendly', note:'Try tempo intervals: 3 min fast, 2 min easy, repeat.', science:'Aerobic capacity changes little across the cycle, but recovery is strong now, so it is a good window to push.' },
     Ovulatory:      { duration:'30 to 60 min', pace:'Fast or interval', note:'A strong window for speed. Consider fartlek intervals, pushing hard for 1 min then recovering for 2 min.', science:'Strength tends to be highest in the follicular and ovulatory window. Push if you feel good, since individual variation is large. (Sarwar et al. 1996; Colenso-Semple et al. 2023)' },
@@ -65,7 +72,7 @@ const CARDIO_GUIDES = {
     observation:    { duration:'25 to 40 min', pace:'Comfortable', note:'Ride to feel. Log any notes. This helps the algorithm understand your baseline capacity.', science:'Consistent moderate training supports hormonal health regardless of cycle tracking status. (Sims. ROAR 2024)' },
   },
   swim: {
-    Menstrual:      { duration:'20 to 30 min', pace:'Easy laps', note:'Cool water may reduce prostaglandin activity and ease cramps. Excellent choice during menstruation.', science:'Aquatic exercise reduces menstrual pain. Cool water may modulate prostaglandin activity. (Daley 2015)' },
+    Menstrual:      { duration:'20 to 30 min', pace:'Easy laps', note:'Cool water can ease cramps and feels good during your period. An excellent choice right now.', science:'Aquatic exercise reduces menstrual pain. (Daley 2015)' },
     Follicular:     { duration:'30 to 45 min', pace:'Build sets', note:'Great time for intervals, like 50m hard then 50m easy. Your recovery between sets will be faster this week.', science:'Recovery between sets is strong in the follicular phase; train to feel. (Kissow 2022)' },
     'Late follicular':{ duration:'30 to 50 min', pace:'Hard sets', note:'Strong window for speed and threshold sets, since your recovery between sets is excellent now.', science:'Recovery is strong in the late follicular phase; capacity varies little across the cycle, so train to feel.' },
     Ovulatory:      { duration:'30 to 50 min', pace:'Speed sets', note:'A strong window for hard efforts. Sprint intervals in the pool. Try 25m all-out with 60s rest, repeated 6 to 8 times.', science:'Strength tends to be highest in the follicular and ovulatory window. Push if you feel good, since individual variation is large. (Sarwar et al. 1996; Colenso-Semple et al. 2023)' },
@@ -79,52 +86,52 @@ const CARDIO_GUIDES = {
 }
 
 const WARMUP_MOVES = {
-  Menstrual:      ['Hip circles — 30 seconds each direction', 'Cat-cow — 10 reps', 'Bodyweight squat — 15 reps, slow', 'Arm circles and shoulder rolls — 30 seconds', 'Glute bridge — 15 reps', 'Leg swings — 10 each side'],
-  Follicular:     ['Hip circles — 30 seconds', 'Leg swings front and back — 10 each side', 'Inchworm to push-up — 5 reps', 'Lateral lunge — 8 each side', 'Arm circles — 30 seconds', 'Jump squat — 10 reps (light)'],
-  'Late follicular':['Dynamic lunge with reach — 8 each side', 'Hip circles — 30 seconds', 'Band walk — 15 each direction', 'Push-up — 10 reps', 'Leg swing — 10 each side', 'Light squat jump — 10 reps'],
-  Ovulatory:      ['Hip circles — 30 seconds', 'Leg swings — 10 each side', 'Lateral band walk — 20 each direction', 'Dynamic lunge with reach — 8 each side', 'Glute bridge — 15 reps', 'Bodyweight squat — 12 reps', 'Inchworm to push-up — 5 reps', 'Jump squat — 8 reps (last, after full prep)'],
-  'Early luteal': ['Cat-cow — 10 reps', 'Hip circles — 30 seconds', 'Bodyweight squat — 15 reps', 'Glute bridge — 15 reps', 'Shoulder circles — 30 seconds', 'Light lateral lunge — 8 each side'],
-  'Mid luteal':   ['Cat-cow — 10 reps slow', 'Hip circles — 30 seconds', 'Glute bridge — 15 reps', 'Arm circles — 30 seconds', 'Bodyweight squat — 10 reps slow', 'Deep breathing — 5 slow breaths'],
-  'Late luteal':  ['Cat-cow — 10 reps', 'Hip circles — 30 seconds', 'Glute bridge — 15 reps gentle', 'Arm swing — 30 seconds', 'Slow bodyweight squat — 10 reps', 'Child\'s pose — 30 seconds'],
-  Luteal:         ['Hip circles — 30 seconds', 'Cat-cow — 10 reps', 'Glute bridge — 15 reps', 'Arm circles — 30 seconds', 'Lateral lunge — 6 each side', 'Light jump — 10 small hops'],
-  Perimenopause:  ['Hip circles — 30 seconds', 'Cat-cow — 10 reps', 'Glute bridge — 15 reps', 'Lateral band walk — 15 each direction', 'Arm circles — 30 seconds', 'Balance stand — 20 seconds each leg'],
-  observation:    ['Hip circles — 30 seconds', 'Cat-cow — 10 reps', 'Bodyweight squat — 12 reps', 'Arm circles — 30 seconds', 'Glute bridge — 12 reps', 'Leg swing — 8 each side'],
+  Menstrual:      ['Hip circles, 30 seconds each direction', 'Cat-cow, 10 reps', 'Bodyweight squat, 15 reps, slow', 'Arm circles and shoulder rolls, 30 seconds', 'Glute bridge, 15 reps', 'Leg swings, 10 each side'],
+  Follicular:     ['Hip circles, 30 seconds', 'Leg swings front and back, 10 each side', 'Inchworm to push-up, 5 reps', 'Lateral lunge, 8 each side', 'Arm circles, 30 seconds', 'Jump squat, 10 reps (light)'],
+  'Late follicular':['Dynamic lunge with reach, 8 each side', 'Hip circles, 30 seconds', 'Band walk, 15 each direction', 'Push-up, 10 reps', 'Leg swing, 10 each side', 'Light squat jump, 10 reps'],
+  Ovulatory:      ['Hip circles, 30 seconds', 'Leg swings, 10 each side', 'Lateral band walk, 20 each direction', 'Dynamic lunge with reach, 8 each side', 'Glute bridge, 15 reps', 'Bodyweight squat, 12 reps', 'Inchworm to push-up, 5 reps', 'Jump squat, 8 reps (last, after full prep)'],
+  'Early luteal': ['Cat-cow, 10 reps', 'Hip circles, 30 seconds', 'Bodyweight squat, 15 reps', 'Glute bridge, 15 reps', 'Shoulder circles, 30 seconds', 'Light lateral lunge, 8 each side'],
+  'Mid luteal':   ['Cat-cow, 10 reps slow', 'Hip circles, 30 seconds', 'Glute bridge, 15 reps', 'Arm circles, 30 seconds', 'Bodyweight squat, 10 reps slow', 'Deep breathing, 5 slow breaths'],
+  'Late luteal':  ['Cat-cow, 10 reps', 'Hip circles, 30 seconds', 'Glute bridge, 15 reps gentle', 'Arm swing, 30 seconds', 'Slow bodyweight squat, 10 reps', 'Child\'s pose, 30 seconds'],
+  Luteal:         ['Hip circles, 30 seconds', 'Cat-cow, 10 reps', 'Glute bridge, 15 reps', 'Arm circles, 30 seconds', 'Lateral lunge, 6 each side', 'Light jump, 10 small hops'],
+  Perimenopause:  ['Hip circles, 30 seconds', 'Cat-cow, 10 reps', 'Glute bridge, 15 reps', 'Lateral band walk, 15 each direction', 'Arm circles, 30 seconds', 'Balance stand, 20 seconds each leg'],
+  observation:    ['Hip circles, 30 seconds', 'Cat-cow, 10 reps', 'Bodyweight squat, 12 reps', 'Arm circles, 30 seconds', 'Glute bridge, 12 reps', 'Leg swing, 8 each side'],
 }
 
 const YOGA_SEQUENCES = {
-  Menstrual:      ['Supported child\'s pose — hold 2 minutes', 'Reclined butterfly — hold 90 seconds', 'Cat-cow — 10 slow breath cycles', 'Supine twist — 90 seconds each side', 'Legs up the wall — hold 3 minutes', 'Savasana — 5 minutes'],
-  Follicular:     ['Cat-cow warm-up — 10 cycles', 'Sun salutation A — 3 rounds', 'Warrior I — 5 breaths each side', 'Warrior II — 5 breaths each side', 'Triangle pose — 5 breaths each side', 'Downward dog — 1 minute', 'Pigeon pose — 90 seconds each side', 'Savasana — 5 minutes'],
-  Ovulatory:      ['Sun salutation A — 5 rounds', 'Warrior I and II flow — 3 rounds', 'Dancer\'s pose — 5 breaths each side', 'Side plank — 30 seconds each side', 'Camel pose — 5 breaths', 'Seated forward fold — 1 minute', 'Supine twist — 1 minute each side', 'Savasana — 5 minutes'],
-  'Early luteal': ['Cat-cow — 10 cycles', 'Crescent lunge — 5 breaths each side', 'Tree pose — 5 breaths each side', 'Seated twist — 5 breaths each side', 'Yin dragon pose — 2 minutes each side', 'Child\'s pose — 2 minutes', 'Savasana — 5 minutes'],
-  'Mid luteal':   ['Gentle cat-cow — 10 cycles', 'Supported child\'s pose — 2 minutes', 'Supine knee to chest — 1 minute each side', 'Reclined butterfly — 2 minutes', 'Legs up the wall — 3 minutes', 'Savasana — 5 minutes'],
-  'Late luteal':  ['Child\'s pose — 2 minutes', 'Gentle cat-cow — 10 cycles', 'Yin forward fold — 2 minutes', 'Reclined spinal twist — 2 minutes each side', 'Supported bridge — 2 minutes', 'Legs up the wall — 3 minutes', 'Savasana — 5 minutes'],
-  Luteal:         ['Cat-cow — 10 cycles', 'Supported child\'s pose — 2 minutes', 'Hip flexor lunge — 90 seconds each side', 'Seated forward fold — 90 seconds', 'Supine twist — 90 seconds each side', 'Legs up the wall — 3 minutes', 'Savasana — 5 minutes'],
-  Perimenopause:  ['Cat-cow — 10 cycles', 'Sun salutation A — 2 rounds, slow', 'Warrior I — 5 breaths each side', 'Balance tree pose — 5 breaths each side', 'Seated forward fold — 2 minutes', 'Supine twist — 90 seconds each side', 'Savasana — 5 minutes'],
-  observation:    ['Cat-cow — 10 cycles', 'Downward dog — 1 minute', 'Warrior I — 5 breaths each side', 'Seated forward fold — 90 seconds', 'Supine twist — 90 seconds each side', 'Legs up the wall — 2 minutes', 'Savasana — 5 minutes'],
+  Menstrual:      ['Supported child\'s pose, hold 2 minutes', 'Reclined butterfly, hold 90 seconds', 'Cat-cow, 10 slow breath cycles', 'Supine twist, 90 seconds each side', 'Legs up the wall, hold 3 minutes', 'Savasana, 5 minutes'],
+  Follicular:     ['Cat-cow warm-up, 10 cycles', 'Sun salutation A, 3 rounds', 'Warrior I, 5 breaths each side', 'Warrior II, 5 breaths each side', 'Triangle pose, 5 breaths each side', 'Downward dog, 1 minute', 'Pigeon pose, 90 seconds each side', 'Savasana, 5 minutes'],
+  Ovulatory:      ['Sun salutation A, 5 rounds', 'Warrior I and II flow, 3 rounds', 'Dancer\'s pose, 5 breaths each side', 'Side plank, 30 seconds each side', 'Camel pose, 5 breaths', 'Seated forward fold, 1 minute', 'Supine twist, 1 minute each side', 'Savasana, 5 minutes'],
+  'Early luteal': ['Cat-cow, 10 cycles', 'Crescent lunge, 5 breaths each side', 'Tree pose, 5 breaths each side', 'Seated twist, 5 breaths each side', 'Yin dragon pose, 2 minutes each side', 'Child\'s pose, 2 minutes', 'Savasana, 5 minutes'],
+  'Mid luteal':   ['Gentle cat-cow, 10 cycles', 'Supported child\'s pose, 2 minutes', 'Supine knee to chest, 1 minute each side', 'Reclined butterfly, 2 minutes', 'Legs up the wall, 3 minutes', 'Savasana, 5 minutes'],
+  'Late luteal':  ['Child\'s pose, 2 minutes', 'Gentle cat-cow, 10 cycles', 'Yin forward fold, 2 minutes', 'Reclined spinal twist, 2 minutes each side', 'Supported bridge, 2 minutes', 'Legs up the wall, 3 minutes', 'Savasana, 5 minutes'],
+  Luteal:         ['Cat-cow, 10 cycles', 'Supported child\'s pose, 2 minutes', 'Hip flexor lunge, 90 seconds each side', 'Seated forward fold, 90 seconds', 'Supine twist, 90 seconds each side', 'Legs up the wall, 3 minutes', 'Savasana, 5 minutes'],
+  Perimenopause:  ['Cat-cow, 10 cycles', 'Sun salutation A, 2 rounds, slow', 'Warrior I, 5 breaths each side', 'Balance tree pose, 5 breaths each side', 'Seated forward fold, 2 minutes', 'Supine twist, 90 seconds each side', 'Savasana, 5 minutes'],
+  observation:    ['Cat-cow, 10 cycles', 'Downward dog, 1 minute', 'Warrior I, 5 breaths each side', 'Seated forward fold, 90 seconds', 'Supine twist, 90 seconds each side', 'Legs up the wall, 2 minutes', 'Savasana, 5 minutes'],
 }
 
 const PILATES_SEQUENCES = {
-  Menstrual:      ['Pelvic tilts — 15 reps, gentle', 'Knee folds — 10 each side', 'Supine leg circles — 8 each direction each side', 'Single knee hug — 30 seconds each side', 'Shell stretch — hold 60 seconds', 'Roll-down against wall — 5 slow reps'],
-  Follicular:     ['Hundred — full 100 breaths', 'Roll-up — 8 reps', 'Single leg circles — 8 each direction each side', 'Rolling like a ball — 10 reps', 'Single leg stretch — 10 alternating', 'Criss-cross — 10 alternating', 'Plank hold — 30 seconds', 'Mermaid stretch — 60 seconds each side'],
-  Ovulatory:      ['Hundred — 100 breaths, vigorous', 'Roll-up — 8 reps', 'Double leg stretch — 10 reps', 'Criss-cross — 15 alternating', 'Side kick series — 10 each side', 'Swimming — 30 seconds', 'Side plank — 30 seconds each side', 'Plank — 45 seconds'],
-  'Early luteal': ['Hundred — 80 breaths', 'Roll-up — 6 reps', 'Spine stretch forward — 8 reps', 'Single leg stretch — 10 alternating', 'Hip circles — 8 each direction', 'Mermaid stretch — 60 seconds each side', 'Shell stretch — 60 seconds'],
-  'Mid luteal':   ['Pelvic tilts — 15 reps', 'Knee folds — 10 each side', 'Modified hundred — 60 breaths', 'Spine stretch — 8 reps', 'Hip circles — 8 each direction', 'Mermaid stretch — 90 seconds each side', 'Shell stretch — 90 seconds'],
-  'Late luteal':  ['Pelvic tilts — 12 reps, slow', 'Cat stretch — 10 cycles', 'Knee folds — 10 each side', 'Side lying leg lift — 12 each side', 'Mermaid stretch — 2 minutes each side', 'Shell stretch — 2 minutes'],
-  Luteal:         ['Hundred — 80 breaths', 'Roll-up — 6 reps', 'Single leg circles — 8 each direction', 'Spine stretch — 8 reps', 'Side kick — 10 each side', 'Mermaid — 90 seconds each side', 'Shell stretch — 90 seconds'],
-  Perimenopause:  ['Hundred — 80 breaths', 'Roll-up — 6 reps', 'Spine stretch — 8 reps', 'Side kick series — 10 each side', 'Plank — 30 seconds', 'Swimming — 20 seconds', 'Mermaid stretch — 90 seconds each side'],
-  observation:    ['Hundred — 80 breaths', 'Roll-up — 8 reps', 'Single leg stretch — 10 alternating', 'Criss-cross — 10 alternating', 'Spine stretch — 8 reps', 'Mermaid stretch — 60 seconds each side', 'Shell stretch — 60 seconds'],
+  Menstrual:      ['Pelvic tilts, 15 reps, gentle', 'Knee folds, 10 each side', 'Supine leg circles, 8 each direction each side', 'Single knee hug, 30 seconds each side', 'Shell stretch, hold 60 seconds', 'Roll-down against wall, 5 slow reps'],
+  Follicular:     ['Hundred, full 100 breaths', 'Roll-up, 8 reps', 'Single leg circles, 8 each direction each side', 'Rolling like a ball, 10 reps', 'Single leg stretch, 10 alternating', 'Criss-cross, 10 alternating', 'Plank hold, 30 seconds', 'Mermaid stretch, 60 seconds each side'],
+  Ovulatory:      ['Hundred, 100 breaths, vigorous', 'Roll-up, 8 reps', 'Double leg stretch, 10 reps', 'Criss-cross, 15 alternating', 'Side kick series, 10 each side', 'Swimming, 30 seconds', 'Side plank, 30 seconds each side', 'Plank, 45 seconds'],
+  'Early luteal': ['Hundred, 80 breaths', 'Roll-up, 6 reps', 'Spine stretch forward, 8 reps', 'Single leg stretch, 10 alternating', 'Hip circles, 8 each direction', 'Mermaid stretch, 60 seconds each side', 'Shell stretch, 60 seconds'],
+  'Mid luteal':   ['Pelvic tilts, 15 reps', 'Knee folds, 10 each side', 'Modified hundred, 60 breaths', 'Spine stretch, 8 reps', 'Hip circles, 8 each direction', 'Mermaid stretch, 90 seconds each side', 'Shell stretch, 90 seconds'],
+  'Late luteal':  ['Pelvic tilts, 12 reps, slow', 'Cat stretch, 10 cycles', 'Knee folds, 10 each side', 'Side lying leg lift, 12 each side', 'Mermaid stretch, 2 minutes each side', 'Shell stretch, 2 minutes'],
+  Luteal:         ['Hundred, 80 breaths', 'Roll-up, 6 reps', 'Single leg circles, 8 each direction', 'Spine stretch, 8 reps', 'Side kick, 10 each side', 'Mermaid, 90 seconds each side', 'Shell stretch, 90 seconds'],
+  Perimenopause:  ['Hundred, 80 breaths', 'Roll-up, 6 reps', 'Spine stretch, 8 reps', 'Side kick series, 10 each side', 'Plank, 30 seconds', 'Swimming, 20 seconds', 'Mermaid stretch, 90 seconds each side'],
+  observation:    ['Hundred, 80 breaths', 'Roll-up, 8 reps', 'Single leg stretch, 10 alternating', 'Criss-cross, 10 alternating', 'Spine stretch, 8 reps', 'Mermaid stretch, 60 seconds each side', 'Shell stretch, 60 seconds'],
 }
 
-// Simple how-to descriptions for warmup exercises — matched by move name prefix
+// Simple how-to descriptions for warmup exercises, matched by move name prefix
 const WARMUP_DESCRIPTIONS = {
-  'Hip circles':               'Stand feet shoulder-width, hands on hips. Rotate your hips in a wide circle — 30 seconds one direction, then reverse. Keep your upper body still and let the movement come entirely from your hips.',
+  'Hip circles':               'Stand feet shoulder-width, hands on hips. Rotate your hips in a wide circle, 30 seconds one direction, then reverse. Keep your upper body still and let the movement come entirely from your hips.',
   'Cat-cow':                   'On hands and knees, wrists under shoulders, knees under hips. Inhale and drop your belly toward the floor, lift your head and tailbone (cow). Exhale and round your spine upward, tuck chin and tailbone (cat). Move slowly with your breath.',
   'Bodyweight squat':          'Stand feet shoulder-width, toes slightly out. Lower your hips back and down as if sitting into a chair. Keep chest up, knees tracking over toes, heels flat. Drive through heels to stand.',
   'Slow bodyweight squat':     'Same as a bodyweight squat but take 3 to 4 seconds on the way down. Focus on keeping your knees tracking over your toes the whole way.',
   'Light squat jump':          'Squat down to about half depth, then drive through your heels for a small jump. Land softly with bent knees, absorbing impact through your legs. Keep it light during warmup.',
   'Jump squat':                'Squat down, then drive through your heels to jump off the ground. Land softly with bent knees. Go lighter and lower than a working squat to protect your joints.',
   'Arm circles':               'Stand tall with arms extended out to your sides. Make 10 small circles forward, then 10 large circles forward. Reverse direction. Keep shoulders relaxed and down.',
-  'Shoulder circles':          'Roll both shoulders backward in a slow circle 10 times, then forward 10 times. Focus on the full range — up, back, down, forward.',
+  'Shoulder circles':          'Roll both shoulders backward in a slow circle 10 times, then forward 10 times. Focus on the full range: up, back, down, forward.',
   'Arm swing':                 'Stand feet shoulder-width. Swing both arms across your chest then open them wide, rotating your torso with the swing. Keep a soft bend in your knees.',
   'Arm swing and rotation':    'Stand feet shoulder-width. Swing both arms across your chest then open them wide, rotating your torso with the swing. Keep a soft bend in your knees.',
   'Glute bridge':              'Lie on your back, knees bent, feet hip-width, arms at sides. Press heels into the floor and lift your hips until your body forms a straight line from knees to shoulders. Squeeze glutes at the top, hold one second, then lower slowly.',
@@ -148,13 +155,13 @@ const WARMUP_DESCRIPTIONS = {
 const YOGA_DESCRIPTIONS = {
   'Supported child\'s pose':    'Kneel and sit back toward your heels, then fold forward with arms extended or resting alongside your body. Place a pillow under your torso or forehead for support. Let your lower back and hips completely release. Breathe slowly into your back body.',
   'Child\'s pose':              'Kneel and sit back on your heels, then fold forward with arms extended. Let your forehead rest on the mat. Breathe slowly and let your lower back and hips relax completely.',
-  'Reclined butterfly':         'Lie on your back and bring the soles of your feet together, letting your knees fall out to the sides. Place one hand on your chest and one on your belly. Close your eyes and breathe — this pose gently opens the inner thighs and hips.',
+  'Reclined butterfly':         'Lie on your back and bring the soles of your feet together, letting your knees fall out to the sides. Place one hand on your chest and one on your belly. Close your eyes and breathe. This pose gently opens the inner thighs and hips.',
   'Cat-cow':                    'On hands and knees, wrists under shoulders, knees under hips. Inhale and drop your belly toward the floor, lift your head and tailbone (cow). Exhale and round your spine upward, tuck chin and tailbone (cat). Move slowly with your breath.',
   'Gentle cat-cow':             'Same as cat-cow but with a smaller range of motion. Move only as far as feels comfortable with no tension in your low back.',
   'Supine twist':               'Lie on your back. Draw one knee to your chest, then guide it across your body to the opposite side, letting your hips rotate. Extend that arm out to the side. Keep both shoulders on the mat. Stay for the full time, then switch sides.',
   'Reclined spinal twist':      'Lie on your back. Draw one knee to your chest, then guide it across your body to the opposite side, letting your hips rotate. Extend that arm out to the side. Keep both shoulders on the mat. Stay for the full time, then switch sides.',
-  'Legs up the wall':           'Sit with one hip touching a wall, then swing your legs up and lie back, resting your legs straight up the wall. Arms relax at your sides. This is one of the most restorative poses — it reverses blood flow and calms the nervous system.',
-  'Savasana':                   'Lie flat on your back, arms slightly away from your sides, palms facing up. Close your eyes and let your body become completely still. This is not sleep — it is conscious rest. Let the practice integrate.',
+  'Legs up the wall':           'Sit with one hip touching a wall, then swing your legs up and lie back, resting your legs straight up the wall. Arms relax at your sides. This is one of the most restorative poses. It reverses blood flow and calms the nervous system.',
+  'Savasana':                   'Lie flat on your back, arms slightly away from your sides, palms facing up. Close your eyes and let your body become completely still. This is not sleep, it is conscious rest. Let the practice integrate.',
   'Sun salutation A':           'A flowing sequence: standing mountain pose, arms up, forward fold, half lift, step back to plank, lower through chaturanga, upward dog, downward dog, step forward, half lift, fold, arms up, stand. Move with your breath. Inhale to extend, exhale to fold.',
   'Warrior I':                  'Step one foot back about a metre. Back foot turns out 45 degrees, front knee bends to 90 degrees and tracks over the ankle. Hips square forward. Arms rise overhead. Gaze forward or up. Press through the outer edge of the back foot.',
   'Warrior II':                 'Feet wide apart, front foot points forward, back foot turns out. Front knee bends to 90 degrees tracking over the ankle. Arms extend parallel to the floor in opposite directions. Gaze over your front middle finger. Sink your hips.',
@@ -165,12 +172,12 @@ const YOGA_DESCRIPTIONS = {
   'Side plank':                 'From a plank, rotate onto one hand and the outer edge of that foot, stacking feet or placing the lower knee down. Lift your hips to form a straight line. Top arm reaches up. Hold steady, then switch sides.',
   'Camel pose':                 'Kneel with knees hip-width, thighs vertical. Place hands on your lower back for support. Gently arch back, opening your chest upward. If comfortable, reach back to hold your heels. Keep your hips directly over your knees.',
   'Seated forward fold':        'Sit with legs extended. Hinge from your hips and reach toward your feet, holding your shins, ankles, or feet. Keep your spine long rather than rounding. Breathe into your hamstrings and let them gradually release.',
-  'Yin forward fold':           'Sit with legs extended. Let gravity do the work — release all muscular effort and round forward passively. Support your forehead on a pillow if needed. Stay completely passive for the full hold.',
+  'Yin forward fold':           'Sit with legs extended. Let gravity do the work. Release all muscular effort and round forward passively. Support your forehead on a pillow if needed. Stay completely passive for the full hold.',
   'Crescent lunge':             'Step one foot forward into a lunge, back knee on the mat. Press your hips down and forward until you feel a stretch in the front of the back hip. Raise both arms overhead and lift your chest. Hold for the set time, then switch sides.',
-  'Tree pose':                  'Stand on one foot. Place the sole of the other foot on your inner calf or inner thigh — not directly on the knee. Hands at heart or arms overhead. Fix your gaze on a still point to help with balance.',
-  'Balance tree pose':          'Stand on one foot. Place the sole of the other foot on your inner calf or inner thigh — not directly on the knee. Hands at heart or arms overhead. Fix your gaze on a still point to help with balance. Balance training is especially valuable for long-term health.',
+  'Tree pose':                  'Stand on one foot. Place the sole of the other foot on your inner calf or inner thigh, not directly on the knee. Hands at heart or arms overhead. Fix your gaze on a still point to help with balance.',
+  'Balance tree pose':          'Stand on one foot. Place the sole of the other foot on your inner calf or inner thigh, not directly on the knee. Hands at heart or arms overhead. Fix your gaze on a still point to help with balance. Balance training is especially valuable for long-term health.',
   'Seated twist':               'Sit tall with legs crossed or extended. Place one hand on the opposite knee and the other hand behind you. On an exhale, rotate your spine in the direction of your back hand. Keep your spine long rather than collapsing. Switch sides.',
-  'Yin dragon pose':            'Step one foot forward between your hands and lower the back knee to the mat. Walk the front foot out slightly wider than the hip. Lower both forearms to the mat inside the front foot. Let your hips sink toward the floor. This is an intense hip opener — stay passive and breathe.',
+  'Yin dragon pose':            'Step one foot forward between your hands and lower the back knee to the mat. Walk the front foot out slightly wider than the hip. Lower both forearms to the mat inside the front foot. Let your hips sink toward the floor. This is an intense hip opener, stay passive and breathe.',
   'Supported bridge':           'Lie on your back, knees bent, feet hip-width. Press into your feet and lift your hips. Place a yoga block or firm pillow under your sacrum (the flat bone at the base of your spine) and let your weight rest on the support. This is passive and deeply restorative.',
   'Hip flexor lunge':           'Step one foot forward into a lunge, back knee on the mat. Tuck your tailbone under slightly and gently press your hips forward until you feel the stretch in the front of the back hip. Hold for the set time, then switch sides.',
 }
@@ -178,13 +185,13 @@ const YOGA_DESCRIPTIONS = {
 const PILATES_DESCRIPTIONS = {
   'Pelvic tilts':               'Lie on your back, knees bent, feet flat. Gently flatten your lower back against the mat by tilting your pelvis, then release back to neutral. This is a small, controlled movement. Focus on engaging your deep abdominal muscles rather than using momentum.',
   'Knee folds':                 'Lie on your back, knees bent, feet flat. Keeping your core engaged and your back still, lift one foot off the mat and bring the knee toward your chest without letting your pelvis tilt. Lower and alternate. This builds deep core stability.',
-  'Supine leg circles':         'Lie on your back. Lift one leg toward the ceiling. Draw small circles in the air with your foot — the movement comes from the hip socket, not the knee. Keep your core engaged and your pelvis completely still on the mat.',
+  'Supine leg circles':         'Lie on your back. Lift one leg toward the ceiling. Draw small circles in the air with your foot. The movement comes from the hip socket, not the knee. Keep your core engaged and your pelvis completely still on the mat.',
   'Single knee hug':            'Lie on your back and draw one knee into your chest with both hands. Keep the other leg extended or slightly raised. Hold for the set time. This gently releases the low back and hip flexor.',
   'Shell stretch':              'Kneel and sit back on your heels, then fold forward completely with arms alongside your body, palms up. Let your spine round fully. This is the Pilates version of child\'s pose, a complete release.',
   'Roll-down against wall':     'Stand with your back against a wall, heels a few centimetres away. Tuck your chin, then slowly peel your spine away from the wall one vertebra at a time until you are hanging forward. Then slowly re-stack each vertebra back to the wall on the way up.',
-  'Hundred':                    'Lie on your back. Lift your head, shoulders, and legs to a low hover. Arms hover just above the mat alongside your body. Pump your arms in a small, controlled pulsing motion — 5 counts inhale, 5 counts exhale. One hundred total arm pumps. Modify by keeping knees bent if your lower back lifts off the mat.',
+  'Hundred':                    'Lie on your back. Lift your head, shoulders, and legs to a low hover. Arms hover just above the mat alongside your body. Pump your arms in a small, controlled pulsing motion, 5 counts inhale, 5 counts exhale. One hundred total arm pumps. Modify by keeping knees bent if your lower back lifts off the mat.',
   'Roll-up':                    'Lie flat, arms overhead. Inhale to prepare, then exhale and slowly peel your spine off the mat one vertebra at a time, reaching toward your feet. Inhale at the top. Exhale to roll back down slowly, controlling each vertebra. Never use momentum.',
-  'Single leg circles':         'Lie on your back, one leg extended to the ceiling. Draw a circle with your whole leg from the hip socket — clockwise, then counterclockwise. Keep the circle small enough that your pelvis stays completely still on the mat.',
+  'Single leg circles':         'Lie on your back, one leg extended to the ceiling. Draw a circle with your whole leg from the hip socket, clockwise, then counterclockwise. Keep the circle small enough that your pelvis stays completely still on the mat.',
   'Rolling like a ball':        'Sit with knees drawn to your chest, hands holding your shins, feet hovering. Rock back onto your shoulder blades on an exhale, then inhale to roll back up to balance. Never roll onto your neck. Keep the shape compact throughout.',
   'Single leg stretch':         'Lie on your back, head and shoulders lifted. Draw one knee to your chest while the other leg extends out at a low diagonal. Switch legs with a quick, controlled alternating pulse. Exhale for every 2 switches.',
   'Criss-cross':                'Lie on your back, hands behind your head, legs in tabletop. Rotate your upper body, bringing one elbow toward the opposite knee while the other leg extends. Alternate sides in a controlled, deliberate rhythm. Do not pull on your neck.',
@@ -192,15 +199,15 @@ const PILATES_DESCRIPTIONS = {
   'Plank hold':                 'From hands and knees, extend your legs back one at a time, balancing on your hands and toes. Body forms a straight line from head to heels. Engage your core, squeeze your glutes lightly, breathe steadily. Modify on your knees if needed.',
   'Plank':                      'From hands and knees, extend your legs back one at a time, balancing on your hands and toes. Body forms a straight line from head to heels. Engage your core, squeeze your glutes lightly, breathe steadily.',
   'Modified hundred':           'Same as the Hundred but with knees bent and feet on the mat, reducing the load on your lower back. Focus on the breath rhythm and the deep abdominal connection rather than the intensity.',
-  'Spine stretch forward':      'Sit tall with legs extended wide apart. Inhale to prepare, then exhale and reach your arms forward as you round your spine forward and down, drawing your navel in. Inhale to sit back up. This is a flexion exercise — keep it slow and controlled.',
+  'Spine stretch forward':      'Sit tall with legs extended wide apart. Inhale to prepare, then exhale and reach your arms forward as you round your spine forward and down, drawing your navel in. Inhale to sit back up. This is a flexion exercise, keep it slow and controlled.',
   'Spine stretch':              'Sit tall with legs extended wide apart. Inhale to prepare, then exhale and reach your arms forward as you round your spine forward and down, drawing your navel in. Inhale to sit back up.',
-  'Hip circles':                'Sit in Pilates V position with hands behind you for support. Lift your legs slightly. Draw circles with your knees — first one direction, then the other. Keep your torso as still as possible. The movement comes from your hips.',
+  'Hip circles':                'Sit in Pilates V position with hands behind you for support. Lift your legs slightly. Draw circles with your knees, first one direction, then the other. Keep your torso as still as possible. The movement comes from your hips.',
   'Mermaid stretch':            'Sit with your legs folded to one side. Reach the top arm up and over toward the opposite side, creating a long side stretch. Hold for the set time. Switch sides. Keep both sitting bones on the mat.',
   'Side kick series':           'Lie on your side, body in one straight line. Lift the top leg to hip height. Kick it forward with a pointed toe, then sweep it back with a flexed foot. Keep your core engaged so your torso stays completely still throughout.',
   'Swimming':                   'Lie on your stomach, arms extended overhead. Simultaneously lift your arms, chest, and legs slightly off the mat. Flutter your opposite arm and leg in small alternating pulses, as if swimming. Inhale for 5 counts, exhale for 5. Keep your neck long.',
   'Side plank':                 'From a plank, rotate onto one hand and the outer edge of that foot, or lower the bottom knee for support. Lift your hips to form a straight line. Top arm reaches up. Hold steady, then switch sides.',
   'Cat stretch':                'On hands and knees, wrists under shoulders, knees under hips. Round your spine upward fully on an exhale (like an angry cat). Hold for a breath, then slowly release back to neutral. Repeat. This releases the low back and activates deep abdominals.',
-  'Side lying leg lift':        'Lie on your side with your body in a straight line. Stack your hips and keep your core engaged. Lift the top leg to just above hip height on an exhale, then lower slowly on an inhale. Keep your pelvis completely still — only the leg moves.',
+  'Side lying leg lift':        'Lie on your side with your body in a straight line. Stack your hips and keep your core engaged. Lift the top leg to just above hip height on an exhale, then lower slowly on an inhale. Keep your pelvis completely still, only the leg moves.',
   'Modified push-up on knees':  'Hands shoulder-width, knees on the mat, body in a straight line from knees to head. Lower your chest toward the floor, elbows at 45 degrees from your body. Press back up.',
 }
 
@@ -221,8 +228,8 @@ const HIIT_ROUNDS = {
 // options for menstrual/luteal phases; explosive options for follicular/ovulatory.
 const HIIT_POOL = {
   Menstrual:        ['Heel taps','Standing oblique crunch','Slow reverse lunge','Bird-dog','Toe-touch march'],
-  Follicular:       ['Skater hops','Reverse lunge to knee drive','Plank shoulder taps','Speed squat','Tuck jump — low'],
-  'Late follicular':['Squat to press','Broad jump — controlled','Burpee to tuck','Plank jack','Speed mountain climber'],
+  Follicular:       ['Skater hops','Reverse lunge to knee drive','Plank shoulder taps','Speed squat','Tuck jump, low'],
+  'Late follicular':['Squat to press','Broad jump, controlled','Burpee to tuck','Plank jack','Speed mountain climber'],
   Ovulatory:        ['Squat to press','Broad jump','Burpee to tuck','Skater bound','Plank jack','Speed mountain climber'],
   'Early luteal':   ['Reverse lunge','Plank shoulder taps','Speed squat','Step-up','Skater step'],
   'Mid luteal':     ['Step-up','Slow reverse lunge','Bird-dog','Glute bridge march','Standing side crunch'],
@@ -241,8 +248,9 @@ function getSvgType(name) {
   if (n.includes('squat') || n.includes('goblet')) return 'squat'
   if (n.includes('leg press')) return 'legpress'
   if (n.includes('deadlift')) return 'hinge'
-  if (n.includes('lateral raise')) return 'lateralraise'
-  if (n.includes('bench press') || n.includes('push-up') || n.includes('incline')) return 'push'
+  if (n.includes('lateral raise') || n.includes('rear delt') || (n.includes('fly') && !n.includes('chest')) || n.includes('front raise')) return 'lateralraise'
+  if (n.includes('pulldown')) return 'pullup'
+  if (n.includes('bench press') || n.includes('push-up') || (n.includes('incline') && !n.includes('curl')) || n.includes('chest press') || n.includes('chest fly')) return 'push'
   if (n.includes('face pull') || n.includes('pull-apart')) return 'facepull'
   if (n.includes('row') && !n.includes('pull')) return 'row'
   if (n.includes('overhead press') || n.includes('shoulder press')) return 'press'
@@ -254,7 +262,7 @@ function getSvgType(name) {
   if (n.includes('dip')) return 'dip'
   if (n.includes('curl') && !n.includes('calf')) return 'curl'
   if (n.includes('leg raise') || n.includes('hanging')) return 'legraise'
-  if (n.includes('plank')) return 'plank'
+  if (n.includes('plank') || n.includes('crunch') || n.includes('dead bug') || n.includes('twist') || n.includes('bicycle') || n.includes('mountain climber')) return 'plank'
   if (n.includes('calf')) return 'calf'
   return 'stand'
 }
@@ -278,7 +286,8 @@ function getMuscles(name) {
   if (n.includes('glute bridge')) return 'Glutes, hamstrings'
   if (n.includes('leg press')) return 'Quads, glutes'
   if (n.includes('leg curl')) return 'Hamstrings'
-  if (n.includes('bicep curl') || (n.includes('curl') && !n.includes('calf'))) return 'Biceps'
+  if (n.includes('nordic')) return 'Hamstrings'
+  if (n.includes('bicep curl') || (n.includes('curl') && !n.includes('calf') && !n.includes('nordic') && !n.includes('leg curl'))) return 'Biceps'
   if (n.includes('tricep')) return 'Triceps'
   if (n.includes('dip')) return 'Triceps, chest'
   if (n.includes('pull-up') || n.includes('pull up')) return 'Back, biceps'
@@ -288,6 +297,15 @@ function getMuscles(name) {
   if (n.includes('leg raise') || n.includes('hanging')) return 'Abs, core, hip flexors'
   if (n.includes('band pull-apart')) return 'Rear delts, rotator cuff'
   if (n.includes('incline')) return 'Upper chest, triceps, front delts'
+  if (n.includes('rear delt')) return 'Rear delts'
+  if (n.includes('front raise')) return 'Front delts'
+  if (n.includes('upright row')) return 'Shoulders, traps'
+  if (n.includes('chest press') || n.includes('chest fly')) return 'Chest, triceps, front delts'
+  if (n.includes('pulldown')) return 'Back, lats'
+  if (n.includes('pushdown')) return 'Triceps'
+  if (n.includes('crunch') || n.includes('dead bug') || n.includes('twist') || n.includes('bicycle') || n.includes('mountain climber')) return 'Abs, core'
+  if (n.includes('squat')) return 'Quads, glutes, core'
+  if (n.includes('lunge')) return 'Quads, glutes, hamstrings'
   return 'Multiple muscle groups'
 }
 
@@ -299,7 +317,7 @@ function getEquipment(name) {
   if (n.includes('band')) return 'Resistance band'
   if (n.includes('leg press')) return 'Leg press machine'
   if (n.includes('leg curl')) return 'Machine'
-  if (n.includes('push-up') || n.includes('plank') || n.includes('nordic') || n.includes('dip')) return 'Bodyweight'
+  if (n.includes('push-up') || n.includes('plank') || n.includes('nordic') || n.includes('dip') || n.includes('pull-up') || n.includes('pull up') || n.includes('chin')) return 'Bodyweight'
   if (n.includes('goblet')) return 'Dumbbell or kettlebell'
   if (n.includes('hip thrust') || n.includes('glute bridge')) return 'Barbell or dumbbell'
   if (n.includes('walking lunge') || n.includes('split squat')) return 'Dumbbells or bodyweight'
@@ -307,6 +325,8 @@ function getEquipment(name) {
   if (n.includes('leg raise') || n.includes('hanging')) return 'Bodyweight (pull-up bar)'
   if (n.includes('pushdown')) return 'Cable machine'
   if (n.includes('face pull') || n.includes('pull-apart')) return 'Cable or band'
+  if (n.includes('pulldown')) return 'Cable machine'
+  if (n.includes('dead bug') || n.includes('crunch') || n.includes('twist') || n.includes('bicycle') || n.includes('mountain climber')) return 'Bodyweight'
   return 'Barbell or dumbbells'
 }
 
@@ -322,7 +342,7 @@ function getPhases(svgType) {
                { label:'Lower / working phase', desc:'Control the descent. Bar touches mid-chest, elbows at 45 degrees from body.' },
                { label:'Finish position', desc:'Drive bar straight up. Full extension at top without locking out elbows.' }],
     row:     [{ label:'Start position', desc:'Hinge at hips to 45 degrees. Shoulder blades back, core braced, arms straight.' },
-               { label:'Lower / working phase', desc:'Lower the weight with control. Let arms fully extend — full range matters.' },
+               { label:'Lower / working phase', desc:'Lower the weight with control. Let arms fully extend, full range matters.' },
                { label:'Finish position', desc:'Pull bar or dumbbell to lower ribs. Lead with elbow. Squeeze shoulder blades together.' }],
     press:   [{ label:'Start position', desc:'Bar at collar-bone height. Grip shoulder-width, elbows slightly forward of bar.' },
                { label:'Lower / working phase', desc:'Controlled descent back to collar-bone. Maintain core brace throughout.' },
@@ -334,7 +354,7 @@ function getPhases(svgType) {
                { label:'Lower / working phase', desc:'Lower straight down, back knee toward the floor. Front knee tracks over the ankle.' },
                { label:'Finish position', desc:'Drive through the front heel to standing. Keep your torso tall throughout.' }],
     thrust:  [{ label:'Start position', desc:'Upper back on bench, bar padded across hip crease. Feet flat, shoulder-width.' },
-               { label:'Lower / working phase', desc:'Lower hips slowly toward floor. Maintain control — do not drop.' },
+               { label:'Lower / working phase', desc:'Lower hips slowly toward floor. Maintain control, do not drop.' },
                { label:'Finish position', desc:'Drive hips up until body is a straight line from knees to shoulders. Hard glute squeeze.' }],
     pullup:  [{ label:'Start position', desc:'Full dead hang from bar. Hands shoulder-width or slightly wider. Core engaged.' },
                { label:'Lower / working phase', desc:'Lower slowly to full hang after each rep. No kipping or swinging.' },
@@ -343,10 +363,10 @@ function getPhases(svgType) {
                { label:'Lower / working phase', desc:'Lower slowly to full extension. The eccentric is where muscle is built.' },
                { label:'Finish position', desc:'Curl the weight up to shoulder height. Squeeze at the top.' }],
     plank:   [{ label:'Start position', desc:'Forearms flat, elbows directly under shoulders. Body in a straight line.' },
-               { label:'Lower / working phase', desc:'Brace core hard. Hips level — not raised or sagging. Breathe normally.' },
+               { label:'Lower / working phase', desc:'Brace core hard. Hips level, not raised or sagging. Breathe normally.' },
                { label:'Finish position', desc:'Hold for the full duration. Quality of position over time.' }],
     calf:    [{ label:'Start position', desc:'Stand with balls of feet on edge of a step or flat on the floor.' },
-               { label:'Lower / working phase', desc:'Lower heels all the way down — feel the full stretch in the calf.' },
+               { label:'Lower / working phase', desc:'Lower heels all the way down, feel the full stretch in the calf.' },
                { label:'Finish position', desc:'Rise onto toes as high as possible. Pause at the top before lowering.' }],
     dip: [{ label:'Start position', desc:'Hands on a bench behind you, legs out in front, arms straight.' },
                { label:'Lower / working phase', desc:'Bend your elbows to lower your hips until they reach about 90 degrees.' },
@@ -382,87 +402,87 @@ const lerp = (a, b, t) => a + (b - a) * t
 const lp = (A, B, t) => [lerp(A[0], B[0], t), lerp(A[1], B[1], t)]
 
 const POSES = {
-  // Back squat — stand tall to deep squat, bar racked on traps the whole time.
+  // Back squat, stand tall to deep squat, bar racked on traps the whole time.
   squat: { floor: true, period: 2600,
     top:    { head:[120,40], neck:[120,58], hip:[120,110], k1:[112,135], f1:[110,160], k2:[128,135], f2:[130,160], e1:[106,60], h1:[98,54], e2:[134,60], h2:[142,54], bar:[[94,52],[146,52]] },
     bottom: { head:[120,58], neck:[120,76], hip:[116,116], k1:[95,132], f1:[108,160], k2:[141,132], f2:[132,160], e1:[104,78], h1:[96,72], e2:[136,78], h2:[144,72], bar:[[92,70],[148,70]] } },
-  // Romanian deadlift — vertical to hip-hinge, bar tracks down the legs.
+  // Romanian deadlift, vertical to hip-hinge, bar tracks down the legs.
   hinge: { floor: true, period: 2800,
     top:    { head:[120,40], neck:[120,58], hip:[120,110], k1:[116,135], f1:[114,160], k2:[127,135], f2:[129,160], e1:[119,84], h1:[117,110], e2:[125,84], h2:[123,110], bar:[[100,112],[140,112]] },
     bottom: { head:[74,62], neck:[90,68], hip:[138,104], k1:[140,130], f1:[138,160], k2:[150,130], f2:[150,160], e1:[102,96], h1:[104,138], e2:[108,98], h2:[110,140], bar:[[86,139],[122,141]] } },
-  // Bench press — lying on a bench, press the bar up off the chest.
+  // Bench press, lying on a bench, press the bar up off the chest.
   push: { floor: true, bench:[36,116,168], period: 2400,
     top:    { head:[58,100], neck:[80,103], hip:[150,107], k1:[168,124], f1:[164,158], k2:[178,124], f2:[184,158], e1:[92,86], h1:[94,62], e2:[112,86], h2:[114,62], bar:[[82,60],[126,60]] },
     bottom: { head:[58,100], neck:[80,103], hip:[150,107], k1:[168,124], f1:[164,158], k2:[178,124], f2:[184,158], e1:[86,98], h1:[80,86], e2:[114,98], h2:[120,86], bar:[[74,84],[126,84]] } },
-  // Bent-over row — torso fixed at a hinge, pull the bar to the lower ribs.
+  // Bent-over row, torso fixed at a hinge, pull the bar to the lower ribs.
   row: { floor: true, period: 2200,
     top:    { head:[70,52], neck:[84,60], hip:[146,104], k1:[140,130], f1:[134,160], k2:[152,130], f2:[158,160], e1:[100,90], h1:[96,130], e2:[108,92], h2:[104,132], bar:[[84,130],[122,132]] },
     bottom: { head:[70,52], neck:[84,60], hip:[146,104], k1:[140,130], f1:[134,160], k2:[152,130], f2:[158,160], e1:[104,84], h1:[120,98], e2:[112,86], h2:[128,100], bar:[[108,98],[142,100]] } },
-  // Overhead press — bar from shoulders to lockout overhead.
+  // Overhead press, bar from shoulders to lockout overhead.
   press: { floor: true, period: 2400,
     top:    { head:[120,46], neck:[120,62], hip:[120,112], k1:[114,136], f1:[112,160], k2:[127,136], f2:[129,160], e1:[112,46], h1:[104,24], e2:[128,46], h2:[136,24], bar:[[100,22],[140,22]] },
     bottom: { head:[120,46], neck:[120,62], hip:[120,112], k1:[114,136], f1:[112,160], k2:[127,136], f2:[129,160], e1:[106,66], h1:[100,50], e2:[134,66], h2:[140,50], bar:[[96,48],[144,48]] } },
-  // Bulgarian split squat — back foot elevated on a bench behind; front knee bends and
+  // Bulgarian split squat, back foot elevated on a bench behind; front knee bends and
   // hips drop while the back knee travels down. Torso stays upright, dumbbells at sides.
-  // Bulgarian split squat — back foot elevated on a bench behind; front knee bends and
+  // Bulgarian split squat, back foot elevated on a bench behind; front knee bends and
   // hips drop while the back knee travels down. Torso upright, dumbbells at sides.
   splitsquat: { floor: true, bench:[156,126,50], period: 2600,
     top:    { head:[100,42], neck:[100,60], hip:[100,108], k1:[98,135], f1:[96,160], k2:[150,120], f2:[178,128], e1:[92,84], h1:[90,110], e2:[110,84], h2:[108,110] },
     bottom: { head:[100,58], neck:[100,76], hip:[100,120], k1:[90,138], f1:[96,160], k2:[150,150], f2:[178,128], e1:[92,98], h1:[90,124], e2:[110,98], h2:[108,124] } },
-  // Walking / forward lunge — step forward, front knee bends to ~90°, back knee drops
+  // Walking / forward lunge, step forward, front knee bends to ~90°, back knee drops
   // toward the floor with the back foot on its toe. No bench.
   lunge: { floor: true, period: 2400,
     top:    { head:[120,42], neck:[120,60], hip:[120,110], k1:[114,135], f1:[112,160], k2:[126,135], f2:[128,160], e1:[114,76], h1:[110,110], e2:[126,76], h2:[130,110] },
     bottom: { head:[106,52], neck:[106,70], hip:[106,116], k1:[92,138], f1:[88,160], k2:[140,150], f2:[160,158], e1:[100,96], h1:[98,120], e2:[114,96], h2:[112,120] } },
-  // Lying leg curl — face down on the pad, thighs fixed, shins curl up toward the glutes.
+  // Lying leg curl, face down on the pad, thighs fixed, shins curl up toward the glutes.
   legcurl: { bench:[40,124,154], period: 2000,
     top:    { head:[56,114], neck:[78,118], hip:[150,120], k1:[182,121], f1:[206,123], k2:[182,127], f2:[206,129], e1:[64,120], h1:[44,121], e2:[64,124], h2:[44,125] },
     bottom: { head:[56,114], neck:[78,118], hip:[150,120], k1:[182,121], f1:[176,92], k2:[182,127], f2:[179,98], e1:[64,120], h1:[44,121], e2:[64,124], h2:[44,125] } },
-  // Hip thrust — shoulders on bench, drive hips from low to a straight bridge.
+  // Hip thrust, shoulders on bench, drive hips from low to a straight bridge.
   thrust: { floor: true, bench:[34,96,66], period: 2200,
     top:    { head:[58,92], neck:[78,98], hip:[152,100], k1:[166,126], f1:[162,160], k2:[178,126], f2:[182,160], e1:[70,104], h1:[60,118], e2:[86,104], h2:[78,120], bar:[[122,98],[182,100]] },
     bottom: { head:[58,92], neck:[78,98], hip:[150,140], k1:[166,128], f1:[162,160], k2:[178,128], f2:[182,160], e1:[70,108], h1:[60,124], e2:[86,108], h2:[78,128], bar:[[120,138],[180,140]] } },
-  // Pull-up — dead hang to chin over the bar, hands fixed on the bar.
+  // Pull-up, dead hang to chin over the bar, hands fixed on the bar.
   pullup: { period: 2400,
     top:    { head:[120,58], neck:[120,74], hip:[120,122], k1:[112,148], f1:[110,170], k2:[128,148], f2:[130,170], e1:[112,42], h1:[100,24], e2:[128,42], h2:[140,24], bar:[[55,22],[185,22]] },
     bottom: { head:[120,40], neck:[120,52], hip:[120,98], k1:[114,124], f1:[112,150], k2:[127,124], f2:[129,150], e1:[103,40], h1:[100,24], e2:[137,40], h2:[140,24], bar:[[55,22],[185,22]] } },
-  // Biceps curl — elbows pinned, forearms swing from extended to shoulders.
+  // Biceps curl, elbows pinned, forearms swing from extended to shoulders.
   curl: { floor: true, period: 1900,
     top:    { head:[120,40], neck:[120,58], hip:[120,112], k1:[112,136], f1:[110,160], k2:[128,136], f2:[130,160], e1:[112,90], h1:[108,122], e2:[128,90], h2:[132,122] },
     bottom: { head:[120,40], neck:[120,58], hip:[120,112], k1:[112,136], f1:[110,160], k2:[128,136], f2:[130,160], e1:[112,90], h1:[104,66], e2:[128,90], h2:[136,66] } },
-  // Plank — a hold; only a small brace/breathe so it reads as "alive" not frozen.
+  // Plank, a hold; only a small brace/breathe so it reads as "alive" not frozen.
   plank: { floor: true, period: 4200,
     top:    { head:[52,98], neck:[70,102], hip:[148,116], k1:[176,128], f1:[190,150], k2:[182,130], f2:[196,150], e1:[68,118], h1:[58,150], e2:[74,118], h2:[64,150] },
     bottom: { head:[52,100], neck:[70,104], hip:[148,120], k1:[176,130], f1:[190,150], k2:[182,132], f2:[196,150], e1:[68,118], h1:[58,150], e2:[74,118], h2:[64,150] } },
-  // Calf raise — whole body rises onto the toes and lowers the heels.
+  // Calf raise, whole body rises onto the toes and lowers the heels.
   calf: { floor: true, period: 1700,
     top:    { head:[120,32], neck:[120,48], hip:[120,102], k1:[112,140], f1:[106,158], k2:[128,140], f2:[134,158], e1:[112,68], h1:[108,104], e2:[128,68], h2:[132,104] },
     bottom: { head:[120,40], neck:[120,56], hip:[120,110], k1:[112,146], f1:[100,162], k2:[128,146], f2:[140,162], e1:[112,76], h1:[108,112], e2:[128,76], h2:[132,112] } },
-  // Lateral raise — standing, arms raise from the sides out to shoulder height.
+  // Lateral raise, standing, arms raise from the sides out to shoulder height.
   lateralraise: { floor: true, period: 2200,
     top:    { head:[120,40], neck:[120,58], hip:[120,112], k1:[112,136], f1:[110,160], k2:[128,136], f2:[130,160], e1:[112,74], h1:[108,108], e2:[128,74], h2:[132,108] },
     bottom: { head:[120,40], neck:[120,58], hip:[120,112], k1:[112,136], f1:[110,160], k2:[128,136], f2:[130,160], e1:[106,64], h1:[80,62], e2:[134,64], h2:[160,62] } },
-  // Tricep dip — hands on a bench behind, body lowers in front by bending the elbows.
+  // Tricep dip, hands on a bench behind, body lowers in front by bending the elbows.
   dip: { floor: true, bench:[72,116,46], period: 2000,
     top:    { head:[122,68], neck:[120,86], hip:[116,120], k1:[150,126], f1:[150,158], k2:[156,126], f2:[156,158], e1:[104,102], h1:[94,116], e2:[110,102], h2:[100,116] },
     bottom: { head:[122,82], neck:[120,100], hip:[116,132], k1:[150,126], f1:[150,158], k2:[156,126], f2:[156,158], e1:[100,108], h1:[94,116], e2:[106,108], h2:[100,116] } },
-  // Leg press — reclined against the pad, legs extend to push the platform up and away.
+  // Leg press, reclined against the pad, legs extend to push the platform up and away.
   legpress: { bench:[44,124,92], period: 2200,
     top:    { head:[56,112], neck:[76,116], hip:[120,120], k1:[156,100], f1:[190,86], k2:[156,108], f2:[190,94], e1:[84,118], h1:[68,126], e2:[92,118], h2:[76,126] },
     bottom: { head:[56,112], neck:[76,116], hip:[120,120], k1:[140,108], f1:[170,96], k2:[140,116], f2:[170,104], e1:[84,118], h1:[68,126], e2:[92,118], h2:[76,126] } },
-  // Face pull / band pull-apart — pull from arms-forward to elbows high and wide (rear delts).
+  // Face pull / band pull-apart, pull from arms-forward to elbows high and wide (rear delts).
   facepull: { floor: true, period: 2000,
     top:    { head:[120,40], neck:[120,58], hip:[120,112], k1:[112,136], f1:[110,160], k2:[128,136], f2:[130,160], e1:[116,72], h1:[150,68], e2:[124,72], h2:[150,78] },
     bottom: { head:[120,40], neck:[120,58], hip:[120,112], k1:[112,136], f1:[110,160], k2:[128,136], f2:[130,160], e1:[98,64], h1:[110,56], e2:[142,64], h2:[130,56] } },
-  // Tricep pushdown — upper arms pinned to the sides, forearms extend from bent to straight.
+  // Tricep pushdown, upper arms pinned to the sides, forearms extend from bent to straight.
   pushdown: { floor: true, period: 1800,
     top:    { head:[120,40], neck:[120,58], hip:[120,112], k1:[112,136], f1:[110,160], k2:[128,136], f2:[130,160], e1:[112,92], h1:[110,72], e2:[128,92], h2:[130,72] },
     bottom: { head:[120,40], neck:[120,58], hip:[120,112], k1:[112,136], f1:[110,160], k2:[128,136], f2:[130,160], e1:[112,92], h1:[111,116], e2:[128,92], h2:[129,116] } },
-  // Hanging leg raise — hang from the bar, raise the legs from straight-down to horizontal.
+  // Hanging leg raise, hang from the bar, raise the legs from straight-down to horizontal.
   legraise: { period: 2400,
     top:    { head:[120,42], neck:[120,58], hip:[120,116], k1:[116,142], f1:[114,168], k2:[126,142], f2:[128,168], e1:[112,52], h1:[100,24], e2:[128,52], h2:[140,24], bar:[[55,22],[185,22]] },
     bottom: { head:[120,42], neck:[120,58], hip:[120,116], k1:[138,118], f1:[164,114], k2:[138,124], f2:[164,120], e1:[112,52], h1:[100,24], e2:[128,52], h2:[140,24], bar:[[55,22],[185,22]] } },
-  // Idle stand — gentle sway so the default state isn't a frozen figure.
+  // Idle stand, gentle sway so the default state isn't a frozen figure.
   stand: { floor: true, period: 4000,
     top:    { head:[120,40], neck:[120,58], hip:[120,112], k1:[112,136], f1:[110,160], k2:[128,136], f2:[130,160], e1:[112,70], h1:[106,108], e2:[128,70], h2:[134,108] },
     bottom: { head:[120,43], neck:[120,61], hip:[120,113], k1:[112,137], f1:[110,160], k2:[128,137], f2:[130,160], e1:[112,72], h1:[107,110], e2:[128,72], h2:[133,110] } },
@@ -541,18 +561,18 @@ const EXERCISES = {
     ],
     intermediate: [
       ex('Barbell squat', 4, 8, '40 to 60kg', 'Bar on traps, brace core before descent. Drive knees out.'),
-      ex('Bench press', 4, 8, '30 to 50kg', 'Retract shoulder blades. Bar to mid-chest, press straight up.'),
+      ex('Bench press', 4, 8, '25 to 40kg', 'Retract shoulder blades. Bar to mid-chest, press straight up.'),
       ex('Barbell row', 4, 8, '30 to 50kg', 'Hinge to 45°. Pull bar to lower ribs. Control the descent.'),
       ex('Romanian deadlift', 4, 10, '40 to 65kg', 'Bar stays close to legs. Stop when hips are fully extended.'),
-      ex('Overhead press', 3, 10, '25 to 40kg', 'Brace core hard. Press bar in straight line overhead.'),
+      ex('Overhead press', 3, 10, '15 to 25kg', 'Brace core hard. Press bar in straight line overhead.'),
       ex('Cable face pull', 3, 15, '10 to 20kg', 'Pull to face level, elbows high. Rear delt and rotator cuff.'),
     ],
     advanced: [
       ex('Barbell squat', 5, 5, '60 to 90kg', 'Control the descent. Explosive drive on the way up.'),
-      ex('Bench press', 5, 5, '50 to 75kg', 'Tight arch, shoulder blades pulled together. Full range.'),
+      ex('Bench press', 5, 5, '40 to 60kg', 'Tight arch, shoulder blades pulled together. Full range.'),
       ex('Deadlift', 4, 5, '70 to 110kg', 'Brace hard before pulling. Bar stays against your shins.'),
       ex('Barbell row', 4, 6, '50 to 75kg', 'Horizontal torso. Pull explosively, lower with control.'),
-      ex('Overhead press', 4, 6, '35 to 55kg', 'Lock out at top. Full range, no hip drive.'),
+      ex('Overhead press', 4, 6, '25 to 40kg', 'Lock out at top. Full range, no hip drive.'),
       ex('Pull-up', 4, 8, 'Bodyweight or weighted', 'Full hang to chin over bar. Control the descent.'),
     ],
   },
@@ -566,17 +586,17 @@ const EXERCISES = {
       ex('Band pull-apart', 3, 15, 'Light band', 'Arms straight, pull band to chest width. Rear delts.'),
     ],
     intermediate: [
-      ex('Bench press', 4, 8, '30 to 50kg', 'Retract shoulder blades. Control the descent.'),
+      ex('Bench press', 4, 8, '25 to 40kg', 'Retract shoulder blades. Control the descent.'),
       ex('Barbell row', 4, 8, '30 to 50kg', 'Hinge at hips, pull bar to lower ribs.'),
-      ex('Overhead press', 3, 10, '25 to 40kg', 'Strict press. Brace core throughout.'),
+      ex('Overhead press', 3, 10, '15 to 25kg', 'Strict press. Brace core throughout.'),
       ex('Cable row', 3, 12, '25 to 45kg', 'Sit tall. Pull handle to lower chest, squeeze.'),
       ex('Dumbbell lateral raise', 3, 12, '6 to 12kg each', 'Slight lean forward. Lead with elbows, not wrists.'),
       ex('Tricep pushdown', 3, 12, '15 to 30kg', 'Elbows pinned to ribs. Full extension at bottom.'),
     ],
     advanced: [
-      ex('Bench press', 5, 5, '50 to 75kg', 'Tight setup. Drive feet into floor. Full range.'),
+      ex('Bench press', 5, 5, '40 to 60kg', 'Tight setup. Drive feet into floor. Full range.'),
       ex('Weighted pull-up', 4, 6, '5 to 20kg added', 'Full hang to chin over bar. No kipping.'),
-      ex('Overhead press', 4, 6, '35 to 55kg', 'No hip drive. Lock out overhead.'),
+      ex('Overhead press', 4, 6, '25 to 40kg', 'No hip drive. Lock out overhead.'),
       ex('Cable row', 4, 10, '40 to 65kg', 'Control the eccentric. Avoid rounding at end range.'),
       ex('Incline dumbbell press', 3, 10, '20 to 35kg each', '30° incline. Focus on upper chest.'),
       ex('Face pull', 3, 15, '15 to 30kg', 'Elbows high and wide. Rear delt activation.'),
@@ -643,38 +663,85 @@ const GYM_ACCESSORIES = {
 // Per-muscle exercise pool for CUSTOM workouts. Selecting "Core" gives core work, "Glutes"
 // gives glute work, etc. Fixes the old bug where custom collapsed into the full/upper/lower
 // presets, so selecting only Core wrongly returned the entire full-body plan.
+// Each muscle has a pool of 6+ exercises, all specific to that muscle. buildCustomExercises
+// rotates a different subset by day so the same muscle is not an identical workout every time.
 const MUSCLE_EXERCISES = {
-  Chest:      [ex('Bench press', 4, 8, '30 to 50kg', 'Retract shoulder blades. Bar to mid-chest, press straight up.'),
-               ex('Push-up', 3, 12, 'Bodyweight', 'Hands shoulder-width, body in one line. Knees down if needed.')],
+  Chest:      [ex('Bench press', 4, 8, '25 to 40kg', 'Retract shoulder blades. Bar to mid-chest, press straight up.'),
+               ex('Incline dumbbell press', 3, 10, '8 to 16kg each', 'Bench at 30 degrees. Press up and slightly together, lower with control.'),
+               ex('Dumbbell chest press', 3, 10, '10 to 18kg each', 'Flat bench. Press the dumbbells up over your chest, lower to a deep stretch.'),
+               ex('Cable chest fly', 3, 14, '6 to 12kg each', 'Soft elbows, sweep the handles together in front of your chest. Squeeze, then control back.'),
+               ex('Push-up', 3, 12, 'Bodyweight', 'Hands shoulder-width, body in one line. Knees down if needed.'),
+               ex('Incline push-up', 3, 14, 'Bodyweight', 'Hands on a bench or step. Lower your chest to the edge, press back up.')],
   Back:       [ex('Barbell row', 4, 8, '30 to 50kg', 'Hinge to 45 degrees. Pull the bar to your lower ribs, control the descent.'),
+               ex('Lat pulldown', 3, 10, '25 to 45kg', 'Pull the bar to your upper chest, squeeze the shoulder blades down.'),
+               ex('Seated cable row', 3, 10, '25 to 45kg', 'Tall chest, pull to your belly. Squeeze the shoulder blades, control the return.'),
+               ex('Single-arm dumbbell row', 3, 10, '8 to 16kg each', 'Hand and knee on a bench. Row the dumbbell to your hip, no twisting.'),
+               ex('Straight-arm pulldown', 3, 14, '10 to 20kg', 'Arms straight, sweep the bar down to your thighs using your lats.'),
                ex('Pull-up', 3, 8, 'Bodyweight or assisted', 'Full hang to chin over the bar. Control the way down.')],
-  Shoulders:  [ex('Overhead press', 3, 10, '25 to 40kg', 'Brace your core hard. Press the bar straight overhead.'),
-               ex('Dumbbell lateral raise', 3, 12, '6 to 12kg each', 'Slight lean forward. Lead with the elbows, not the wrists.')],
+  Shoulders:  [ex('Overhead press', 3, 10, '15 to 25kg', 'Brace your core hard. Press the bar straight overhead.'),
+               ex('Dumbbell shoulder press', 3, 10, '8 to 14kg each', 'Press the dumbbells up and slightly together, lower to ear height.'),
+               ex('Dumbbell lateral raise', 3, 12, '6 to 12kg each', 'Slight lean forward. Lead with the elbows, not the wrists.'),
+               ex('Rear delt fly', 3, 14, '4 to 8kg each', 'Hinge forward, soft elbows. Raise the dumbbells out to the sides.'),
+               ex('Front raise', 3, 12, '5 to 10kg each', 'Raise the dumbbells to shoulder height in front, control the lower.'),
+               ex('Upright row', 3, 12, '15 to 25kg', 'Pull the bar up to chest height, elbows leading. Keep it close to your body.')],
   Biceps:     [ex('Bicep curl', 3, 12, '6 to 12kg each', 'Elbows pinned to your ribs. Squeeze at the top, lower with control.'),
-               ex('Hammer curl', 3, 12, '6 to 12kg each', 'Neutral grip, thumbs up. No swinging.')],
+               ex('Hammer curl', 3, 12, '6 to 12kg each', 'Neutral grip, thumbs up. No swinging.'),
+               ex('Cable curl', 3, 12, '10 to 20kg', 'Constant tension. Keep elbows still, full squeeze at the top.'),
+               ex('Incline dumbbell curl', 3, 12, '5 to 10kg each', 'Lie back on an incline bench, arms hanging. Curl without swinging.'),
+               ex('Concentration curl', 3, 12, '5 to 10kg each', 'Elbow braced on your inner thigh, curl one arm at a time.'),
+               ex('Preacher curl', 3, 12, '10 to 20kg', 'Arms over the pad. Lower fully, curl without bouncing at the bottom.')],
   Triceps:    [ex('Tricep pushdown', 3, 12, '15 to 30kg', 'Elbows pinned to your ribs. Full extension at the bottom.'),
+               ex('Rope pushdown', 3, 12, '15 to 30kg', 'Spread the rope at the bottom, full extension, control the return.'),
+               ex('Overhead tricep extension', 3, 12, '7 to 15kg', 'Dumbbell behind your head, elbows pointing up. Extend to lockout.'),
+               ex('Lying tricep extension', 3, 12, '10 to 20kg', 'On a bench, lower the bar toward your forehead, extend back up.'),
+               ex('Tricep dip', 3, 12, 'Bodyweight', 'On a bench or bars. Lower until elbows reach 90 degrees, press back up.'),
                ex('Close-grip bench press', 4, 8, '25 to 45kg', 'Hands shoulder-width, elbows tucked. Drives the triceps hard.')],
   Quads:      [ex('Barbell squat', 4, 8, '40 to 60kg', 'Bar on traps, brace your core. Drive knees out, sit deep.'),
-               ex('Walking lunge', 3, 12, 'Dumbbells or bodyweight', 'Step forward, lower the back knee. Front knee over the ankle.')],
+               ex('Front squat', 4, 8, '35 to 55kg', 'Bar across the front of your shoulders, elbows high. Stay upright, sit straight down.'),
+               ex('Goblet squat', 3, 12, '12 to 24kg', 'Hold a dumbbell at your chest. Sit deep between your knees, chest tall.'),
+               ex('Leg press', 3, 12, '40 to 80kg', 'Feet shoulder-width on the platform. Lower under control, do not lock the knees.'),
+               ex('Walking lunge', 3, 12, 'Dumbbells or bodyweight', 'Step forward, lower the back knee. Front knee over the ankle.'),
+               ex('Reverse lunge', 3, 12, 'Dumbbells or bodyweight', 'Step back, lower the back knee, drive through the front heel to stand.')],
   Hamstrings: [ex('Romanian deadlift', 4, 10, '40 to 65kg', 'Soft knees, hinge from the hips. Bar stays close to your legs.'),
-               ex('Leg curl', 3, 12, '15 to 35kg', 'Lying or seated. Curl your heels toward your glutes, control the return.')],
+               ex('Stiff-leg deadlift', 4, 10, '40 to 65kg', 'Legs almost straight, hinge at the hips. Feel the stretch in your hamstrings.'),
+               ex('Single-leg Romanian deadlift', 3, 10, 'Dumbbells or bodyweight', 'Hinge on one leg, back leg straight behind you. Slow and controlled.'),
+               ex('Leg curl', 3, 12, '15 to 35kg', 'Lying or seated. Curl your heels toward your glutes, control the return.'),
+               ex('Seated leg curl', 3, 12, '15 to 35kg', 'Drive your heels down and under, full squeeze, slow release.'),
+               ex('Nordic curl', 3, 6, 'Bodyweight', 'Anchor your feet, lower your torso slowly, catch with your hands. Hardest hamstring move.')],
   Glutes:     [ex('Hip thrust', 4, 10, '40 to 70kg', 'Upper back on a bench, bar across the hips. Drive to full lockout.'),
-               ex('Bulgarian split squat', 3, 10, 'Dumbbells or bodyweight', 'Back foot on a bench behind you. Lower straight down, drive through the front heel.')],
+               ex('Glute bridge', 3, 15, 'Bodyweight or barbell', 'Flat on the floor, feet close. Drive hips up, squeeze the glutes at the top.'),
+               ex('Bulgarian split squat', 3, 10, 'Dumbbells or bodyweight', 'Back foot on a bench behind you. Lower straight down, drive through the front heel.'),
+               ex('Reverse lunge', 3, 12, 'Dumbbells or bodyweight', 'Step back and down, drive through the front heel. A long step hits the glutes more.'),
+               ex('Curtsy lunge', 3, 12, 'Dumbbells or bodyweight', 'Step one leg behind and across. Targets the side glutes, control the whole way.'),
+               ex('Sumo deadlift', 4, 8, '40 to 70kg', 'Wide stance, toes out. Push the floor away and squeeze your glutes at the top.')],
   Calves:     [ex('Calf raise', 4, 15, 'Bodyweight or dumbbells', 'Rise onto your toes as high as possible, pause, lower with a full stretch.'),
-               ex('Seated calf raise', 3, 15, '20 to 40kg', 'Knees bent, drive through the balls of your feet. Full range.')],
+               ex('Standing calf raise', 4, 15, '30 to 60kg', 'On a machine or with a bar. Full range, pause at the top and the bottom.'),
+               ex('Seated calf raise', 3, 15, '20 to 40kg', 'Knees bent, drive through the balls of your feet. Full range.'),
+               ex('Single-leg calf raise', 3, 12, 'Bodyweight', 'One leg at a time for balance and extra range. Full stretch at the bottom.'),
+               ex('Donkey calf raise', 3, 15, 'Bodyweight', 'Hinge at the hips holding a support. Drive up onto your toes, deep stretch down.'),
+               ex('Calf press', 3, 15, '40 to 80kg', 'On the leg press, push the platform with the balls of your feet, full range.')],
   Core:       [ex('Plank', 3, 40, 'Bodyweight', '40 seconds. Hips level, brace your core, do not let your back sag.'),
-               ex('Hanging leg raise', 3, 12, 'Bodyweight', 'Hang from a bar. Raise your legs to hip height with control, no swinging.')],
+               ex('Side plank', 3, 30, 'Bodyweight', '30 seconds each side. Stack your hips, lift them off the floor, breathe.'),
+               ex('Hanging leg raise', 3, 12, 'Bodyweight', 'Hang from a bar. Raise your legs to hip height with control, no swinging.'),
+               ex('Lying leg raise', 3, 14, 'Bodyweight', 'On your back, legs straight. Lower them slowly, keep your lower back pressed down.'),
+               ex('Dead bug', 3, 12, 'Bodyweight', 'On your back, lower opposite arm and leg slowly. Keep your lower back pressed down.'),
+               ex('Bicycle crunch', 3, 20, 'Bodyweight', 'Slow and controlled. Opposite elbow toward opposite knee, fully extend the other leg.'),
+               ex('Russian twist', 3, 20, 'Bodyweight or plate', 'Lean back, feet up if you can. Rotate side to side under control.'),
+               ex('Mountain climbers', 3, 30, 'Bodyweight', 'Plank position, drive your knees toward your chest one at a time. Keep hips low.')],
 }
-function buildCustomExercises(muscles, level) {
+function buildCustomExercises(muscles, level, seed = 0, preferLoad = false) {
   const list = (muscles || []).filter(m => MUSCLE_EXERCISES[m])
   if (!list.length) return EXERCISES.full[level] || EXERCISES.full.intermediate
-  const perMuscle = list.length >= 4 ? 1 : 2   // keep the session a sensible length
+  // Fewer muscles selected -> more exercises each, so a single-muscle pick is still a full session.
+  const perMuscle = list.length === 1 ? 5 : list.length === 2 ? 3 : list.length === 3 ? 2 : 1
   const out = [], seen = new Set()
-  for (const m of list) {
-    for (const e of MUSCLE_EXERCISES[m].slice(0, perMuscle)) {
+  list.forEach((m, i) => {
+    // rotatePick varies which exercises come up by day (seed), so the same muscle is a fresh
+    // workout each time while staying specific to that group. preferLoad keeps strong days loaded.
+    for (const e of pickPreferLoad(MUSCLE_EXERCISES[m], perMuscle, seed + i * 2, preferLoad)) {
       if (!seen.has(e.name)) { seen.add(e.name); out.push(e) }
     }
-  }
+  })
   return out
 }
 
@@ -692,11 +759,11 @@ const CLASS_TYPES = [
 ]
 
 const PHASE_BANNER = {
-  Menstrual:      { bg:'#3d2830', text:'#f5e8e8', note:'Lower intensity today is smart, not lazy. Prostaglandins and low estrogen are doing real physiological work. (Hackney 2006)' },
+  Menstrual:      { bg:'#3d2830', text:'#f5e8e8', note:'Lower intensity today is smart, not lazy. Low estrogen and prostaglandins, the hormones behind cramps, mean your body is already working hard. (Daley et al. 2015)' },
   Follicular:     { bg:'#2c3828', text:'#e8f5e8', note:'Rising estrogen supports muscle protein synthesis and recovery. Research suggests late follicular may produce stronger adaptations. (Kissow et al. 2022)' },
   Ovulatory:      { bg:'#2c3035', text:'#e8f0f8', note:'Peak estrogen and a small testosterone rise, so you may feel unusually strong. Complete your full warmup today: knee ligament laxity is measurably higher around ovulation, which raises ACL injury risk. (Herzberg et al. 2017)' },
   'Early luteal': { bg:'#352c20', text:'#f5ede0', note:'Progesterone rising with a mild calming GABA effect. Good steady energy still available. Solid phase for focused progress. (Bäckström et al. 2014)' },
-  'Mid luteal':   { bg:'#352c20', text:'#f5ede0', note:'RHR is measurably higher and recovery is slower. The same weight costs more physiologically. That is real biology, not lack of fitness. (De Martin Topranin et al. 2023)' },
+  'Mid luteal':   { bg:'#352c20', text:'#f5ede0', note:'RHR is measurably higher and recovery is slower. The same weight costs more right now. That is your physiology, not lack of fitness. (De Martin Topranin et al. 2023)' },
   'Late luteal':  { bg:'#352c20', text:'#f5ede0', note:'Both hormones dropping. Progesterone-cortisol competition means hard training creates a larger stress response than usual. Completing your sets cleanly is the goal. (Hackney 2006)' },
   Luteal:         { bg:'#352c20', text:'#f5ede0', note:'Progesterone elevated and core temperature rising. Prioritise form and completing sets over adding weight. (De Martin Topranin et al. 2023)' },
   Perimenopause:  { bg:'#2c2035', text:'#f0e8f8', note:'Lift heavy. Training at challenging loads builds bone and preserves muscle safely, where light high-rep work does not. In the LIFTMOR trial, postmenopausal women did 5 sets of 5 near their limit. This is the single highest-value thing you can do for your long-term health. (Watson et al. LIFTMOR, JBMR 2018; Kohrt et al. 2004)' },
@@ -705,8 +772,8 @@ const PHASE_BANNER = {
 
 // Phase content lookup: use the exact sub-phase if the dictionary has it, otherwise
 // fall back to the base phase (Follicular/Luteal) before observation. This stops real
-// cycle phases the dictionaries don't key directly — chiefly 'Early follicular', and
-// any luteal sub-phase a given dictionary omits — from silently dropping to generic
+// cycle phases the dictionaries don't key directly, chiefly 'Early follicular', and
+// any luteal sub-phase a given dictionary omits, from silently dropping to generic
 // observation content.
 function pc(dict, ph) {
   if (!dict) return null
@@ -724,9 +791,9 @@ function localDateStr() {
 }
 
 // Deterministic day-based rotation for workout variety. Using the calendar day (not
-// Math.random) keeps the selection STABLE within a session/day — critical because the
+// Math.random) keeps the selection STABLE within a session/day, critical because the
 // gym player tracks set completion by exercise index, so the list must not reshuffle
-// mid-session — while varying day to day.
+// mid-session, while varying day to day.
 function daySeed() {
   const d = new Date()
   return Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000)
@@ -737,6 +804,19 @@ function rotatePick(pool, n, seed) {
   const out = []
   for (let i = 0; i < n; i++) out.push(pool[(start + i) % pool.length])
   return out
+}
+
+// A pure-bodyweight move has no kg number in its weight string (e.g. "Bodyweight").
+// On strong phases (follicular/ovulatory) we prioritise loadable lifts, so the strongest
+// day of the cycle isn't spent on bodyweight moves the rotation happened to surface.
+const isLoadable = (e) => /\d/.test(e?.weight || '')
+function pickPreferLoad(pool, n, seed, preferLoad) {
+  if (!preferLoad || !pool) return rotatePick(pool, n, seed)
+  const loaded = pool.filter(isLoadable)
+  const rest = pool.filter(e => !isLoadable(e))
+  const picks = rotatePick(loaded, Math.min(n, loaded.length), seed)
+  if (picks.length < n) picks.push(...rotatePick(rest, n - picks.length, seed + 1))
+  return picks
 }
 // HIIT: keep the phase's structure (rounds/work/rest) but rotate which exercises are
 // shown from an expanded, phase-appropriate pool, keeping the same number of moves.
@@ -759,6 +839,11 @@ export default function Workout() {
   const [loading, setLoading] = useState(true)
   const [status, setStatus] = useState(null)
   const [screen, setScreen] = useState('pick') // pick | muscles | warmup | plan | checklist | feel | done | logClass
+  const [planView, setPlanView] = useState(null)      // null (basic) | 'weekly' | 'monthly'
+  const [showPlanPicker, setShowPlanPicker] = useState(false)
+  const [cycleHistory, setCycleHistory] = useState({}) // per-cycle-day notes from past logs
+  const [lighterDays, setLighterDays] = useState({})    // offsets the user chose to make lighter
+  const [expandedWeek, setExpandedWeek] = useState(null) // which monthly week is expanded
   const [checkedMoves, setCheckedMoves] = useState({})
   const [activity, setActivity] = useState(null)
   const [muscleGroup, setMuscleGroup] = useState(null)
@@ -771,6 +856,7 @@ export default function Workout() {
   const [playerIdx, setPlayerIdx] = useState(0)
   const [setWeights, setSetWeights] = useState({}) // { exIdx: { setIdx: weight } }
   const [playerDone, setPlayerDone] = useState({}) // { exIdx: { setIdx: true } }
+  const [exHistory, setExHistory] = useState({})   // { exerciseName: { last_weight, last_reps, last_date } }, progression memory
   const [phaseOpen, setPhaseOpen] = useState(false)
   const [expandedWarmupMove, setExpandedWarmupMove] = useState(null)
   const [expandedChecklistMove, setExpandedChecklistMove] = useState(null)
@@ -782,6 +868,9 @@ export default function Workout() {
   const [hiitPhase, setHiitPhase] = useState('work')
   const [hiitSecondsLeft, setHiitSecondsLeft] = useState(0)
   const [hiitRunning, setHiitRunning] = useState(false)
+  // Capture the day-seed once per mount so a session that crosses midnight can't
+  // reshuffle the accessory exercises out from under already-entered set data.
+  const [daySeedVal] = useState(() => daySeed())
 
   // Declared before useEffects so it is in scope for the HIIT dependency array.
   // Resolve the phase used for workout content: perimenopause/postmenopause users
@@ -846,6 +935,19 @@ export default function Workout() {
       const s = await getTodayStatus(supabase, user.id)
       setStatus(s)
       if (s?.profile?.fitness_level) setFitnessLevel(s.profile.fitness_level === 'beginner' ? 'beginner' : s.profile.fitness_level === 'advanced' || s.profile.fitness_level === 'athlete' ? 'advanced' : 'intermediate')
+      // Progression memory: what weight/reps the user hit last time, per exercise.
+      const { data: hist } = await supabase.from('exercise_history').select('*').eq('user_id', user.id)
+      if (hist) { const m = {}; hist.forEach(h => { m[h.exercise] = h }); setExHistory(m) }
+      // Personal plan history: look back at what she logged on each cycle day in past cycles,
+      // so the weekly plan can surface a note ("you logged lower energy around here") she can
+      // choose to act on. Needs ~2 cycles of logs + her period-start history.
+      const since = new Date(); since.setDate(since.getDate() - 70)
+      const sinceStr = `${since.getFullYear()}-${String(since.getMonth()+1).padStart(2,'0')}-${String(since.getDate()).padStart(2,'0')}`
+      const [{ data: pastLogs }, { data: cyc }] = await Promise.all([
+        supabase.from('daily_logs').select('log_date,energy').eq('user_id', user.id).gte('log_date', sinceStr),
+        supabase.from('cycle_data').select('notes,last_period_date').eq('user_id', user.id).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+      ])
+      setCycleHistory(buildCycleDayHistory(pastLogs || [], parsePeriodStarts(cyc), s?.cycleLen || 28))
     } catch { /* ignore */ }
     setLoading(false)
   }
@@ -878,7 +980,7 @@ export default function Workout() {
     } else if (intensityModifier >= 0.90) {
       return { weight: `${clamped}kg`, note: 'Good energy available. Mid-range weights with solid form. Recovery is still strong this phase.', source: 'Kissow et al. 2022 Sports Medicine' }
     } else if (intensityModifier >= 0.80) {
-      return { weight: `${clamped}kg`, note: 'RHR is measurably elevated and recovery is slower. The same weight costs more physiologically right now. That is real biology.', source: 'De Martin Topranin et al. 2023 IJSPP' }
+      return { weight: `${clamped}kg`, note: 'RHR is measurably elevated and recovery is slower. The same weight costs more right now. That is your physiology, not lost fitness.', source: 'De Martin Topranin et al. 2023 IJSPP' }
     } else {
       return { weight: `${clamped}kg`, note: 'Lower load today is appropriate. Progesterone-cortisol competition makes hard training carry a larger hormonal cost. Completing sets cleanly is the goal.', source: 'Hackney 2006 JSSM' }
     }
@@ -892,8 +994,11 @@ export default function Workout() {
   }
 
   function getExercises() {
+    // On the strongest phases, prioritise loadable lifts over bodyweight moves the rotation
+    // might otherwise surface, so a peak-strength day is actually spent lifting.
+    const preferLoad = phase === 'Follicular' || phase === 'Ovulatory'
     // Custom builds directly from the muscles the user picked (Core -> core work, etc.).
-    if (muscleGroup === 'custom') return buildCustomExercises(customMuscles, fitnessLevel)
+    if (muscleGroup === 'custom') return buildCustomExercises(customMuscles, fitnessLevel, daySeedVal, preferLoad)
     const key = muscleGroup || 'full'
     const base = EXERCISES[key]?.[fitnessLevel] || EXERCISES.full.intermediate
     // Keep the main compound lifts (first 4) fixed for progression; rotate the
@@ -906,7 +1011,7 @@ export default function Workout() {
       if (coreNames.has(e.name) || seen.has(e.name)) return false
       seen.add(e.name); return true
     })
-    return core.concat(rotatePick(accPool, base.length - core.length, daySeed()))
+    return core.concat(pickPreferLoad(accPool, base.length - core.length, daySeedVal, preferLoad))
   }
 
   async function save() {
@@ -918,6 +1023,23 @@ export default function Workout() {
         user_id: user.id, log_date: localDateStr(), workout_feel: feel
       }, { onConflict: 'user_id,log_date' })
       if (error) throw error
+      // Persist per-exercise progression: the top working weight + reps entered this gym
+      // session, so next time the player can show "last time" and nudge progressive overload.
+      if (activity === 'gym') {
+        try {
+          const exs = getExercises()
+          const rows = []
+          Object.entries(setWeights).forEach(([exIdx, sets]) => {
+            const ex = exs[parseInt(exIdx)]
+            if (!ex) return
+            const weights = Object.values(sets).map(parseFloat).filter(n => !isNaN(n) && n > 0)
+            if (!weights.length) return
+            rows.push({ user_id: user.id, exercise: ex.name, last_weight: Math.max(...weights), last_reps: String(ex.reps), last_date: localDateStr(), updated_at: new Date().toISOString() })
+          })
+          if (rows.length) await supabase.from('exercise_history').upsert(rows, { onConflict: 'user_id,exercise' })
+        } catch(e) { console.error(e) }
+      }
+      track('workout_completed', { activity, feel })
       setScreen('done')
     } catch(e) { console.error(e) }
     setSaving(false)
@@ -931,11 +1053,52 @@ export default function Workout() {
     await supabase.from('daily_logs').upsert({
       user_id: user.id, log_date: localDateStr(), workout_feel: 'Felt average', notes
     }, { onConflict: 'user_id,log_date' })
+    track('workout_completed', { activity: classType })
     setScreen('done')
     setSaving(false)
   }
 
   if (loading) return <div style={{ paddingTop:60 }}><Spinner /></div>
+
+  // Pregnancy mode, never auto-prescribe a workout. Show evidence-based movement guidance
+  // (SOGC 2019 / ACOG 804), the stop-and-call-your-provider signs, and defer to her provider.
+  if (status?.phase === 'Pregnancy') {
+    const tri = status?.subPhase || 'Pregnancy'
+    return (
+      <>
+        <TopBar backTo="/dashboard">
+          <div style={{fontSize:13,fontWeight:700,letterSpacing:'0.14em',textTransform:'uppercase'}}>Movement</div>
+          <div style={{fontSize:12,color:'#7a7268'}}>{tri}</div>
+        </TopBar>
+        <div style={{ padding:'16px 16px 120px' }}>
+          <div style={{ background:'#fff8ee', border:'1px solid #f0d8a8', borderRadius:14, padding:16, marginBottom:14 }}>
+            <div style={{ fontSize:13, color:'#6a4a10', lineHeight:1.65 }}>Before starting or continuing exercise in pregnancy, get cleared by your doctor or midwife. The guidance below is general and from the Canadian (SOGC) and ACOG pregnancy activity guidelines, it is not a personal exercise prescription.</div>
+          </div>
+
+          <span className="section-label" style={{ display:'block', marginBottom:10 }}>Generally encouraged</span>
+          <div style={{ background:'#fff', border:'1px solid #ede8e0', borderRadius:14, padding:16, marginBottom:12, fontSize:14, color:'#3a3530', lineHeight:1.7 }}>
+            About <strong>150 minutes of moderate movement a week</strong> across most days has real benefits in a healthy pregnancy. Use the <strong>talk test</strong>, you should be able to hold a conversation. Good options: <strong>walking, swimming, stationary cycling, prenatal yoga, prenatal pilates, light strength work, and daily pelvic-floor (Kegel) exercises.</strong>
+            <div style={{ fontSize:11, color:'#9a9590', marginTop:8, fontStyle:'italic' }}>SOGC 2019 Canadian Guideline; ACOG Committee Opinion 804.</div>
+          </div>
+
+          <span className="section-label" style={{ display:'block', marginBottom:10 }}>Modify or avoid</span>
+          <div style={{ background:'#fff', border:'1px solid #ede8e0', borderRadius:14, padding:16, marginBottom:12, fontSize:14, color:'#3a3530', lineHeight:1.7 }}>
+            From about <strong>16 weeks, stop exercises lying flat on your back</strong> (use incline, side-lying, seated, or standing). Skip deep ab "crunch" work and deep twists, heavy breath-holding, and end-range stretching. Avoid anything with a fall or impact risk (contact sports, off-road cycling, skiing, horse riding), <strong>scuba diving, hot yoga or hot pilates, and exercising in the heat.</strong> Keep well hydrated and cool.
+            <div style={{ fontSize:11, color:'#9a9590', marginTop:8, fontStyle:'italic' }}>ACOG Committee Opinion 804.</div>
+          </div>
+
+          <div style={{ background:'#fdeeee', border:'1px solid #e8b0a0', borderRadius:14, padding:16, marginBottom:12 }}>
+            <div style={{ fontSize:11, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'#a83a20', marginBottom:8 }}>Stop and call your provider if you have</div>
+            <div style={{ fontSize:13, color:'#5a2a20', lineHeight:1.65 }}>Vaginal bleeding · fluid leaking from the vagina · regular painful contractions · chest pain · shortness of breath before you start · dizziness or feeling faint · a headache · calf pain or swelling · muscle weakness affecting your balance. Stop exercising and contact your provider; seek urgent care for bleeding, fluid loss, contractions, chest pain, or a swollen painful leg.</div>
+            <div style={{ fontSize:11, color:'#9a6a58', marginTop:8, fontStyle:'italic' }}>SOGC 2019 / ACOG 804 warning signs.</div>
+          </div>
+
+          <button onClick={() => navigate('/learn')} style={{ width:'100%', padding:'13px 16px', borderRadius:12, border:'1px solid #ede8e0', background:'#f5f0e8', color:'#5a5248', fontSize:14, fontWeight:500, cursor:'pointer', fontFamily:'inherit' }}>Read the full pregnancy guide</button>
+        </div>
+        <BottomNav />
+      </>
+    )
+  }
 
   const intensity = status?.intensityModifier ?? 1.0
   const banner = pc(PHASE_BANNER, phase)
@@ -962,39 +1125,182 @@ export default function Workout() {
     </div>
   )
 
-  // ACTIVITY PICKER
+  // ACTIVITY PICKER (+ cycle-aware weekly/monthly plan mode)
+  const goal = getFitnessGoal()
+  const GOAL_NOTE = {
+    strength: 'With your strength goal, prioritise the lifts you can add weight to.',
+    consistency: 'For your consistency goal, even a short session counts.',
+    destress: 'For a calmer mind, lean into the gentler options.',
+    feel_better: 'Match the effort to your energy today.',
+    cycle_health: 'This works with your cycle, not against it.',
+    weight: 'Steady, sustainable effort serves you best.',
+  }
+  const weekPlan = buildCyclePlan(status?.cycleDay, status?.cycleLen, 7, status?.periodLength)
+  const weekSched = assignSessions(weekPlan, goal)
+  // Monthly view is anchored to the CYCLE (day 1 onward), not rolled from today, so the four
+  // weeks map to the canonical cycle and "this week" (the week containing today's cycle day)
+  // can be highlighted.
+  const cyclePlan = status?.cycleDay ? buildCyclePlan(1, status?.cycleLen, 28, status?.periodLength) : null
+  const currentWeekIdx = status?.cycleDay ? Math.min(3, Math.floor((status.cycleDay - 1) / 7)) : 0
+  const dayLabel = (i) => {
+    if (i === 0) return 'Today'
+    if (i === 1) return 'Tomorrow'
+    const d = new Date(); d.setDate(d.getDate() + i)
+    return d.toLocaleDateString('en-CA', { weekday: 'short' })
+  }
   if (screen === 'pick') return (
     <div style={{ paddingBottom:100 }}>
+      <GoalPicker />
       <TopBar title="WORKOUT" backTo="/dashboard" />
       <div style={{ background:`linear-gradient(135deg, ${banner.bg}, ${banner.bg}cc)`, padding:'18px 16px', marginBottom:16 }}>
         <div style={{ fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:18, color:banner.text, marginBottom:4 }}>{phase}</div>
         <div style={{ fontSize:12, color:banner.text, opacity:0.8, lineHeight:1.6 }}>{banner.note}</div>
-        <div style={{ fontSize:11, color:banner.text, opacity:0.6, marginTop:4 }}>Intensity guide: {Math.round(intensity * 100)}% of your max effort today</div>
-        {workoutReadiness && <div style={{ fontSize:11, color:banner.text, background:'rgba(255,255,255,0.12)', borderRadius:8, padding:'6px 10px', marginTop:6, lineHeight:1.5 }}>{workoutReadiness}</div>}
+        {/* What to actually do today, based on cycle + goal (replaced the abstract % and the
+            no-op "recent stressors" note). */}
+        <div style={{ fontSize:12.5, color:banner.text, opacity:0.95, marginTop:9, lineHeight:1.55, fontWeight:700 }}>Today: {getMovementToday(phase).title}</div>
+        <div style={{ fontSize:11.5, color:banner.text, opacity:0.75, marginTop:2, lineHeight:1.5 }}>
+          {getMovementToday(phase).detail}{goal && GOAL_NOTE[goal] ? ` ${GOAL_NOTE[goal]}` : ''}
+        </div>
       </div>
-      <div style={{ padding:'0 16px' }}>
-        <span style={{ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590', marginBottom:12, display:'block' }}>What are you doing today?</span>
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10, marginBottom:12 }}>
-          {ACTIVITIES.map(a => (
-            <div key={a.id} onClick={() => selectActivity(a.id)} style={{
-              padding:'16px 8px', borderRadius:14, border:'1px solid #ede8e0',
-              background:'#fff', cursor:'pointer', textAlign:'center',
-              boxShadow:'0 1px 4px rgba(44,40,32,0.04)',
-            }}>
-              {a.emoji
-                ? <span style={{ fontSize:26, display:'block', marginBottom:6 }}>{a.emoji}</span>
-                : <i className={`ti ${a.icon}`} style={{ fontSize:26, display:'block', marginBottom:6, color:'#c8b89a' }} />
-              }
-              <div style={{ fontSize:12, fontWeight:500, color:'#2c2820' }}>{a.label}</div>
+
+      {planView ? (
+        /* PLAN MODE, the whole week or cycle, day by day */
+        <div style={{ padding:'0 16px' }}>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
+            <span style={{ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590' }}>Your {planView === 'weekly' ? 'week' : 'cycle'} plan</span>
+            <button onClick={() => setPlanView(null)} style={{ background:'none', border:'1px solid #ede8e0', borderRadius:20, padding:'6px 12px', fontSize:12, color:'#7a7268', cursor:'pointer', fontFamily:'inherit' }}>
+              <i className="ti ti-arrow-left" style={{ fontSize:12, marginRight:4 }} />Basic mode
+            </button>
+          </div>
+          {planView === 'weekly' && weekSched && weekSched.map(dp => {
+            const note = cycleHistory[dp.cycleDay]
+            const isLighter = lighterDays[dp.offset]
+            const sess = isLighter ? lighterSession() : dp
+            return (
+              <div key={dp.offset} style={{ display:'flex', gap:12, background:'#fff', border:`1px solid ${dp.offset===0?'#c8b89a':'#ede8e0'}`, borderRadius:12, padding:'12px 14px', marginBottom:8, alignItems:'flex-start' }}>
+                <div style={{ width:60, flexShrink:0 }}>
+                  <div style={{ fontSize:13, fontWeight:700, color:'#2c2820' }}>{dayLabel(dp.offset)}</div>
+                  <div style={{ fontSize:10.5, color:'#9a9590', marginTop:2 }}>{dp.sub}</div>
+                </div>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:13.5, fontWeight:600, color:'#2c2820' }}>{sess.title}</div>
+                  <div style={{ fontSize:11.5, color:'#7a7268', lineHeight:1.5, marginTop:2 }}>{sess.detail}</div>
+                  {note && (
+                    <div style={{ marginTop:7, fontSize:11.5, color:'#7a5c30', background:'#f7f0e4', borderRadius:8, padding:'7px 9px', lineHeight:1.55 }}>
+                      <i className="ti ti-history" style={{ fontSize:12, marginRight:4 }} />
+                      Cycle day {dp.cycleDay}: {note.text}.
+                      {note.lighter && !isLighter && (
+                        <button onClick={() => setLighterDays(p => ({ ...p, [dp.offset]: true }))} style={{ marginLeft:6, background:'none', border:'none', color:'#a07a40', fontWeight:600, textDecoration:'underline', cursor:'pointer', fontFamily:'inherit', fontSize:11.5 }}>Make it lighter</button>
+                      )}
+                      {isLighter && (
+                        <button onClick={() => setLighterDays(p => { const n = { ...p }; delete n[dp.offset]; return n })} style={{ marginLeft:6, background:'none', border:'none', color:'#7a7268', textDecoration:'underline', cursor:'pointer', fontFamily:'inherit', fontSize:11.5 }}>Undo</button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+          {planView === 'monthly' && cyclePlan && weekBlocks(cyclePlan).map(b => {
+            const isCurrent = (b.week - 1) === currentWeekIdx
+            const open = expandedWeek === b.week
+            const mv = getMovementToday(b.sub)
+            const weekDays = open ? assignSessions(cyclePlan.slice(b.startOffset, b.startOffset + 7), goal) : null
+            return (
+              <div key={b.week} style={{ background:'#fff', border:`${isCurrent?'2px':'1px'} solid ${isCurrent?'#c8b89a':'#ede8e0'}`, borderRadius:12, marginBottom:10, overflow:'hidden' }}>
+                <button onClick={() => setExpandedWeek(open ? null : b.week)} style={{ width:'100%', textAlign:'left', background:'none', border:'none', padding:'14px 16px', cursor:'pointer', fontFamily:'inherit' }}>
+                  <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                    <div style={{ fontSize:11, fontWeight:700, letterSpacing:'0.06em', textTransform:'uppercase', color:isCurrent?'#7a5c30':'#9a9590' }}>Week {b.week} · {b.sub}{isCurrent ? ' · This week' : ''}</div>
+                    <i className={`ti ti-chevron-${open?'up':'down'}`} style={{ fontSize:15, color:'#9a9590' }} />
+                  </div>
+                  {!open && <>
+                    <div style={{ fontSize:14, fontWeight:600, color:'#2c2820', marginTop:4 }}>{mv.title}</div>
+                    <div style={{ fontSize:12, color:'#7a7268', lineHeight:1.5, marginTop:2 }}>{mv.detail}</div>
+                    <div style={{ fontSize:11.5, color:'#a07a40', fontWeight:600, marginTop:6 }}>Tap for the full week ›</div>
+                  </>}
+                </button>
+                {open && weekDays && (
+                  <div style={{ padding:'0 16px 12px' }}>
+                    {weekDays.map(d => (
+                      <div key={d.offset} style={{ display:'flex', gap:12, padding:'9px 0', borderTop:'1px solid #f0ece4' }}>
+                        <div style={{ width:64, flexShrink:0 }}>
+                          <div style={{ fontSize:12.5, fontWeight:700, color:'#2c2820' }}>Day {d.cycleDay}</div>
+                          <div style={{ fontSize:10, color:'#9a9590', marginTop:2 }}>{d.sub}</div>
+                        </div>
+                        <div style={{ flex:1 }}>
+                          <div style={{ fontSize:13, fontWeight:600, color:'#2c2820' }}>{d.title}</div>
+                          <div style={{ fontSize:11, color:'#7a7268', lineHeight:1.45, marginTop:1 }}>{d.detail}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+          {((planView==='weekly' && !weekPlan) || (planView==='monthly' && !cyclePlan)) && (
+            <div style={{ background:'#f5f0e8', borderRadius:12, padding:16, fontSize:13, color:'#7a7268', lineHeight:1.6 }}>
+              We&apos;ll map this to your cycle once we know your period dates. For now, a balanced week: aim for about 3 strength sessions, 2 cardio, and 2 rest or gentle-movement days, adjusting to how you feel.
             </div>
+          )}
+        </div>
+      ) : (
+        /* BASIC MODE, pick today's activity */
+        <div style={{ padding:'0 16px' }}>
+          <span style={{ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590', marginBottom:12, display:'block' }}>What are you doing today?</span>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10, marginBottom:14 }}>
+            {ACTIVITIES.map(a => (
+              <div key={a.id} onClick={() => selectActivity(a.id)} style={{
+                padding:'16px 8px', borderRadius:14, border:'1px solid #ede8e0',
+                background:'#fff', cursor:'pointer', textAlign:'center',
+                boxShadow:'0 1px 4px rgba(44,40,32,0.04)',
+              }}>
+                {a.emoji
+                  ? <span style={{ fontSize:26, display:'block', marginBottom:6 }}>{a.emoji}</span>
+                  : <i className={`ti ${a.icon}`} style={{ fontSize:26, display:'block', marginBottom:6, color:'#c8b89a' }} />
+                }
+                <div style={{ fontSize:12, fontWeight:500, color:'#2c2820' }}>{a.label}</div>
+              </div>
+            ))}
+          </div>
+          <button onClick={() => setShowPlanPicker(true)} style={{ width:'100%', background:'#2c2820', color:'#f5f0e8', border:'none', borderRadius:14, padding:'13px', fontSize:14, fontWeight:600, cursor:'pointer', fontFamily:'inherit', marginBottom:10 }}>
+            <i className="ti ti-calendar-plus" style={{ fontSize:15, marginRight:6 }} />Build my plan
+          </button>
+          <div style={{ textAlign:'center', marginBottom:16 }}>
+            <button onClick={() => setScreen('logClass')} style={{ background:'none', border:'1px solid #ede8e0', borderRadius:20, padding:'7px 18px', fontSize:13, color:'#7a7268', cursor:'pointer', fontFamily:'inherit' }}>
+              <i className="ti ti-plus" style={{ fontSize:13, marginRight:5 }} />Log a class
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Plan picker sheet */}
+      {showPlanPicker && (<>
+        <div onClick={() => setShowPlanPicker(false)} style={{ position:'fixed', inset:0, background:'rgba(44,40,32,0.4)', zIndex:200 }} />
+        <div style={{ position:'fixed', bottom:0, left:'50%', transform:'translateX(-50%)', width:'100%', maxWidth:420, background:'#faf8f5', borderRadius:'20px 20px 0 0', zIndex:201, padding:'16px 20px 40px' }}>
+          <div style={{ width:36, height:4, background:'#c8b89a', borderRadius:2, margin:'0 auto 16px' }} />
+          <div style={{ fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:20, marginBottom:6 }}>Build your plan</div>
+          <div style={{ fontSize:13, color:'#7a7268', lineHeight:1.6, marginBottom:16 }}>We&apos;ll map your training to your cycle{goal ? ' and your goal' : ''}. Pick a timeframe.</div>
+          {[
+            { val:'daily',  icon:'ti-calendar',      title:'Just today', sub:"Today's recommended session" },
+            { val:'weekly', icon:'ti-calendar-week', title:'This week',  sub:'A workout for every day this week' },
+            { val:'monthly', icon:'ti-calendar-month', title:'This cycle', sub:'Your whole cycle, week by week' },
+          ].map(o => (
+            <button key={o.val} onClick={() => { setShowPlanPicker(false); setPlanView(o.val === 'daily' ? null : o.val) }} style={{ width:'100%', display:'flex', alignItems:'center', gap:13, background:'#fff', border:'1px solid #ede8e0', borderRadius:14, padding:'14px 16px', marginBottom:10, cursor:'pointer', fontFamily:'inherit', textAlign:'left' }}>
+              <div style={{ width:40, height:40, borderRadius:12, background:'#f0ece2', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                <i className={`ti ${o.icon}`} style={{ fontSize:20, color:'#8a7a5a' }} />
+              </div>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:15, fontWeight:600, color:'#2c2820' }}>{o.title}</div>
+                <div style={{ fontSize:12.5, color:'#7a7268' }}>{o.sub}</div>
+              </div>
+              <i className="ti ti-chevron-right" style={{ fontSize:18, color:'#c8b89a' }} />
+            </button>
           ))}
         </div>
-        <div style={{ textAlign:'center', marginBottom:16 }}>
-          <button onClick={() => setScreen('logClass')} style={{ background:'none', border:'1px solid #ede8e0', borderRadius:20, padding:'7px 18px', fontSize:13, color:'#7a7268', cursor:'pointer', fontFamily:'inherit' }}>
-            <i className="ti ti-plus" style={{ fontSize:13, marginRight:5 }} />Log a class
-          </button>
-        </div>
-      </div>
+      </>)}
+
+      <Disclaimer>Em~power is a wellness app, not medical advice. Talk to a healthcare professional before starting or changing an exercise program, especially if you are pregnant, postpartum, injured, or managing a health condition. Stop and seek care if you feel unwell.</Disclaimer>
       <BottomNav />
     </div>
   )
@@ -1017,7 +1323,7 @@ export default function Workout() {
           </div>
         ))}
 
-        {/* Custom — dashed */}
+        {/* Custom, dashed */}
         <div onClick={() => { setMuscleGroup('custom') }} style={{
           padding:'16px', borderRadius:12, border:`2px dashed ${muscleGroup==='custom'?'#c8b89a':'#ede8e0'}`,
           background:muscleGroup==='custom'?'#e8dfd0':'transparent', cursor:'pointer', marginBottom:16,
@@ -1058,7 +1364,7 @@ export default function Workout() {
 
         <button className="btn-primary"
           disabled={!muscleGroup || (muscleGroup==='custom' && customMuscles.length===0)}
-          onClick={() => { setCheckedMoves({}); setScreen('warmup') }}>
+          onClick={() => { setCheckedMoves({}); setScreen('plan') }}>
           Show my workout
         </button>
       </div>
@@ -1090,7 +1396,7 @@ export default function Workout() {
               <div style={{ fontSize:12, color:'#9a9590' }}>{totalDone}/{moves.length}</div>
             </div>
             {moves.map((move, i) => {
-              const moveName = move.split(' —')[0].split(' —')[0]
+              const moveName = move.split(', ')[0].split(', ')[0]
               const descKey = Object.keys(WARMUP_DESCRIPTIONS).find(k => moveName.toLowerCase().startsWith(k.toLowerCase()))
               const desc = descKey ? WARMUP_DESCRIPTIONS[descKey] : null
               const isExpanded = expandedWarmupMove === i
@@ -1121,7 +1427,7 @@ export default function Workout() {
           </div>
 
           <button className="btn-primary" onClick={() => { setCheckedMoves({}); setScreen('plan') }}>
-            {totalDone >= moves.length ? 'Warmup complete — start workout' : 'Skip warmup — start workout'}
+            {totalDone >= moves.length ? 'Warmup complete, start workout' : 'Skip warmup, start workout'}
           </button>
         </div>
         <BottomNav />
@@ -1129,13 +1435,13 @@ export default function Workout() {
     )
   }
 
-  // WORKOUT PLAN — overview list
+  // WORKOUT PLAN, overview list
   if (screen === 'plan') {
     const exercises = activity === 'gym' ? getExercises() : null
     const isGym = activity === 'gym'
     return (
       <div style={{ paddingBottom:100 }}>
-        <TopBar title="WORKOUT" backTo={() => setScreen(isGym ? 'warmup' : 'pick')} />
+        <TopBar title="WORKOUT" backTo={() => setScreen(isGym ? 'muscles' : 'pick')} />
         <div style={{ padding:'16px 16px 0' }}>
           {isAcl && <div style={{ background:'#fff8e6', border:'1px solid #f0c040', borderRadius:12, padding:14, marginBottom:12 }}>
             <div style={{ fontSize:13, fontWeight:600, marginBottom:4, color:'#6a4a00' }}>Your warmup matters more today</div>
@@ -1145,6 +1451,10 @@ export default function Workout() {
             <div style={{ fontSize:13, fontWeight:600, marginBottom:4, color:'#6a2800' }}>HIIT is more stressful in this phase</div>
             <div style={{ fontSize:12, color:'#7a4020', lineHeight:1.6 }}>Progesterone competes with cortisol receptors, so high intensity creates a larger net stress response right now (Hackney 2006).</div>
           </div>}
+          {isGym && <button onClick={() => { setCheckedMoves({}); setScreen('warmup') }}
+            style={{ width:'100%', padding:'11px', borderRadius:10, border:`1px solid ${isAcl?'#f0c040':'#ede8e0'}`, background:isAcl?'#fff8e6':'#fff', color:'#7a7268', fontSize:13, fontWeight:500, cursor:'pointer', fontFamily:'inherit', marginBottom:12 }}>
+            {isAcl ? 'Warm up first (important today)' : 'Warm up first (recommended)'}
+          </button>}
 
           {isGym ? <>
             <div style={{ fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:20, marginBottom:2 }}>
@@ -1189,7 +1499,7 @@ export default function Workout() {
             if (cardioGuide) return (
               <>
                 <div style={{ fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:20, marginBottom:2 }}>{ACTIVITIES.find(a=>a.id===activity)?.label}</div>
-                <div style={{ fontSize:12, color:'#9a9590', marginBottom:14 }}>{Math.round(intensity*100)}% intensity today</div>
+                <div style={{ fontSize:12, color:'#9a9590', marginBottom:14 }}>{getMovementToday(phase).title} · {getMovementToday(phase).detail}</div>
 
                 <div style={{ background:'#fff', border:'1px solid #ede8e0', borderRadius:12, padding:16, marginBottom:12 }}>
                   <div style={{ display:'flex', gap:16, marginBottom:12 }}>
@@ -1234,7 +1544,7 @@ export default function Workout() {
 
                 <div style={{ background:'#fdf3f0', border:'1px solid #e8c0a8', borderRadius:12, padding:14, marginBottom:12 }}>
                   <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a6040', marginBottom:6 }}>How hard to push</div>
-                  <div style={{ fontSize:13, color:'#3a3530', lineHeight:1.6, marginBottom:6 }}>Each work bout should be near-maximal, an effort of 9 to 10 out of 10. If you could hold a conversation, it is not HIIT. It is just cardio, and it will feel easy. Women are more fatigue-resistant and recover faster between bouts than men, so you have to push to genuinely high intensity for the adaptation; a comfortable circuit will not get you there. Use harder variations (add a jump, go faster) before adding rounds.</div>
+                  <div style={{ fontSize:13, color:'#3a3530', lineHeight:1.6, marginBottom:6 }}>Go 9 to 10 out of 10 on every work bout. If you can hold a conversation, push harder, that is just cardio. Women recover faster between bouts, so you have to genuinely push to get the benefit.</div>
                   <div style={{ fontSize:11, color:'#9a9590', fontStyle:'italic', lineHeight:1.5 }}>Sims ST. ROAR 2024; sex differences in HIIT, Frontiers in Physiology 2020; Hunter SK, sex differences in fatigability, Acta Physiologica 2014.</div>
                 </div>
 
@@ -1276,7 +1586,7 @@ export default function Workout() {
                     </div>
                     {seq.map((move, i) => {
                       const descLib = activity === 'yoga' ? YOGA_DESCRIPTIONS : PILATES_DESCRIPTIONS
-                      const moveName = move.split(' — ')[0].split(' — ')[0]
+                      const moveName = move.split(', ')[0].split(', ')[0]
                       const descKey = Object.keys(descLib).find(k => moveName.toLowerCase().startsWith(k.toLowerCase()))
                       const desc = descKey ? descLib[descKey] : null
                       const isExpanded = expandedChecklistMove === i
@@ -1307,7 +1617,7 @@ export default function Workout() {
                   </div>
 
                   <button className="btn-primary" onClick={() => setScreen('feel')} style={{ opacity: allDone ? 1 : 0.85 }}>
-                    {allDone ? 'Complete — log how it went' : 'Skip ahead — log how it went'}
+                    {allDone ? 'Complete, log how it went' : 'Skip ahead, log how it went'}
                   </button>
                 </>
               )
@@ -1329,11 +1639,14 @@ export default function Workout() {
     )
   }
 
-  // EXERCISE PLAYER — one exercise at a time
+  // EXERCISE PLAYER, one exercise at a time
   if (screen === 'player') {
     const exercises = getExercises()
     const exObj = exercises[playerIdx]
     const isLast = playerIdx === exercises.length - 1
+    const isBodyweight = !/^\d/.test(exObj.weight) // weight string starts with a number for loaded moves; "Bodyweight" otherwise
+    // Personalised target from her own last lift + today's phase (null = first time → use the range).
+    const prog = isBodyweight ? null : getProgressionTarget({ lastWeight: exHistory[exObj.name]?.last_weight, exerciseName: exObj.name, intensityModifier: intensity })
     const svgType = getSvgType(exObj.name)
     const muscles = getMuscles(exObj.name)
     const equipment = getEquipment(exObj.name)
@@ -1363,7 +1676,7 @@ export default function Workout() {
     return (
       <div style={{ paddingBottom:120 }}>
         {/* top bar with progress */}
-        <div style={{ background:'#f5f0e8', padding:'16px 20px', borderBottom:'1px solid #ede8e0', display:'flex', alignItems:'center', gap:12 }}>
+        <div style={{ background:'#f5f0e8', padding:'calc(16px + var(--sat)) 20px 16px', borderBottom:'1px solid #ede8e0', display:'flex', alignItems:'center', gap:12 }}>
           <button onClick={() => playerIdx === 0 ? setScreen('plan') : setPlayerIdx(i => i-1)} style={{ background:'none', border:'none', cursor:'pointer', padding:0, fontSize:20, color:'#2c2820', lineHeight:1 }}>
             <i className="ti ti-arrow-left"/>
           </button>
@@ -1414,16 +1727,31 @@ export default function Workout() {
             </div>
           </div>
 
-          {/* Weight guide — always visible */}
+          {/* Weight prescription. PERSONALISED to her own last lift + cycle phase when we have
+              history for this exercise, otherwise the level-based phase guide for a first attempt. */}
           {(() => {
+            if (isBodyweight) return null
+            if (prog) {
+              // She has done this lift before → show HER progressed target, decided by her phase.
+              const up = prog.action === 'progress'
+              return (
+                <div style={{ background: up ? '#eef4ee' : '#e8dfd0', border:`1px solid ${up ? '#bcd8bc' : '#c8b89a'}`, borderRadius:12, padding:'12px 14px', marginBottom:12 }}>
+                  <div style={{ display:'flex', alignItems:'baseline', gap:8, marginBottom:4 }}>
+                    <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color: up ? '#4a7a4a' : '#7a6a50' }}>WEIGHT TODAY</div>
+                    {up && <span style={{ fontSize:10, fontWeight:700, color:'#fff', background:'#4a7a4a', borderRadius:10, padding:'1px 7px', letterSpacing:'0.04em' }}>+{prog.delta}KG</span>}
+                  </div>
+                  <div style={{ fontSize:22, fontWeight:700, color:'#2c2820' }}>{prog.weight}kg</div>
+                  <div style={{ fontSize:12, color:'#5a5a50', lineHeight:1.5, marginTop:4 }}>{prog.reason}</div>
+                </div>
+              )
+            }
+            // First time doing this exercise → fall back to the level/phase starting range.
             const weightNote = getPhaseWeightNote(exObj.weight, intensity, phase)
             return weightNote ? (
-              <div style={{ background:'#e8dfd0', border:'1px solid #c8b89a', borderRadius:12, padding:'12px 14px', marginBottom:12, display:'flex', alignItems:'center', gap:12 }}>
-                <div>
-                  <div style={{ fontSize:10, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#7a6a50', marginBottom:2 }}>WEIGHT TODAY</div>
-                  <div style={{ fontSize:20, fontWeight:700, color:'#2c2820' }}>~{weightNote.weight}</div>
-                </div>
-                {/* The phase rationale lives in the Phase Guidance accordion below — no duplicate here. */}
+              <div style={{ background:'#e8dfd0', border:'1px solid #c8b89a', borderRadius:12, padding:'12px 14px', marginBottom:12 }}>
+                <div style={{ fontSize:10, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#7a6a50', marginBottom:2 }}>STARTING WEIGHT GUIDE</div>
+                <div style={{ fontSize:20, fontWeight:700, color:'#2c2820' }}>~{weightNote.weight}</div>
+                <div style={{ fontSize:12, color:'#7a6a50', lineHeight:1.5, marginTop:4 }}>First time logging this one. Pick a weight you can control for all reps, we will personalise from here next time.</div>
               </div>
             ) : null
           })()}
@@ -1443,7 +1771,7 @@ export default function Workout() {
           <div style={{ background:'#fff', border:'1px solid #ede8e0', borderRadius:14, overflow:'hidden', marginBottom:16 }}>
             <div style={{ display:'grid', gridTemplateColumns:'36px 1fr 52px 44px', padding:'10px 14px', borderBottom:'1px solid #f5f0e8' }}>
               <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590' }}>SET</div>
-              <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590' }}>WEIGHT (KG)</div>
+              <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590' }}>{isBodyweight ? 'WEIGHT' : 'WEIGHT (KG)'}</div>
               <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590', textAlign:'center' }}>REPS</div>
               <div/>
             </div>
@@ -1453,13 +1781,17 @@ export default function Workout() {
               return (
                 <div key={si} style={{ display:'grid', gridTemplateColumns:'36px 1fr 52px 44px', padding:'10px 14px', borderBottom:si<exObj.sets-1?'1px solid #f5f0e8':'none', alignItems:'center', background:done?'#fafaf8':'#fff' }}>
                   <div style={{ fontSize:15, fontWeight:600, color:'#9a9590' }}>{si+1}</div>
-                  <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-                    <button onClick={() => updateWeight(si, -2.5)} style={{ width:30, height:30, borderRadius:8, border:'1px solid #ede8e0', background:'#faf8f5', cursor:'pointer', fontSize:16, color:'#7a7268', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontFamily:'inherit' }}>−</button>
-                    <input type="number" value={w} onChange={e => setSetWeights(prev => { const ex={...(prev[playerIdx]||{})}; ex[si]=e.target.value; return {...prev,[playerIdx]:ex} })}
-                      placeholder={exObj.weight.split(' ')[0]}
-                      style={{ flex:1, minWidth:0, padding:'6px 8px', border:'1px solid #ede8e0', borderRadius:8, fontSize:14, textAlign:'center', background:'#fff', fontFamily:'inherit', color:'#2c2820' }}/>
-                    <button onClick={() => updateWeight(si, 2.5)} style={{ width:30, height:30, borderRadius:8, border:'1px solid #ede8e0', background:'#faf8f5', cursor:'pointer', fontSize:16, color:'#7a7268', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontFamily:'inherit' }}>+</button>
-                  </div>
+                  {isBodyweight ? (
+                    <div style={{ fontSize:14, color:'#7a7268', fontWeight:500 }}>Bodyweight</div>
+                  ) : (
+                    <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                      <button onClick={() => updateWeight(si, -2.5)} style={{ width:30, height:30, borderRadius:8, border:'1px solid #ede8e0', background:'#faf8f5', cursor:'pointer', fontSize:16, color:'#7a7268', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontFamily:'inherit' }}>−</button>
+                      <input type="number" value={w} onChange={e => setSetWeights(prev => { const ex={...(prev[playerIdx]||{})}; ex[si]=e.target.value; return {...prev,[playerIdx]:ex} })}
+                        placeholder={prog ? String(prog.weight) : exObj.weight.split(' ')[0]}
+                        style={{ flex:1, minWidth:0, padding:'6px 8px', border:'1px solid #ede8e0', borderRadius:8, fontSize:14, textAlign:'center', background:'#fff', fontFamily:'inherit', color:'#2c2820' }}/>
+                      <button onClick={() => updateWeight(si, 2.5)} style={{ width:30, height:30, borderRadius:8, border:'1px solid #ede8e0', background:'#faf8f5', cursor:'pointer', fontSize:16, color:'#7a7268', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontFamily:'inherit' }}>+</button>
+                    </div>
+                  )}
                   <div style={{ fontSize:15, textAlign:'center', color:'#2c2820', fontWeight:500 }}>{exObj.reps}</div>
                   <div style={{ display:'flex', justifyContent:'flex-end' }}>
                     <button onClick={() => toggleSet(si, exObj.sets)} style={{ width:36, height:36, borderRadius:18, border:`2px solid ${done?'#2c2820':'#c8b89a'}`, background:done?'#2c2820':'transparent', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', transition:'all 0.15s' }}>
@@ -1471,7 +1803,7 @@ export default function Workout() {
             })}
           </div>
 
-          {/* Rest timer strip — fixed to the bottom so it stays visible while you rest */}
+          {/* Rest timer strip, fixed to the bottom so it stays visible while you rest */}
           {restSecondsLeft > 0 && (
             <div style={{ position:'fixed', left:0, right:0, bottom:0, zIndex:50, maxWidth:420, margin:'0 auto', background:'#2c2820', borderRadius:'14px 14px 0 0', padding:'14px 16px', display:'flex', alignItems:'center', gap:12, boxShadow:'0 -4px 18px rgba(0,0,0,0.18)' }}>
               <div style={{ flex:1 }}>
@@ -1556,7 +1888,23 @@ export default function Workout() {
     const progressPct = Math.round(doneIntervals / totalIntervals * 100)
 
     function skipHiitPhase() {
-      setHiitSecondsLeft(0)
+      // Advance directly (not via the timer effect) so Skip also works while paused.
+      const data = hiitFor(phase)
+      if (hiitPhase === 'work') {
+        setHiitPhase('rest'); setHiitSecondsLeft(data.rest)
+      } else {
+        const nextEx = hiitExIdx + 1
+        if (nextEx < data.exercises.length) {
+          setHiitExIdx(nextEx); setHiitPhase('work'); setHiitSecondsLeft(data.work)
+        } else {
+          const nextRound = hiitRound + 1
+          if (nextRound <= data.rounds) {
+            setHiitRound(nextRound); setHiitExIdx(0); setHiitPhase('work'); setHiitSecondsLeft(data.work)
+          } else {
+            setHiitRunning(false); setScreen('feel')
+          }
+        }
+      }
     }
 
     return (

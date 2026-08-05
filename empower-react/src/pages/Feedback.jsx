@@ -1,12 +1,8 @@
-// route /feedback — user feedback form: category, screen, description, follow-up, frustration rating. Saves to user_feedback table.
+// route /feedback, user feedback form: category, screen, description, follow-up, frustration rating. Saves to user_feedback table.
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import TopBar from '../components/TopBar'
-
-// Developer account that can view all tester feedback (the get_all_feedback() DB
-// function enforces this server-side too — this is only the client-side gate).
-const ADMIN_EMAIL = 'emmascheck2001@gmail.com'
 
 const CATEGORIES = [
   { id:'something_broken', emoji:'🔧', label:'Something is broken', sub:'Error, crash, or not working' },
@@ -92,12 +88,12 @@ const FOLLOWUPS = {
   },
 }
 const PRIORITY_MAP = {
-  something_broken: 'CRITICAL — fix immediately',
-  wrong: 'HIGH — science or data accuracy issue',
-  confusing: 'MEDIUM — UX improvement needed',
-  missing: 'MEDIUM — feature request',
-  love: 'INFO — positive signal, do not change',
-  other: 'LOW — review and decide',
+  something_broken: 'CRITICAL, fix immediately',
+  wrong: 'HIGH, science or data accuracy issue',
+  confusing: 'MEDIUM. UX improvement needed',
+  missing: 'MEDIUM, feature request',
+  love: 'INFO, positive signal, do not change',
+  other: 'LOW, review and decide',
 }
 
 const sLabel = { fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590', marginBottom:12, display:'block' }
@@ -114,19 +110,21 @@ export default function Feedback() {
   const [saving, setSaving] = useState(false)
   const [done, setDone] = useState(false)
   const [adminFeedback, setAdminFeedback] = useState(null)
+  const [openFb, setOpenFb] = useState(null)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user: u } }) => {
       if (!u) { navigate('/login', { replace: true }); return }
       setUser(u)
-      // Open to every signed-in user — the whole point of the beta is to collect
+      // Open to every signed-in user, the whole point of the beta is to collect
       // tester feedback. (Was restricted to the developer's email, which silently
       // blocked all testers from submitting.)
       setAllowed(true)
-      // Developer-only: pull every tester's feedback via the secure admin function.
-      if (u.email === ADMIN_EMAIL) {
-        supabase.rpc('get_all_feedback').then(({ data }) => setAdminFeedback(data || []))
-      }
+      // Developer-only: pull every tester's feedback via the secure admin function. The
+      // function is uid-gated server-side (returns rows only for the developer), so we can
+      // simply call it, no personal email needs to live in the client bundle. Non-admins
+      // get an empty result and never see the admin view.
+      supabase.rpc('get_all_feedback').then(({ data }) => { if (data?.length) setAdminFeedback(data) }).catch(() => {})
     })
   }, [navigate])
 
@@ -139,7 +137,7 @@ export default function Feedback() {
     const screenLabel = SCREENS.find(s => s.id === screenId)?.label || 'General'
     const fuText = fu ? ' Specifically: ' + fu + '.' : ''
     const frText = fr ? ' Frustration: ' + fr + '/5.' : ''
-    return priority + ' — ' + catLabel + ' on ' + screenLabel + '. User reported: "' + desc + '".' + fuText + frText
+    return priority + ', ' + catLabel + ' on ' + screenLabel + '. User reported: "' + desc + '".' + fuText + frText
   }
 
   async function submit() {
@@ -186,7 +184,7 @@ export default function Feedback() {
       <div style={{ padding:'40px 20px', textAlign:'center' }}>
         <div style={{ fontSize:40, marginBottom:16 }}>🌿</div>
         <div style={{ fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:22, marginBottom:8 }}>Feedback received.</div>
-        <div style={{ fontSize:14, color:'#7a7268', lineHeight:1.6, marginBottom:32 }}>Emma has been notified and will review this before the next session.</div>
+        <div style={{ fontSize:14, color:'#7a7268', lineHeight:1.6, marginBottom:32 }}>The Em~power team has been notified and will review this before the next update.</div>
         <div style={{ background:'#f5f0e8', borderRadius:12, padding:14, marginBottom:12, textAlign:'left' }}>
           <div style={{ fontSize:11, color:'#9a9590', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:4 }}>Category</div>
           <div style={{ fontSize:13 }}>{CATEGORIES.find(c=>c.id===category)?.label}</div>
@@ -218,16 +216,28 @@ export default function Feedback() {
               <span style={{ fontSize:11, color:'#9a9590' }}>{adminFeedback.filter(f => f.status === 'pending').length} pending</span>
             </div>
             {adminFeedback.length === 0 && <div style={{ fontSize:13, color:'#7a7268' }}>No feedback yet.</div>}
-            {adminFeedback.map(f => (
-              <div key={f.id} style={{ borderTop:'1px solid #f0ece4', padding:'10px 0' }}>
-                <div style={{ display:'flex', justifyContent:'space-between', gap:8, marginBottom:4 }}>
-                  <span style={{ fontSize:12, fontWeight:600, color:'#3a3530' }}>{(CATEGORIES.find(c => c.id === f.category)?.label) || f.category}</span>
-                  <span style={{ fontSize:10, fontWeight:600, padding:'2px 8px', borderRadius:10, background: f.status === 'pending' ? '#fdf3e0' : '#eef5ee', color: f.status === 'pending' ? '#8a5a10' : '#2a5a2a' }}>{f.status}</span>
+            {adminFeedback.map(f => {
+              const open = openFb === f.id
+              return (
+                <div key={f.id} style={{ borderTop:'1px solid #f0ece4' }}>
+                  <div onClick={() => setOpenFb(open ? null : f.id)} style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 0', cursor:'pointer' }}>
+                    <span style={{ fontSize:10, fontWeight:600, padding:'2px 8px', borderRadius:10, background: f.status === 'pending' ? '#fdf3e0' : '#eef5ee', color: f.status === 'pending' ? '#8a5a10' : '#2a5a2a', flexShrink:0 }}>{f.status}</span>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontSize:12, fontWeight:600, color:'#3a3530', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{(CATEGORIES.find(c => c.id === f.category)?.label) || f.category}</div>
+                      <div style={{ fontSize:10, color:'#9a9590', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{f.user_email} · {new Date(f.created_at).toLocaleDateString()}</div>
+                    </div>
+                    <i className={`ti ti-chevron-${open ? 'up' : 'down'}`} style={{ color:'#c8b89a', fontSize:15, flexShrink:0 }} />
+                  </div>
+                  {open && (
+                    <div style={{ padding:'0 0 12px' }}>
+                      <div style={{ fontSize:13, color:'#3a3530', lineHeight:1.5, marginBottom:4 }}>{f.description}</div>
+                      {f.followup_answer && <div style={{ fontSize:12, color:'#7a7268', marginBottom:4 }}>{f.followup_answer}</div>}
+                      <div style={{ fontSize:11, color:'#9a9590' }}>{f.screen}{f.frustration_rating ? ` · frustration ${f.frustration_rating}/5` : ''}</div>
+                    </div>
+                  )}
                 </div>
-                <div style={{ fontSize:13, color:'#3a3530', lineHeight:1.5, marginBottom:4 }}>{f.description}</div>
-                <div style={{ fontSize:11, color:'#9a9590' }}>{f.user_email} · {f.screen}{f.frustration_rating ? ` · frustration ${f.frustration_rating}/5` : ''} · {new Date(f.created_at).toLocaleDateString()}</div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
 
@@ -236,7 +246,7 @@ export default function Feedback() {
           <div style={{ fontSize:13, color:'#c8b89a', lineHeight:1.6 }}>Every piece of feedback goes directly to the developer and shapes what gets fixed next.</div>
         </div>
 
-        {/* Step 1 — Category */}
+        {/* Step 1. Category */}
         <div style={{ marginBottom:20 }}>
           <span style={sLabel}>1. What kind of feedback?</span>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
@@ -253,7 +263,7 @@ export default function Feedback() {
           </div>
         </div>
 
-        {/* Step 2 — Screen */}
+        {/* Step 2. Screen */}
         {category && (
           <div style={{ marginBottom:20 }}>
             <span style={sLabel}>2. Which screen?</span>
@@ -272,7 +282,7 @@ export default function Feedback() {
           </div>
         )}
 
-        {/* Step 3 — Description */}
+        {/* Step 3. Description */}
         {category && (
           <div style={{ marginBottom:20 }}>
             <span style={sLabel}>3. Tell me more</span>
@@ -286,7 +296,7 @@ export default function Feedback() {
           </div>
         )}
 
-        {/* Step 4 — Follow-up */}
+        {/* Step 4. Follow-up */}
         {category && FOLLOWUPS[category] && (
           <div style={{ marginBottom:20 }}>
             <span style={sLabel}>4. {FOLLOWUPS[category].q}</span>
@@ -303,7 +313,7 @@ export default function Feedback() {
           </div>
         )}
 
-        {/* Step 5 — Frustration (hidden for 'love' category) */}
+        {/* Step 5. Frustration (hidden for 'love' category) */}
         {showFrustration && (
           <div style={{ marginBottom:24 }}>
             <span style={sLabel}>5. How frustrated are you?</span>

@@ -1,10 +1,38 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* Safe-area top inset: 0 on the web (so the web looks exactly as before), and the real iOS
+   inset ONLY inside the native app (html gets .cap-native from main.jsx). All top-bar padding
+   and the status-bar backdrop use var(--sat), so nothing changes on the web. */
+:root { --sat: 0px; }
+html.cap-native { --sat: env(safe-area-inset-top); }
+
+html, body {
+  /* Stop iOS from auto-enlarging text in the native WebView, so the native app renders text
+     at the same size as the web (which was "perfect"). Without this, iOS inflates font sizes
+     and everything looks blown up. No effect on desktop/web. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
   background: #faf8f5;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   color: #2c2820;
   -webkit-font-smoothing: antialiased;
+}
+
+/* Solid backdrop behind the iOS status bar (clock/battery area) so scrolling content never
+   shows through it and collides with the time. Native only; env() is 0 in browsers. */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--sat);
+  background: #faf8f5;
+  z-index: 9998;
+  pointer-events: none;
 }
 
 #root {
@@ -15,8 +43,17 @@ body {
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
+@keyframes confettiFall {
+  0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(110vh) rotate(720deg); opacity: 0.85; }
+}
+
 button { font-family: inherit; }
 a { color: inherit; }
+
+/* Inputs at 16px prevent iOS from zooming in when a field is focused (a jarring native-only
+   jump). 16px is imperceptible from 15px on the web. !important to beat inline font sizes. */
+input, textarea, select { font-size: 16px !important; }
 
 .page { padding: 16px 16px 100px; }
 
