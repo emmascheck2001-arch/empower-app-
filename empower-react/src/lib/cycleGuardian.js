@@ -27,12 +27,18 @@ function prettyDate(dateStr) {
   return isNaN(d) ? dateStr : d.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })
 }
 
-// status: getTodayStatus() output. signals: wearableCycleSignals() output.
+// status: getTodayStatus() output. signals: wearableCycleSignals() output. lastPeriodDate:
+// the user's most recently logged period start (YYYY-MM-DD), if any.
 // Returns a (possibly corrected) copy of status. Always safe to call.
-export function applyWearableOvulation(status, signals) {
+export function applyWearableOvulation(status, signals, lastPeriodDate) {
   if (!status || !signals?.ovulationConfirmed || !signals.ovulationDate) return status
   // Never override non-cycling states (hormonal BC / pregnancy / perimenopause).
   if (!NATURAL_PHASES.includes(status.phase)) return status
+
+  // A freshly logged period ALWAYS wins. If the wearable's ovulation is on or before the last
+  // logged period start, it belongs to a previous cycle — that cycle is over, so ignore it.
+  // Without this, a stale ovulation could override a period the user just logged.
+  if (lastPeriodDate && signals.ovulationDate <= lastPeriodDate) return status
 
   const cycleLen = status.cycleLen || 28
   const daysSinceOv = daysSinceISO(signals.ovulationDate)
@@ -72,11 +78,11 @@ export function applyWearableOvulation(status, signals) {
 // Convenience for the shared status pipeline: read the wearable signals the HealthConnect card
 // persisted to localStorage and apply them. On the web (or for anyone who never connected a
 // wearable) there is no stored signal, so this returns the status completely untouched.
-export function applyWearableOvulationFromStorage(status) {
+export function applyWearableOvulationFromStorage(status, lastPeriodDate) {
   try {
     if (typeof window === 'undefined' || !window.localStorage) return status
     const raw = window.localStorage.getItem('wearableSignals')
     if (!raw) return status
-    return applyWearableOvulation(status, JSON.parse(raw))
+    return applyWearableOvulation(status, JSON.parse(raw), lastPeriodDate)
   } catch { return status }
 }

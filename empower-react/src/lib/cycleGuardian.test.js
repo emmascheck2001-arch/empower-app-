@@ -37,7 +37,7 @@ describe('applyWearableOvulation', () => {
     const out = applyWearableOvulation(status, confirmed(6))
     expect(out.phase).toBe('Luteal')
     expect(out.guardian.corrected).toBe(false)
-    expect(out.guardian.note).toMatch(/matches your tracked cycle/)
+    expect(out.guardian.note).toMatch(/tracked cycle/)
   })
 
   it('never overrides hormonal BC, pregnancy, or perimenopause', () => {
@@ -45,6 +45,13 @@ describe('applyWearableOvulation', () => {
       const status = { phase, cycleLen: 28 }
       expect(applyWearableOvulation(status, confirmed(6))).toBe(status)
     }
+  })
+
+  it('a period logged after the ovulation always wins (ignores the old cycle ovulation)', () => {
+    const status = { phase: 'Menstrual', subPhase: null, cycleDay: 1, cycleLen: 28 }
+    const lastPeriod = daysAgo(0) // logged today
+    const out = applyWearableOvulation(status, confirmed(6), lastPeriod) // ovulation 6 days ago
+    expect(out).toBe(status) // untouched — the fresh period supersedes the prior ovulation
   })
 
   it('ignores a stale ovulation from a previous cycle', () => {

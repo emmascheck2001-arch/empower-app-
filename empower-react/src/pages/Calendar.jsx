@@ -42,21 +42,36 @@ function localDateStr(d) {
 // their real dates, not extrapolated backward from a single date (which blanked months).
 function getPhaseForDate(date, periodStarts, cycleLen, periodLength) {
   if (!periodStarts || !periodStarts.length) return null
-  // Anchor to the most recent recorded start on or before this date. For dates that fall
-  // BEFORE the earliest recorded start (e.g. months logged before the user's first period
-  // date), fall back to the earliest start and extrapolate the cycle backward, otherwise
-  // logging a new period blanks every earlier month on the calendar.
-  let anchor = new Date(periodStarts[0] + 'T00:00:00')
+  // Find the cycle this date belongs to: the most recent recorded start on or before it
+  // (anchor), and the next recorded start after it (nextStart), if any.
+  let anchor = null
+  let nextStart = null
   for (const ps of periodStarts) {
     const d = new Date(ps + 'T00:00:00')
     if (d <= date) anchor = d
-    else break  // periodStarts is sorted ascending
+    else { nextStart = d; break }  // periodStarts is sorted ascending
   }
+  // Dates BEFORE the earliest recorded start: anchor to the first start and project backward
+  // (so earlier months still colour instead of blanking).
+  if (!anchor) { anchor = new Date(periodStarts[0] + 'T00:00:00'); nextStart = null }
+
   const diff = Math.floor((date - anchor) / 86400000)
-  // Normalise so negative diffs (dates before the anchor) still map to a valid 1..cycleLen day.
-  const cycleDay = (((diff % cycleLen) + cycleLen) % cycleLen) + 1
-  const phase = getPhase(cycleDay, cycleLen, periodLength)
-  const sub = phase === 'Luteal' ? getLutealSubPhase(cycleDay, cycleLen) : phase
+  let cycleDay, effLen
+  if (nextStart) {
+    // This date sits BETWEEN two logged periods, so the real cycle length is the actual gap.
+    // Use it and do NOT wrap with modulo — otherwise a rigid 28-day projection paints a
+    // predicted period before the real (logged) next period, which is exactly wrong for
+    // irregular cycles (e.g. a late period logged on the 6th still showing menstrual on the 1st).
+    effLen = Math.max(1, Math.round((nextStart - anchor) / 86400000))
+    cycleDay = Math.min(diff + 1, effLen)
+  } else {
+    // No later period logged yet: this is the current/future cycle, so project the average
+    // cycle length. Modulo keeps negative diffs (backward projection) on a valid 1..cycleLen day.
+    effLen = cycleLen
+    cycleDay = (((diff % cycleLen) + cycleLen) % cycleLen) + 1
+  }
+  const phase = getPhase(cycleDay, effLen, periodLength)
+  const sub = phase === 'Luteal' ? getLutealSubPhase(cycleDay, effLen) : phase
   return { phase, sub, cycleDay }
 }
 

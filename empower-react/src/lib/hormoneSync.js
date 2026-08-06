@@ -970,7 +970,7 @@ export async function getTodayStatus(supabase, userId) {
   // Cycle guardian: if a connected wearable has CONFIRMED ovulation from temperature, anchor the
   // phase to the body's own signal instead of the calendar. No-op on web / for non-connected
   // users (no stored signal), and it never touches BC/pregnancy/perimenopause states.
-  status = applyWearableOvulationFromStorage(status)
+  status = applyWearableOvulationFromStorage(status, cycleData?.last_period_date)
 
   // Persist the accumulated learning so it survives across sessions and feeds VisitPrep and
   // the personal-baseline card (these tables were previously read but NEVER written, the
