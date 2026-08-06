@@ -6,6 +6,7 @@ import { getTodayStatus, parsePeriodStarts } from '../lib/hormoneSync'
 import { buildCycleDayHistory } from '../lib/cycleHistory'
 import { getProgressionTarget } from '../lib/progression'
 import { getMovementToday } from '../lib/movementToday'
+import { syncPlanToWatch } from '../lib/watchBridge'
 import { buildCyclePlan, weekBlocks, assignSessions, lighterSession } from '../lib/cyclePlan'
 import GoalPicker, { getFitnessGoal } from '../components/GoalPicker'
 import { track } from '../lib/analytics'
@@ -934,6 +935,8 @@ export default function Workout() {
     try {
       const s = await getTodayStatus(supabase, user.id)
       setStatus(s)
+      // Push today's phase-based plan to the paired Apple Watch (iOS only; no-ops elsewhere).
+      syncPlanToWatch(s)
       if (s?.profile?.fitness_level) setFitnessLevel(s.profile.fitness_level === 'beginner' ? 'beginner' : s.profile.fitness_level === 'advanced' || s.profile.fitness_level === 'athlete' ? 'advanced' : 'intermediate')
       // Progression memory: what weight/reps the user hit last time, per exercise.
       const { data: hist } = await supabase.from('exercise_history').select('*').eq('user_id', user.id)
