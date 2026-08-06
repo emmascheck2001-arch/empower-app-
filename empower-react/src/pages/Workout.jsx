@@ -10,6 +10,7 @@ import { buildCyclePlan, weekBlocks, assignSessions, lighterSession } from '../l
 import GoalPicker, { getFitnessGoal } from '../components/GoalPicker'
 import { track } from '../lib/analytics'
 import BottomNav from '../components/BottomNav'
+import WearableWorkouts from '../components/WearableWorkouts'
 import TopBar from '../components/TopBar'
 import Spinner from '../components/Spinner'
 
@@ -1246,6 +1247,8 @@ export default function Workout() {
       ) : (
         /* BASIC MODE, pick today's activity */
         <div style={{ padding:'0 16px' }}>
+          {/* Apple Watch / wearable workouts, native only, renders nothing on web */}
+          <WearableWorkouts />
           <span style={{ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590', marginBottom:12, display:'block' }}>What are you doing today?</span>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10, marginBottom:14 }}>
             {ACTIVITIES.map(a => (

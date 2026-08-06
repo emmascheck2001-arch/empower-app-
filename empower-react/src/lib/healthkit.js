@@ -12,7 +12,7 @@ import { Health } from '@capgo/capacitor-health'
 // streams and use whichever the user's device actually fills: Apple Watch writes overnight
 // "wrist" temperature; Oura/dedicated BBT write basal; Android wearables write body temperature.
 const TEMP_TYPES = ['appleSleepingWristTemperature', 'basalBodyTemperature', 'bodyTemperature']
-const READ_TYPES = [...TEMP_TYPES, 'restingHeartRate', 'heartRateVariability', 'sleep']
+const READ_TYPES = [...TEMP_TYPES, 'restingHeartRate', 'heartRateVariability', 'sleep', 'workouts']
 
 export function isNative() {
   return Capacitor.isNativePlatform()
@@ -52,6 +52,51 @@ function toDailySeries(samples) {
   return Object.entries(byDay)
     .map(([date, vals]) => ({ date, value: vals.reduce((a, b) => a + b, 0) / vals.length }))
     .sort((a, b) => (a.date < b.date ? -1 : 1))
+}
+
+// Map Apple Health / Health Connect workout types onto Em~power's activity buckets so imported
+// workouts line up with the app's own Walk / Run / Cycle / Swim / Gym / Yoga / Pilates / HIIT.
+const WORKOUT_MAP = {
+  running: 'Run', runningTreadmill: 'Run', wheelchairRunPace: 'Run',
+  walking: 'Walk', hiking: 'Walk', wheelchairWalkPace: 'Walk',
+  cycling: 'Cycle', bikingStationary: 'Cycle', handCycling: 'Cycle',
+  swimming: 'Swim', swimmingPool: 'Swim', swimmingOpenWater: 'Swim', waterFitness: 'Swim',
+  yoga: 'Yoga',
+  pilates: 'Pilates', barre: 'Pilates',
+  highIntensityIntervalTraining: 'HIIT', crossTraining: 'HIIT', mixedCardio: 'HIIT',
+  jumpRope: 'HIIT', kickboxing: 'HIIT', boxing: 'HIIT', bootCamp: 'HIIT',
+  strengthTraining: 'Gym', traditionalStrengthTraining: 'Gym', functionalStrengthTraining: 'Gym',
+  weightlifting: 'Gym', coreTraining: 'Gym', calisthenics: 'Gym',
+}
+
+function mapWorkout(t) {
+  if (WORKOUT_MAP[t]) return WORKOUT_MAP[t]
+  // Any explicit lift / gym-machine movement → Gym; otherwise keep a readable label.
+  if (/press|curl|deadlift|lunge|plank|crunch|squat|raise|extension|pullDown|latPull/i.test(t)) return 'Gym'
+  return (t || 'Workout').replace(/([A-Z])/g, ' $1').replace(/^./, c => c.toUpperCase()).trim()
+}
+
+// Read recent workouts (Apple Watch etc.) from the health store, shaped for display + logging.
+// Returns newest-first: [{ date:'YYYY-MM-DD', activity, rawType, minutes, calories, km, source }].
+export async function readRecentWorkouts(days = 21) {
+  if (!isNative()) return []
+  const end = new Date()
+  const start = new Date(); start.setDate(start.getDate() - days)
+  try {
+    const r = await Health.queryWorkouts({
+      startDate: start.toISOString(), endDate: end.toISOString(), limit: 100, ascending: false,
+    })
+    return (r?.workouts || []).map(w => ({
+      date: (w.startDate || '').slice(0, 10),
+      start: w.startDate,
+      activity: mapWorkout(w.workoutType),
+      rawType: w.workoutType,
+      minutes: w.duration ? Math.round(w.duration / 60) : null,
+      calories: w.totalEnergyBurned != null ? Math.round(w.totalEnergyBurned) : null,
+      km: w.totalDistance != null ? Math.round(w.totalDistance / 100) / 10 : null,   // m → km, 1dp
+      source: w.sourceName || null,
+    })).filter(w => w.date)
+  } catch (e) { console.error('readRecentWorkouts failed', e); return [] }
 }
 
 // Total ASLEEP hours for the most recent night from sleep samples. Counts only true sleep
