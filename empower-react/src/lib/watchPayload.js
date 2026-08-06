@@ -22,16 +22,27 @@ function inferActivity(text) {
   return 'Gym' // strength-leaning guidance (steady strength, priority, etc.)
 }
 
+// Age from the profile's birth year (used on the watch to set the heart-rate flag threshold).
+// Returns null when birth year is missing so the watch falls back to a safe default.
+function ageFromProfile(profile) {
+  const by = profile?.birth_year
+  if (!by) return null
+  const age = new Date().getFullYear() - by
+  return age > 0 && age < 120 ? age : null
+}
+
 // status: the object returned by getTodayStatus. dateISO: yyyy-MM-dd the plan is for.
-// Returns { phase, date, workouts:[{ activity, title, detail, exercises:[] }] }.
+// Returns { phase, date, age, workouts:[{ activity, title, detail, exercises:[] }] }.
 export function buildWatchPayload(status, dateISO) {
   if (!status) return null
+  const age = ageFromProfile(status.profile)
 
   // Pregnancy is never auto-prescribed a workout (permanent app rule) — send guidance only.
   if (status.phase === 'Pregnancy') {
     return {
       phase: status.subPhase || 'Pregnancy',
       date: dateISO || null,
+      age,
       workouts: [{
         activity: 'Walk',
         title: 'Move as your provider advised',
@@ -51,5 +62,5 @@ export function buildWatchPayload(status, dateISO) {
     exercises: [], // exercise-level detail (weights/reps) is added when the guided player syncs
   }]
 
-  return { phase: phaseLabel, date: dateISO || null, workouts }
+  return { phase: phaseLabel, date: dateISO || null, age, workouts }
 }

@@ -41,8 +41,9 @@ struct TodayPlan: Codable {
     let phase: String                 // user-facing sub-phase, e.g. "Mid luteal"
     let workouts: [WatchWorkout]
     var date: String? = nil           // ISO yyyy-MM-dd the plan was built for (staleness check)
+    var age: Int? = nil               // from the phone (for the heart-rate flag threshold)
 
-    enum CodingKeys: String, CodingKey { case phase, workouts, date }
+    enum CodingKeys: String, CodingKey { case phase, workouts, date, age }
 }
 
 // TEMP sample — shown (labelled) only until the first real phone→watch payload arrives.
@@ -58,8 +59,14 @@ let sampleToday = TodayPlan(
         WatchWorkout(activity: "Walk", title: "Zone 2 walk", detail: "35 min · easy pace",
                      exercises: [WatchExercise(name: "Steady walk", guide: "conversational", reps: "35 min")]),
         WatchWorkout(activity: "Yoga", title: "Restorative flow", detail: "20 min · calm",
-                     exercises: [WatchExercise(name: "Gentle flow", guide: "breathe", reps: "20 min")]),
-    ]
+                     exercises: [
+                        WatchExercise(name: "Child's pose", guide: "breathe deep", reps: "2 min"),
+                        WatchExercise(name: "Cat–cow", guide: "slow, with breath", reps: "2 min"),
+                        WatchExercise(name: "Supine twist", guide: "each side", reps: "3 min"),
+                        WatchExercise(name: "Savasana", guide: "let go", reps: "5 min"),
+                     ]),
+    ],
+    age: 30
 )
 
 func activityIcon(_ a: String) -> String {
@@ -86,7 +93,7 @@ struct ContentView: View {
             List {
                 Section {
                     ForEach(store.plan.workouts) { w in
-                        NavigationLink(destination: WorkoutDetailView(workout: w, phase: store.plan.phase)) {
+                        NavigationLink(destination: WorkoutDetailView(workout: w, phase: store.plan.phase, age: store.plan.age ?? 30)) {
                             HStack(spacing: 10) {
                                 Image(systemName: activityIcon(w.activity))
                                     .foregroundStyle(empowerGold)
@@ -123,6 +130,7 @@ struct ContentView: View {
 struct WorkoutDetailView: View {
     let workout: WatchWorkout
     let phase: String
+    let age: Int
 
     var body: some View {
         List {
@@ -150,8 +158,8 @@ struct WorkoutDetailView: View {
                 .padding(.vertical, 1)
             }
 
-            NavigationLink(destination: LiveWorkoutView(phase: phase, workoutTitle: workout.title)) {
-                Label("Start workout", systemImage: "heart.fill")
+            NavigationLink(destination: LiveWorkoutView(workout: workout, phase: phase, age: age)) {
+                Label("Start guided workout", systemImage: "play.fill")
                     .font(.headline)
                     .foregroundStyle(empowerGold)
             }

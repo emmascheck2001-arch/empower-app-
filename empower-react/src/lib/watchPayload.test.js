@@ -43,4 +43,15 @@ describe('buildWatchPayload (phone→watch wire contract)', () => {
     expect(p.date).toBe(null)
     expect(p.phase).toBe('Menstrual')
   })
+
+  it('derives age from the profile birth year for the heart-rate flag threshold', () => {
+    const birthYear = new Date().getFullYear() - 29
+    const p = buildWatchPayload({ phase: 'Follicular', subPhase: 'Follicular', profile: { birth_year: birthYear } }, '2026-08-06')
+    expect(p.age).toBe(29)
+  })
+
+  it('leaves age null when no birth year is known (watch uses a safe default)', () => {
+    const p = buildWatchPayload({ phase: 'Follicular', subPhase: 'Follicular' }, '2026-08-06')
+    expect(p.age).toBe(null)
+  })
 })
