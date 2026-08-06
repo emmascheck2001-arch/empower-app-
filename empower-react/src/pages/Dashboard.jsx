@@ -296,7 +296,7 @@ export default function Dashboard() {
       // Daily Coach, pure synthesis of the status we already have (no new data). First name only.
       const firstName = (profile?.name || '').trim().split(/\s+/)[0] || null
       const coach = buildDailyCoach(status, new Date().getHours(), firstName)
-      setD({ profile, phase, subPhase, cycleDay, cycleLen, daysLeft, confidence, bw, proteinG: status?.nutritionTargets?.proteinG || null, bcBleedDay, bcInBleedWindow, alreadyLogged, todayLog, streak, recentLogs, twoWeekLogs, anomalyItems, isPath4, estimated, latePeriod: status?.latePeriod || false, daysLate: status?.daysLate || 0, latePeriodInsights: status?.latePeriodInsights || [], userEmail: user.email, todayLoggers: todayLoggers || 0, coach })
+      setD({ profile, phase, subPhase, cycleDay, cycleLen, daysLeft, confidence, bw, proteinG: status?.nutritionTargets?.proteinG || null, bcBleedDay, bcInBleedWindow, alreadyLogged, todayLog, streak, recentLogs, twoWeekLogs, anomalyItems, isPath4, estimated, latePeriod: status?.latePeriod || false, daysLate: status?.daysLate || 0, latePeriodInsights: status?.latePeriodInsights || [], nextPeriod: status?.nextPeriodPrediction || null, userEmail: user.email, todayLoggers: todayLoggers || 0, coach })
     } catch(e) { console.error(e) }
     finally { setLoading(false) }
   }
@@ -437,6 +437,11 @@ export default function Dashboard() {
           const cycleText = phase === 'bc'
             ? (bcBleedDay ? (bcInBleedWindow ? `Day ${bcBleedDay} of your pill cycle · bleed likely now` : `Day ${bcBleedDay} · next bleed in about ${daysLeft} days`) : 'Steady hormones, tracking symptoms')
             : cycleDay ? `Day ${cycleDay} of ${cycleLen}` : estimated ? 'Estimated from your symptoms' : 'Tracking your patterns'
+          const np = d.nextPeriod
+          const stripT = dt => { const x = new Date(dt); x.setHours(0,0,0,0); return x }
+          const daysToNext = np ? Math.max(0, Math.round((stripT(np.predictedDate) - stripT(new Date())) / 86400000)) : daysLeft
+          const fmtLong = dt => new Date(dt).toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' })
+          const fmtShort = dt => new Date(dt).toLocaleDateString('en-US', { month:'short', day:'numeric' })
           return (
           <>
             {/* Today's Focus */}
@@ -485,13 +490,26 @@ export default function Dashboard() {
                   <div style={{ fontSize:13, color:'rgba(232,224,212,0.72)', marginBottom:10 }}>{cycleText}</div>
                   <div style={{ fontSize:13, color:'rgba(232,224,212,0.82)', lineHeight:1.6 }}>{getPersonalisedPhaseDesc(phase, subPhase, recentLogs)}</div>
                 </div>
-                {daysLeft != null && phase !== 'bc' && cycleDay && !latePeriod && (
+                {np && phase !== 'bc' && cycleDay && !latePeriod && (
                   <div style={{ width:110, height:110, borderRadius:'50%', border:'2px dashed rgba(232,224,212,0.4)', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-                    <div style={{ fontSize:26, fontWeight:700 }}>{daysLeft}</div>
+                    <div style={{ fontSize:26, fontWeight:700 }}>{daysToNext}</div>
                     <div style={{ fontSize:9, color:'rgba(232,224,212,0.7)', textAlign:'center', lineHeight:1.2, padding:'2px 10px 0' }}>days to next period</div>
                   </div>
                 )}
               </div>
+              {/* Concrete next-period prediction from the user's own history. */}
+              {np && phase !== 'bc' && !latePeriod && (
+                <div style={{ marginTop:14, padding:'12px 14px', background:'rgba(232,224,212,0.12)', borderRadius:12 }}>
+                  <div style={{ fontSize:10.5, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'rgba(232,224,212,0.7)', marginBottom:3 }}>Next period</div>
+                  <div style={{ fontSize:17, fontWeight:700 }}>{fmtLong(np.predictedDate)}</div>
+                  <div style={{ fontSize:12, color:'rgba(232,224,212,0.72)', marginTop:3, lineHeight:1.5 }}>
+                    {np.irregular
+                      ? `Your cycles vary, so likely anytime ${fmtShort(np.windowStart)} to ${fmtShort(np.windowEnd)}.`
+                      : `Most likely ${fmtShort(np.windowStart)} to ${fmtShort(np.windowEnd)}.`}
+                    {(np.confidence === 'low' || np.confidence === 'none') ? ' This sharpens as you log more cycles.' : ''}
+                  </div>
+                </div>
+              )}
               {estimated && <div style={{ fontSize:12, color:'rgba(232,224,212,0.6)', lineHeight:1.5, marginTop:12, fontStyle:'italic' }}>Read from your logged symptoms, not a confirmed cycle. Log your period for exact tracking.</div>}
               <button onClick={() => navigate('/workout')} style={{ marginTop:16, background:'rgba(232,224,212,0.16)', border:'1px solid rgba(232,224,212,0.3)', borderRadius:22, padding:'9px 16px', color:'#e8e0d4', fontSize:13, fontWeight:500, cursor:'pointer', fontFamily:'inherit', display:'inline-flex', alignItems:'center', gap:6 }}>Plan workout <i className="ti ti-chevron-right" style={{ fontSize:14 }} /></button>
             </div>

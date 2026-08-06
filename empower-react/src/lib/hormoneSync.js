@@ -35,19 +35,36 @@ export function getLutealSubPhase(cycleDay, cycleLen) {
 }
 
 // Source: CLAUDE.md canonical period prediction, export so all screens use same logic
-export const predictNextPeriod = (lastPeriodDate, avgCycleLength, cyclesTracked) => {
+export const predictNextPeriod = (lastPeriodDate, avgCycleLength, cyclesTracked, gaps) => {
   const lastPeriod = new Date(lastPeriodDate + 'T00:00:00')
+  // Predict from the user's OWN cycle history when we have it. For an irregular cycle the point
+  // estimate is the mean of her real gaps, and the window spans her observed shortest-to-longest
+  // cycle, so the range honestly reflects her variability instead of a fake ±2 days. With little
+  // history we fall back to her set/average cycle length and a sensible default window.
+  const plausible = (gaps || []).filter(g => g >= 15 && g <= 60)
+  const mean = plausible.length
+    ? plausible.reduce((s, g) => s + g, 0) / plausible.length
+    : (Math.round(avgCycleLength) || 28)
   const predictedDate = new Date(lastPeriod)
-  predictedDate.setDate(predictedDate.getDate() + Math.round(avgCycleLength))
-  const windowStart = new Date(predictedDate)
-  windowStart.setDate(windowStart.getDate() - 2)
-  const windowEnd = new Date(predictedDate)
-  windowEnd.setDate(windowEnd.getDate() + 2)
+  predictedDate.setDate(predictedDate.getDate() + Math.round(mean))
+
+  let startOffset, endOffset
+  if (plausible.length >= 2) {
+    startOffset = Math.min(...plausible)
+    endOffset = Math.max(...plausible)
+  } else {
+    const half = plausible.length ? 3 : 4
+    startOffset = Math.round(mean) - half
+    endOffset = Math.round(mean) + half
+  }
+  const windowStart = new Date(lastPeriod); windowStart.setDate(windowStart.getDate() + startOffset)
+  const windowEnd = new Date(lastPeriod); windowEnd.setDate(windowEnd.getDate() + endOffset)
   const confidence = cyclesTracked >= 3 ? 'high'
     : cyclesTracked === 2 ? 'moderate'
     : cyclesTracked === 1 ? 'low'
     : 'none'
-  return { predictedDate, windowStart, windowEnd, confidence }
+  const irregular = plausible.length >= 2 && (Math.max(...plausible) - Math.min(...plausible)) >= 8
+  return { predictedDate, windowStart, windowEnd, confidence, irregular }
 }
 
 // ── Period-start history ────────────────────────────────────────────────────
@@ -871,6 +888,12 @@ function buildCycleStatus(profile, cycleData, recentLogs, mucusLogs, today, tota
   const daysLate = latePeriod ? cycleDay - cycleLen - 1 : 0
   const latePeriodInsights = latePeriod ? getLatePeriodInsights(recentLogs, profile, cycleHistory) : []
 
+  // Concrete next-period prediction from the user's own logged history (most-likely date + a
+  // window that reflects her real cycle variability). Null until a period has been logged.
+  const nextPeriodPrediction = cycleData?.last_period_date
+    ? predictNextPeriod(cycleData.last_period_date, avgCycleLength, cyclesTracked, cycleHistory.gaps)
+    : null
+
   const intensityModifier = getIntensityModifier(phase, subPhase)
   const bodyWeight = profile?.body_weight_kg || 65
   // Logged hormone labs confirm the picture: progesterone >=10 nmol/L confirms ovulation,
@@ -891,6 +914,7 @@ function buildCycleStatus(profile, cycleData, recentLogs, mucusLogs, today, tota
     latePeriod,
     daysLate,
     latePeriodInsights,
+    nextPeriodPrediction,
     estimated,
     ovulationConfirmed: hormoneSignals?.ovulationConfirmed || false,
     hormoneSignals,

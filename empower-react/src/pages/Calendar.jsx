@@ -378,15 +378,13 @@ export default function Calendar() {
 
                   // Period prediction
                   let periodPredCard = null
-                  if (hasPhaseData && lastPeriod && daysAway !== null) {
-                    const lastDate = new Date(lastPeriod + 'T00:00:00')
-                    const nextPeriodMs = lastDate.getTime() + cycleLen * 86400000
-                    const nextPeriod = new Date(nextPeriodMs)
-                    const diffFromPred = Math.round((sheetDate - nextPeriod) / 86400000)
-                    if (Math.abs(diffFromPred) <= 3) {
-                      const windowStart = new Date(nextPeriodMs - 2 * 86400000)
-                      const windowEnd = new Date(nextPeriodMs + 2 * 86400000)
-                      const fmt = d => d.toLocaleDateString('en-CA', { month:'long', day:'numeric' })
+                  const pred = status?.nextPeriodPrediction
+                  if (hasPhaseData && pred && daysAway !== null) {
+                    const nextPeriod = new Date(pred.predictedDate)
+                    const windowStart = new Date(pred.windowStart); windowStart.setHours(0, 0, 0, 0)
+                    const windowEnd = new Date(pred.windowEnd); windowEnd.setHours(0, 0, 0, 0)
+                    if (sheetDate >= windowStart && sheetDate <= windowEnd) {
+                      const fmt = d => new Date(d).toLocaleDateString('en-CA', { month:'long', day:'numeric' })
                       periodPredCard = (
                         <div style={{ background:'linear-gradient(135deg,#fce8e0,#fad8d0)', border:'1px solid #f0c0b0', borderRadius:12, padding:16, marginBottom:12 }}>
                           <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
@@ -394,7 +392,7 @@ export default function Calendar() {
                             <div style={{ fontSize:14, fontWeight:600, color:'#5a2020' }}>Your period may start around this day</div>
                           </div>
                           <div style={{ fontSize:13, color:'#6a3030', lineHeight:1.7, marginBottom:8 }}>
-                            Based on your average cycle length of {cycleLen} days, your next period is predicted around {fmt(nextPeriod)}. The window is {fmt(windowStart)} to {fmt(windowEnd)}.
+                            Based on your cycle history, your next period is most likely around {fmt(nextPeriod)}. {pred.irregular ? 'Your cycles vary, so the likely window is' : 'The window is'} {fmt(windowStart)} to {fmt(windowEnd)}.
                           </div>
                           <div style={{ fontSize:13, color:'#6a3030', lineHeight:1.7, marginBottom:8 }}>
                             What to have ready: period products, a heat pad, iron-rich foods, and magnesium.
