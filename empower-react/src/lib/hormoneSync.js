@@ -855,7 +855,11 @@ function buildCycleStatus(profile, cycleData, recentLogs, mucusLogs, today, tota
     const lastPeriod = new Date(cycleData.last_period_date + 'T00:00:00')
     const diffDays = Math.floor((today - lastPeriod) / 86400000)
     cycleDay = diffDays + 1
-    cycleLen = cycleData.cycle_length || 28
+    // Use the LEARNED average cycle length once we have real history — a user's personal average
+    // beats the value they set at onboarding (Bull 2019; Li 2020/2023). avgCycleLength already
+    // falls back to their set cycle_length (then 28) when there aren't enough tracked cycles, so
+    // this only ever makes the phase, day counter, and prediction more accurate and consistent.
+    cycleLen = avgCycleLength || cycleData.cycle_length || 28
     daysUntilPeriod = Math.max(0, cycleLen - cycleDay + 1)
 
     if (cycleDay > 0 && cycleDay <= cycleLen + 7) {

@@ -527,10 +527,11 @@ if (cell.inMonth) {
 - Menstrual: dot `#e09898`, bg `#f0d8d8`, text `#5a2a28`
 - Follicular: dot `#88c088`, bg `#d8f0d8`, text `#1a4a1a`
 - Ovulatory: dot `#88c0e0`, bg `#d0e8f8`, text `#1a3a5a`
-- Early luteal: dot `#e0c070`, bg `#f8e8c8`, text `#6a3a10`
-- Mid luteal: dot `#d0a040`, bg `#f0d098`, text `#5a3008`
-- Late luteal: dot `#c88878`, bg `#f0c8b8`, text `#5a2818`
-- Luteal (generic): dot `#d0a040`, bg `#f0d098`, text `#5a3008`
+- Early luteal: dot `#f2df85` (lightest yellow), bg `rgba(242,223,133,0.20)`, text `#5a4a10`
+- Mid luteal: dot `#e6c447` (medium gold), bg `rgba(230,196,71,0.22)`, text `#5a3f08`
+- Late luteal: dot `#cf9e18` (deep gold), bg `rgba(207,158,24,0.24)`, text `#4a3200`
+- Luteal (generic): dot `#e6c447`, bg `rgba(230,196,71,0.22)`, text `#5a3f08`
+- **(Updated 2026-08-06 at Emma's request):** luteal is a light→dark YELLOW gradient (early lightest, late deepest gold) — NO salmon/brown. The old salmon late-luteal `#c88878` read as menstrual red and made pre-period days look like the period had started. Only real menstrual days are pink/red now. Legend "Luteal" swatch = `#e6c447`. Never reintroduce a reddish luteal shade.
 - Early follicular: dot `#88c088`, bg `#d8f0d8`, text `#1a4a1a`
 - Late follicular: dot `#68b068`, bg `#c8e8c8`, text `#1a4a1a`
 - observation: dot null, bg `#e8e5e0`, text `#4a4540`
