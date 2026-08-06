@@ -12,14 +12,14 @@ const PC = {
   Follicular:         { dot:'#88c088', bg:'rgba(136,192,136,0.24)', text:'#1a4a1a' },
   'Early follicular': { dot:'#88c088', bg:'rgba(136,192,136,0.24)', text:'#1a4a1a' },
   Ovulatory:          { dot:'#88c0e0', bg:'rgba(136,192,224,0.24)', text:'#1a3a5a' },
-  // All luteal sub-phases share ONE flat, clearly-yellow gold so NOTHING in the luteal phase
-  // reads as reddish/period. No darkening gradient toward the period (the old salmon late-luteal
-  // looked like menstrual). Matches the single "Luteal" swatch in the legend; sub-phase detail
-  // still lives in the day-sheet text. Bright yellow-gold is a full hue away from menstrual pink.
-  'Early luteal':     { dot:'#eab82e', bg:'rgba(234,184,46,0.20)', text:'#5a3008' },
-  'Mid luteal':       { dot:'#eab82e', bg:'rgba(234,184,46,0.20)', text:'#5a3008' },
-  'Late luteal':      { dot:'#eab82e', bg:'rgba(234,184,46,0.20)', text:'#5a3008' },
-  Luteal:             { dot:'#eab82e', bg:'rgba(234,184,46,0.20)', text:'#5a3008' },
+  // Luteal is a light-to-dark YELLOW gradient (early = lightest, late = deepest gold), staying
+  // entirely in the yellow family so none of it reads as menstrual red. Early luteal is a pale
+  // yellow, mid is a warmer gold, late is a deep gold — then menstrual is clearly red/pink. No
+  // salmon or brown anywhere (that old late-luteal shade looked like a period).
+  'Early luteal':     { dot:'#f2df85', bg:'rgba(242,223,133,0.20)', text:'#5a4a10' },
+  'Mid luteal':       { dot:'#e6c447', bg:'rgba(230,196,71,0.22)',  text:'#5a3f08' },
+  'Late luteal':      { dot:'#cf9e18', bg:'rgba(207,158,24,0.24)',  text:'#4a3200' },
+  Luteal:             { dot:'#e6c447', bg:'rgba(230,196,71,0.22)',  text:'#5a3f08' },
   observation:        { dot:'#c8b89a', bg:'rgba(200,184,154,0.20)', text:'#4a4540' },
 }
 
@@ -334,7 +334,7 @@ export default function Calendar() {
         {/* Legend */}
         <div style={{ display:'flex', flexWrap:'wrap', gap:10, marginBottom:16 }}>
           {hasPhaseData ? (
-            [['Menstrual','#e09898'],['Follicular','#88c088'],['Ovulatory','#88c0e0'],['Luteal','#eab82e'],['Logged','#c8b89a']].map(([l,c]) => (
+            [['Menstrual','#e09898'],['Follicular','#88c088'],['Ovulatory','#88c0e0'],['Luteal','#e6c447'],['Logged','#c8b89a']].map(([l,c]) => (
               <div key={l} style={{ display:'flex', alignItems:'center', gap:5 }}>
                 <div style={{ width:7, height:7, borderRadius:'50%', background:c }} />
                 <span style={{ fontSize:10, color:'#7a7268' }}>{l}</span>
