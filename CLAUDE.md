@@ -623,7 +623,7 @@ npm run build && netlify deploy --dir dist --site 11d125ac-cd81-4060-8dc1-2b6b58
 ```
 Or from the project root:
 ```
-cd "/Users/emmascheck/Desktop/hormone app/empower-react" && npm run build && netlify deploy --dir dist --site 11d125ac-cd81-4060-8dc1-2b6b580265ed --prod
+cd "/Users/emmascheck/Developer/hormone app/empower-react" && npm run build && netlify deploy --dir dist --site 11d125ac-cd81-4060-8dc1-2b6b580265ed --prod
 ```
 Always pass `--site 11d125ac-cd81-4060-8dc1-2b6b580265ed` explicitly. Production site is https://empowerhealth.netlify.app. empowerhealth.com is a different company and is NOT this app. The `www/` and `ios/` directories in the repo root are legacy — do NOT sync changes to them.
 
@@ -1395,7 +1395,7 @@ Never stop. There is always something that can be improved, verified, or made mo
 ### Step 1 — Fetch pending feedback using the service role key
 
 ```bash
-SERVICE_KEY=$(grep SUPABASE_SERVICE_ROLE_KEY /Users/emmascheck/Desktop/hormone\ app/.env.local | cut -d= -f2)
+SERVICE_KEY=$(grep SUPABASE_SERVICE_ROLE_KEY /Users/emmascheck/Developer/hormone\ app/.env.local | cut -d= -f2)
 curl -s "https://imgujppjvffbubnsscge.supabase.co/rest/v1/user_feedback?status=eq.pending&order=frustration_rating.desc,created_at.desc" \
   -H "apikey: $SERVICE_KEY" \
   -H "Authorization: Bearer $SERVICE_KEY"
@@ -1421,7 +1421,7 @@ Never wait for approval. Never ask clarifying questions. Make a decision and do 
 
 1. Mark resolved in Supabase:
 ```bash
-SERVICE_KEY=$(grep SUPABASE_SERVICE_ROLE_KEY /Users/emmascheck/Desktop/hormone\ app/.env.local | cut -d= -f2)
+SERVICE_KEY=$(grep SUPABASE_SERVICE_ROLE_KEY /Users/emmascheck/Developer/hormone\ app/.env.local | cut -d= -f2)
 curl -s -X PATCH "https://imgujppjvffbubnsscge.supabase.co/rest/v1/user_feedback?id=eq.ITEM_ID" \
   -H "apikey: $SERVICE_KEY" \
   -H "Authorization: Bearer $SERVICE_KEY" \
@@ -1437,7 +1437,7 @@ curl -s -X PATCH "https://imgujppjvffbubnsscge.supabase.co/rest/v1/user_feedback
 **Files changed:** [list]
 ```
 
-3. Build and deploy to production: `cd "/Users/emmascheck/Desktop/hormone app/empower-react" && npm run build && netlify deploy --dir dist --site 11d125ac-cd81-4060-8dc1-2b6b580265ed --prod`
+3. Build and deploy to production: `cd "/Users/emmascheck/Developer/hormone app/empower-react" && npm run build && netlify deploy --dir dist --site 11d125ac-cd81-4060-8dc1-2b6b580265ed --prod`
 
 ### Step 4 — Flag session summary to Emma
 
