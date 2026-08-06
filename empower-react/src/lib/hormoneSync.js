@@ -37,33 +37,37 @@ export function getLutealSubPhase(cycleDay, cycleLen) {
 // Source: CLAUDE.md canonical period prediction, export so all screens use same logic
 export const predictNextPeriod = (lastPeriodDate, avgCycleLength, cyclesTracked, gaps) => {
   const lastPeriod = new Date(lastPeriodDate + 'T00:00:00')
-  // Predict from the user's OWN cycle history when we have it. For an irregular cycle the point
-  // estimate is the mean of her real gaps, and the window spans her observed shortest-to-longest
-  // cycle, so the range honestly reflects her variability instead of a fake ±2 days. With little
-  // history we fall back to her set/average cycle length and a sensible default window.
+  const addDays = n => { const d = new Date(lastPeriod); d.setDate(d.getDate() + n); return d }
+  // Research-backed prediction (Bull 2019; Li 2020/2023; Munro/FIGO 2018; Symul 2019; Broad 2022):
+  //  - Point estimate = the user's TYPICAL cycle length (avgCycleLength is already averaged from
+  //    21-45 day cycles), so short breakthrough/intermenstrual bleeds don't bias the date early.
+  //  - Window scales to the user's OWN dispersion, not a fake ±2 days, and widens when the cycle
+  //    is irregular or history is thin — honesty over false precision.
+  //  - Never predict earlier than a physiological minimum (~21 days), so we can't paint a period
+  //    before one is plausible.
   const plausible = (gaps || []).filter(g => g >= 15 && g <= 60)
-  const mean = plausible.length
-    ? plausible.reduce((s, g) => s + g, 0) / plausible.length
-    : (Math.round(avgCycleLength) || 28)
-  const predictedDate = new Date(lastPeriod)
-  predictedDate.setDate(predictedDate.getDate() + Math.round(mean))
+  const typical = plausible.filter(g => g >= 21 && g <= 45)
+  const point = Math.max(21, Math.round(avgCycleLength) || 28)   // never predict before ~21 days
+  const predictedDate = addDays(point)
 
-  let startOffset, endOffset
-  if (plausible.length >= 2) {
-    startOffset = Math.min(...plausible)
-    endOffset = Math.max(...plausible)
+  const irregular = plausible.length >= 2 && (Math.max(...plausible) - Math.min(...plausible)) >= 8
+  let startOff, endOff
+  if (typical.length >= 2) {
+    startOff = Math.min(...typical); endOff = Math.max(...typical)
   } else {
-    const half = plausible.length ? 3 : 4
-    startOffset = Math.round(mean) - half
-    endOffset = Math.round(mean) + half
+    const half = irregular ? 7 : (cyclesTracked >= 1 ? 4 : 5)
+    startOff = point - half; endOff = point + half
   }
-  const windowStart = new Date(lastPeriod); windowStart.setDate(windowStart.getDate() + startOffset)
-  const windowEnd = new Date(lastPeriod); windowEnd.setDate(windowEnd.getDate() + endOffset)
+  startOff = Math.max(21, Math.min(startOff, point))   // physiological floor; never after the point
+  endOff = Math.max(endOff, point)                     // window must include the predicted day
+  if (endOff <= startOff) { startOff = Math.max(21, point - 1); endOff = point + 1 }
+  const windowStart = addDays(startOff)
+  const windowEnd = addDays(endOff)
+
   const confidence = cyclesTracked >= 3 ? 'high'
     : cyclesTracked === 2 ? 'moderate'
     : cyclesTracked === 1 ? 'low'
     : 'none'
-  const irregular = plausible.length >= 2 && (Math.max(...plausible) - Math.min(...plausible)) >= 8
   return { predictedDate, windowStart, windowEnd, confidence, irregular }
 }
 
