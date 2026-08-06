@@ -10,7 +10,6 @@ import { buildCyclePlan, weekBlocks, assignSessions, lighterSession } from '../l
 import GoalPicker, { getFitnessGoal } from '../components/GoalPicker'
 import { track } from '../lib/analytics'
 import BottomNav from '../components/BottomNav'
-import Disclaimer from '../components/Disclaimer'
 import TopBar from '../components/TopBar'
 import Spinner from '../components/Spinner'
 
@@ -1300,7 +1299,6 @@ export default function Workout() {
         </div>
       </>)}
 
-      <Disclaimer>Em~power is a wellness app, not medical advice. Talk to a healthcare professional before starting or changing an exercise program, especially if you are pregnant, postpartum, injured, or managing a health condition. Stop and seek care if you feel unwell.</Disclaimer>
       <BottomNav />
     </div>
   )

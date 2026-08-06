@@ -605,7 +605,7 @@ export default function Dashboard() {
           <button onClick={() => navigate('/feedback')} style={{ background:'none', border:'none', fontSize:12, color:'#9a9590', cursor:'pointer', fontFamily:'inherit' }}>Share feedback</button>
           <button onClick={() => navigate('/privacy')} style={{ background:'none', border:'none', fontSize:12, color:'#9a9590', cursor:'pointer', fontFamily:'inherit' }}>Privacy &amp; data</button>
         </div>
-        <Disclaimer />
+        <Disclaimer>Em~power offers general wellness information, not medical advice or contraception; see Privacy &amp; data for the full disclaimer.</Disclaimer>
       </div>
       <BottomNav />
 
