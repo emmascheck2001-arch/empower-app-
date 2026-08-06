@@ -12,9 +12,12 @@ const PC = {
   Follicular:         { dot:'#88c088', bg:'rgba(136,192,136,0.24)', text:'#1a4a1a' },
   'Early follicular': { dot:'#88c088', bg:'rgba(136,192,136,0.24)', text:'#1a4a1a' },
   Ovulatory:          { dot:'#88c0e0', bg:'rgba(136,192,224,0.24)', text:'#1a3a5a' },
-  'Early luteal':     { dot:'#e0c070', bg:'rgba(224,192,112,0.24)', text:'#6a3a10' },
+  // All luteal sub-phases share ONE gold colour so nothing in the luteal phase reads as a
+  // reddish "period" (the old salmon late-luteal shade looked like menstrual). Matches the
+  // single "Luteal" swatch in the legend. Sub-phase detail still lives in the day sheet text.
+  'Early luteal':     { dot:'#d8b24a', bg:'rgba(208,160,64,0.22)', text:'#5a3008' },
   'Mid luteal':       { dot:'#d0a040', bg:'rgba(208,160,64,0.24)', text:'#5a3008' },
-  'Late luteal':      { dot:'#c88878', bg:'rgba(200,136,120,0.24)', text:'#5a2818' },
+  'Late luteal':      { dot:'#c89830', bg:'rgba(208,160,64,0.26)', text:'#5a3008' },
   Luteal:             { dot:'#d0a040', bg:'rgba(208,160,64,0.24)', text:'#5a3008' },
   observation:        { dot:'#c8b89a', bg:'rgba(200,184,154,0.20)', text:'#4a4540' },
 }
