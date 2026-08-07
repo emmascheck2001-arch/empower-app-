@@ -14,6 +14,11 @@ import SwiftUI
 // more specific matches first.
 func svgType(for name: String) -> String {
     let n = name.lowercased()
+    // Yoga / mobility poses (watch-only additions — the phone's set is strength-focused).
+    if n.contains("child") { return "childpose" }
+    if n.contains("cat") { return "catcow" }
+    if n.contains("savasana") || n.contains("corpse") { return "savasana" }
+    if n.contains("supine") { return "twistpose" }
     if n.contains("bulgarian") || n.contains("split squat") { return "splitsquat" }
     if n.contains("squat") || n.contains("goblet") { return "squat" }
     if n.contains("leg press") { return "legpress" }
@@ -114,6 +119,22 @@ let FIGURES: [String: ExerciseFigure] = [
     "stand": ExerciseFigure(floor: true, period: 4000,
         top: Pose(j: ["head":pt(120,40),"neck":pt(120,58),"hip":pt(120,112),"k1":pt(112,136),"f1":pt(110,160),"k2":pt(128,136),"f2":pt(130,160),"e1":pt(112,70),"h1":pt(106,108),"e2":pt(128,70),"h2":pt(134,108)]),
         bottom: Pose(j: ["head":pt(120,43),"neck":pt(120,61),"hip":pt(120,113),"k1":pt(112,137),"f1":pt(110,160),"k2":pt(128,137),"f2":pt(130,160),"e1":pt(112,72),"h1":pt(107,110),"e2":pt(128,72),"h2":pt(133,110)])),
+    // Savasana — lying flat on the back along the floor, gentle breath.
+    "savasana": ExerciseFigure(floor: true, period: 5000,
+        top: Pose(j: ["head":pt(56,150),"neck":pt(80,150),"hip":pt(152,150),"k1":pt(176,149),"f1":pt(200,149),"k2":pt(176,153),"f2":pt(200,153),"e1":pt(96,152),"h1":pt(116,153),"e2":pt(96,148),"h2":pt(116,147)]),
+        bottom: Pose(j: ["head":pt(56,150),"neck":pt(80,148),"hip":pt(152,148),"k1":pt(176,147),"f1":pt(200,147),"k2":pt(176,151),"f2":pt(200,151),"e1":pt(96,152),"h1":pt(116,153),"e2":pt(96,148),"h2":pt(116,147)])),
+    // Child's pose — kneeling, folded forward, head low, arms reaching forward on the floor.
+    "childpose": ExerciseFigure(floor: true, period: 4600,
+        top: Pose(j: ["head":pt(76,150),"neck":pt(100,150),"hip":pt(132,146),"k1":pt(124,152),"f1":pt(144,158),"k2":pt(130,153),"f2":pt(150,159),"e1":pt(90,151),"h1":pt(62,155),"e2":pt(94,152),"h2":pt(66,156)]),
+        bottom: Pose(j: ["head":pt(76,152),"neck":pt(100,151),"hip":pt(132,148),"k1":pt(124,152),"f1":pt(144,158),"k2":pt(130,153),"f2":pt(150,159),"e1":pt(90,152),"h1":pt(62,156),"e2":pt(94,153),"h2":pt(66,157)])),
+    // Cat–cow — on hands and knees, arching (cow, head up) ↔ rounding (cat, head down).
+    "catcow": ExerciseFigure(floor: true, period: 3600,
+        top: Pose(j: ["head":pt(60,132),"neck":pt(82,140),"hip":pt(152,146),"k1":pt(156,150),"f1":pt(156,161),"k2":pt(162,150),"f2":pt(162,161),"e1":pt(78,150),"h1":pt(74,161),"e2":pt(86,150),"h2":pt(82,161)]),
+        bottom: Pose(j: ["head":pt(64,152),"neck":pt(84,146),"hip":pt(152,138),"k1":pt(156,150),"f1":pt(156,161),"k2":pt(162,150),"f2":pt(162,161),"e1":pt(80,150),"h1":pt(74,161),"e2":pt(88,150),"h2":pt(82,161)])),
+    // Supine twist — lying on the back, knees dropped to one side, arms opened out.
+    "twistpose": ExerciseFigure(floor: true, period: 4200,
+        top: Pose(j: ["head":pt(58,150),"neck":pt(82,150),"hip":pt(150,150),"k1":pt(168,140),"f1":pt(178,150),"k2":pt(172,138),"f2":pt(182,148),"e1":pt(100,146),"h1":pt(100,132),"e2":pt(110,150),"h2":pt(130,150)]),
+        bottom: Pose(j: ["head":pt(58,150),"neck":pt(82,150),"hip":pt(150,150),"k1":pt(168,144),"f1":pt(178,152),"k2":pt(172,142),"f2":pt(182,150),"e1":pt(100,146),"h1":pt(100,132),"e2":pt(110,150),"h2":pt(130,150)])),
 ]
 
 private func lerp(_ a: CGFloat, _ b: CGFloat, _ t: CGFloat) -> CGFloat { a + (b - a) * t }
