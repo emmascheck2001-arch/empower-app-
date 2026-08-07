@@ -82,9 +82,9 @@ struct LiveWorkoutView: View {
 
             let step = steps[index]
             VStack(spacing: 6) {
-                Image(systemName: activityIcon(workout.activity))
-                    .font(.system(size: 32))
-                    .foregroundStyle(empowerGold)
+                // Animated stick-figure demo of THIS exercise (same as the phone app).
+                StickFigureView(type: svgType(for: step.name))
+                    .frame(height: 84)
                 Text(step.name).font(.headline).multilineTextAlignment(.center)
                 Text(step.detail).font(.caption2).foregroundStyle(.secondary).multilineTextAlignment(.center)
             }
