@@ -64,3 +64,26 @@ export function buildWatchPayload(status, dateISO) {
 
   return { phase: phaseLabel, date: dateISO || null, age, workouts }
 }
+
+// Build the payload from a CONCRETE generated workout (the phone's real exercises + weights),
+// so the watch shows the user's actual plan instead of movement guidance. `exercises` are the
+// phone's exObj shape: { name, sets, reps, weight }.
+export function buildWorkoutPayload(status, { title, activity, exercises } = {}, dateISO) {
+  if (!status) return null
+  const mapped = (exercises || []).map(e => ({
+    name: e.name,
+    guide: e.weight || '',
+    reps: (e.sets && e.reps) ? `${e.sets} × ${e.reps}` : (e.reps ? String(e.reps) : ''),
+  }))
+  return {
+    phase: status.subPhase || status.phase || 'Today',
+    date: dateISO || null,
+    age: ageFromProfile(status.profile),
+    workouts: [{
+      activity: activity || 'Gym',
+      title: title || 'Workout',
+      detail: `${mapped.length} exercise${mapped.length === 1 ? '' : 's'}`,
+      exercises: mapped,
+    }],
+  }
+}

@@ -6,7 +6,7 @@ import { getTodayStatus, parsePeriodStarts } from '../lib/hormoneSync'
 import { buildCycleDayHistory } from '../lib/cycleHistory'
 import { getProgressionTarget } from '../lib/progression'
 import { getMovementToday } from '../lib/movementToday'
-import { syncPlanToWatch } from '../lib/watchBridge'
+import { syncPlanToWatch, syncWorkoutToWatch } from '../lib/watchBridge'
 import { buildCyclePlan, weekBlocks, assignSessions, lighterSession } from '../lib/cyclePlan'
 import GoalPicker, { getFitnessGoal } from '../components/GoalPicker'
 import { track } from '../lib/analytics'
@@ -1016,6 +1016,16 @@ export default function Workout() {
     })
     return core.concat(pickPreferLoad(accPool, base.length - core.length, daySeedVal, preferLoad))
   }
+
+  // When a gym plan is on screen, push that REAL workout (actual exercises + weights) to the
+  // watch so it mirrors the user's session instead of the generic movement guidance / sample.
+  useEffect(() => {
+    if (screen !== 'plan' || activity !== 'gym' || !status) return
+    const title = (muscleGroup === 'full' ? 'Full body' : muscleGroup === 'upper' ? 'Upper body'
+      : muscleGroup === 'lower' ? 'Lower body' : 'Custom') + ' session'
+    syncWorkoutToWatch(status, { title, activity: 'Gym', exercises: getExercises() })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [screen, activity, muscleGroup, fitnessLevel, customMuscles, status])
 
   async function save() {
     if (!feel) return

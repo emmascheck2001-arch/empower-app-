@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildWatchPayload } from './watchPayload'
+import { buildWatchPayload, buildWorkoutPayload } from './watchPayload'
 import { getMovementToday } from './movementToday'
 
 describe('buildWatchPayload (phone→watch wire contract)', () => {
@@ -53,5 +53,27 @@ describe('buildWatchPayload (phone→watch wire contract)', () => {
   it('leaves age null when no birth year is known (watch uses a safe default)', () => {
     const p = buildWatchPayload({ phase: 'Follicular', subPhase: 'Follicular' }, '2026-08-06')
     expect(p.age).toBe(null)
+  })
+})
+
+describe('buildWorkoutPayload (real generated gym workout → watch)', () => {
+  const status = { phase: 'Luteal', subPhase: 'Mid luteal', profile: {} }
+
+  it('maps the phone exObj shape (name/sets/reps/weight) to watch exercises', () => {
+    const exercises = [
+      { name: 'Goblet squat', sets: 3, reps: 10, weight: '12 to 16 kg' },
+      { name: 'Glute bridge', sets: 3, reps: 12, weight: 'Bodyweight' },
+    ]
+    const p = buildWorkoutPayload(status, { title: 'Lower body session', activity: 'Gym', exercises }, '2026-08-06')
+    expect(p.phase).toBe('Mid luteal')
+    expect(p.workouts).toHaveLength(1)
+    expect(p.workouts[0].title).toBe('Lower body session')
+    expect(p.workouts[0].detail).toBe('2 exercises')
+    expect(p.workouts[0].exercises[0]).toEqual({ name: 'Goblet squat', guide: '12 to 16 kg', reps: '3 × 10' })
+    expect(p.workouts[0].exercises[1].guide).toBe('Bodyweight')
+  })
+
+  it('returns null without status', () => {
+    expect(buildWorkoutPayload(null, { exercises: [] }, '2026-08-06')).toBe(null)
   })
 })

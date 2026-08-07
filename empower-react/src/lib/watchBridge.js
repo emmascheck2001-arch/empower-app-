@@ -2,7 +2,7 @@
 // Sends today's plan to the paired Apple Watch. No-ops safely on web and Android — the watch
 // integration is iOS-only — so callers can fire it unconditionally. See WATCH_APP_SPEC.md.
 import { Capacitor, registerPlugin } from '@capacitor/core'
-import { buildWatchPayload } from './watchPayload'
+import { buildWatchPayload, buildWorkoutPayload } from './watchPayload'
 
 // registerPlugin returns a proxy even when the native side is absent; we gate on platform so we
 // never call into a plugin that isn't there.
@@ -30,6 +30,21 @@ export async function syncPlanToWatch(status) {
   } catch (e) {
     // A missing/unpaired watch is expected and harmless — never surface it to the user.
     console.debug('Watch sync skipped:', e?.message || e)
+    return false
+  }
+}
+
+// Push a CONCRETE generated workout (real exercises + weights) to the watch — call this when a
+// gym plan is on screen so the watch shows the user's actual session, not movement guidance.
+export async function syncWorkoutToWatch(status, workout) {
+  if (!isIOSNative()) return false
+  const plan = buildWorkoutPayload(status, workout, todayISO())
+  if (!plan) return false
+  try {
+    await WatchBridge.sendPlan({ plan })
+    return true
+  } catch (e) {
+    console.debug('Watch workout sync skipped:', e?.message || e)
     return false
   }
 }
