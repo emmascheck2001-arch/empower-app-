@@ -69,8 +69,9 @@ describe('buildWorkoutPayload (real generated gym workout → watch)', () => {
     expect(p.workouts).toHaveLength(1)
     expect(p.workouts[0].title).toBe('Lower body session')
     expect(p.workouts[0].detail).toBe('2 exercises')
-    expect(p.workouts[0].exercises[0]).toEqual({ name: 'Goblet squat', guide: '12 to 16 kg', reps: '3 × 10' })
-    expect(p.workouts[0].exercises[1].guide).toBe('Bodyweight')
+    // per-set reps + an explicit set count the watch steps through with rest timers
+    expect(p.workouts[0].exercises[0]).toEqual({ name: 'Goblet squat', guide: '12 to 16 kg', reps: '10 reps', sets: 3 })
+    expect(p.workouts[0].exercises[1]).toEqual({ name: 'Glute bridge', guide: 'Bodyweight', reps: '12 reps', sets: 3 })
   })
 
   it('returns null without status', () => {

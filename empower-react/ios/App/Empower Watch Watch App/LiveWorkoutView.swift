@@ -2,29 +2,30 @@
 //  LiveWorkoutView.swift
 //  Empower Watch Watch App
 //
-//  The guided workout player. Steps through the day's exercises one at a time with a running
-//  timer, while heart rate is monitored silently in the background and only surfaces as a FLAG
-//  banner when it's genuinely high for the user's phase (WorkoutManager.hrFlag). This matches the
-//  design: guide the workout, keep HR out of the way until it matters.
+//  The guided workout player. Steps through the day's exercises SET BY SET with a rest timer
+//  between sets and an animated stick-figure demo of each move. Heart rate is monitored silently
+//  in the background and only surfaces as a FLAG banner when it's genuinely high for the user's
+//  phase (WorkoutManager.hrFlag). Guide the workout; keep HR out of the way until it matters.
 //
 
 import SwiftUI
 
-// A single step in the guided flow. Built from the workout's exercises; a guidance-only day
-// (e.g. a restorative flow with no per-move breakdown) collapses to one step.
-struct GuidedStep: Identifiable {
+// One exercise in the guided flow, with its set count. A guidance-only day (no per-move
+// breakdown) collapses to a single one-set step built from the workout's detail line.
+struct GuidedExercise: Identifiable {
     let id = UUID()
     let name: String
-    let detail: String   // guide/pace + reps, or the day's one-line guidance
+    let reps: String     // per-set target, e.g. "10 reps" or "35 min"
+    let guide: String    // weight/pace, e.g. "12–16 kg"
+    let sets: Int
 }
 
-func stepsFor(_ workout: WatchWorkout) -> [GuidedStep] {
-    if workout.exercises.isEmpty {
-        return [GuidedStep(name: workout.title, detail: workout.detail)]
+func guidedExercises(_ w: WatchWorkout) -> [GuidedExercise] {
+    if w.exercises.isEmpty {
+        return [GuidedExercise(name: w.title, reps: w.detail, guide: "", sets: 1)]
     }
-    return workout.exercises.map { e in
-        let d = e.reps.isEmpty ? e.guide : "\(e.reps) · \(e.guide)"
-        return GuidedStep(name: e.name, detail: d)
+    return w.exercises.map {
+        GuidedExercise(name: $0.name, reps: $0.reps, guide: $0.guide, sets: max(1, $0.sets ?? 1))
     }
 }
 
@@ -35,10 +36,17 @@ struct LiveWorkoutView: View {
 
     @StateObject private var manager = WorkoutManager()
     @Environment(\.dismiss) private var dismiss
-    @State private var index = 0
+
+    @State private var exIdx = 0
+    @State private var setIdx = 0
+    @State private var resting = false
+    @State private var restRemaining = 0
     @State private var finished = false
 
-    private var steps: [GuidedStep] { stepsFor(workout) }
+    private let restSeconds = 45
+    private let tick = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+
+    private var exercises: [GuidedExercise] { guidedExercises(workout) }
 
     var body: some View {
         ScrollView {
@@ -54,11 +62,9 @@ struct LiveWorkoutView: View {
                     .background(RoundedRectangle(cornerRadius: 10).fill(Color.red.opacity(0.18)))
                 }
 
-                if finished {
-                    completeView
-                } else {
-                    activeView
-                }
+                if finished { completeView }
+                else if resting { restView }
+                else { exerciseView }
             }
             .padding(.horizontal, 6)
         }
@@ -68,42 +74,56 @@ struct LiveWorkoutView: View {
             manager.start(age: age, phase: phase)
         }
         .onDisappear { manager.end() }
+        .onReceive(tick) { _ in
+            guard resting else { return }
+            if restRemaining > 1 { restRemaining -= 1 } else { advanceAfterRest() }
+        }
     }
 
-    // MARK: Active step
-    private var activeView: some View {
-        VStack(spacing: 10) {
+    // MARK: Active set
+    private var exerciseView: some View {
+        let ex = exercises[exIdx]
+        return VStack(spacing: 7) {
             HStack {
-                Text("Step \(index + 1) of \(steps.count)")
+                Text("Exercise \(exIdx + 1)/\(exercises.count)")
                     .font(.caption2).foregroundStyle(.secondary)
                 Spacer()
                 Text(manager.elapsedString).font(.caption2.monospacedDigit()).foregroundStyle(empowerGold)
             }
 
-            let step = steps[index]
-            VStack(spacing: 6) {
-                // Animated stick-figure demo of THIS exercise (same as the phone app).
-                StickFigureView(type: svgType(for: step.name))
-                    .frame(height: 84)
-                Text(step.name).font(.headline).multilineTextAlignment(.center)
-                Text(step.detail).font(.caption2).foregroundStyle(.secondary).multilineTextAlignment(.center)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 4)
+            StickFigureView(type: svgType(for: ex.name)).frame(height: 78)
 
-            Button {
-                if index + 1 < steps.count { index += 1 } else { finish() }
-            } label: {
-                Label(index + 1 < steps.count ? "Next" : "Finish",
-                      systemImage: index + 1 < steps.count ? "arrow.right" : "checkmark")
+            Text(ex.name).font(.headline).multilineTextAlignment(.center)
+
+            if ex.sets > 1 {
+                Text("Set \(setIdx + 1) of \(ex.sets)").font(.caption).foregroundStyle(empowerGold)
+            }
+            Text(ex.guide.isEmpty ? ex.reps : "\(ex.reps) · \(ex.guide)")
+                .font(.caption2).foregroundStyle(.secondary).multilineTextAlignment(.center)
+
+            Button(action: completeSet) {
+                Label(ex.sets > 1 ? "Complete set" : "Done", systemImage: "checkmark")
                     .font(.headline).foregroundStyle(empowerGold)
             }
+            .padding(.top, 2)
 
-            if index + 1 < steps.count {
-                Button("End workout", role: .destructive) { finish() }
-                    .font(.caption2)
-            }
+            Button("End workout", role: .destructive) { finish() }.font(.caption2)
         }
+    }
+
+    // MARK: Rest
+    private var restView: some View {
+        VStack(spacing: 8) {
+            Text("Rest").font(.caption).foregroundStyle(.secondary)
+            Text("\(restRemaining)")
+                .font(.system(size: 44, weight: .bold, design: .rounded))
+                .foregroundStyle(empowerGold).contentTransition(.numericText())
+            let ex = exercises[exIdx]
+            Text("Next: \(ex.name) · set \(setIdx + 2) of \(ex.sets)")
+                .font(.caption2).foregroundStyle(.secondary).multilineTextAlignment(.center)
+            Button("Skip rest") { advanceAfterRest() }.font(.caption).foregroundStyle(empowerGold)
+        }
+        .padding(.vertical, 6)
     }
 
     // MARK: Complete
@@ -120,6 +140,23 @@ struct LiveWorkoutView: View {
         .padding(.vertical, 8)
     }
 
+    // MARK: Flow
+    private func completeSet() {
+        let ex = exercises[exIdx]
+        if setIdx + 1 < ex.sets {
+            resting = true; restRemaining = restSeconds        // rest between sets
+        } else if exIdx + 1 < exercises.count {
+            exIdx += 1; setIdx = 0                              // next exercise (no rest)
+        } else {
+            finish()
+        }
+    }
+
+    private func advanceAfterRest() {
+        resting = false
+        setIdx += 1
+    }
+
     private func finish() {
         manager.end()
         finished = true
@@ -130,8 +167,8 @@ struct LiveWorkoutView: View {
     LiveWorkoutView(
         workout: WatchWorkout(activity: "Gym", title: "Lower body", detail: "Strength",
             exercises: [
-                WatchExercise(name: "Goblet squat", guide: "12–16 kg", reps: "3 × 10"),
-                WatchExercise(name: "Romanian deadlift", guide: "20–30 kg", reps: "3 × 8"),
+                WatchExercise(name: "Goblet squat", guide: "12–16 kg", reps: "10 reps", sets: 3),
+                WatchExercise(name: "Romanian deadlift", guide: "20–30 kg", reps: "8 reps", sets: 3),
             ]),
         phase: "Mid luteal", age: 30)
 }

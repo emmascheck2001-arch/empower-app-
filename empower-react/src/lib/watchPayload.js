@@ -73,7 +73,8 @@ export function buildWorkoutPayload(status, { title, activity, exercises } = {},
   const mapped = (exercises || []).map(e => ({
     name: e.name,
     guide: e.weight || '',
-    reps: (e.sets && e.reps) ? `${e.sets} × ${e.reps}` : (e.reps ? String(e.reps) : ''),
+    reps: (e.reps != null && e.reps !== '') ? `${e.reps} reps` : '',
+    sets: e.sets || 1,   // the watch steps through this many sets with a rest timer between
   }))
   return {
     phase: status.subPhase || status.phase || 'Today',

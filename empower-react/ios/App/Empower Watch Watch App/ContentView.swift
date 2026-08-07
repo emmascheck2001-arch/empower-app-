@@ -22,9 +22,11 @@ struct WatchExercise: Identifiable, Codable {
     var id = UUID()
     let name: String
     let guide: String     // weight or pace guide, e.g. "12–16 kg" or "conversational"
-    let reps: String      // "3 × 10" or a duration like "35 min"
+    let reps: String      // per-set target, e.g. "10 reps" or a duration like "35 min"
+    var sets: Int? = nil  // number of sets (strength); nil/1 for cardio/yoga holds
 
-    enum CodingKeys: String, CodingKey { case name, guide, reps }
+    // decodeIfPresent for sets (optional) so a payload without it still decodes cleanly.
+    enum CodingKeys: String, CodingKey { case name, guide, reps, sets }
 }
 
 struct WatchWorkout: Identifiable, Codable {
@@ -52,18 +54,18 @@ let sampleToday = TodayPlan(
     workouts: [
         WatchWorkout(activity: "Gym", title: "Lower body", detail: "Strength · recovery-leaning",
                      exercises: [
-                        WatchExercise(name: "Goblet squat", guide: "12–16 kg", reps: "3 × 10"),
-                        WatchExercise(name: "Romanian deadlift", guide: "20–30 kg", reps: "3 × 8"),
-                        WatchExercise(name: "Glute bridge", guide: "bodyweight", reps: "3 × 12"),
+                        WatchExercise(name: "Goblet squat", guide: "12–16 kg", reps: "10 reps", sets: 3),
+                        WatchExercise(name: "Romanian deadlift", guide: "20–30 kg", reps: "8 reps", sets: 3),
+                        WatchExercise(name: "Glute bridge", guide: "bodyweight", reps: "12 reps", sets: 3),
                      ]),
         WatchWorkout(activity: "Walk", title: "Zone 2 walk", detail: "35 min · easy pace",
-                     exercises: [WatchExercise(name: "Steady walk", guide: "conversational", reps: "35 min")]),
+                     exercises: [WatchExercise(name: "Steady walk", guide: "conversational", reps: "35 min", sets: 1)]),
         WatchWorkout(activity: "Yoga", title: "Restorative flow", detail: "20 min · calm",
                      exercises: [
-                        WatchExercise(name: "Child's pose", guide: "breathe deep", reps: "2 min"),
-                        WatchExercise(name: "Cat–cow", guide: "slow, with breath", reps: "2 min"),
-                        WatchExercise(name: "Supine twist", guide: "each side", reps: "3 min"),
-                        WatchExercise(name: "Savasana", guide: "let go", reps: "5 min"),
+                        WatchExercise(name: "Child's pose", guide: "breathe deep", reps: "2 min", sets: 1),
+                        WatchExercise(name: "Cat–cow", guide: "slow, with breath", reps: "2 min", sets: 1),
+                        WatchExercise(name: "Supine twist", guide: "each side", reps: "3 min", sets: 1),
+                        WatchExercise(name: "Savasana", guide: "let go", reps: "5 min", sets: 1),
                      ]),
     ],
     age: 30
