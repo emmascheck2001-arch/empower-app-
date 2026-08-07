@@ -81,7 +81,10 @@ struct LiveWorkoutView: View {
             }
 
             let step = steps[index]
-            VStack(spacing: 4) {
+            VStack(spacing: 6) {
+                Image(systemName: activityIcon(workout.activity))
+                    .font(.system(size: 32))
+                    .foregroundStyle(empowerGold)
                 Text(step.name).font(.headline).multilineTextAlignment(.center)
                 Text(step.detail).font(.caption2).foregroundStyle(.secondary).multilineTextAlignment(.center)
             }

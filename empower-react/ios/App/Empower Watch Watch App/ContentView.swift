@@ -134,6 +134,17 @@ struct WorkoutDetailView: View {
 
     var body: some View {
         List {
+            // Activity image — a large brand-gold symbol for the workout type.
+            HStack {
+                Spacer()
+                Image(systemName: activityIcon(workout.activity))
+                    .font(.system(size: 40))
+                    .foregroundStyle(empowerGold)
+                    .padding(.vertical, 4)
+                Spacer()
+            }
+            .listRowBackground(Color.clear)
+
             // Guidance-only card (no per-exercise breakdown synced yet): show the day's detail.
             if workout.exercises.isEmpty {
                 Text(workout.detail)
