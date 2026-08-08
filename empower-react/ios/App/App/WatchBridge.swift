@@ -10,7 +10,6 @@
 //  IMPORTANT: Capacitor does NOT auto-discover a CAPBridgedPlugin defined in the app target
 //  (only plugins shipped as Swift packages). This plugin is registered explicitly in
 //  SceneDelegate's MainViewController.capacitorDidLoad() via registerPluginInstance(WatchBridge()).
-//  Without that, load() never runs and sendPlan() silently no-ops on the JS side.
 //
 
 import Foundation
