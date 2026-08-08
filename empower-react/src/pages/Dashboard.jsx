@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase'
 import { getTodayStatus, getPhase, getLutealSubPhase, getPregnancyWeek, getTrimester } from '../lib/hormoneSync'
 import { buildDailyCoach } from '../lib/dailyCoach'
 import { buildPhaseOutlook } from '../lib/phaseOutlook'
-import { syncPlanToWatch, syncWatchWithFeedback, watchSyncAvailable } from '../lib/watchBridge'
+import { syncPlanToWatch } from '../lib/watchBridge'
 import BottomNav from '../components/BottomNav'
 import Spinner from '../components/Spinner'
 import InstallPrompt from '../components/InstallPrompt'
@@ -114,16 +114,6 @@ export default function Dashboard() {
   const [lateOpen, setLateOpen] = useState(false)
   const [pendingFriends, setPendingFriends] = useState(0)
   const [wear, setWear] = useState(null)
-  const [watchSyncing, setWatchSyncing] = useState(false)
-  const [watchMsg, setWatchMsg] = useState('')
-
-  async function handleSyncWatch() {
-    if (watchSyncing) return
-    setWatchSyncing(true); setWatchMsg('')
-    const res = await syncWatchWithFeedback(d?.status)
-    setWatchMsg(res.message)
-    setWatchSyncing(false)
-  }
 
   useEffect(() => { load() }, [])
 
@@ -632,16 +622,6 @@ export default function Dashboard() {
         {/* Insights this week and Prep for a doctor visit are no longer daily cards here:
             the weekly review is a once-a-week (Sunday) moment with confetti, and doctor prep
             now lives in the Learn tab. */}
-
-        {watchSyncAvailable() && (
-          <div style={{ textAlign:'center', marginTop:16 }}>
-            <button onClick={handleSyncWatch} disabled={watchSyncing} style={{ display:'inline-flex', alignItems:'center', gap:8, background:'#fff', border:'1px solid #ede8e0', borderRadius:12, padding:'11px 18px', fontSize:14, fontWeight:500, color:'#2c2820', cursor:'pointer', fontFamily:'inherit', opacity: watchSyncing ? 0.6 : 1 }}>
-              <i className="ti ti-device-watch" style={{ fontSize:18, color:'#c8b89a' }} />
-              {watchSyncing ? 'Syncing…' : 'Sync Apple Watch'}
-            </button>
-            {watchMsg && <div style={{ fontSize:12, color:'#7a7268', marginTop:8, lineHeight:1.5, maxWidth:300, marginLeft:'auto', marginRight:'auto' }}>{watchMsg}</div>}
-          </div>
-        )}
 
         <div style={{ textAlign:'center', marginTop:16, display:'flex', justifyContent:'center', gap:20 }}>
           <button onClick={() => navigate('/setup?edit=1')} style={{ background:'none', border:'none', fontSize:12, color:'#9a9590', cursor:'pointer', fontFamily:'inherit' }}>Change information</button>
