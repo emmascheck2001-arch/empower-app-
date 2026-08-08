@@ -108,6 +108,18 @@ export function buildWatchWorkouts(status, dateISO) {
       exercises: [step('Steady run', 'easy, can hold a conversation', '30 min')] },
     { id: 'cycle', activity: 'Cycle', title: 'Zone 2 ride', detail: '40 min · steady',
       exercises: [step('Steady ride', 'steady, sustainable effort', '40 min')] },
+    { id: 'swim', activity: 'Swim', title: 'Pool session', detail: '30 min · steady laps',
+      exercises: [step('Steady swim', 'easy, sustainable laps', '30 min')] },
+    { id: 'pilates', activity: 'Pilates', title: 'Mat Pilates', detail: '20 min · core control',
+      exercises: [
+        step('The hundred', 'pump arms, breathe', '1 min'),
+        step('Roll-up', 'slow, one vertebra at a time', '8 reps'),
+        step('Single-leg stretch', 'alternate legs, core tight', '10 each'),
+        step('Side plank', 'hips lifted, stack', '30 sec', 2),
+        step('Spine stretch', 'reach long, exhale', '6 reps'),
+      ] },
+    { id: 'rest', activity: 'Rest', title: 'Rest day', detail: 'Recovery · gentle stretching if you like',
+      exercises: [] },
   ]
 
   const recId = recommendedId(phase)
