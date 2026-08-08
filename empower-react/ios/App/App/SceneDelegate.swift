@@ -8,7 +8,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         guard let windowScene = scene as? UIWindowScene else { return }
 
         window = UIWindow(windowScene: windowScene)
-        window?.rootViewController = CAPBridgeViewController()
+        window?.rootViewController = MainViewController()
         window?.makeKeyAndVisible()
 
         SceneDelegateProxy.shared.scene(scene, willConnectTo: session, options: connectionOptions)
@@ -20,5 +20,16 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
     func scene(_ scene: UIScene, continue userActivity: NSUserActivity) {
         SceneDelegateProxy.shared.scene(scene, continue: userActivity)
+    }
+}
+
+// Capacitor bridge controller that EXPLICITLY registers our app-embedded WatchBridge plugin.
+// Capacitor's auto-discovery does not pick up a CAPBridgedPlugin defined in the app target (only
+// plugins shipped as packages), so without this the plugin's load() never runs and every
+// WatchBridge.sendPlan() call from JS silently no-ops — which is why the watch stayed on the
+// sample plan and never received today's real phase.
+class MainViewController: CAPBridgeViewController {
+    override func capacitorDidLoad() {
+        bridge?.registerPluginInstance(WatchBridge())
     }
 }

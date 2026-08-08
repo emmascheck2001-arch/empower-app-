@@ -7,8 +7,10 @@
 //  with the payload built by src/lib/watchPayload.js; we hand it to the watch as the session's
 //  application context, which the watch decodes in PlanStore. See WATCH_APP_SPEC.md.
 //
-//  Capacitor 6+ auto-registers plugins that conform to CAPBridgedPlugin, so no manual
-//  registration call is needed — it just has to be compiled into the App target.
+//  IMPORTANT: Capacitor does NOT auto-discover a CAPBridgedPlugin defined in the app target
+//  (only plugins shipped as Swift packages). This plugin is registered explicitly in
+//  SceneDelegate's MainViewController.capacitorDidLoad() via registerPluginInstance(WatchBridge()).
+//  Without that, load() never runs and sendPlan() silently no-ops on the JS side.
 //
 
 import Foundation
