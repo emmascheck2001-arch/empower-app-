@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { App as CapApp } from '@capacitor/app'
 import { supabase } from './lib/supabase'
 import { track } from './lib/analytics'
 import { sessionFlags } from './lib/session'
+import { getTodayStatus } from './lib/hormoneSync'
+import { syncPlanToWatch } from './lib/watchBridge'
 import Spinner from './components/Spinner'
 
 import Login    from './pages/Login'
@@ -95,10 +98,31 @@ function PageTracker() {
   return null
 }
 
+// Re-push today's phase-based plan to the paired Apple Watch every time the app returns to the
+// foreground, so the watch stays current without needing a full reopen. iOS-only in effect:
+// syncPlanToWatch no-ops on web/Android and when no watch is paired.
+function WatchResumeSync() {
+  useEffect(() => {
+    let handle
+    CapApp.addListener('appStateChange', async ({ isActive }) => {
+      if (!isActive) return
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
+        const status = await getTodayStatus(supabase, user.id)
+        if (status) syncPlanToWatch(status)
+      } catch { /* a missing watch / offline read is harmless — never surface it */ }
+    }).then(h => { handle = h })
+    return () => { handle?.remove?.() }
+  }, [])
+  return null
+}
+
 export default function App() {
   return (
     <BrowserRouter>
       <PageTracker />
+      <WatchResumeSync />
       <Routes>
         <Route path="/login"   element={<Login />} />
         <Route path="/privacy" element={<Privacy />} />
