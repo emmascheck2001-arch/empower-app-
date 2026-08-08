@@ -2,7 +2,8 @@
 // Sends today's plan to the paired Apple Watch. No-ops safely on web and Android — the watch
 // integration is iOS-only — so callers can fire it unconditionally. See WATCH_APP_SPEC.md.
 import { Capacitor, registerPlugin } from '@capacitor/core'
-import { buildWatchPayload, buildWorkoutPayload } from './watchPayload'
+import { buildWorkoutPayload } from './watchPayload'
+import { buildWatchWorkouts } from './watchWorkouts'
 
 // registerPlugin returns a proxy even when the native side is absent; we gate on platform so we
 // never call into a plugin that isn't there.
@@ -22,7 +23,7 @@ function todayISO() {
 // Build from getTodayStatus output and push to the watch. Returns true if a send was attempted.
 export async function syncPlanToWatch(status) {
   if (!isIOSNative()) return false
-  const plan = buildWatchPayload(status, todayISO())
+  const plan = buildWatchWorkouts(status, todayISO())
   if (!plan) return false
   try {
     await WatchBridge.sendPlan({ plan })
@@ -43,7 +44,7 @@ export function watchSyncAvailable() {
 // short, user-facing result so the button can tell her exactly what happened.
 export async function syncWatchWithFeedback(status) {
   if (!isIOSNative()) return { ok: false, message: 'Apple Watch sync is only available in the iOS app.' }
-  const plan = buildWatchPayload(status, todayISO())
+  const plan = buildWatchWorkouts(status, todayISO())
   if (!plan) return { ok: false, message: 'No plan to send yet — try again in a moment.' }
   try {
     const res = await WatchBridge.sendPlan({ plan })
