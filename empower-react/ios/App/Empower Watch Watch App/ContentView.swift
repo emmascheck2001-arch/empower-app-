@@ -102,11 +102,17 @@ struct ContentView: View {
                                     .foregroundStyle(w.recommended ? empowerGold : .secondary)
                                     .frame(width: 22)
                                 VStack(alignment: .leading, spacing: 2) {
-                                    if w.recommended {
-                                        Text("RECOMMENDED")
+                                    HStack(spacing: 5) {
+                                        Text(w.activity.uppercased())
                                             .font(.system(size: 9, weight: .bold))
-                                            .foregroundStyle(empowerGold)
+                                            .foregroundStyle(.secondary)
                                             .tracking(0.5)
+                                        if w.recommended {
+                                            Text("· RECOMMENDED")
+                                                .font(.system(size: 9, weight: .bold))
+                                                .foregroundStyle(empowerGold)
+                                                .tracking(0.5)
+                                        }
                                     }
                                     Text(w.title).font(.headline)
                                     Text(w.detail).font(.caption2).foregroundStyle(.secondary)
