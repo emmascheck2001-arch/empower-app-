@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase'
 import { getTodayStatus, getPhase, getLutealSubPhase, getPregnancyWeek, getTrimester } from '../lib/hormoneSync'
 import { buildDailyCoach } from '../lib/dailyCoach'
 import { buildPhaseOutlook } from '../lib/phaseOutlook'
+import { syncPlanToWatch } from '../lib/watchBridge'
 import BottomNav from '../components/BottomNav'
 import Spinner from '../components/Spinner'
 import InstallPrompt from '../components/InstallPrompt'
@@ -187,6 +188,10 @@ export default function Dashboard() {
       // dashboard can never disagree with those screens about the user's phase.
       let status = null
       try { status = await getTodayStatus(supabase, user.id) } catch { /* ignore */ }
+      // Push today's real phase-based plan to the paired Apple Watch as soon as the app opens
+      // (iOS only; no-ops on web/Android or with no watch). Without this the watch only synced
+      // when the Workout screen was opened, so it kept showing the built-in sample ("Luteal").
+      if (status) syncPlanToWatch(status)
 
       let phase = 'observation', subPhase = null, cycleDay = null, cycleLen = 28, daysLeft = null, confidence = 0.05
       let bcBleedDay = null, bcInBleedWindow = false
