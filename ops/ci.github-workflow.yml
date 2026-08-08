@@ -1,0 +1,37 @@
+name: CI
+
+# Runs on every push and PR: lint, unit tests, and a production build must all pass.
+on:
+  push:
+    branches: [main, xcode-cloud-testflight]
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: empower-react
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: empower-react/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint (source only)
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Production build
+        run: npm run build
+
+      - name: Fail on high/critical production vulnerabilities
+        run: npm audit --omit=dev --audit-level=high

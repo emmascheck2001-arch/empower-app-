@@ -8,7 +8,7 @@
 import { Capacitor } from '@capacitor/core'
 import { Health } from '@capgo/capacitor-health'
 
-// Temperature comes first because it's the ovulation confirmer. We read all three temperature
+// Temperature comes first because a sustained, consistently measured shift can add retrospective ovulation context. We read all three temperature
 // streams and use whichever the user's device actually fills: Apple Watch writes overnight
 // "wrist" temperature; Oura/dedicated BBT write basal; Android wearables write body temperature.
 const TEMP_TYPES = ['appleSleepingWristTemperature', 'basalBodyTemperature', 'bodyTemperature']
@@ -103,7 +103,7 @@ export async function readRecentWorkouts(days = 21) {
 // states (asleep/rem/deep/light) so overlapping "in bed" segments never double-count; samples
 // with no state (some Android sources) are counted as a best effort. Groups by the night the
 // sleep ended on and returns the latest night's hours, or null if there is no usable data.
-function sleepHoursLastNight(samples) {
+export function sleepHoursLastNight(samples) {
   const ASLEEP = new Set(['asleep', 'rem', 'deep', 'light'])
   const byNight = {}
   for (const s of samples || []) {
@@ -111,14 +111,27 @@ function sleepHoursLastNight(samples) {
     if (state && !ASLEEP.has(state)) continue          // skip 'inBed' / 'awake'
     const start = new Date(s.startDate), end = new Date(s.endDate)
     if (isNaN(start) || isNaN(end)) continue
-    const mins = (end - start) / 60000
-    if (mins <= 0 || mins > 24 * 60) continue
+    if (end <= start || end - start > 24 * 60 * 60000) continue
     const night = (s.endDate || '').slice(0, 10)
-    byNight[night] = (byNight[night] || 0) + mins
+    const source = s.sourceBundleId || s.sourceName || 'unknown'
+    byNight[night] = byNight[night] || {}
+    ;(byNight[night][source] = byNight[night][source] || []).push([start.getTime(), end.getTime()])
   }
   const nights = Object.keys(byNight).sort()
   if (!nights.length) return null
-  return byNight[nights[nights.length - 1]] / 60
+  const totals = Object.values(byNight[nights[nights.length - 1]]).map(intervals => {
+    const sorted = intervals.sort((a, b) => a[0] - b[0])
+    const merged = []
+    for (const interval of sorted) {
+      const last = merged[merged.length - 1]
+      if (!last || interval[0] > last[1]) merged.push([...interval])
+      else last[1] = Math.max(last[1], interval[1])
+    }
+    return merged.reduce((sum, [start, end]) => sum + end - start, 0)
+  })
+  // Multiple apps can mirror the same sleep into the health store. Use the most complete
+  // source for the night instead of adding sources together.
+  return Math.max(...totals) / 3600000
 }
 
 // Read the last `days` of wearable data, shaped for wearableCycleSignals():

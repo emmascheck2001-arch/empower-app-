@@ -9,6 +9,8 @@
 //  - If nothing qualifies, return the honest "keep logging" line.
 // Pure computation only, unit-tested.
 
+import { diffCalendarDays } from './dateUtils.js'
+
 const ENERGY = { 'Very low':1, 'Low':2, 'Normal':3, 'Good':3, 'High':4 }
 const SLEEPQ = { Poor:1, Fair:2, Good:3, Great:4, Excellent:4 }
 const POS = new Set(['Energised','Energetic','Happy','Motivated','Confident','Social','Calm','Focused'])
@@ -59,18 +61,18 @@ export function buildWeeklyObservation({ thisWeek = [], cycleDayToday = null, cy
   const restDays = thisWeek.filter(l => !isWorkout(l))
   if (wkDays.length >= 2 && restDays.length >= 1) {
     const wp = posRate(wkDays), rp = posRate(restDays)
-    if (wp != null && rp != null && wp - rp >= 0.3) cands.push({ score: 88, text: 'On the days you trained this week, you logged more positive moods than on your rest days. Movement is genuinely lifting you.' })
+    if (wp != null && rp != null && wp - rp >= 0.3) cands.push({ score: 88, text: 'On the days you trained in this seven-day window, you also logged more positive moods than on rest days. They moved together here; this does not prove that one caused the other.' })
   }
 
   // 3) Energy peak day, aligned to her cycle phase, the "your hormones at work" moment.
   const peak = uniquePeakDay(thisWeek, l => ENERGY[l.energy] ?? null, 3)
   if (peak && cycleDayToday && phaseAt) {
     const now = new Date(); now.setHours(0,0,0,0)
-    const daysAgo = Math.floor((now - new Date(peak.log_date + 'T00:00:00')) / 86400000)
+    const daysAgo = diffCalendarDays(now, new Date(peak.log_date + 'T00:00:00'))
     const cd = (((cycleDayToday - daysAgo - 1) % cycleLen) + cycleLen) % cycleLen + 1
     const ph = phaseAt(cd, cycleLen)
     if (ph === 'Follicular' || ph === 'Ovulatory') {
-      cands.push({ score: 84, text: `Your energy peaked on ${weekdayOf(peak.log_date)}, right in your ${ph.toLowerCase()} window, exactly when your hormones are built to support it.` })
+      cands.push({ score: 60, text: `Your highest logged energy was on ${weekdayOf(peak.log_date)}, which fell in your estimated ${ph.toLowerCase()} window. One day is an observation, not yet a cycle pattern.` })
     } else {
       cands.push({ score: 60, text: `Your energy was highest on ${weekdayOf(peak.log_date)} this week.` })
     }

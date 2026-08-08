@@ -1,28 +1,68 @@
-// Cache buster — clears all old caches and passes through to network.
-// Bump this version to force stale installed clients (PWAs) to fetch the latest
-// build: the browser sees sw.js changed, installs this SW, which wipes every old
-// cache and claims open clients. v2 (2026-06-15): push the DB-based onboarding gate
-// to devices still running a pre-af2432d build that re-showed setup every login.
-const CACHE_NAME = 'empower-react-v72'
+// Em~power service worker — offline-capable app shell.
+// Strategy:
+//   - Precache the navigation fallback (index.html) on install so the app opens offline.
+//   - Navigations (HTML): network-first, fall back to cached index.html — never serve a stale shell when online.
+//   - Same-origin static assets (Vite hashed JS/CSS/images/fonts): cache-first with runtime cache-on-fetch.
+//     Hashed filenames make cached assets safe forever; new builds have new names.
+//   - Everything else (Supabase API, any cross-origin/dynamic request): passed straight to the network, never cached.
+// Bump CACHE_VERSION to invalidate old caches. Old caches are deleted on activate.
+const CACHE_VERSION = 'v73'
+const CACHE_NAME = `empower-react-${CACHE_VERSION}`
+const APP_SHELL = '/index.html'
 
 self.addEventListener('install', event => {
   self.skipWaiting()
   event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.map(key => caches.delete(key)))
-    )
+    caches.open(CACHE_NAME).then(cache => cache.add(APP_SHELL)).catch(() => {})
   )
 })
 
 self.addEventListener('activate', event => {
   event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
-    ).then(() => self.clients.claim())
+    caches.keys()
+      .then(keys => Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))))
+      .then(() => self.clients.claim())
   )
 })
 
-// Pass everything through to the network — Vite hashed filenames handle browser caching
 self.addEventListener('fetch', event => {
-  event.respondWith(fetch(event.request))
+  const { request } = event
+
+  // Only handle GET; let the browser deal with POST/PATCH/etc. (Supabase writes, auth, etc.).
+  if (request.method !== 'GET') return
+
+  const url = new URL(request.url)
+
+  // Never touch cross-origin requests (Supabase API, CDNs, analytics) — always network.
+  if (url.origin !== self.location.origin) return
+
+  // Navigations (page loads / SPA routes): network-first, fall back to cached app shell offline.
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request)
+        .then(response => {
+          // Keep the shell fresh for offline use.
+          const copy = response.clone()
+          caches.open(CACHE_NAME).then(cache => cache.put(APP_SHELL, copy)).catch(() => {})
+          return response
+        })
+        .catch(() => caches.match(APP_SHELL).then(cached => cached || caches.match(request)))
+    )
+    return
+  }
+
+  // Same-origin static assets: cache-first, then network (and cache the result).
+  event.respondWith(
+    caches.match(request).then(cached => {
+      if (cached) return cached
+      return fetch(request).then(response => {
+        // Only cache successful, basic (same-origin) responses.
+        if (response && response.status === 200 && response.type === 'basic') {
+          const copy = response.clone()
+          caches.open(CACHE_NAME).then(cache => cache.put(request, copy)).catch(() => {})
+        }
+        return response
+      })
+    })
+  )
 })

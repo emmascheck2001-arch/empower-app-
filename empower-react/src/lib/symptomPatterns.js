@@ -18,6 +18,10 @@
 // Caveat baked into the wording: cycle day for each past log is projected forward from the
 // last period date at the average cycle length, so it is approximate for irregular cycles, // which is exactly why the language stays hedged and requires strong clustering.
 
+import { diffCalendarDays } from './dateUtils.js'
+import { parsePeriodStarts } from './hormoneSync.js'
+import { cycleInfoForDate } from './cycleHistory.js'
+
 const MIN_OCCURRENCES = 4     // times a symptom must be logged before we look for a pattern
 const MIN_CYCLES = 2          // and it must span at least this many cycles
 const MIN_PLACED_LOGS = 14    // overall logging needed before we say anything at all
@@ -55,23 +59,20 @@ export function analyzeSymptomPatterns({ logs = [], cycleData = null } = {}) {
   const cl = cycleData?.cycle_length || 28
   if (!lp) return { status: 'no_cycle', patterns: [], summary: [] }
 
-  const lpDate = new Date(lp + 'T00:00:00')
+  const periodStarts = parsePeriodStarts(cycleData)
   const occ = {}          // symptom -> [{ cd, cycleNum }]
   const placedTimes = []  // timestamps of every placed log, to measure calendar span
   for (const l of logs) {
     if (!l.log_date) continue
     const ld = new Date(l.log_date + 'T00:00:00')
-    const diff = Math.floor((ld - lpDate) / 86400000)
+    const cycleInfo = cycleInfoForDate(l.log_date, periodStarts, cl)
+    if (!cycleInfo) continue
     placedTimes.push(ld.getTime())
-    // Logs before the anchor wrap into earlier cycles (cycleNum goes negative) rather than
-    // being dropped, otherwise most of a user's history is thrown away.
-    const cycleNum = Math.floor(diff / cl)
-    const cd = (((diff % cl) + cl) % cl) + 1
     const syms = Array.isArray(l.symptoms) ? l.symptoms.filter(s => s && s !== 'None') : []
-    for (const raw of syms) { const s = SYMPTOM_ALIASES[raw] || raw; (occ[s] = occ[s] || []).push({ cd, cycleNum }) }
+    for (const raw of syms) { const s = SYMPTOM_ALIASES[raw] || raw; (occ[s] = occ[s] || []).push({ cd: cycleInfo.cycleDay, cycleLen: cycleInfo.cycleLength, cycleNum: cycleInfo.anchor }) }
   }
 
-  const spanDays = placedTimes.length ? Math.round((Math.max(...placedTimes) - Math.min(...placedTimes)) / 86400000) : 0
+  const spanDays = placedTimes.length ? diffCalendarDays(new Date(Math.max(...placedTimes)), new Date(Math.min(...placedTimes))) : 0
   if (placedTimes.length < MIN_PLACED_LOGS || spanDays < MIN_SPAN_CYCLES * cl) {
     return {
       status: 'insufficient', patterns: [],
@@ -86,7 +87,7 @@ export function analyzeSymptomPatterns({ logs = [], cycleData = null } = {}) {
     if (cyclesSpanned < MIN_CYCLES) continue
 
     const buckets = {}
-    for (const o of list) { const k = phaseWindowKey(o.cd, cl); buckets[k] = (buckets[k] || 0) + 1 }
+    for (const o of list) { const k = phaseWindowKey(o.cd, o.cycleLen); buckets[k] = (buckets[k] || 0) + 1 }
     const [topKey, topCount] = Object.entries(buckets).sort((a, b) => b[1] - a[1])[0]
     const frac = topCount / list.length
 

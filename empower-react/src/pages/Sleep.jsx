@@ -3,109 +3,34 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getTodayStatus } from '../lib/hormoneSync'
+import { runSave } from '../lib/dbSave'
+import { sanitize } from '../lib/validate'
 import TopBar from '../components/TopBar'
 import BottomNav from '../components/BottomNav'
 import Spinner from '../components/Spinner'
 
 const SLEEP_GUIDE = {
-  Menstrual: {
-    headline: 'Low estrogen and progesterone can make sleep lighter',
-    tips: [
-      'Keep your room cool. Your body temperature regulation is already stressed',
-      'Avoid alcohol, which fragments sleep and worsens cramps overnight',
-      'Magnesium glycinate (around 400mg) before bed may improve sleep quality and how quickly you fall asleep (Abbasi et al. 2012). Check with your doctor first if you have kidney problems',
-      'A warm bath 1 to 2 hours before bed lowers core temperature as you get out, signalling sleep onset',
-    ],
-    avoid: 'Caffeine after 2pm, alcohol, late heavy meals, screens without night mode',
-    science: 'Source: Charkoudian and Stachenfeld. Comprehensive Physiology. 2014.',
-  },
-  Follicular: {
-    headline: 'Rising estrogen generally improves sleep quality',
-    tips: [
-      'This is your best sleep window of the cycle, so take advantage of it',
-      'Consistent wake times reinforce your circadian rhythm while hormones are cooperative',
-      'Morning light exposure (10 minutes outside) anchors your sleep drive for the night',
-      'Higher intensity training is well-tolerated this phase and can improve sleep pressure',
-    ],
-    avoid: 'Late training sessions close to bed, which can delay sleep onset even when you feel good',
-    science: 'Source: Lokuge et al. Journal of Psychiatry and Neuroscience. 2011.',
-  },
-  Ovulatory: {
-    headline: 'Peak estrogen, generally your best sleep window',
-    tips: [
-      'Sleep quality is typically at its highest right now',
-      'Use this window to build consistent sleep habits that carry into the luteal phase',
-      'Avoid the temptation to cut sleep short with high energy. Your hormones are doing the work',
-      'LH surge and slight core temperature rise may cause a brief sleep disruption around ovulation day',
-    ],
-    avoid: 'Overtraining in this window which can raise cortisol and disrupt the following nights',
-    science: 'Source: De Martin Topranin et al. IJSPP. 2023.',
-  },
-  'Early luteal': {
-    headline: 'Progesterone has a calming effect on sleep',
-    tips: [
-      'Progesterone converts in your brain into a calming compound that acts like a natural sleep aid',
-      'You may fall asleep more easily than usual, which is real physiology',
-      'Core temperature begins to rise slightly, so keep your room cool (18 to 20 degrees Celsius)',
-      'Protein-rich meals support progesterone production and stable blood sugar overnight',
-    ],
-    avoid: 'Alcohol, which blocks the natural calming effect progesterone is currently providing',
-    science: 'Source: Backstrom et al. Archives of Women\'s Mental Health. 2008.',
-  },
-  'Mid luteal': {
-    headline: 'Elevated core temperature and RHR make sleep harder to maintain',
-    tips: [
-      'Your resting heart rate is measurably higher right now, so a cool room matters more than usual',
-      'Hold a consistent room temperature around 18 to 20 degrees Celsius to help you stay asleep',
-      'Avoid eating within 2 hours of bed, since digestion raises core temperature further',
-      'Sleep may feel lighter or less restorative, which is expected physiology, not a problem with you',
-    ],
-    avoid: 'Caffeine after noon, alcohol, hot baths close to bedtime, screens in bed',
-    science: 'Source: De Martin Topranin et al. IJSPP. 2023. RHR 1.7 bpm higher in mid-luteal phase (P=.006). Sleep quality measurably impaired.',
-  },
-  'Late luteal': {
-    headline: 'Sleep gets harder as progesterone drops in late luteal',
-    tips: [
-      'As progesterone falls, the calming effect it was providing disappears, which is why sleep becomes lighter and anxiety increases',
-      'Anxiety and lighter sleep in late luteal are biological changes, not psychological ones',
-      'Chamomile tea, magnesium glycinate, and consistent sleep times all reduce the impact',
-      'Avoid anything that raises cortisol in the evening, including arguments and stressful content',
-    ],
-    avoid: 'Alcohol is particularly harmful now, since it removes the calming effect progesterone was providing and increases night waking',
-    science: 'Source: Backstrom et al. Psychoneuroendocrinology. 2014.',
-  },
-  Luteal: {
-    headline: 'Progesterone elevates core temperature and affects sleep depth',
-    tips: [
-      'Keep your room cool. 18 to 20 degrees Celsius is the target',
-      'Finish eating about 2 hours before bed so digestion does not raise your core temperature',
-      'Consistent sleep and wake times matter more in the luteal phase',
-      'Protein at dinner stabilises blood sugar and reduces night waking',
-    ],
-    avoid: 'Caffeine after noon, alcohol, late heavy meals',
-    science: 'Source: De Martin Topranin et al. IJSPP. 2023.',
-  },
   Perimenopause: {
     headline: 'Hot flashes and hormonal fluctuations disrupt sleep differently each night',
     tips: [
       'Layer light breathable bedding so you can shed it quickly during a hot flash',
-      'Keep a cool damp cloth nearby, as evaporative cooling drops skin temperature fast',
+      'Keep a cool damp cloth nearby if it is comfortable and useful for you',
       'Dim the lights and put screens away an hour before bed to ease into sleep',
       'Consistent sleep and wake times anchor circadian rhythms when hormones are unpredictable',
     ],
     avoid: 'Alcohol, spicy food within 3 hours of bed, hot showers right before sleep, and warm rooms',
-    science: 'Source: Freeman EW et al. Archives of General Psychiatry. 2004 and 2006. Harlow 2012 STRAW+10.',
+    science: 'Night sweats have many possible causes. Persistent or severe symptoms are worth discussing with a clinician.',
   },
   observation: {
     headline: 'Evidence-based sleep foundations for any hormonal phase',
     tips: [
-      'Cool room between 18 and 20 degrees Celsius supports faster sleep onset and deeper stages',
+      'Use a cool, dark room and adjust the temperature to what feels comfortable',
       'Morning light within 30 minutes of waking anchors your circadian rhythm',
-      'Consistent sleep and wake times, even on weekends, matter more than duration alone',
+      'Keep sleep and wake times reasonably consistent when your schedule allows',
       'Avoid caffeine after early afternoon, since it lingers and delays deep sleep',
     ],
     avoid: 'Caffeine after 2pm, alcohol within 3 hours of bed, screens without night mode, hot rooms',
-    science: 'Aim for 7 to 9 hours. Reproductive hormones are produced and regulated during sleep.',
+    science: 'Sleep supports overall health. Cycle-related sleep changes vary and should not be assumed from a calendar phase alone.',
   },
 }
 
@@ -127,12 +52,8 @@ function timeGreeting() {
 }
 // The most useful, phase-aware thing she can actually do tonight.
 function topFix(key) {
-  if (['Mid luteal','Late luteal','Luteal'].includes(key)) return 'keep your room cool, around 18°C, and take 400mg magnesium glycinate before bed. Your body runs hotter this phase, so cooling matters more.'
-  if (key === 'Menstrual') return 'try a warm bath and 400mg magnesium glycinate before bed. It lowers your core temperature and eases cramps.'
-  if (key === 'Early luteal') return 'lean into the calm with a steady wind-down and a cool, dark room.'
-  if (['Follicular','Early follicular','Late follicular','Ovulatory'].includes(key)) return 'lock in a consistent bedtime and get morning light within 30 minutes of waking to anchor your rhythm.'
-  if (['Perimenopause','Early perimenopause','Late perimenopause','Postmenopause'].includes(key)) return 'layer light bedding you can shed, keep the room cool, and take 400mg magnesium glycinate at night.'
-  return 'cool the room to around 18°C, cut caffeine after 2pm, and put screens away an hour before bed.'
+  if (['Perimenopause','Early perimenopause','Late perimenopause','Postmenopause'].includes(key)) return 'try light bedding you can adjust quickly, a comfortably cool room, and a steady wind-down routine.'
+  return 'keep a consistent wind-down, make the room cool and dark, and move caffeine earlier if you notice it affects your sleep.'
 }
 // Reads her recent sleep, then leads with what to do tonight.
 function sleepInsight(recent, key) {
@@ -149,6 +70,7 @@ function sleepInsight(recent, key) {
 export default function Sleep() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(null)
   const [phase, setPhase] = useState('observation')
   const [subPhase, setSubPhase] = useState(null)
   const [userId, setUserId] = useState(null)
@@ -156,51 +78,70 @@ export default function Sleep() {
   const [quality, setQuality] = useState(null)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [saveError, setSaveError] = useState(null)
   const [whyOpen, setWhyOpen] = useState(false)
   const [name, setName] = useState('')
   const [recentSleep, setRecentSleep] = useState([])
+  const [contextKey, setContextKey] = useState('natural-cycle')
 
-  useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { navigate('/login', { replace: true }); return }
-      setUserId(user.id)
-      try {
-        const s = await getTodayStatus(supabase, user.id)
-        setPhase(s.phase || 'observation')
-        setSubPhase(s.subPhase || null)
-        setName(s?.profile?.name || '')
-        // Pre-fill if already logged today
-        const { data: existing } = await supabase.from('daily_logs')
-          .select('sleep_quality,sleep_hours').eq('user_id', user.id).eq('log_date', localDateStr()).maybeSingle()
-        if (existing?.sleep_quality) setQuality(existing.sleep_quality)
-        if (existing?.sleep_hours != null) setHours(String(existing.sleep_hours))
-        // Her recent sleep, to make tonight's guidance personal
-        const { data: recent } = await supabase.from('daily_logs')
-          .select('sleep_quality,log_date').eq('user_id', user.id)
-          .not('sleep_quality', 'is', null).order('log_date', { ascending: false }).limit(5)
-        setRecentSleep(recent || [])
-      } catch { /* ignore */ }
-      setLoading(false)
-    }
-    init()
-  }, [navigate])
+  async function init() {
+    setLoadError(null)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { navigate('/login', { replace: true }); return }
+    setUserId(user.id)
+    try {
+      const s = await getTodayStatus(supabase, user.id)
+      setPhase(s.phase || 'observation')
+      setSubPhase(s.subPhase || null)
+      setName(s?.profile?.name || '')
+      setContextKey(s?.contextKey || 'natural-cycle')
+      // Pre-fill if already logged today
+      const { data: existing } = await supabase.from('daily_logs')
+        .select('sleep_quality,sleep_hours,hormonal_context').eq('user_id', user.id).eq('log_date', localDateStr()).maybeSingle()
+      const existingInContext = existing && (existing.hormonal_context ? existing.hormonal_context === (s?.contextKey || 'natural-cycle') : (s?.contextKey || 'natural-cycle') === 'natural-cycle')
+      if (existingInContext && existing?.sleep_quality) setQuality(existing.sleep_quality)
+      if (existingInContext && existing?.sleep_hours != null) setHours(String(existing.sleep_hours))
+      // Her recent sleep, to make tonight's guidance personal
+      const { data: recent } = await supabase.from('daily_logs')
+        .select('sleep_quality,log_date,hormonal_context').eq('user_id', user.id)
+        .not('sleep_quality', 'is', null).order('log_date', { ascending: false }).limit(5)
+      const context = s?.contextKey || 'natural-cycle'
+      setRecentSleep((recent || []).filter(log => log.hormonal_context ? log.hormonal_context === context : context === 'natural-cycle'))
+    } catch(e) { console.error(e); setLoadError('We could not load your health data, so personalised sleep guidance has been paused.') }
+    setLoading(false)
+  }
+
+  useEffect(() => { init() }, [navigate])
 
   async function saveSleep() {
     if (!quality) return
-    setSaving(true)
+    setSaving(true); setSaveError(null)
     // Only write the sleep fields. Hours live in their own column, never in `notes`,
     // so saving sleep can never overwrite notes the user wrote on the Log screen.
-    const record = { user_id: userId, log_date: localDateStr(), sleep_quality: quality, sleep_hours: hours ? parseFloat(hours) : null }
-    await supabase.from('daily_logs').upsert(record, { onConflict: 'user_id,log_date' })
+    const record = { user_id: userId, log_date: localDateStr(), hormonal_context:contextKey, sleep_quality: quality, sleep_hours: sanitize('sleep_hours', hours) }
+    const res = await runSave(supabase.from('daily_logs').upsert(record, { onConflict: 'user_id,log_date' }))
+    if (!res.ok) { setSaveError(res.message); setSaving(false); return }
     setSaved(true)
     setSaving(false)
   }
 
   if (loading) return <div style={{ paddingTop:60 }}><Spinner /></div>
+  if (loadError) return <div style={{ padding:'80px 24px', textAlign:'center' }}><div style={{ fontSize:14, color:'#7a7268', lineHeight:1.6, marginBottom:16 }}>{loadError}</div><button className="btn-primary" onClick={() => { setLoading(true); init() }}>Try again</button><BottomNav /></div>
 
   const key = subPhase || phase
-  const guide = SLEEP_GUIDE[key] || SLEEP_GUIDE.observation
+  const baseGuide = SLEEP_GUIDE[key] || SLEEP_GUIDE.observation
+  const isNaturalCycleWindow = ['Menstrual','Follicular','Early follicular','Late follicular','Ovulatory','Luteal','Early luteal','Mid luteal','Late luteal'].includes(key)
+  const guide = isNaturalCycleWindow ? {
+    headline: `Sleep in your estimated ${key.toLowerCase()} window`,
+    tips: [
+      'Keep sleep and wake times as consistent as your life allows',
+      'Use a cool, dark room and notice whether temperature changes help you personally',
+      'Limit alcohol and late caffeine when they disrupt your sleep',
+      'Track symptoms and sleep together for several cycles before calling the timing a personal pattern',
+    ],
+    avoid: 'Do not assume poor sleep is hormonal. Stress, illness, medicines, environment and sleep conditions can create the same pattern.',
+    science: 'Cycle-related sleep effects vary between people. Your repeated observations matter more than a phase average.',
+  } : baseGuide
   const phaseLabel = phase === 'observation' ? 'Observation mode' : key
 
   return (
@@ -243,9 +184,12 @@ export default function Sleep() {
           </div>
           {saved
             ? <div style={{ textAlign:'center', fontSize:14, color:'#4a8a4a', padding:'12px 0' }}>Saved. Take your time reading tonight's tips below.</div>
-            : <button className="btn-primary" onClick={saveSleep} disabled={!quality || saving}>
-                {saving ? 'Saving...' : 'Save sleep log'}
-              </button>
+            : <>
+                {saveError && <div role="alert" style={{ fontSize:13, color:'#c05858', marginBottom:10, lineHeight:1.6, textAlign:'center' }}>{saveError}</div>}
+                <button className="btn-primary" onClick={saveSleep} disabled={!quality || saving}>
+                  {saving ? 'Saving...' : (saveError ? 'Try again' : 'Save sleep log')}
+                </button>
+              </>
           }
         </div>
 
@@ -275,7 +219,7 @@ export default function Sleep() {
           {whyOpen && (
             <div style={{ padding:'0 16px 14px' }}>
               <div style={{ fontSize:13, color:'#3a3530', lineHeight:1.6, marginBottom:10 }}>
-                Sleep is not passive recovery. Estrogen and progesterone are produced and regulated during sleep. Consistently poor sleep disrupts the hormonal cascade that controls your cycle, metabolism, and mood. (Haver MC. 2025)
+                Sleep supports recovery, mood, attention and metabolic health. Cycle changes can affect sleep for some people, while stress, illness, medicines, environment and sleep conditions can cause the same symptoms. Repeated personal observations are more informative than one estimated phase.
               </div>
               <div style={{ fontSize:11, color:'#9a9590', fontStyle:'italic' }}>{guide.science}</div>
             </div>
@@ -283,7 +227,7 @@ export default function Sleep() {
         </div>
 
       </div>
-      <div style={{ fontSize:10, color:'#b0a89a', textAlign:'center', padding:'10px 24px 0', lineHeight:1.5 }}>Supplement doses shown are from research, not a personal recommendation. Ask your doctor before starting any supplement.</div>
+      <div style={{ fontSize:10, color:'#b0a89a', textAlign:'center', padding:'10px 24px 0', lineHeight:1.5 }}>Sleep guidance is general information, not a diagnosis or personal treatment plan.</div>
       <BottomNav />
     </div>
   )

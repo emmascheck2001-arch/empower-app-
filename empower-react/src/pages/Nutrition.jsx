@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getTodayStatus } from '../lib/hormoneSync'
+import { runSave } from '../lib/dbSave'
+import { sanitize } from '../lib/validate'
 import BottomNav from '../components/BottomNav'
 import TopBar from '../components/TopBar'
 import Spinner from '../components/Spinner'
@@ -90,7 +92,7 @@ const PHASE_DATA = {
       'Alcohol, which amplifies mood instability and significantly disrupts sleep architecture in the luteal phase',
       'Refined sugar, which worsens blood sugar swings and inflammation when both are already elevated',
       'High-sodium foods, which worsen luteal-phase bloating',
-      'Excess caffeine, which raises cortisol that already competes with progesterone in your stress hormone system during this phase',
+      'Excess caffeine when it worsens your anxiety, sleep, reflux or perceived effort',
     ],
   },
   Perimenopause: {
@@ -99,7 +101,7 @@ const PHASE_DATA = {
     sectionLabel: 'Foods that support your transition',
     foods: [
       { icon:'🦴', name:'Calcium-rich foods', why:'Calcium and vitamin D matter more as estrogen falls and bone turnover accelerates. Good sources include dairy, fortified plant milks, calcium-set tofu, tinned sardines with bones, and leafy greens like kale and bok choy, so this works whether or not you eat dairy.' },
-      { icon:'🥩', name:'Lean protein at every meal', why:'1.8g per kg of body weight daily. Muscle mass is one of the strongest protective factors through the menopause transition and beyond.' },
+      { icon:'🥩', name:'A protein source at meals', why:'Protein supports muscle maintenance. The appropriate daily amount depends on body size, activity, goals, diet and health; use the range in your profile rather than one fixed target.' },
       { icon:'🐟', name:'Salmon or sardines', why:'Omega-3 supports heart health and brain function, both of which are affected as estrogen declines. Aim for two to three servings a week.' },
       { icon:'🫘', name:'Soy foods', why:'Phytoestrogens may modestly support symptom management in some women. Evidence is emerging and effects vary individually.' },
       { icon:'🥬', name:'Leafy greens', why:'Magnesium and folate support mood and sleep, both commonly disrupted during the perimenopause transition.' },
@@ -549,17 +551,18 @@ const APA_REFS = [
 
 // Plain-language, phase-aware explanation of the protein number so it isn't a bare figure.
 const PROTEIN_NOTE = {
-  Menstrual:     'Protein supports recovery and steadier energy while you bleed. Spread it across your meals.',
-  Follicular:    'Rising estrogen makes this your strongest phase to build muscle, protein fuels it.',
-  Ovulatory:     'Protein supports your peak-performance training window this week.',
-  Luteal:        'Protein needs peak now: progesterone speeds up how fast you break muscle down.',
-  Perimenopause: 'Protein protects muscle and bone through the transition, aim for it at every meal.',
-  observation:   'Consistent protein supports every phase while we learn your pattern.',
+  Menstrual:     'Protein supports general recovery; cycle timing alone does not set an exact target.',
+  Follicular:    'Protein supports training and general health; phase alone does not change the range.',
+  Ovulatory:     'Protein supports training and general health; an estimated ovulation window does not change the range.',
+  Luteal:        'Protein supports training and general health; phase alone does not require an increase.',
+  Perimenopause: 'Protein and resistance training can support muscle and bone; exact needs depend on your health and activity.',
+  observation:   'Consistent protein supports general health and training while we learn your pattern.',
 }
 
 export default function Nutrition() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(null)
   const [phase, setPhase] = useState('observation')
   const [targets, setTargets] = useState(null)
   const [profile, setProfile] = useState(null)
@@ -574,10 +577,12 @@ export default function Nutrition() {
   const [editFitness, setEditFitness] = useState('')
   const [editDiets, setEditDiets] = useState([])
   const [savingStats, setSavingStats] = useState(false)
+  const [saveError, setSaveError] = useState(null)
 
   useEffect(() => { init() }, [])
 
   async function init() {
+    setLoadError(null)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { navigate('/login', { replace: true }); return }
     try {
@@ -592,19 +597,24 @@ export default function Nutrition() {
         setPersonalisedFocus(status.personalisedFocus)
         setOpenSymptom(status.personalisedFocus.focus)
       }
-    } catch(e) { console.error(e) }
+    } catch(e) { console.error(e); setLoadError('We could not load your health data, so nutrition guidance has been paused.') }
     setLoading(false)
   }
 
   async function saveStats() {
-    setSavingStats(true)
+    setSavingStats(true); setSaveError(null)
     const { data: { user } } = await supabase.auth.getUser()
     const updates = {}
-    if (editWeight) updates.body_weight_kg = parseFloat(editWeight)
+    if (editWeight) {
+      const w = sanitize('body_weight_kg', editWeight)
+      if (w === null) { setSaveError('Enter a body weight between 25 and 300 kg.'); setSavingStats(false); return }
+      updates.body_weight_kg = w
+    }
     if (editFitness) updates.fitness_level = editFitness
     updates.diet_preference = editDiets.length > 0 ? JSON.stringify(editDiets) : null
     if (Object.keys(updates).length > 0) {
-      await supabase.from('profiles').update(updates).eq('id', user.id)
+      const res = await runSave(supabase.from('profiles').update(updates).eq('id', user.id))
+      if (!res.ok) { setSaveError(res.message); setSavingStats(false); return }
     }
     setSavingStats(false)
     setShowUpdateSheet(false)
@@ -614,6 +624,7 @@ export default function Nutrition() {
   }
 
   if (loading) return <div style={{ paddingTop:60 }}><Spinner /></div>
+  if (loadError || !targets) return <div style={{ padding:'80px 24px', textAlign:'center' }}><div style={{ fontSize:14, color:'#7a7268', lineHeight:1.6, marginBottom:16 }}>{loadError || 'We could not load your nutrition guidance.'}</div><button className="btn-primary" onClick={() => { setLoading(true); init() }}>Try again</button><BottomNav /></div>
 
   // Pregnancy mode, prenatal nutrition (Health Canada / ACOG), not cycle-phase foods.
   if (profile?.user_path === '6') {
@@ -629,10 +640,7 @@ export default function Nutrition() {
         </div>
         {t && (
           <div style={{ margin:'0 16px 12px', background:'#fff', border:'1px solid #ede8e0', borderRadius:12, padding:14 }}>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-              <div style={{ textAlign:'center' }}><div style={{ fontSize:28, fontWeight:700 }}>{t.proteinG}g</div><div style={{ fontSize:11, color:'#9a9590', textTransform:'uppercase', letterSpacing:'0.08em' }}>Protein today</div></div>
-              <div style={{ textAlign:'center' }}><div style={{ fontSize:28, fontWeight:700 }}>{t.extraCalories > 0 ? '+' : ''}{t.extraCalories}</div><div style={{ fontSize:11, color:'#9a9590', textTransform:'uppercase', letterSpacing:'0.08em' }}>Extra kcal</div></div>
-            </div>
+            <div style={{ textAlign:'center' }}><div style={{ fontSize:28, fontWeight:700 }}>{t.proteinRangeG ? `${t.proteinRangeG[0]}–${t.proteinRangeG[1]}g` : 'Add weight'}</div><div style={{ fontSize:11, color:'#9a9590', textTransform:'uppercase', letterSpacing:'0.08em' }}>{t.proteinRangeG ? 'General protein range' : 'For a weight-based range'}</div></div>
             <div style={{ fontSize:12, color:'#5a4a3a', textAlign:'center', marginTop:8, lineHeight:1.5 }}>{t.headline}</div>
           </div>
         )}
@@ -666,15 +674,23 @@ export default function Nutrition() {
   const phaseKey = ['Early luteal','Mid luteal','Late luteal'].includes(phase) ? 'Luteal'
     : ['Early perimenopause','Late perimenopause','Postmenopause','Perimenopause'].includes(phase) ? 'Perimenopause'
     : phase
-  const phaseData = PHASE_DATA[phaseKey] || PHASE_DATA.observation
+  const isNaturalCyclePhase = ['Menstrual','Follicular','Ovulatory','Luteal'].includes(phaseKey)
+  const basePhaseData = PHASE_DATA[isNaturalCyclePhase ? 'observation' : phaseKey] || PHASE_DATA.observation
+  const phaseData = isNaturalCyclePhase ? {
+    ...basePhaseData,
+    desc: `Balanced nutrition during your estimated ${phaseKey.toLowerCase()} window`,
+    science: 'Cycle timing can add context to appetite or symptoms, but it does not create a required food list, calorie change or exact protein target. Use your activity, health, preferences and repeated personal response.',
+    sectionLabel: 'General foods to build balanced meals',
+    avoid: ['Foods or drinks that repeatedly worsen your own symptoms, sleep, digestion or recovery'],
+  } : basePhaseData
   const gradient = PHASE_GRADIENT[phase] || PHASE_GRADIENT[phaseKey] || PHASE_GRADIENT.observation
   const displayPhase = phase === 'observation' ? 'Building baseline' : phase
   const activeDiets = parseDiets(profile?.diet_preference)
   const primaryDiet = DIET_PRIORITY.find(d => activeDiets.includes(d)) || null
-  const dietFoods = primaryDiet ? (DIET_FOODS[primaryDiet]?.[phaseKey] || DIET_FOODS[primaryDiet]?.observation || phaseData.foods) : phaseData.foods
+  const foodContextKey = isNaturalCyclePhase ? 'observation' : phaseKey
+  const dietFoods = primaryDiet ? (DIET_FOODS[primaryDiet]?.[foodContextKey] || DIET_FOODS[primaryDiet]?.observation || phaseData.foods) : phaseData.foods
   const isVegan = activeDiets.includes('vegan')
-  // Vegan +15% is already baked into targets.proteinG by getNutritionTargets, so just display it.
-  const displayProtein = targets ? targets.proteinG : null
+  const displayProtein = targets?.proteinRangeG ? `${targets.proteinRangeG[0]}–${targets.proteinRangeG[1]}g` : null
   const dietLabel = activeDiets.map(d => DIET_OPTIONS.find(o => o.val === d)?.label).filter(Boolean).join(' + ')
 
   return (
@@ -713,26 +729,13 @@ export default function Nutrition() {
       {/* Targets */}
       {targets && (
         <div style={{ margin:'0 16px 16px', background:'#fff', border:'1px solid #ede8e0', borderRadius:12, padding:16 }}>
-          {targets.extraCalories > 0 ? (
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-              <div style={{ textAlign:'center' }}>
-                <div style={{ fontSize:30, fontWeight:700, color:'#2c2820' }}>{displayProtein}g</div>
-                <div style={{ fontSize:11, color:'#9a9590', textTransform:'uppercase', letterSpacing:'0.08em' }}>Protein today</div>
-              </div>
-              <div style={{ textAlign:'center' }}>
-                <div style={{ fontSize:30, fontWeight:700, color:'#2c2820' }}>+{targets.extraCalories}</div>
-                <div style={{ fontSize:11, color:'#9a9590', textTransform:'uppercase', letterSpacing:'0.08em' }}>Extra fuel (kcal)</div>
-              </div>
-            </div>
-          ) : (
-            <div style={{ textAlign:'center' }}>
-              <div style={{ fontSize:34, fontWeight:700, color:'#2c2820' }}>{displayProtein}g</div>
-              <div style={{ fontSize:11, color:'#9a9590', textTransform:'uppercase', letterSpacing:'0.08em' }}>Protein target today</div>
-            </div>
-          )}
-          <div style={{ fontSize:12.5, color:'#5a4a3a', textAlign:'center', marginTop:10, lineHeight:1.55 }}>{PROTEIN_NOTE[phaseKey] || PROTEIN_NOTE.observation}</div>
+          <div style={{ textAlign:'center' }}>
+            <div style={{ fontSize:34, fontWeight:700, color:'#2c2820' }}>{displayProtein || `${targets.proteinRangePerKg?.[0] || 1.2}–${targets.proteinRangePerKg?.[1] || 1.6}g/kg`}</div>
+            <div style={{ fontSize:11, color:'#9a9590', textTransform:'uppercase', letterSpacing:'0.08em' }}>{displayProtein ? 'Research-informed protein range' : 'General range, add weight to calculate grams'}</div>
+          </div>
+          <div style={{ fontSize:12.5, color:'#5a4a3a', textAlign:'center', marginTop:10, lineHeight:1.55 }}>{PROTEIN_NOTE[isNaturalCyclePhase ? 'observation' : phaseKey] || PROTEIN_NOTE.observation}</div>
           <div style={{ fontSize:11, color:'#9a9590', textAlign:'center', marginTop:6 }}>
-            {profile?.body_weight_kg ? 'Based on your weight and phase' : 'Set your weight above to personalise this'} · ISSN 2023
+            {profile?.body_weight_kg ? 'Based on your weight, with a range because activity and health matter' : 'Set your weight above to calculate a gram range'} · ISSN 2023
           </div>
           {personalisedFocus && (
             <div style={{ fontSize:12, color:'#5a4a3a', background:'#f5f0e8', borderRadius:8, padding:'8px 10px', marginTop:10, lineHeight:1.5 }}>
@@ -748,9 +751,9 @@ export default function Nutrition() {
       )}
 
       {/* Tabs */}
-      <div style={{ display:'flex', margin:'0 16px 16px', background:'#f5f0e8', borderRadius:10, padding:3 }}>
-        {[['foods','Phase foods'],['symptoms','Symptom relief']].map(([id,label]) => (
-          <button key={id} onClick={() => setTab(id)} style={{
+      <div role="tablist" style={{ display:'flex', margin:'0 16px 16px', background:'#f5f0e8', borderRadius:10, padding:3 }}>
+        {[['foods','Foods'],['symptoms','Symptom relief']].map(([id,label]) => (
+          <button type="button" role="tab" aria-selected={tab===id} key={id} onClick={() => setTab(id)} style={{
             flex:1, padding:'8px 0', borderRadius:8, border:'none', cursor:'pointer', fontSize:13,
             background:tab===id?'#fff':'transparent', fontWeight:tab===id?500:400,
             color:tab===id?'#2c2820':'#7a7268', fontFamily:'inherit',
@@ -782,7 +785,7 @@ export default function Nutrition() {
 
           {phaseData.avoid.length > 0 && (
             <div style={{ background:'#fdf5f0', border:'1px solid #f0d8cc', borderRadius:12, padding:14, marginBottom:16 }}>
-              <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a6a50', marginBottom:8 }}>Limit this phase</div>
+              <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a6a50', marginBottom:8 }}>Consider limiting</div>
               {phaseData.avoid.map(a => (
                 <div key={a} style={{ fontSize:12, color:'#7a4a30', marginBottom:6, paddingLeft:10, borderLeft:'2px solid #e8c0a8', lineHeight:1.5 }}>{a}</div>
               ))}
@@ -792,22 +795,22 @@ export default function Nutrition() {
           {/* Carb cravings note, menstrual only, collapsible */}
           {phaseKey === 'Menstrual' && (
             <div style={{ background:'#fff4f0', border:'1px solid #e8cfc8', borderRadius:12, marginBottom:16, overflow:'hidden' }}>
-              <div onClick={() => setShowCravings(!showCravings)}
-                style={{ padding:'12px 14px', display:'flex', alignItems:'center', gap:10, cursor:'pointer' }}>
-                <i className="ti ti-info-circle" style={{ color:'#c89080', fontSize:16, flexShrink:0 }} />
-                <div style={{ flex:1, fontSize:13, fontWeight:500, color:'#2c2820' }}>Why you are craving carbs right now</div>
-                <i className={`ti ti-chevron-${showCravings?'up':'down'}`} style={{ color:'#9a9590', fontSize:14 }} />
-              </div>
+              <button type="button" aria-expanded={showCravings} onClick={() => setShowCravings(!showCravings)}
+                style={{ width:'100%', textAlign:'left', font:'inherit', background:'none', border:'none', padding:'12px 14px', display:'flex', alignItems:'center', gap:10, cursor:'pointer' }}>
+                <i className="ti ti-info-circle" aria-hidden="true" style={{ color:'#c89080', fontSize:16, flexShrink:0 }} />
+                <div style={{ flex:1, fontSize:13, fontWeight:500, color:'#2c2820' }}>If you notice cravings during your period</div>
+                <i className={`ti ti-chevron-${showCravings?'up':'down'}`} aria-hidden="true" style={{ color:'#9a9590', fontSize:14 }} />
+              </button>
               {showCravings && (
                 <div style={{ padding:'0 14px 14px', borderTop:'1px solid #e8cfc8' }}>
                   <div style={{ fontSize:13, color:'#4a2a20', lineHeight:1.75, marginBottom:8 }}>
-                    Estrogen is at its lowest point in your cycle. Estrogen directly improves how well your body uses blood sugar. When it drops, your cells become temporarily less responsive to insulin and your body compensates by craving quick glucose.
+                    Cravings are common and are not a failure of willpower. Appetite, sleep, stress, energy availability and hormonal changes may all contribute, so an estimated phase cannot prove one cause.
                   </div>
                   <div style={{ fontSize:13, color:'#4a2a20', lineHeight:1.75, marginBottom:6 }}>
-                    <strong>What actually helps:</strong> complex carbohydrates paired with protein. Sweet potato with Greek yogurt, oats with eggs, rice with fish. The protein slows glucose absorption and reduces the insulin spike while meeting the metabolic demand.
+                    <strong>A practical option:</strong> pair a carbohydrate you enjoy with protein or fat for a satisfying snack or meal, such as oats with yogurt or rice with fish or tofu. Choose what suits your diet and digestion.
                   </div>
                   <div style={{ fontSize:11, color:'#9a6058', lineHeight:1.5 }}>
-                    Mauvais-Jarvis et al. (2013). Journal of Clinical Investigation.
+                    Track whether the timing repeats for you before treating it as a personal cycle pattern.
                   </div>
                 </div>
               )}
@@ -816,22 +819,22 @@ export default function Nutrition() {
 
           {/* Fasting warning, all phases */}
           <div style={{ background:'#f5f0e8', border:'1px solid #ede8e0', borderRadius:12, marginBottom:16, overflow:'hidden' }}>
-            <div onClick={() => setShowFasting(!showFasting)}
-              style={{ padding:'12px 14px', display:'flex', alignItems:'center', gap:10, cursor:'pointer' }}>
-              <i className="ti ti-alert-circle" style={{ color:'#c8b89a', fontSize:16, flexShrink:0 }} />
+            <button type="button" aria-expanded={showFasting} onClick={() => setShowFasting(!showFasting)}
+              style={{ width:'100%', textAlign:'left', font:'inherit', background:'none', border:'none', padding:'12px 14px', display:'flex', alignItems:'center', gap:10, cursor:'pointer' }}>
+              <i className="ti ti-alert-circle" aria-hidden="true" style={{ color:'#c8b89a', fontSize:16, flexShrink:0 }} />
               <div style={{ flex:1, fontSize:13, fontWeight:500, color:'#2c2820' }}>A note on intermittent fasting</div>
-              <i className={`ti ti-chevron-${showFasting?'up':'down'}`} style={{ color:'#9a9590', fontSize:14 }} />
-            </div>
+              <i className={`ti ti-chevron-${showFasting?'up':'down'}`} aria-hidden="true" style={{ color:'#9a9590', fontSize:14 }} />
+            </button>
             {showFasting && (
               <div style={{ padding:'0 14px 14px', borderTop:'1px solid #ede8e0' }}>
                 <div style={{ fontSize:13, color:'#3a3530', lineHeight:1.7, marginBottom:6 }}>
-                  Intermittent fasting and skipping breakfast can backfire for women. Research suggests fasting raises cortisol in women differently than in men and can disrupt the hormonal signals that regulate your cycle.
+                  Intermittent fasting is not automatically harmful or helpful for women. It may be a poor fit when it causes under-fuelling, worsens symptoms, interferes with training recovery, or is unsafe with pregnancy, diabetes, medicines or an eating-disorder history.
                 </div>
                 <div style={{ fontSize:13, color:'#3a3530', lineHeight:1.7, marginBottom:8 }}>
-                  Eating within 30 to 60 minutes of waking supports cortisol rhythm. This is especially important in the luteal phase, when progesterone and cortisol are already competing in your stress hormone system and everything is under more load.
+                  Meal timing should fit your health, training and preferences. If you train early, eating before or soon after may support performance and recovery; cycle phase alone does not create a required breakfast window.
                 </div>
                 <div style={{ fontSize:11, color:'#9a9590', lineHeight:1.5 }}>
-                  Sims & Yeager (2024). ROAR (Rev. ed.). Rodale. / Hamadeh et al. (2005). Journal of Clinical Endocrinology and Metabolism, 90(6), 3592 to 3599.
+                  For medical conditions, pregnancy, medicines or a history of disordered eating, discuss fasting with a qualified healthcare professional.
                 </div>
               </div>
             )}
@@ -844,15 +847,15 @@ export default function Nutrition() {
           </div>
           {SYMPTOMS.map(s => (
             <div key={s.id} style={{ background:'#fff', border:'1px solid #ede8e0', borderRadius:12, marginBottom:10, overflow:'hidden' }}>
-              <div onClick={() => setOpenSymptom(openSymptom===s.id ? null : s.id)}
-                style={{ padding:'14px 16px', display:'flex', alignItems:'center', gap:12, cursor:'pointer' }}>
-                <span style={{ fontSize:20 }}>{s.emoji}</span>
+              <button type="button" aria-expanded={openSymptom===s.id} onClick={() => setOpenSymptom(openSymptom===s.id ? null : s.id)}
+                style={{ width:'100%', textAlign:'left', font:'inherit', background:'none', border:'none', padding:'14px 16px', display:'flex', alignItems:'center', gap:12, cursor:'pointer' }}>
+                <span style={{ fontSize:20 }} aria-hidden="true">{s.emoji}</span>
                 <div style={{ flex:1 }}>
                   <div style={{ fontSize:14, fontWeight:600, color:'#2c2820' }}>{s.title}</div>
                   <div style={{ fontSize:11, color:'#9a9590' }}>{s.sub}</div>
                 </div>
-                <i className={`ti ti-chevron-${openSymptom===s.id?'up':'down'}`} style={{ color:'#9a9590' }} />
-              </div>
+                <i className={`ti ti-chevron-${openSymptom===s.id?'up':'down'}`} aria-hidden="true" style={{ color:'#9a9590' }} />
+              </button>
               {openSymptom===s.id && (
                 <div style={{ padding:'12px 16px 14px', borderTop:'1px solid #f0ece4' }}>
                   {s.remedies.map((r, ri) => {
@@ -886,12 +889,12 @@ export default function Nutrition() {
 
       {/* APA References */}
       <div style={{ margin:'10px 16px 0', border:'1px solid #ede8e0', borderRadius:12, overflow:'hidden' }}>
-        <div onClick={() => setShowRefs(!showRefs)}
-          style={{ padding:'12px 14px', display:'flex', alignItems:'center', gap:10, cursor:'pointer', background:'#fff' }}>
-          <i className="ti ti-book-2" style={{ color:'#9a9590', fontSize:15, flexShrink:0 }} />
+        <button type="button" aria-expanded={showRefs} onClick={() => setShowRefs(!showRefs)}
+          style={{ width:'100%', textAlign:'left', font:'inherit', padding:'12px 14px', display:'flex', alignItems:'center', gap:10, cursor:'pointer', background:'#fff', border:'none' }}>
+          <i className="ti ti-book-2" aria-hidden="true" style={{ color:'#9a9590', fontSize:15, flexShrink:0 }} />
           <div style={{ flex:1, fontSize:13, fontWeight:500, color:'#2c2820' }}>References</div>
-          <i className={`ti ti-chevron-${showRefs?'up':'down'}`} style={{ color:'#9a9590', fontSize:14 }} />
-        </div>
+          <i className={`ti ti-chevron-${showRefs?'up':'down'}`} aria-hidden="true" style={{ color:'#9a9590', fontSize:14 }} />
+        </button>
         {showRefs && (
           <div style={{ padding:'10px 14px 14px', borderTop:'1px solid #ede8e0', background:'#faf8f5' }}>
             {APA_REFS.map((ref, i) => (
@@ -907,14 +910,19 @@ export default function Nutrition() {
 
       {/* Update stats sheet */}
       {showUpdateSheet && <>
-        <div onClick={() => setShowUpdateSheet(false)} style={{ position:'fixed', inset:0, background:'rgba(44,40,32,0.4)', zIndex:200 }} />
-        <div style={{ position:'fixed', bottom:0, left:'50%', transform:'translateX(-50%)', width:'100%', maxWidth:420, background:'#faf8f5', borderRadius:'20px 20px 0 0', zIndex:201, padding:'16px 20px 48px' }}>
+        <button type="button" aria-label="Close" onClick={() => setShowUpdateSheet(false)} style={{ position:'fixed', inset:0, background:'rgba(44,40,32,0.4)', zIndex:200, border:'none', padding:0, cursor:'pointer' }} />
+        <div role="dialog" aria-modal="true" aria-label="Update your stats" style={{ position:'fixed', bottom:0, left:'50%', transform:'translateX(-50%)', width:'100%', maxWidth:420, background:'#faf8f5', borderRadius:'20px 20px 0 0', zIndex:201, padding:'16px 20px 48px' }}>
           <div style={{ width:36, height:4, background:'#c8b89a', borderRadius:2, margin:'0 auto 16px' }} />
-          <div style={{ fontSize:16, fontWeight:600, marginBottom:20 }}>Update your stats</div>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:20 }}>
+            <div style={{ fontSize:16, fontWeight:600 }}>Update your stats</div>
+            <button type="button" aria-label="Close" onClick={() => setShowUpdateSheet(false)} style={{ background:'none', border:'none', cursor:'pointer', color:'#9a9590', fontSize:20, padding:0, display:'flex' }}>
+              <i className="ti ti-x" aria-hidden="true" />
+            </button>
+          </div>
 
           <div style={{ marginBottom:16 }}>
             <div style={{ fontSize:12, color:'#7a7268', marginBottom:6 }}>Body weight (kg)</div>
-            <input type="number" value={editWeight} onChange={e => setEditWeight(e.target.value)}
+            <input type="number" aria-label="Body weight (kg)" value={editWeight} onChange={e => setEditWeight(e.target.value)}
               placeholder={profile?.body_weight_kg || 'e.g. 65'}
               style={{ width:'100%', padding:'12px', border:'1px solid #ede8e0', borderRadius:10, fontSize:15, fontFamily:'inherit', color:'#2c2820', background:'#fff', boxSizing:'border-box' }} />
           </div>
@@ -923,7 +931,7 @@ export default function Nutrition() {
             <div style={{ fontSize:12, color:'#7a7268', marginBottom:8 }}>Fitness level</div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8 }}>
               {['beginner','intermediate','advanced'].map(f => (
-                <button key={f} onClick={() => setEditFitness(f)} style={{
+                <button type="button" key={f} aria-pressed={editFitness===f} onClick={() => setEditFitness(f)} style={{
                   padding:'10px 6px', borderRadius:10, border:`1px solid ${editFitness===f?'#c8b89a':'#ede8e0'}`,
                   background:editFitness===f?'#e8dfd0':'#fff', cursor:'pointer',
                   fontSize:12, fontWeight:editFitness===f?600:400,
@@ -939,7 +947,7 @@ export default function Nutrition() {
               {DIET_OPTIONS.map(d => {
                 const isActive = d.val === null ? editDiets.length === 0 : editDiets.includes(d.val)
                 return (
-                  <button key={String(d.val)} onClick={() => {
+                  <button type="button" key={String(d.val)} aria-pressed={isActive} onClick={() => {
                     if (d.val === null) { setEditDiets([]); return }
                     // Gluten-free and dairy-free are dietary restrictions, they can combine with
                     // each other but not with a base diet. Every base diet is mutually exclusive.
@@ -964,8 +972,9 @@ export default function Nutrition() {
             </div>
           </div>
 
+          {saveError && <div role="alert" style={{ fontSize:13, color:'#c05858', marginBottom:10, lineHeight:1.6 }}>{saveError}</div>}
           <button onClick={saveStats} disabled={savingStats} style={{ width:'100%', padding:'14px', borderRadius:12, background:'#2c2820', color:'#f5f0e8', border:'none', fontSize:15, fontWeight:500, cursor:'pointer', fontFamily:'inherit' }}>
-            {savingStats ? 'Saving...' : 'Save'}
+            {savingStats ? 'Saving...' : saveError ? 'Try again' : 'Save'}
           </button>
         </div>
       </>}

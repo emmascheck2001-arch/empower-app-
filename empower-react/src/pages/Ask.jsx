@@ -7,6 +7,7 @@ import { supabase } from '../lib/supabase'
 import { getTodayStatus } from '../lib/hormoneSync'
 import { answerQuestion, buildTopics, STARTERS, localDateStr } from '../lib/askEngine'
 import { track } from '../lib/analytics'
+import { diffCalendarDays } from '../lib/dateUtils'
 import TopBar from '../components/TopBar'
 import BottomNav from '../components/BottomNav'
 import Spinner from '../components/Spinner'
@@ -32,14 +33,15 @@ export default function Ask() {
       const since = new Date(); since.setDate(since.getDate() - 120)
       const [status, { data: cycle }, { data: logs }] = await Promise.all([
         getTodayStatus(supabase, user.id).catch(() => null),
-        supabase.from('cycle_data').select('last_period_date,cycle_length').eq('user_id', user.id).order('created_at',{ascending:false}).limit(1).maybeSingle(),
-        supabase.from('daily_logs').select('log_date,energy,mood,symptoms,sleep_quality,flow_volume,pain_rating,workout_feel').eq('user_id', user.id).gte('log_date', localDateStr(since)).order('log_date',{ascending:false}),
+        supabase.from('cycle_data').select('last_period_date,cycle_length,notes').eq('user_id', user.id).order('created_at',{ascending:false}).limit(1).maybeSingle(),
+        supabase.from('daily_logs').select('log_date,energy,mood,symptoms,sleep_quality,flow_volume,pain_rating,workout_feel,hormonal_context').eq('user_id', user.id).gte('log_date', localDateStr(since)).order('log_date',{ascending:false}),
       ])
       let streak = 0
-      const ll = logs || []
+      const context = status?.contextKey || 'natural-cycle'
+      const ll = (logs || []).filter(log => log.hormonal_context ? log.hormonal_context === context : context === 'natural-cycle')
       const check = new Date(); check.setHours(0,0,0,0)
       for (const l of ll) {
-        const diff = Math.floor((check - new Date(l.log_date+'T00:00:00'))/86400000)
+        const diff = diffCalendarDays(check, l.log_date+'T00:00:00')
         if (diff === streak) { streak++; check.setDate(check.getDate()-1) } else break
       }
       const ctxObj = { status, cycle: cycle || null, logs: ll, streak, userEmail: user.email, userId: user.id }
@@ -88,8 +90,8 @@ export default function Ask() {
         {messages.length === 0 && (
           <div>
             <div style={{ background:'#f5f0e8', borderRadius:14, padding:16, marginBottom:16 }}>
-              <div style={{ fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:18, marginBottom:6 }}>Ask me anything about your body or your data.</div>
-              <div style={{ fontSize:13, color:'#5a5248', lineHeight:1.6 }}>I answer from your own logs and from Em~power's research-backed guidance. I will never make something up. If I do not have a confident answer, I will offer to send your question to Em~power so we can add it.</div>
+              <div style={{ fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:18, marginBottom:6 }}>Search your data and Em~power&apos;s reviewed guidance.</div>
+              <div style={{ fontSize:13, color:'#5a5248', lineHeight:1.6 }}>This is a guided question library, not a diagnosis or a substitute for a clinician. It uses your logs when a matching answer is available. If it may have misunderstood, try different wording or send the question to Em~power for review.</div>
             </div>
             <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590', marginBottom:10 }}>Try one of these</div>
             <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
@@ -136,10 +138,11 @@ export default function Ask() {
 
       <div style={{ position:'sticky', bottom:0, background:'#faf8f5', borderTop:'1px solid #ede8e0', padding:'10px 16px', display:'flex', gap:8, alignItems:'center' }}>
         <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{ if(e.key==='Enter') send() }}
+          aria-label="Ask about your cycle, training, nutrition"
           placeholder="Ask about your cycle, training, nutrition…"
           style={{ flex:1, padding:'12px 14px', borderRadius:22, border:'1px solid #ede8e0', fontSize:14, fontFamily:'inherit', outline:'none', background:'#fff', color:'#2c2820' }} />
-        <button onClick={()=>send()} disabled={!input.trim()} style={{ width:44, height:44, borderRadius:22, border:'none', background: input.trim() ? '#2c2820' : '#c8c0b8', color:'#f5f0e8', cursor: input.trim()?'pointer':'default', flexShrink:0, fontSize:18 }}>
-          <i className="ti ti-arrow-up"/>
+        <button type="button" aria-label="Send" onClick={()=>send()} disabled={!input.trim()} style={{ width:44, height:44, borderRadius:22, border:'none', background: input.trim() ? '#2c2820' : '#c8c0b8', color:'#f5f0e8', cursor: input.trim()?'pointer':'default', flexShrink:0, fontSize:18 }}>
+          <i className="ti ti-arrow-up" aria-hidden="true"/>
         </button>
       </div>
       <BottomNav/>

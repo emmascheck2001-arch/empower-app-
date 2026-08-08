@@ -32,7 +32,7 @@ describe('buildWeeklyObservation', () => {
     const thisWeek = [ log(ago(4), { energy:'Low' }), log(ago(2), { energy:'High' }), log(ago(0), { energy:'Normal' }) ]
     // today cd 15 (ovulatory); the peak 2 days ago = cd 13 = still ovulatory
     const r = buildWeeklyObservation({ thisWeek, cycleDayToday: 15, cycleLen: 28, phaseAt })
-    expect(r).toMatch(/energy peaked on/i)
+    expect(r).toMatch(/highest logged energy was on/i)
     expect(r).toMatch(/ovulatory/i)
   })
 

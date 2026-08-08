@@ -1,16 +1,18 @@
 import { useState, useEffect } from 'react'
 import { isNative, isHealthAvailable, connectHealth, readWearableData, healthStoreName } from '../lib/healthkit'
 import { wearableCycleSignals } from '../lib/wearableCycle'
+import { getUserLocal, setUserLocal } from '../lib/userLocalState'
 
 // The one-time "connect your wearable" prompt. Native only (renders nothing on web). Once
 // connected it disappears — the live temperature and heart-rate readings then live inside
 // Today's Focus on the dashboard, and the confirmed-ovulation signal drives the cycle phase
 // everywhere (see cycleGuardian.js). Works on iOS (Apple Health) and Android (Health Connect).
-export default function HealthConnect() {
+export default function HealthConnect({ userId }) {
   const [available, setAvailable] = useState(false)
-  const [connected] = useState(() => { try { return !!localStorage.getItem('healthConnected') } catch { return false } })
+  const [connected] = useState(() => !!getUserLocal(userId, 'healthConnected'))
   const [loading, setLoading] = useState(false)
-  const [dismissed, setDismissed] = useState(() => { try { return !!localStorage.getItem('healthPromptDismissed') } catch { return false } })
+  const [dismissed, setDismissed] = useState(() => !!getUserLocal(userId, 'healthPromptDismissed'))
+  const [message, setMessage] = useState(null)
 
   useEffect(() => {
     if (!isNative()) return
@@ -21,15 +23,18 @@ export default function HealthConnect() {
     setLoading(true)
     const ok = await connectHealth()
     if (ok) {
-      try { localStorage.setItem('healthConnected', '1') } catch { /* ignore */ }
-      // Read once so the cycle guardian has data on the next load, then reload so the dashboard
-      // re-reads and surfaces the numbers in Today's Focus.
       try {
         const data = await readWearableData()
-        if (data) localStorage.setItem('wearableSignals', JSON.stringify(wearableCycleSignals(data)))
+        if (data?.hasAnyData) {
+          setUserLocal(userId, 'healthConnected', '1')
+          setUserLocal(userId, 'wearableSignals', JSON.stringify(wearableCycleSignals(data)))
+          window.location.reload()
+          return
+        }
       } catch { /* ignore */ }
-      window.location.reload()
-      return
+      setMessage(`No readable data was found. Check that Em~power has permission in ${healthStoreName()} and that your device has recorded health data, then try again.`)
+    } else {
+      setMessage(`Could not connect to ${healthStoreName()}. Please try again.`)
     }
     setLoading(false)
   }
@@ -44,12 +49,13 @@ export default function HealthConnect() {
         <div style={{ fontSize:14, fontWeight:700, color:'#1f4a3a' }}>Automatic cycle tracking</div>
       </div>
       <div style={{ fontSize:13, color:'#2a4a40', lineHeight:1.6, marginBottom:12 }}>
-        Connect {storeName} and Em~power reads your overnight temperature and heart rate from your Apple Watch, Oura, or other wearable to <strong>track your cycle automatically</strong>, no daily logging needed. Set it up once and it keeps syncing every day.
+        Connect {storeName} and Em~power can read overnight temperature and heart rate from a supported wearable. It refreshes when you open the app and uses available readings to support cycle estimates.
       </div>
+      {message && <div style={{ fontSize:12, color:'#8a4a32', lineHeight:1.5, marginBottom:10 }}>{message}</div>}
       <button onClick={connect} disabled={loading} style={{ width:'100%', padding:'12px', borderRadius:12, background:'#2c2820', color:'#f5f0e8', border:'none', fontSize:14, fontWeight:600, cursor:'pointer', fontFamily:'inherit', marginBottom:8 }}>
         {loading ? 'Connecting…' : `Connect ${storeName}`}
       </button>
-      <button onClick={() => { try { localStorage.setItem('healthPromptDismissed', '1') } catch { /* ignore */ } ; setDismissed(true) }} style={{ width:'100%', background:'none', border:'none', fontSize:12, color:'#6a7a70', cursor:'pointer', fontFamily:'inherit' }}>Maybe later</button>
+      <button onClick={() => { setUserLocal(userId, 'healthPromptDismissed', '1'); setDismissed(true) }} style={{ width:'100%', background:'none', border:'none', fontSize:12, color:'#6a7a70', cursor:'pointer', fontFamily:'inherit' }}>Maybe later</button>
     </div>
   )
 }

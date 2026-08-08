@@ -4,7 +4,6 @@ import { buildPhaseOutlook } from './phaseOutlook.js'
 // Anchor a fixed last period, then place logs at chosen cycle days across past cycles.
 const LP = '2026-01-01'
 const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
-const at = (cycleN, cd, f) => { const d = new Date(LP + 'T00:00:00'); d.setDate(d.getDate() + cycleN*28 + (cd-1)); return { log_date: fmt(d), ...f } }
 
 describe('buildPhaseOutlook', () => {
   it('returns null without a cycle anchor', () => {
@@ -13,28 +12,29 @@ describe('buildPhaseOutlook', () => {
   })
 
   it('says how many more cycles are needed when history is thin', () => {
-    // cycleDay 12 (follicular) -> upcoming ~day17 = luteal; no past luteal logs
+    // cycleDay 12 (follicular) -> upcoming ~day17 = luteal; no past luteal logs.
+    // MIN_CYCLES is now 3, so with zero past cycles it needs about 3.
     const r = buildPhaseOutlook({ logs: [], lastPeriodDate: LP, cycleLen: 28, cycleDay: 12 })
     expect(r.status).toBe('needs_more')
     expect(r.upcoming).toBe('Luteal')
-    expect(r.text).toMatch(/needs about 2 tracked cycles|more cycle/i)
+    expect(r.text).toMatch(/needs about 3 tracked cycles|more cycles/i)
   })
 
   it('predicts from her own past cycles once there are enough', () => {
-    // Give 2 past cycles (0 and 1) of luteal-phase logs; today is in cycle 3 at day 12
-    const logs = [
-      at(0, 18, { energy:'Low', symptoms:['Cramping'], mood:['Irritable'] }),
-      at(0, 22, { energy:'Low', symptoms:['Bloating'] }),
-      at(1, 19, { energy:'Low', symptoms:['Cramping'], mood:['Irritable'] }),
-      at(1, 24, { energy:'Normal', symptoms:['Bloating'] }),
-    ]
-    // today must be a later cycle so cycles 0 & 1 count as "past". Use a lastPeriodDate far in the past.
-    const lpPast = fmt(new Date(new Date().getTime() - 3*28*86400000)) // ~3 cycles ago
-    const shift = logs.map(l => {
-      // re-anchor the same cycle-day offsets to lpPast
-      return l
-    })
-    const r = buildPhaseOutlook({ logs: shiftToAnchor(logs, LP, lpPast), lastPeriodDate: lpPast, cycleLen: 28, cycleDay: 12 })
+    // buildPhaseOutlook now requires MIN_CYCLES (3) past cycles with >= 2 luteal logs each,
+    // and it anchors each log via the recorded period-start history. So give explicit starts
+    // for the current cycle plus 3 fully-bracketed past cycles, and 2 luteal logs per past cycle.
+    const day = (base, n) => { const d = new Date(base + 'T00:00:00'); d.setDate(d.getDate() + n); return fmt(d) }
+    // Current cycle anchor (today), and 4 earlier starts so the 3 past cycles each have a next start.
+    const lpPast = fmt(new Date(new Date().getTime() - 30*86400000)) // ~1 cycle ago = current anchor
+    const starts = [ lpPast, day(lpPast, -28), day(lpPast, -56), day(lpPast, -84), day(lpPast, -112) ]
+    // Two luteal-phase logs (cycle days 18 and 22) in each of the 3 most recent PAST cycles.
+    const lutealStarts = [ day(lpPast, -28), day(lpPast, -56), day(lpPast, -84) ]
+    const logs = lutealStarts.flatMap((s) => [
+      { log_date: day(s, 17), energy:'Low', symptoms:['Cramping'], mood:['Irritable'] }, // cycle day 18
+      { log_date: day(s, 21), energy:'Low', symptoms:['Bloating'] },                     // cycle day 22
+    ])
+    const r = buildPhaseOutlook({ logs, lastPeriodDate: lpPast, periodStarts: starts, cycleLen: 28, cycleDay: 12 })
     expect(r.status).toBe('ok')
     expect(r.upcoming).toBe('Luteal')
     expect(r.text).toMatch(/heading into your luteal phase/i)
@@ -45,13 +45,3 @@ describe('buildPhaseOutlook', () => {
     expect(() => buildPhaseOutlook({ logs: [{}, { log_date:'2026-01-05' }], lastPeriodDate: LP, cycleDay: 10 })).not.toThrow()
   })
 })
-
-// Re-anchor helper: move log_dates from anchor A to anchor B keeping the same day offset.
-function shiftToAnchor(logs, fromAnchor, toAnchor) {
-  const a = new Date(fromAnchor + 'T00:00:00'), b = new Date(toAnchor + 'T00:00:00')
-  const delta = Math.round((b - a) / 86400000)
-  return logs.map(l => {
-    const d = new Date(l.log_date + 'T00:00:00'); d.setDate(d.getDate() + delta)
-    return { ...l, log_date: `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` }
-  })
-}

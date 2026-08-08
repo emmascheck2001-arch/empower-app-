@@ -10,6 +10,10 @@
 //  3. Not enough data yet -> status 'insufficient', say nothing.
 // Pure computation only (no supabase) so it is unit-tested.
 
+import { diffCalendarDays } from './dateUtils.js'
+import { parsePeriodStarts } from './hormoneSync.js'
+import { cycleInfoForDate } from './cycleHistory.js'
+
 const MIN_PER_PHASE = 2       // logs needed in a phase before its average is trusted
 const MIN_SPREAD = 0.6        // energy-score gap (1 to 4 scale) needed to call it a real difference
 const MIN_ENERGY_LOGS = 8     // total energy logs needed before we say anything
@@ -40,18 +44,18 @@ export function buildMonthlyStory({ logs = [], cycleData = null } = {}) {
   const cl = cycleData?.cycle_length || 28
   if (!lp) return { status: 'no_cycle', story: [], suggestion: null }
 
-  const lpDate = new Date(lp + 'T00:00:00')
+  const periodStarts = parsePeriodStarts(cycleData)
   const now = new Date(); now.setHours(0, 0, 0, 0)
   const byPhase = {} // key -> { energy: [scores], neg: count, total: count }
   let energyLogs = 0
   for (const l of logs) {
     if (!l.log_date) continue
     const ld = new Date(l.log_date + 'T00:00:00')
-    const ageDays = Math.floor((now - ld) / 86400000)
+    const ageDays = diffCalendarDays(now, ld)
     if (ageDays < 0 || ageDays > RECENT_DAYS) continue
-    const diff = Math.floor((ld - lpDate) / 86400000)
-    const cd = (((diff % cl) + cl) % cl) + 1
-    const key = phaseKey(cd, cl)
+    const cycleInfo = cycleInfoForDate(l.log_date, periodStarts, cl)
+    if (!cycleInfo) continue
+    const key = phaseKey(cycleInfo.cycleDay, cycleInfo.cycleLength)
     const b = byPhase[key] || (byPhase[key] = { energy: [], neg: 0, total: 0 })
     b.total++
     if (ENERGY[l.energy] != null) { b.energy.push(ENERGY[l.energy]); energyLogs++ }
@@ -86,7 +90,7 @@ export function buildMonthlyStory({ logs = [], cycleData = null } = {}) {
   if (moodLow && moodLow.negRate >= 0.5 && moodLow.total >= MIN_PER_PHASE) {
     story.push(`Your mood has also tended to dip ${PHRASE[moodLow.key]}.`)
   }
-  const suggestion = `Plan your most demanding work and hardest training for when your energy is highest, ${PHRASE[high.key]}, and build in more recovery ${PHRASE[low.key]}. This is a pattern in your own data, not a rule.`
+  const suggestion = `Your logs suggest ${PHRASE[high.key]} may be a higher-energy window and ${PHRASE[low.key]} may need more flexibility. Keep your normal plan, then use this pattern alongside your warm-up and symptoms. This is an association in your own data, not a rule.`
 
   return { status: 'ok', story, suggestion, high: high.key, low: low.key }
 }

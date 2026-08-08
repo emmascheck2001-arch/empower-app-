@@ -4,8 +4,7 @@
 //
 //  The guided workout player. Steps through the day's exercises SET BY SET with a rest timer
 //  between sets and an animated stick-figure demo of each move. Heart rate is monitored silently
-//  in the background and only surfaces as a FLAG banner when it's genuinely high for the user's
-//  phase (WorkoutManager.hrFlag). Guide the workout; keep HR out of the way until it matters.
+//  in the background and only surfaces an informational high-effort-zone notice.
 //
 
 import SwiftUI
@@ -32,7 +31,6 @@ func guidedExercises(_ w: WatchWorkout) -> [GuidedExercise] {
 
 struct LiveWorkoutView: View {
     let workout: WatchWorkout
-    let phase: String
     let age: Int
 
     @StateObject private var manager = WorkoutManager()
@@ -52,7 +50,7 @@ struct LiveWorkoutView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 10) {
-                // The ONE place heart rate appears: a flag when it's high for the phase.
+                // The one place heart rate appears: an informational effort-zone notice.
                 if let flag = manager.hrFlag {
                     HStack(alignment: .top, spacing: 6) {
                         Image(systemName: "heart.fill").foregroundStyle(.red)
@@ -71,8 +69,9 @@ struct LiveWorkoutView: View {
         }
         .navigationTitle(workout.title)
         .onAppear {
-            manager.requestAuthorization()
-            manager.start(age: age, phase: phase)
+            manager.requestAuthorization { granted in
+                if granted { manager.start(age: age, activity: workout.activity) }
+            }
         }
         .onDisappear { manager.end() }
         .onReceive(tick) { _ in
@@ -171,5 +170,5 @@ struct LiveWorkoutView: View {
                 WatchExercise(name: "Goblet squat", guide: "12–16 kg", reps: "10 reps", sets: 3),
                 WatchExercise(name: "Romanian deadlift", guide: "20–30 kg", reps: "8 reps", sets: 3),
             ]),
-        phase: "Mid luteal", age: 30)
+        age: 30)
 }

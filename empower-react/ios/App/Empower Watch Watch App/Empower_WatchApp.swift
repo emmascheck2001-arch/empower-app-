@@ -63,13 +63,21 @@ final class PlanStore: NSObject, ObservableObject, WCSessionDelegate {
     /// Decode the phone payload. We accept either the plan object directly or `{ "planJSON": "…" }`
     /// carrying a JSON string, since applicationContext/userInfo values must be property-list types.
     private func apply(_ context: [String: Any]) {
+        if context["clearPlan"] as? Bool == true {
+            DispatchQueue.main.async {
+                UserDefaults.standard.removeObject(forKey: self.cacheKey)
+                self.plan = sampleToday
+                self.hasLiveData = false
+            }
+            return
+        }
         var data: Data?
         if let jsonString = context["planJSON"] as? String {
             data = jsonString.data(using: .utf8)
         } else if JSONSerialization.isValidJSONObject(context) {
             data = try? JSONSerialization.data(withJSONObject: context)
         }
-        guard let data, let decoded = try? JSONDecoder().decode(TodayPlan.self, from: data) else { return }
+        guard let data, let decoded = try? JSONDecoder().decode(TodayPlan.self, from: data), isCurrent(decoded) else { return }
 
         DispatchQueue.main.async {
             self.plan = decoded
@@ -81,9 +89,22 @@ final class PlanStore: NSObject, ObservableObject, WCSessionDelegate {
     private func loadCachedPlan() {
         guard let json = UserDefaults.standard.string(forKey: cacheKey),
               let data = json.data(using: .utf8),
-              let decoded = try? JSONDecoder().decode(TodayPlan.self, from: data) else { return }
+              let decoded = try? JSONDecoder().decode(TodayPlan.self, from: data),
+              isCurrent(decoded) else {
+            UserDefaults.standard.removeObject(forKey: cacheKey)
+            return
+        }
         plan = decoded
         hasLiveData = true
+    }
+
+    private func isCurrent(_ plan: TodayPlan) -> Bool {
+        guard let date = plan.date else { return false }
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd"
+        return date == formatter.string(from: Date())
     }
 
     // MARK: WCSessionDelegate

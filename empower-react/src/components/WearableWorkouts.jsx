@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { isNative, readRecentWorkouts, healthStoreName } from '../lib/healthkit'
+import { getUserLocal } from '../lib/userLocalState'
+import { diffCalendarDays } from '../lib/dateUtils.js'
 
 // Shows the user's recent Apple Watch / wearable workouts (pulled from Apple Health / Health
 // Connect) and lets them log one into their Em~power day with a tap. Native only, and only after
@@ -19,49 +21,50 @@ function label(w) {
 }
 function dayLabel(dateStr) {
   const d = new Date(dateStr + 'T00:00:00'); const t = new Date(); t.setHours(0, 0, 0, 0)
-  const diff = Math.round((t - d) / 86400000)
+  const diff = diffCalendarDays(t, d)
   if (diff === 0) return 'Today'
   if (diff === 1) return 'Yesterday'
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
 }
 
-export default function WearableWorkouts() {
+export default function WearableWorkouts({ contextKey = 'natural-cycle' }) {
   const [workouts, setWorkouts] = useState([])
   const [loggedDates, setLoggedDates] = useState({})   // date -> workout_feel already logged
   const [busy, setBusy] = useState(null)
 
   useEffect(() => {
     if (!isNative()) return
-    let connected = false
-    try { connected = !!localStorage.getItem('healthConnected') } catch { /* ignore */ }
-    if (!connected) return
-    readRecentWorkouts(14).then(async ws => {
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user || !getUserLocal(user.id, 'healthConnected')) return
+      const ws = await readRecentWorkouts(14)
       if (!ws?.length) return
       setWorkouts(ws.slice(0, 8))
       // Which of those days already have a workout logged (so we show "Logged" not "Log").
       try {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) return
         const dates = [...new Set(ws.map(w => w.date))]
         const { data } = await supabase.from('daily_logs')
-          .select('log_date,workout_feel').eq('user_id', user.id).in('log_date', dates)
+          .select('log_date,workout_feel,workout_imported,hormonal_context').eq('user_id', user.id).in('log_date', dates)
         const map = {}
-        for (const r of data || []) if (r.workout_feel) map[r.log_date] = r.workout_feel
+        for (const r of data || []) {
+          const sameContext = r.hormonal_context ? r.hormonal_context === contextKey : contextKey === 'natural-cycle'
+          if (sameContext && (r.workout_feel || r.workout_imported)) map[r.log_date] = r.workout_feel || 'Imported'
+        }
         setLoggedDates(map)
       } catch { /* non-fatal */ }
     }).catch(() => {})
-  }, [])
+  }, [contextKey])
 
   async function logIt(w) {
     setBusy(w.start)
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
-        // Mark the day as a completed workout without overriding a feel the user already set.
-        await supabase.from('daily_logs').upsert(
-          { user_id: user.id, log_date: w.date, workout_feel: 'Average' },
+        // Mark the activity as imported without inventing how it felt.
+        const { error } = await supabase.from('daily_logs').upsert(
+          { user_id: user.id, log_date: w.date, hormonal_context:contextKey, workout_imported: true, workout_feel_reported: false },
           { onConflict: 'user_id,log_date' })
-        setLoggedDates(prev => ({ ...prev, [w.date]: 'Average' }))
+        if (error) throw error
+        setLoggedDates(prev => ({ ...prev, [w.date]: 'Imported' }))
       }
     } catch { /* non-fatal */ }
     setBusy(null)

@@ -1,17 +1,26 @@
 // Map a date to the cycle day it fell on, using the user's recorded period-start history.
-// Anchors to the most recent start on/before the date; extrapolates for dates before the
-// earliest start. Mirrors the calendar's phase-anchoring so notes line up with the calendar.
-export function cycleDayForDate(dateStr, periodStarts, cycleLen) {
+// Anchors to the most recent start on/before the date. Dates before the earliest recorded
+// start remain unclassified; the app does not paint fictional history backward.
+import { diffCalendarDays } from './dateUtils.js'
+
+export function cycleInfoForDate(dateStr, periodStarts, cycleLen) {
   if (!dateStr || !periodStarts?.length || !cycleLen) return null
   const date = new Date(dateStr + 'T00:00:00')
-  let anchor = new Date(periodStarts[0] + 'T00:00:00')
-  for (const ps of periodStarts) {
-    const d = new Date(ps + 'T00:00:00')
-    if (d <= date) anchor = d
-    else break
+  let anchor = null
+  let nextAnchor = null
+  for (const ps of [...periodStarts].sort()) {
+    if (new Date(ps + 'T00:00:00') <= date) anchor = ps
+    else { nextAnchor = ps; break }
   }
-  const diff = Math.floor((date - anchor) / 86400000)
-  return (((diff % cycleLen) + cycleLen) % cycleLen) + 1
+  if (!anchor) return null
+  const diff = diffCalendarDays(date, anchor + 'T00:00:00')
+  const actualLength = nextAnchor ? diffCalendarDays(nextAnchor + 'T00:00:00', anchor + 'T00:00:00') : cycleLen
+  if (diff < 0 || (!nextAnchor && diff >= cycleLen)) return null
+  return { cycleDay: Math.min(diff + 1, actualLength), cycleLength: actualLength, anchor }
+}
+
+export function cycleDayForDate(dateStr, periodStarts, cycleLen) {
+  return cycleInfoForDate(dateStr, periodStarts, cycleLen)?.cycleDay || null
 }
 
 // Summarise, per cycle day, what the user logged on that day across past cycles, so the plan
@@ -31,10 +40,10 @@ export function buildCycleDayHistory(logs, periodStarts, cycleLen) {
   }
   for (const cd in agg) {
     const a = agg[cd]
-    if (a.low >= 1 && a.low >= a.high) {
-      byDay[cd] = { text: `you logged lower energy around here ${a.low > 1 ? 'in past cycles' : 'last cycle'}`, lighter: true, count: a.low }
-    } else if (a.high >= 1) {
-      byDay[cd] = { text: `you felt strong around here ${a.high > 1 ? 'before' : 'last cycle'}`, lighter: false, count: a.high }
+    if (a.low >= 3 && a.low >= a.high * 2) {
+      byDay[cd] = { text: `you logged lower energy around here on ${a.low} tracked days`, lighter: true, count: a.low }
+    } else if (a.high >= 3 && a.high >= a.low * 2) {
+      byDay[cd] = { text: `you logged high energy around here on ${a.high} tracked days`, lighter: false, count: a.high }
     }
   }
   return byDay

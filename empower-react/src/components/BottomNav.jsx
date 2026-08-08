@@ -24,7 +24,7 @@ export default function BottomNav() {
   const items = isDashboard ? DASHBOARD_NAV : NAV_ITEMS
 
   return (
-    <nav style={{
+    <nav aria-label="Primary" style={{
       position: 'fixed', bottom: 0, left: 0, right: 0,
       background: '#f5f0e8', borderTop: '1px solid #ede8e0',
       display: 'flex', justifyContent: 'space-around', alignItems: 'center',
@@ -34,12 +34,14 @@ export default function BottomNav() {
       {items.map(item => {
         const active = location.pathname === item.path
         return (
-          <button key={item.path} onClick={() => navigate(item.path)} style={{
+          <button key={item.path} onClick={() => navigate(item.path)}
+            aria-current={active ? 'page' : undefined}
+            aria-label={item.label} style={{
             display: 'flex', flexDirection: 'column', alignItems: 'center',
             gap: 2, background: 'none', border: 'none', cursor: 'pointer',
             color: active ? '#2c2820' : '#9a9590', padding: '4px 8px'
           }}>
-            <i className={`ti ${item.icon}`} style={{ fontSize: 22 }} />
+            <i className={`ti ${item.icon}`} aria-hidden="true" style={{ fontSize: 22 }} />
             <span style={{ fontSize: 10, fontWeight: active ? 600 : 400 }}>{item.label}</span>
           </button>
         )

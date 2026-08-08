@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { getUserLocal, setUserLocal } from '../lib/userLocalState'
 
 // One-time goal picker shown the first time a user opens the Workout tab. Wellness-framed
 // (supportive, never diet-culture shame) because this is a women's wellness app. The choice
@@ -13,16 +14,16 @@ export const FITNESS_GOALS = [
   { val:'destress',    icon:'ti-yoga',          title:'Reduce stress & feel calmer', sub:'Movement for your mind too' },
 ]
 
-export function getFitnessGoal() {
-  try { return localStorage.getItem('fitnessGoal') || null } catch { return null }
+export function getFitnessGoal(userId) {
+  return getUserLocal(userId, 'fitnessGoal')
 }
 
-export default function GoalPicker({ onDone }) {
-  const [show, setShow] = useState(() => !getFitnessGoal())
-  if (!show) return null
+export default function GoalPicker({ userId, onDone, forceOpen = false }) {
+  const [show, setShow] = useState(() => !getFitnessGoal(userId))
+  if (!show && !forceOpen) return null
 
   const pick = (v) => {
-    try { localStorage.setItem('fitnessGoal', v) } catch { /* ignore */ }
+    setUserLocal(userId, 'fitnessGoal', v)
     setShow(false)
     if (onDone) onDone(v)
   }

@@ -1,6 +1,6 @@
 // Builds the FULL set of today's workout options for the Apple Watch from the app's own computed
-// status. The phone is where the workout intelligence lives, so we pre-generate every option here
-// (phase-appropriate), flag the one best for her cycle as `recommended`, sort it first, and send
+// status. The phone is where the workout intelligence lives, so we pre-generate every option here,
+// flag a readiness-led starting option as `recommended`, sort it first, and send
 // the whole list. The watch just renders + plays them (guided player + live heart rate), so the
 // watch experience mirrors the phone without reimplementing the generator natively.
 //
@@ -8,7 +8,6 @@
 //   { phase, date, age, workouts: [{ activity, title, detail, recommended, exercises:[{name,guide,reps,sets}] }] }
 // A cardio/yoga "exercise" is just a guided step (sets:1, reps carries the duration).
 
-import { getMovementToday } from './movementToday'
 import { EXERCISES } from './exerciseData'   // shared with the phone workout screen
 
 const step = (name, guide, reps, sets = 1) => ({ name, guide, reps, sets })
@@ -52,22 +51,12 @@ function levelOf(profile) {
   return l === 'beginner' ? 'beginner' : (l === 'advanced' || l === 'athlete') ? 'advanced' : 'intermediate'
 }
 
-// Which option is best for this phase (flagged "Recommended" and sorted to the top), by option id.
-// Research-aligned with movementToday: strength on strong phases (heavy lower in late follicular),
-// gentler movement when the same session genuinely feels harder (mid/late luteal, menstrual).
-function recommendedId(phase) {
-  switch (phase) {
-    case 'Menstrual': return 'yoga'
-    case 'Early follicular': return 'gym-full'
-    case 'Follicular': return 'gym-full'
-    case 'Late follicular': return 'gym-lower'   // "heavy lower body responds best now"
-    case 'Ovulatory': return 'hiit'
-    case 'Early luteal': return 'gym-full'
-    case 'Mid luteal': return 'walk'
-    case 'Late luteal': return 'yoga'
-    case 'Perimenopause': return 'gym-full'
-    default: return 'gym-full'   // bc / observation
-  }
+// Calendar phase cannot choose a workout. Use a personal recovery observation when available;
+// otherwise keep a neutral full-body option first while still offering every activity.
+function recommendedId(status) {
+  const readiness = String(status?.workoutReadiness || '').toLowerCase()
+  if (/lighter|poor sleep|very low|hard|recovery/.test(readiness)) return 'walk'
+  return 'gym-full'
 }
 
 // status: getTodayStatus output. dateISO: yyyy-MM-dd. Returns the full watch payload.
@@ -89,10 +78,7 @@ export function buildWatchWorkouts(status, dateISO) {
   }
 
   const level = levelOf(status.profile)
-  const phase = status.subPhase || status.phase
-  const lutealEasy = phase === 'Mid luteal' || phase === 'Late luteal' || status.phase === 'Menstrual'
-  const strengthNote = lutealEasy ? 'drop the load ~10–15%'
-    : (phase === 'Ovulatory' ? 'warm up thoroughly' : 'progressive overload')
+  const strengthNote = 'use recent performance and your warm-up'
 
   // Every option offered today. Gym is split into Full / Upper / Lower so she can choose, exactly
   // like the phone. Cardio/yoga/HIIT round out the list.
@@ -122,13 +108,11 @@ export function buildWatchWorkouts(status, dateISO) {
       exercises: [] },
   ]
 
-  const recId = recommendedId(phase)
-  const move = getMovementToday(status.phase, status.subPhase)
+  const recId = recommendedId(status)
   const workouts = options.map(({ id, ...o }) => ({
     ...o,
     recommended: id === recId,
-    // Give the recommended card the phase's plain-language "why" so it reads like the phone's Today.
-    detail: id === recId ? `${o.detail} · ${move.title}` : o.detail,
+    detail: id === recId && status.workoutReadiness ? `${o.detail} · ${status.workoutReadiness}` : o.detail,
   }))
   workouts.sort((a, b) => (b.recommended ? 1 : 0) - (a.recommended ? 1 : 0))
 

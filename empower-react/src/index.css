@@ -93,3 +93,22 @@ input, textarea, select { font-size: 16px !important; }
   color: #9a9590;
   margin-bottom: 10px;
 }
+
+/* Accessibility: a visible keyboard-focus ring for all interactive elements. :focus-visible only
+   shows it for keyboard/AT navigation, never on mouse click, so it stays out of the way for mouse
+   users while making the app fully keyboard-operable. Applies to native controls and any element
+   given role="button" + tabindex="0". */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[role="button"]:focus-visible,
+[tabindex]:focus-visible {
+  outline: 3px solid #6a8ab0;
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Elements the app makes clickable via role="button" should show the pointer + be reachable. */
+[role="button"] { cursor: pointer; }

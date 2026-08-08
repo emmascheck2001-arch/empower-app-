@@ -12,33 +12,64 @@ import SwiftUI
 
 // Which figure to draw for a given exercise name (ported from getSvgType). Order matters —
 // more specific matches first.
+//
+// Matching is TOKENIZED, not raw substring: the name is split on non-alphanumeric boundaries into
+// whole words, so "run" no longer matches "trunk", "cycle" no longer matches "bicycle", and
+// "spin" no longer matches "spine". `word` matches a single whole word; `phrase` matches a
+// multi-word sequence with word boundaries on both ends (so "leg press" doesn't match "legpress"
+// unintentionally, but does match "single leg press"). Every mapping is covered by StickFigureTests.
 func svgType(for name: String) -> String {
     let n = name.lowercased()
+    let tokens = n.split { !$0.isLetter && !$0.isNumber }.map(String.init)
+    let tokenSet = Set(tokens)
+    func word(_ w: String) -> Bool { tokenSet.contains(w) }
+    func anyWord(_ ws: String...) -> Bool { ws.contains { tokenSet.contains($0) } }
+    // Whole-word phrase match: the words of `p` must appear consecutively in `tokens`.
+    func phrase(_ p: String) -> Bool {
+        let pw = p.split { !$0.isLetter && !$0.isNumber }.map(String.init)
+        guard !pw.isEmpty, tokens.count >= pw.count else { return false }
+        for i in 0...(tokens.count - pw.count) where Array(tokens[i..<i + pw.count]) == pw { return true }
+        return false
+    }
+
     // Yoga / mobility poses (watch-only additions — the phone's set is strength-focused).
-    if n.contains("child") { return "childpose" }
-    if n.contains("cat") { return "catcow" }
-    if n.contains("savasana") || n.contains("corpse") { return "savasana" }
-    if n.contains("supine") { return "twistpose" }
-    if n.contains("bulgarian") || n.contains("split squat") { return "splitsquat" }
-    if n.contains("squat") || n.contains("goblet") { return "squat" }
-    if n.contains("leg press") { return "legpress" }
-    if n.contains("deadlift") { return "hinge" }
-    if n.contains("lateral raise") || n.contains("rear delt") || (n.contains("fly") && !n.contains("chest")) || n.contains("front raise") { return "lateralraise" }
-    if n.contains("pulldown") { return "pullup" }
-    if n.contains("bench press") || n.contains("push-up") || (n.contains("incline") && !n.contains("curl")) || n.contains("chest press") || n.contains("chest fly") { return "push" }
-    if n.contains("face pull") || n.contains("pull-apart") { return "facepull" }
-    if n.contains("row") && !n.contains("pull") { return "row" }
-    if n.contains("overhead press") || n.contains("shoulder press") { return "press" }
-    if n.contains("lunge") { return "lunge" }
-    if n.contains("hip thrust") || n.contains("glute bridge") { return "thrust" }
-    if n.contains("pull-up") || n.contains("pull up") || n.contains("chin") { return "pullup" }
-    if n.contains("leg curl") || n.contains("nordic") || n.contains("hamstring curl") { return "legcurl" }
-    if n.contains("pushdown") || n.contains("tricep extension") { return "pushdown" }
-    if n.contains("dip") { return "dip" }
-    if n.contains("curl") && !n.contains("calf") { return "curl" }
-    if n.contains("leg raise") || n.contains("hanging") { return "legraise" }
-    if n.contains("plank") || n.contains("crunch") || n.contains("dead bug") || n.contains("twist") || n.contains("bicycle") || n.contains("mountain climber") { return "plank" }
-    if n.contains("calf") { return "calf" }
+    if word("child") { return "childpose" }        // "child's pose"
+    if word("cat") { return "catcow" }             // "cat-cow"
+    if anyWord("savasana", "corpse") { return "savasana" }
+    if word("supine") { return "twistpose" }       // "supine twist"
+    // Pilates mat moves — checked before cardio so "spine stretch" isn't caught by a cycle match.
+    if word("hundred") { return "hundred" }
+    if word("rollup") || (word("roll") && word("up")) { return "rollup" }
+    if (word("single") && word("stretch")) || phrase("leg stretch") { return "singleleg" }
+    if word("spine") && word("stretch") { return "spinestretch" }
+    // Cardio steps — animated movement instead of a static stand.
+    if anyWord("run", "running", "jog", "jogging", "sprint", "sprints") { return "run" }
+    if anyWord("ride", "cycle", "cycling", "bike", "biking", "spin", "spinning") { return "cycle" }
+    if anyWord("swim", "swimming") { return "swim" }
+    // HIIT work intervals, and warm-up / cool-down / recovery / walking.
+    if phrase("work interval") || anyWord("burpee", "burpees", "jumping") || phrase("high knee") || phrase("high knees") || (word("interval") && !word("recover")) { return "jumpingjack" }
+    // "walk" here catches the cardio Walk step and HIIT recovery, but NOT "walking lunge" (below).
+    if phrase("warm up") || word("warmup") || phrase("cool down") || word("cooldown") || anyWord("recover", "recovery", "march", "marching") || (anyWord("walk", "walking") && !word("lunge")) { return "march" }
+    if word("bulgarian") || phrase("split squat") { return "splitsquat" }
+    if anyWord("squat", "squats", "goblet") { return "squat" }
+    if phrase("leg press") { return "legpress" }
+    if word("deadlift") { return "hinge" }          // incl. "romanian deadlift"
+    if phrase("lateral raise") || phrase("rear delt") || (word("fly") && !word("chest")) || phrase("front raise") { return "lateralraise" }
+    if word("pulldown") || phrase("pull down") { return "pullup" }
+    if phrase("bench press") || phrase("push up") || word("pushup") || (word("incline") && !word("curl")) || phrase("chest press") || phrase("chest fly") { return "push" }
+    if phrase("face pull") || phrase("pull apart") { return "facepull" }
+    if anyWord("row", "rows") && !word("pull") { return "row" }
+    if phrase("overhead press") || phrase("shoulder press") { return "press" }
+    if anyWord("lunge", "lunges") { return "lunge" }
+    if phrase("hip thrust") || phrase("glute bridge") { return "thrust" }
+    if word("pullup") || (word("pull") && word("up")) || anyWord("chin", "chinup") { return "pullup" }
+    if phrase("leg curl") || word("nordic") || phrase("hamstring curl") { return "legcurl" }
+    if word("pushdown") || phrase("push down") || phrase("tricep extension") || phrase("triceps extension") { return "pushdown" }
+    if anyWord("dip", "dips") { return "dip" }
+    if anyWord("curl", "curls") && !anyWord("calf", "calves") { return "curl" }
+    if phrase("leg raise") || word("hanging") { return "legraise" }
+    if anyWord("plank", "crunch", "crunches", "twist", "bicycle") || phrase("dead bug") || phrase("mountain climber") { return "plank" }
+    if anyWord("calf", "calves") { return "calf" }
     return "stand"
 }
 
@@ -135,6 +166,42 @@ let FIGURES: [String: ExerciseFigure] = [
     "twistpose": ExerciseFigure(floor: true, period: 4200,
         top: Pose(j: ["head":pt(58,150),"neck":pt(82,150),"hip":pt(150,150),"k1":pt(168,140),"f1":pt(178,150),"k2":pt(172,138),"f2":pt(182,148),"e1":pt(100,146),"h1":pt(100,132),"e2":pt(110,150),"h2":pt(130,150)]),
         bottom: Pose(j: ["head":pt(58,150),"neck":pt(82,150),"hip":pt(150,150),"k1":pt(168,144),"f1":pt(178,152),"k2":pt(172,142),"f2":pt(182,150),"e1":pt(100,146),"h1":pt(100,132),"e2":pt(110,150),"h2":pt(130,150)])),
+    // Running — alternating stride, opposite arm/leg swing.
+    "run": ExerciseFigure(floor: true, period: 820,
+        top: Pose(j: ["head":pt(126,42),"neck":pt(122,60),"hip":pt(118,110),"k1":pt(104,136),"f1":pt(90,156),"k2":pt(134,130),"f2":pt(150,150),"e1":pt(128,74),"h1":pt(142,62),"e2":pt(110,76),"h2":pt(98,92)]),
+        bottom: Pose(j: ["head":pt(126,42),"neck":pt(122,60),"hip":pt(118,110),"k1":pt(134,130),"f1":pt(150,150),"k2":pt(104,136),"f2":pt(90,156),"e1":pt(110,76),"h1":pt(98,92),"e2":pt(128,74),"h2":pt(142,62)])),
+    // Cycling — seated on a saddle, legs pedalling, hands forward on the bars.
+    "cycle": ExerciseFigure(floor: true, bench: (104,120,44), period: 1500,
+        top: Pose(j: ["head":pt(94,60),"neck":pt(100,74),"hip":pt(122,108),"k1":pt(148,138),"f1":pt(166,150),"k2":pt(150,108),"f2":pt(170,118),"e1":pt(108,86),"h1":pt(84,98),"e2":pt(112,88),"h2":pt(88,100)]),
+        bottom: Pose(j: ["head":pt(94,60),"neck":pt(100,74),"hip":pt(122,108),"k1":pt(150,108),"f1":pt(170,118),"k2":pt(148,138),"f2":pt(166,150),"e1":pt(108,86),"h1":pt(84,98),"e2":pt(112,88),"h2":pt(88,100)])),
+    // Swimming — horizontal freestyle, arms windmilling (no floor: she's in the water).
+    "swim": ExerciseFigure(period: 1700,
+        top: Pose(j: ["head":pt(56,118),"neck":pt(78,118),"hip":pt(150,118),"k1":pt(180,120),"f1":pt(204,116),"k2":pt(180,124),"f2":pt(204,128),"e1":pt(36,114),"h1":pt(18,110),"e2":pt(100,122),"h2":pt(122,126)]),
+        bottom: Pose(j: ["head":pt(56,118),"neck":pt(78,118),"hip":pt(150,118),"k1":pt(180,124),"f1":pt(204,128),"k2":pt(180,120),"f2":pt(204,116),"e1":pt(100,114),"h1":pt(122,110),"e2":pt(36,122),"h2":pt(18,126)])),
+    // Jumping jack — legs together / arms down ↔ legs apart / arms overhead (HIIT work interval).
+    "jumpingjack": ExerciseFigure(floor: true, period: 700,
+        top: Pose(j: ["head":pt(120,40),"neck":pt(120,58),"hip":pt(120,112),"k1":pt(116,136),"f1":pt(114,160),"k2":pt(124,136),"f2":pt(126,160),"e1":pt(114,74),"h1":pt(110,108),"e2":pt(126,74),"h2":pt(130,108)]),
+        bottom: Pose(j: ["head":pt(120,36),"neck":pt(120,54),"hip":pt(120,108),"k1":pt(100,132),"f1":pt(86,158),"k2":pt(140,132),"f2":pt(154,158),"e1":pt(108,40),"h1":pt(92,22),"e2":pt(132,40),"h2":pt(148,22)])),
+    // Marching in place — alternating knees lift (warm-up / cool-down / recovery / walk).
+    "march": ExerciseFigure(floor: true, period: 900,
+        top: Pose(j: ["head":pt(120,40),"neck":pt(120,58),"hip":pt(120,112),"k1":pt(118,120),"f1":pt(116,140),"k2":pt(128,136),"f2":pt(130,160),"e1":pt(126,76),"h1":pt(134,96),"e2":pt(112,74),"h2":pt(106,98)]),
+        bottom: Pose(j: ["head":pt(120,40),"neck":pt(120,58),"hip":pt(120,112),"k1":pt(112,136),"f1":pt(110,160),"k2":pt(126,120),"f2":pt(128,140),"e1":pt(112,74),"h1":pt(106,98),"e2":pt(126,76),"h2":pt(134,96)])),
+    // Pilates: the hundred — curled up on the back, legs up at 45°, arms pumping at the sides.
+    "hundred": ExerciseFigure(floor: true, period: 700,
+        top: Pose(j: ["head":pt(78,132),"neck":pt(96,140),"hip":pt(150,150),"k1":pt(176,132),"f1":pt(200,116),"k2":pt(180,136),"f2":pt(204,120),"e1":pt(120,142),"h1":pt(100,138),"e2":pt(120,146),"h2":pt(100,142)]),
+        bottom: Pose(j: ["head":pt(78,132),"neck":pt(96,140),"hip":pt(150,150),"k1":pt(176,132),"f1":pt(200,116),"k2":pt(180,136),"f2":pt(204,120),"e1":pt(120,150),"h1":pt(100,152),"e2":pt(120,154),"h2":pt(100,156)])),
+    // Pilates: roll-up — lying flat, arms overhead ↔ rolled up into a forward fold over the legs.
+    "rollup": ExerciseFigure(floor: true, period: 3000,
+        top: Pose(j: ["head":pt(56,150),"neck":pt(80,150),"hip":pt(152,150),"k1":pt(176,149),"f1":pt(200,149),"k2":pt(176,153),"f2":pt(200,153),"e1":pt(36,150),"h1":pt(16,150),"e2":pt(36,146),"h2":pt(16,146)]),
+        bottom: Pose(j: ["head":pt(172,128),"neck":pt(160,138),"hip":pt(152,150),"k1":pt(176,149),"f1":pt(200,149),"k2":pt(176,153),"f2":pt(200,153),"e1":pt(182,140),"h1":pt(198,150),"e2":pt(182,144),"h2":pt(198,152)])),
+    // Pilates: single-leg stretch — curled on the back, one knee to chest, legs alternating.
+    "singleleg": ExerciseFigure(floor: true, period: 1600,
+        top: Pose(j: ["head":pt(82,136),"neck":pt(100,142),"hip":pt(150,150),"k1":pt(150,120),"f1":pt(150,138),"k2":pt(176,140),"f2":pt(204,132),"e1":pt(128,140),"h1":pt(146,132),"e2":pt(128,144),"h2":pt(146,136)]),
+        bottom: Pose(j: ["head":pt(82,136),"neck":pt(100,142),"hip":pt(150,150),"k1":pt(176,140),"f1":pt(204,132),"k2":pt(150,120),"f2":pt(150,138),"e1":pt(150,132),"h1":pt(168,128),"e2":pt(150,136),"h2":pt(168,132)])),
+    // Pilates: spine stretch — seated tall ↔ rounding forward over extended legs.
+    "spinestretch": ExerciseFigure(floor: true, period: 3000,
+        top: Pose(j: ["head":pt(120,98),"neck":pt(120,116),"hip":pt(120,150),"k1":pt(150,150),"f1":pt(180,150),"k2":pt(150,154),"f2":pt(180,154),"e1":pt(140,118),"h1":pt(162,118),"e2":pt(140,122),"h2":pt(162,122)]),
+        bottom: Pose(j: ["head":pt(146,124),"neck":pt(132,132),"hip":pt(120,150),"k1":pt(150,150),"f1":pt(180,150),"k2":pt(150,154),"f2":pt(180,154),"e1":pt(150,140),"h1":pt(172,148),"e2":pt(150,144),"h2":pt(172,150)])),
 ]
 
 private func lerp(_ a: CGFloat, _ b: CGFloat, _ t: CGFloat) -> CGFloat { a + (b - a) * t }

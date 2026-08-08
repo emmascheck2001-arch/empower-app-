@@ -2,7 +2,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { getTodayStatus, getPhase, getLutealSubPhase, parsePeriodStarts } from '../lib/hormoneSync'
+import { getTodayStatus, getPhase, getLutealSubPhase, parsePeriodStarts, getOvulationDay } from '../lib/hormoneSync'
+import { diffCalendarDays } from '../lib/dateUtils.js'
 import { getMovementToday } from '../lib/movementToday'
 import BottomNav from '../components/BottomNav'
 import Spinner from '../components/Spinner'
@@ -44,7 +45,7 @@ function localDateStr(d) {
 // Anchor each date to the most recent RECORDED period start on or before it, so every
 // past period the user logged shows on the calendar and irregular cycles are drawn from
 // their real dates, not extrapolated backward from a single date (which blanked months).
-function getPhaseForDate(date, periodStarts, cycleLen, periodLength) {
+export function getPhaseForDate(date, periodStarts, cycleLen, periodLength, allowProjection = true, today = new Date()) {
   if (!periodStarts || !periodStarts.length) return null
   // Find the cycle this date belongs to: the most recent recorded start on or before it
   // (anchor), and the next recorded start after it (nextStart), if any.
@@ -55,56 +56,59 @@ function getPhaseForDate(date, periodStarts, cycleLen, periodLength) {
     if (d <= date) anchor = d
     else { nextStart = d; break }  // periodStarts is sorted ascending
   }
-  // Dates BEFORE the earliest recorded start: anchor to the first start and project backward
-  // (so earlier months still colour instead of blanking).
-  if (!anchor) { anchor = new Date(periodStarts[0] + 'T00:00:00'); nextStart = null }
+  // Before the first recorded period there is no personal anchor. Leave it unclassified.
+  if (!anchor) return null
 
-  const diff = Math.floor((date - anchor) / 86400000)
+  const diff = diffCalendarDays(date, anchor)
   let cycleDay, effLen
   if (nextStart) {
     // This date sits BETWEEN two logged periods, so the real cycle length is the actual gap.
     // Use it and do NOT wrap with modulo — otherwise a rigid 28-day projection paints a
     // predicted period before the real (logged) next period, which is exactly wrong for
     // irregular cycles (e.g. a late period logged on the 6th still showing menstrual on the 1st).
-    effLen = Math.max(1, Math.round((nextStart - anchor) / 86400000))
+    effLen = Math.max(1, diffCalendarDays(nextStart, anchor))
     cycleDay = Math.min(diff + 1, effLen)
   } else {
-    // No later period logged yet: this is the current/future cycle, so project the average
-    // cycle length. Modulo keeps negative diffs (backward projection) on a valid 1..cycleLen day.
+    // Without a later recorded period, past/today dates never wrap into a fabricated new cycle.
+    // Future cycles may still be forecast while the current period is not late, clearly marked
+    // as predictions so period and ovulation planning remain useful.
+    const isFuture = diffCalendarDays(date, today) > 0
+    if (diff >= cycleLen && (!isFuture || !allowProjection || diff >= cycleLen * 3)) return null
     effLen = cycleLen
     cycleDay = (((diff % cycleLen) + cycleLen) % cycleLen) + 1
   }
   const phase = getPhase(cycleDay, effLen, periodLength)
   const sub = phase === 'Luteal' ? getLutealSubPhase(cycleDay, effLen) : phase
-  return { phase, sub, cycleDay }
+  return { phase, sub, cycleDay, estimated: !nextStart, projectedCycle: !nextStart && diff >= cycleLen }
 }
 
-// Phase-specific nutrition notes for Plan Ahead, sources: ISSN 2023, Facchinetti 1991, Backstrom 2008
+// Calendar context never creates a required food change. These prompts keep useful
+// period preparation while avoiding a phase-only prescription.
 const PLAN_NUTRITION = {
-  Menstrual:          'Iron-rich foods replenish what bleeding depletes. Red meat, lentils, spinach with vitamin C. Anti-inflammatory ginger and turmeric help ease prostaglandins, the pain-causing hormones behind cramps.',
-  'Early follicular': 'Iron-rich foods are still the priority. Eggs, leafy greens, legumes with vitamin C for absorption. Ferritin rebuilds over 2 to 4 weeks.',
-  Follicular:         'Protein at every meal. Eggs, Greek yogurt, salmon, legumes. Rising estrogen supports muscle protein synthesis, so your body uses this nutrition more efficiently right now.',
-  'Late follicular':  'Pre-exercise carbohydrates and lean protein. Your body is primed to use fuel efficiently at this point in your cycle.',
-  Ovulatory:          'Light and nutrient-dense. Your appetite may naturally decrease around ovulation. Prioritise protein and hydration. Anti-inflammatory foods support joint health.',
-  'Early luteal':     'Increase protein today. Progesterone raises your protein breakdown rate, so aim for 1.8g per kg of body weight. Greek yogurt, chicken, salmon, eggs. (ISSN 2023)',
-  'Mid luteal':       'Higher protein target: 1.8 to 2.2g per kg. Progesterone is at its peak and your body breaks down muscle protein faster. Complex carbohydrates help stabilise mood. (ISSN 2023)',
-  'Late luteal':      'Magnesium-rich foods may reduce PMS severity, such as dark chocolate, pumpkin seeds, leafy greens. Reduce caffeine and alcohol this week. (Facchinetti et al. 1991)',
-  Luteal:             'Protein and complex carbohydrates are your priorities. Complex carbs stabilise mood as serotonin decreases through this phase. Aim for 1.8g protein per kg. (ISSN 2023)',
-  Perimenopause:      'Calcium 1000mg daily from dairy, sardines, almonds, leafy greens. Protein 1.8g per kg supports muscle and bone health long-term. (ISSN 2023)',
-  observation:        'Consistent nutrition helps stabilise energy. Protein at every meal, iron-rich foods, and complex carbohydrates give the algorithm more data points.',
+  Menstrual:          'If bleeding is heavy or prolonged, include iron-rich foods with vitamin C and discuss possible iron deficiency with a clinician. No special diet is required for a normal period.',
+  'Early follicular': 'Keep your usual balanced meals. Cycle timing alone does not create a different calorie, carbohydrate or protein requirement.',
+  Follicular:         'Keep your usual balanced meals and fuel the activity you actually plan to do. Empower does not raise or lower nutrition targets from this phase alone.',
+  'Late follicular':  'Fuel from your planned activity, appetite and health needs rather than an estimated phase.',
+  Ovulatory:          'An estimated ovulation window does not require a special diet. Hydration and adequate overall intake remain the priorities.',
+  'Early luteal':     'Keep protein and carbohydrates consistent. If appetite or recovery shifts, log it so Empower can see whether it repeats for you.',
+  'Mid luteal':       'Use your normal nutrition range. Appetite, training, recovery and health matter more than the calendar alone.',
+  'Late luteal':      'If you notice repeat premenstrual appetite or digestive changes, plan foods that are satisfying and comfortable for you without treating cravings as a failure.',
+  Luteal:             'Use the nutrition range calculated from your own weight and activity rather than a phase-only target.',
+  Perimenopause:      'Protein-rich meals and calcium-containing foods can support muscle and bone. Exact needs depend on activity, health and your care plan.',
+  observation:        'Regular, adequate meals and enough protein, fibre and carbohydrates support general health and training while Empower learns your patterns.',
 }
 
 // Phase-specific movement notes, sources: Kissow 2022, Hackney 2006, De Martin Topranin 2023, Kohrt 2004
 const PLAN_MOVEMENT = {
-  Menstrual:          'Gentle movement only. Even a 20-minute walk eases cramping measurably. Walking or yoga are ideal today. (Daley et al. 2015)',
-  'Early follicular': 'Short easy session to ease back in. A gentle walk or light yoga. Your energy is returning, no need to push yet.',
-  Follicular:         'This is your best training window. Push weights or try a faster run. Recovery is faster than any other phase. Muscle protein synthesis responds best right now. (Kissow et al. 2022)',
-  'Late follicular':  'Your peak strength window. Heavy compound lifts respond best now. Expect to feel unusually strong. (Sarwar et al. 1996)',
-  Ovulatory:          'High-intensity training is well-supported today. Complete a thorough warmup, since peak estrogen increases ligament laxity temporarily. (Herzberg et al. 2017)',
-  'Early luteal':     'Steady strength training is still effective. Your energy is good. Maintain training volume from follicular phase.',
-  'Mid luteal':       'The same session genuinely feels harder. That is your physiology, not lack of fitness. Reduce load by 10 to 15% and maintain your sets. (De Martin Topranin et al. 2023)',
-  'Late luteal':      'Keep it gentle. A walk, yoga, or light stretching. Completing anything at all is a win this phase. (Hackney 2006)',
-  Luteal:             'Train to feel rather than by numbers. Reduce intensity but maintain frequency. Consistency through the luteal phase builds long-term resilience.',
+  Menstrual:          'Training is safe for most people if they feel well. Keep your planned session, choose a lighter option for pain, heavy bleeding or low readiness, or rest if that is what you need. (McNulty et al. 2020)',
+  'Early follicular': 'Keep your planned session and use your warm-up to choose the load. Some people feel energy returning here; others notice no phase effect.',
+  Follicular:         'Many women find this a strong training window, a good time to push weights or try a faster run, though this varies between individuals. If you feel good, lean in. Large reviews find phase effects are small and inconsistent, so your own response matters most. (Kissow et al. 2022; McNulty et al. 2020)',
+  'Late follicular':  'Some studies report strength advantages here, while pooled findings vary. Progress only if your recent sessions and warm-up support it. (Niering et al. 2024; McNulty et al. 2020)',
+  Ovulatory:          'Keep your planned session. A thorough sport-specific warm-up is useful in every phase; adjust from your own readiness rather than an assumed performance peak.',
+  'Early luteal':     'Steady strength training remains effective. Keep the plan unless your symptoms, sleep or warm-up point toward another option.',
+  'Mid luteal':       'Some people report higher perceived effort here, while others do not. Begin as planned, then adapt volume or load only if today feels different for you.',
+  'Late luteal':      'Choose from the planned, lighter or recovery option based on symptoms and readiness. The calendar alone does not require a deload.',
+  Luteal:             'Train from your own readiness and recent performance. Cycle phase is context, not a required intensity reduction.',
   Perimenopause:      'Resistance training is your most important tool. Even one strength session per week protects bone density and muscle mass long-term. (Kohrt et al. 2004)',
   observation:        'Any movement logged teaches the algorithm your capacity baseline. Walk, stretch, or train. All of it counts.',
 }
@@ -114,14 +118,15 @@ const BRAIN_DETAIL = {
   Menstrual:          'Estrogen directly drives serotonin production. When estrogen drops to its lowest point at menstruation, serotonin drops with it. Serotonin is your primary mood-stabilising neurotransmitter. It regulates emotional responses, pain sensitivity, and motivation. Its absence during menstruation has a measurable neurochemical cause. Any low mood, emotional sensitivity, or difficulty concentrating right now is a direct result of this drop. (Lokuge et al. 2011, Journal of Psychiatry and Neuroscience)',
   'Early follicular': 'Estrogen is beginning to rise after its menstrual low. As estrogen climbs, it triggers serotonin production and increases receptor sensitivity. The brain is coming back online after the hormonal low. This is why energy and mood start to lift within a few days of the period ending, even before the body has physically recovered. (Lokuge et al. 2011)',
   Follicular:         'Rising estrogen drives rising serotonin and dopamine simultaneously. Dopamine is your motivation and reward neurotransmitter. It creates drive, optimism, and the capacity to plan ahead. Serotonin stabilises mood and reduces anxiety. When both are rising together, the brain is in one of its most capable states. (Backstrom et al. 2008, Archives of Women\'s Mental Health)',
-  'Late follicular':  'Both dopamine and serotonin are at their highest point in the cycle. Focus, creative problem-solving, and social confidence all tend to be elevated right now. This is your brain chemistry at its peak. (Backstrom et al. 2008)',
-  Ovulatory:          'Estrogen peaks just before ovulation, reaching its highest point of the cycle. Alongside estrogen, testosterone briefly rises. This combination drives peak confidence, social energy, and physical performance. The brain state is neurochemically optimised. Confidence, coordination, and drive are all at their highest. (Backstrom et al. 2008)',
+  'Late follicular':  'Dopamine and serotonin tend to be near their cycle high, so focus, creative problem-solving, and social confidence often feel elevated. How strongly this shows up varies from person to person. (Backstrom et al. 2008)',
+  Ovulatory:          'Estrogen peaks just before ovulation, and testosterone briefly rises alongside it. For many women this tends to bring higher confidence, social energy, and physical performance, though it is not universal and how you feel varies from cycle to cycle. (Backstrom et al. 2008)',
   'Early luteal':     'Progesterone converts in the brain into a calming compound that works on the same receptors as anti-anxiety medication. This creates the calm, settled feeling many women notice in the early luteal phase. It comes directly from your hormones. (Bäckström et al. 2014, Psychoneuroendocrinology)',
   'Mid luteal':       'Estrogen is declining and serotonin stability drops with it. Progesterone remains high. As serotonin becomes less stable, mood can feel more variable day to day. The brain is balancing the calming effect of progesterone alongside the less stable mood environment from declining estrogen. (Backstrom et al. 2008)',
   'Late luteal':      'Both estrogen and progesterone are now dropping sharply. When progesterone drops, the calming effect it was providing disappears. At the same time, serotonin is at its lowest point since your period began. Anxiety, irritability, and low mood here are a direct result of these hormonal changes. They will resolve when menstruation begins. (Bäckström et al. 2014)',
   Luteal:             'Serotonin stability is decreasing through this phase as estrogen declines. Mood may feel less predictable than in follicular. The progesterone calming effect partially offsets this but cannot fully compensate as both hormones fluctuate. (Backstrom et al. 2008)',
   Perimenopause:      'Estrogen fluctuates unpredictably in perimenopause, and serotonin fluctuates with it. Unlike the regular monthly pattern of the reproductive years, the variability is less predictable. Sleep disruption also directly reduces serotonin production, compounding the effect. (Freeman et al. 2004, Archives of General Psychiatry)',
 }
+void BRAIN_DETAIL
 
 export default function Calendar() {
   const navigate = useNavigate()
@@ -146,7 +151,7 @@ export default function Calendar() {
       const [s, { data: logData }, { data: cycleData }] = await Promise.all([
         getTodayStatus(supabase, user.id),
         supabase.from('daily_logs')
-          .select('log_date,energy,mood,symptoms,sleep_quality,workout_feel,resting_hr,libido')
+          .select('log_date,energy,mood,symptoms,sleep_quality,workout_feel,resting_hr,libido,hormonal_context')
           .eq('user_id', user.id)
           .gte('log_date', localDateStr(new Date(now.getFullYear(), now.getMonth() - 2, 1))),
         supabase.from('cycle_data')
@@ -164,7 +169,8 @@ export default function Calendar() {
         s.lastPeriodDate = localDateStr(lastP)
       }
       setStatus(s)
-      setLogs(logData || [])
+      const contextKey = s?.contextKey || 'natural-cycle'
+      setLogs((logData || []).filter(log => log.hormonal_context ? log.hormonal_context === contextKey : contextKey === 'natural-cycle'))
     } catch(e) { console.error('Calendar init error:', e) }
     setLoading(false)
   }
@@ -185,6 +191,7 @@ export default function Calendar() {
   // nearest anchor and colour every month, not just the one after the newest period.
   const phaseAnchors = [...new Set([...periodStarts, lastPeriod].filter(Boolean))].sort()
   const periodLength = status?.periodLength
+  const allowProjection = !status?.latePeriod
 
   const year = month.getFullYear()
   const mon = month.getMonth()
@@ -209,7 +216,7 @@ export default function Calendar() {
     const dateStr = localDateStr(date)
     const isToday = dateStr === todayStr
     const isFuture = date > now
-    const phaseInfo = hasPhaseData ? getPhaseForDate(date, phaseAnchors, cycleLen, periodLength) : null
+    const phaseInfo = hasPhaseData ? getPhaseForDate(date, phaseAnchors, cycleLen, periodLength, allowProjection, now) : null
     const log = logMap[dateStr]
     const sub = phaseInfo?.sub || phaseInfo?.phase || null
     const pc = sub ? (PC[sub] || PC.Luteal) : PC.observation
@@ -229,7 +236,7 @@ export default function Calendar() {
     const date = new Date(sy, sm, sd)
     const isToday = sheet.dateStr === todayStr
     const isFuture = date > now
-    const phaseInfo = hasPhaseData ? getPhaseForDate(date, phaseAnchors, cycleLen, periodLength) : null
+    const phaseInfo = hasPhaseData ? getPhaseForDate(date, phaseAnchors, cycleLen, periodLength, allowProjection, now) : null
     const log = logMap[sheet.dateStr]
     const sub = phaseInfo?.sub || phaseInfo?.phase || null
     const pc = sub ? (PC[sub] || PC.Luteal) : PC.observation
@@ -242,8 +249,8 @@ export default function Calendar() {
     <div style={{ paddingBottom:100 }}>
       {/* Top bar */}
       <div style={{ background:'#f5f0e8', padding:'calc(16px + var(--sat)) 20px 16px', borderBottom:'1px solid #ede8e0', display:'flex', alignItems:'center' }}>
-        <button onClick={() => navigate('/dashboard')} style={{ background:'none', border:'none', cursor:'pointer', padding:0, marginRight:12 }}>
-          <i className="ti ti-chevron-left" style={{ fontSize:20, color:'#2c2820' }} />
+        <button type="button" aria-label="Go back" onClick={() => navigate('/dashboard')} style={{ background:'none', border:'none', cursor:'pointer', padding:0, marginRight:12 }}>
+          <i className="ti ti-chevron-left" aria-hidden="true" style={{ fontSize:20, color:'#2c2820' }} />
         </button>
         <div style={{ flex:1, textAlign:'center' }}>
           <div style={{ fontSize:13, fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase' }}>Em~power</div>
@@ -256,19 +263,19 @@ export default function Calendar() {
 
       {isHormonalBC && (
         <div style={{ margin:'12px 16px 0', padding:'12px 14px', background:'#f0f0f8', border:'1px solid #d8d8ec', borderRadius:12, fontSize:13, color:'#3a3550', lineHeight:1.55 }}>
-          <strong>Your birth control keeps your hormones steady.</strong> It pauses ovulation, so there are no cycle phases to map on the calendar. Logging your symptoms, sleep, and workouts still builds a useful picture over time.
+          <strong>Your method changes how cycle tracking works.</strong> Some methods usually suppress ovulation, while ovulation can continue with others. Empower does not assign a natural cycle phase when it cannot verify one, but symptom, sleep, bleeding and workout tracking remain useful.
         </div>
       )}
 
       <div style={{ padding:'16px 16px 0' }}>
         {/* Month nav */}
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
-          <button onClick={() => setMonth(new Date(year, mon - 1, 1))} style={{ background:'#f5f0e8', border:'1px solid #ede8e0', borderRadius:10, padding:'7px 10px', cursor:'pointer' }}>
-            <i className="ti ti-chevron-left" style={{ fontSize:16, color:'#2c2820' }} />
+          <button type="button" aria-label="Previous month" onClick={() => setMonth(new Date(year, mon - 1, 1))} style={{ background:'#f5f0e8', border:'1px solid #ede8e0', borderRadius:10, padding:'7px 10px', cursor:'pointer' }}>
+            <i className="ti ti-chevron-left" aria-hidden="true" style={{ fontSize:16, color:'#2c2820' }} />
           </button>
           <div style={{ fontSize:18, fontWeight:600, letterSpacing:'-0.01em' }}>{MONTHS[mon]} {year}</div>
-          <button onClick={() => setMonth(new Date(year, mon + 1, 1))} style={{ background:'#f5f0e8', border:'1px solid #ede8e0', borderRadius:10, padding:'7px 10px', cursor:'pointer' }}>
-            <i className="ti ti-chevron-right" style={{ fontSize:16, color:'#2c2820' }} />
+          <button type="button" aria-label="Next month" onClick={() => setMonth(new Date(year, mon + 1, 1))} style={{ background:'#f5f0e8', border:'1px solid #ede8e0', borderRadius:10, padding:'7px 10px', cursor:'pointer' }}>
+            <i className="ti ti-chevron-right" aria-hidden="true" style={{ fontSize:16, color:'#2c2820' }} />
           </button>
         </div>
 
@@ -294,10 +301,11 @@ export default function Calendar() {
                     : (info.sub ? info.pc.bg : hasLog ? 'rgba(200,184,154,0.18)' : 'transparent')
 
               return (
-                <div key={i} onClick={() => openSheet(info)}
+                <button type="button" key={i} onClick={() => openSheet(info)}
+                  aria-label={`${info.dateStr}${info.sub ? `, ${info.sub} phase` : ''}${hasLog ? ', logged' : ''}`}
                   style={{
                     minHeight:54, padding:'7px 2px 10px', textAlign:'center',
-                    cursor:'pointer', position:'relative',
+                    cursor:'pointer', position:'relative', border:'none', font:'inherit',
                     background: cellBg,
                     opacity: info.isFuture ? 0.75 : 1,
                   }}>
@@ -325,7 +333,7 @@ export default function Calendar() {
                       background: info.log.mood?.length > 0 ? '#88c088' : '#c8b89a',
                     }} />
                   )}
-                </div>
+                </button>
               )
             })}
           </div>
@@ -356,10 +364,15 @@ export default function Calendar() {
       {/* Bottom sheet overlay */}
       {sheet && (
         <>
-          <div onClick={() => setSheet(null)} style={{ position:'fixed', inset:0, background:'rgba(44,40,32,0.4)', zIndex:100 }} />
-          <div style={{ position:'fixed', bottom:0, left:'50%', transform:'translateX(-50%)', width:'100%', maxWidth:420, background:'#faf8f5', borderRadius:'20px 20px 0 0', zIndex:101, padding:'16px 20px 48px', maxHeight:'80vh', overflowY:'auto' }}>
+          <button type="button" aria-label="Close" onClick={() => setSheet(null)} style={{ position:'fixed', inset:0, background:'rgba(44,40,32,0.4)', zIndex:100, border:'none', padding:0, cursor:'pointer' }} />
+          <div role="dialog" aria-modal="true" aria-label={`Details for ${sheetDate?.toLocaleDateString('en-CA', { weekday:'long', month:'long', day:'numeric' })}`} style={{ position:'fixed', bottom:0, left:'50%', transform:'translateX(-50%)', width:'100%', maxWidth:420, background:'#faf8f5', borderRadius:'20px 20px 0 0', zIndex:101, padding:'16px 20px 48px', maxHeight:'80vh', overflowY:'auto' }}>
             {/* Handle */}
-            <div style={{ width:36, height:4, background:'#c8b89a', borderRadius:2, margin:'0 auto 16px' }} />
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
+              <div style={{ width:36, height:4, background:'#c8b89a', borderRadius:2, margin:'6px auto 6px' }} />
+              <button type="button" aria-label="Close" onClick={() => setSheet(null)} style={{ position:'absolute', right:16, top:12, background:'none', border:'none', cursor:'pointer', color:'#9a9590', fontSize:20, padding:4, lineHeight:1 }}>
+                <i className="ti ti-x" aria-hidden="true" />
+              </button>
+            </div>
 
             {/* Date + phase pill */}
             <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:16, flexWrap:'wrap' }}>
@@ -378,7 +391,7 @@ export default function Calendar() {
               <div>
                 {(() => {
                   const sub = sheetInfo?.sub
-                  const daysAway = sheetDate ? Math.round((sheetDate - now) / 86400000) : null
+                  const daysAway = sheetDate ? diffCalendarDays(sheetDate, now) : null
 
                   // Period prediction
                   let periodPredCard = null
@@ -396,16 +409,16 @@ export default function Calendar() {
                             <div style={{ fontSize:14, fontWeight:600, color:'#5a2020' }}>Your period may start around this day</div>
                           </div>
                           <div style={{ fontSize:13, color:'#6a3030', lineHeight:1.7, marginBottom:8 }}>
-                            Based on your cycle history, your next period is most likely around {fmt(nextPeriod)}. {pred.irregular ? 'Your cycles vary, so the likely window is' : 'The window is'} {fmt(windowStart)} to {fmt(windowEnd)}.
+                            {pred.confidence === 'none' ? 'Using the cycle length you entered, ' : 'Using your recorded cycle starts, '}your next period is estimated around {fmt(nextPeriod)}. {pred.irregular ? 'Your cycles vary, so the broad estimate is' : 'The estimate window is'} {fmt(windowStart)} to {fmt(windowEnd)}.
                           </div>
                           <div style={{ fontSize:13, color:'#6a3030', lineHeight:1.7, marginBottom:8 }}>
                             What to have ready: period products, a heat pad, iron-rich foods, and magnesium.
                           </div>
                           <div style={{ fontSize:13, color:'#6a3030', lineHeight:1.7, marginBottom:8 }}>
-                            Starting 3 to 5 days before: anti-inflammatory foods, reduce caffeine and alcohol, and increase magnesium-rich foods such as dark chocolate, pumpkin seeds, and leafy greens.
+                            No special food or training change is required. Use the symptoms you actually experience and your usual care plan.
                           </div>
                           <div style={{ fontSize:11, color:'#9a6060', fontStyle:'italic' }}>
-                            This prediction is based on your personal cycle data.
+                            {pred.confidence === 'moderate' ? 'Moderate-confidence estimate from repeated cycle history.' : pred.confidence === 'low' ? 'Low-confidence estimate from limited or variable history.' : 'Population fallback from the cycle length you entered; not yet personalised.'}
                           </div>
                         </div>
                       )
@@ -422,7 +435,7 @@ export default function Calendar() {
                   let fertileCard = null
                   const cd = sheetInfo?.phaseInfo?.cycleDay
                   if (hasPhaseData && cd) {
-                    const ovDay = Math.max(8, cycleLen - 14)
+                    const ovDay = getOvulationDay(cycleLen, status?.learnedLutealLength)
                     if (cd >= ovDay - 5 && cd <= ovDay + 1) {
                       const isOvulation = cd >= ovDay - 1 && cd <= ovDay + 1
                       fertileCard = (
@@ -432,7 +445,7 @@ export default function Calendar() {
                             <div style={{ fontSize:14, fontWeight:600, color:'#1f4a3a' }}>{isOvulation ? 'Ovulation estimated around this day' : 'Estimated fertile window'}</div>
                           </div>
                           <div style={{ fontSize:13, color:'#2a4a40', lineHeight:1.7, marginBottom:8 }}>
-                            Based on your average cycle of {cycleLen} days, these are the days you are estimated to be most fertile, when conception is most likely. Wetter or egg-white cervical fluid and a rise in sex drive are your body&apos;s own signs the window is open.
+                            Based on your recorded cycle timing, this date falls inside an estimated fertile window. Wetter or egg-white cervical fluid and a positive home LH test can add context; a later sustained temperature shift can provide a retrospective estimate.
                           </div>
                           <div style={{ fontSize:12, fontWeight:600, color:'#b0402a', lineHeight:1.55, marginTop:4 }}>
                             Not birth control, an estimate only. If you&apos;re avoiding pregnancy, use protection and talk to your doctor; predictions can be wrong.
@@ -443,40 +456,32 @@ export default function Calendar() {
                   }
 
                   const BRAIN_STATE = {
-                    Menstrual:          { state:'Low serotonin',     bg:'#ede0f0', text:'#5a3a6a', sentence:'Estrogen is at its lowest and serotonin drops with it. Any emotional heaviness you feel comes from that hormonal dip, not from you.' },
-                    'Early follicular':  { state:'Rising serotonin', bg:'#d8edd8', text:'#2a5a2a', sentence:'Estrogen is beginning to rise and serotonin is rising with it. The brain is coming back online after the hormonal low of menstruation.' },
-                    Follicular:         { state:'Rising serotonin',  bg:'#d8edd8', text:'#2a5a2a', sentence:'Rising estrogen drives rising serotonin and dopamine. Motivation, optimism, and mental clarity tend to improve noticeably in this phase.' },
-                    'Late follicular':  { state:'Peak dopamine',     bg:'#f5e898', text:'#4a3a00', sentence:'Dopamine and serotonin are at their highest. Mental sharpness, creativity, and social energy are all peaking alongside them.' },
-                    Ovulatory:          { state:'Neurochemical peak', bg:'#f5d88a', text:'#4a2a00', sentence:'Every confidence, motivation, and clarity neurotransmitter is at or near its highest point simultaneously. Peak brain chemistry.' },
-                    'Early luteal':     { state:'Calm and settled',   bg:'#d5e0f0', text:'#2a3a5a', sentence:'Progesterone converts in the brain into a calming compound. The more settled feeling of this phase has a direct neurological cause.' },
-                    'Mid luteal':       { state:'Serotonin dropping', bg:'#f5e0c0', text:'#5a3800', sentence:'Estrogen is declining and serotonin stability drops with it. The mildly unpredictable mood of mid-luteal has this specific chemical cause.' },
-                    'Late luteal':      { state:'Serotonin crash',   bg:'#f0d0c0', text:'#5a2a10', sentence:'Serotonin and GABA support are both falling sharply. The anxiety, irritability, and low mood here are a neurochemical state, not a character trait.' },
-                    Luteal:             { state:'Serotonin dropping', bg:'#f5e0c0', text:'#5a3800', sentence:'Serotonin stability is decreasing through this phase. Mood may feel less predictable than in follicular.' },
+                    Menstrual:          { state:'Possible lower-mood window', bg:'#ede0f0', text:'#5a3a6a', sentence:'Some people notice mood, pain or concentration changes during bleeding; others do not. Track what happens for you and do not assume persistent symptoms are only hormonal.' },
+                    'Early follicular': { state:'Possible transition window', bg:'#d8edd8', text:'#2a5a2a', sentence:'Some people notice energy or mood shift after bleeding ends. Your own repeated observations are more useful than a population expectation.' },
+                    Follicular:         { state:'Possible higher-readiness window', bg:'#d8edd8', text:'#2a5a2a', sentence:'Some studies and self-reports find improved readiness here, but the size and direction vary considerably between individuals.' },
+                    'Late follicular':  { state:'Possible higher-readiness window', bg:'#f5e898', text:'#4a3a00', sentence:'Some people report stronger focus or training here. Empower will only call it your pattern after it repeats in your own data.' },
+                    Ovulatory:          { state:'Estimated ovulation window', bg:'#f5d88a', text:'#4a2a00', sentence:'Hormones change around ovulation, but calendar timing cannot predict your mood, cognition or performance with certainty.' },
+                    'Early luteal':     { state:'Possible transition window', bg:'#d5e0f0', text:'#2a3a5a', sentence:'Some people feel steady here and others notice no change. Treat this as context, not a prediction of how you will feel.' },
+                    'Mid luteal':       { state:'Possible symptom window', bg:'#f5e0c0', text:'#5a3800', sentence:'Sleep, temperature or perceived effort may shift for some people. Persistent mood or cognitive symptoms deserve attention beyond cycle timing.' },
+                    'Late luteal':      { state:'Possible pre-period window', bg:'#f0d0c0', text:'#5a2a10', sentence:'Premenstrual symptoms can occur here, but their presence and severity vary. Empower learns whether this is actually a pattern for you.' },
+                    Luteal:             { state:'Possible symptom window', bg:'#f5e0c0', text:'#5a3800', sentence:'Some people notice changes in sleep, appetite, mood or effort here, while others remain stable.' },
                   }
 
-                  const INTENSITY_LABEL = {
-                    Menstrual: 70, 'Early follicular': 85, Follicular: 95, 'Late follicular': 105,
-                    Ovulatory: 105, 'Early luteal': 92, 'Mid luteal': 82, 'Late luteal': 72, Luteal: 80,
-                  }
-
-                  // Sex drive tends to track estrogen/testosterone, rising toward ovulation,
-                  // lower in the menstrual and late-luteal phases. Shown as a soft expectation.
-                  const LIBIDO_LABEL = {
-                    Menstrual:'Sex drive often low', 'Early follicular':'Sex drive returning',
-                    Follicular:'Sex drive rising', 'Late follicular':'Sex drive higher',
-                    Ovulatory:'Sex drive often peaks', 'Early luteal':'Sex drive moderate',
-                    'Mid luteal':'Sex drive dipping', 'Late luteal':'Sex drive often lower',
-                    Luteal:'Sex drive variable',
-                  }
+                  // Sex drive is deliberately not predicted from phase; it varies within and
+                  // between people and can be influenced by many non-cycle factors.
+                  const LIBIDO_LABEL = Object.fromEntries(
+                    ['Menstrual','Early follicular','Follicular','Late follicular','Ovulatory','Early luteal','Mid luteal','Late luteal','Luteal']
+                      .map(label => [label, 'Sex drive varies'])
+                  )
 
                   const brainData = BRAIN_STATE[sub] || null
-                  const intensityPct = INTENSITY_LABEL[sub] || null
+                  const brainDetail = null
                   const libidoLabel = LIBIDO_LABEL[sub] || null
 
                   const energyLabels = {
-                    Menstrual: 'Low energy', 'Early follicular': 'Returning energy', Follicular: 'Good energy',
-                    'Late follicular': 'High energy', Ovulatory: 'Peak energy', 'Early luteal': 'Good energy',
-                    'Mid luteal': 'Moderate energy', 'Late luteal': 'Low energy', Luteal: 'Variable energy',
+                    Menstrual: 'Energy may vary', 'Early follicular': 'Energy may shift', Follicular: 'Possible higher readiness',
+                    'Late follicular': 'Possible higher readiness', Ovulatory: 'Energy may vary', 'Early luteal': 'Energy may vary',
+                    'Mid luteal': 'Effort may shift', 'Late luteal': 'Symptoms may affect energy', Luteal: 'Energy may vary',
                   }
                   const energyLabel = energyLabels[sub] || null
 
@@ -487,7 +492,7 @@ export default function Calendar() {
                     {daysAway !== null && (
                       <div style={{ fontSize:12, color:'#9a9590', marginBottom:12 }}>
                         {daysAway === 0 ? 'Today' : daysAway === 1 ? 'In 1 day' : `In ${daysAway} days`}
-                        {sub ? `, ${sub} phase` : ''}
+                        {sub ? `, estimated ${sub} phase` : ''}
                         {hasPhaseData ? '' : '. Log your period date to see phase predictions'}
                       </div>
                     )}
@@ -508,33 +513,39 @@ export default function Calendar() {
                       </div>
                     )}
 
+                    {sheetInfo?.phaseInfo?.estimated && sub && (
+                      <div style={{ fontSize:11, color:'#8a8178', lineHeight:1.5, marginBottom:12 }}>
+                        Calendar estimate, not a recorded or confirmed phase. Your cycle timing and body signals may differ.
+                      </div>
+                    )}
+
                     {/* Collapse the deeper detail so the sheet leads with the key info and
                         stays clean; user expands "more about this day" if they want it. */}
                     {(brainData || (sub && (PLAN_NUTRITION[sub] || PLAN_MOVEMENT[sub]))) && (
-                      <button onClick={() => setFutureExpanded(x => !x)} style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'space-between', background:'#fff', border:'1px solid #ede8e0', borderRadius:12, padding:'12px 14px', marginBottom:12, cursor:'pointer', fontFamily:'inherit' }}>
+                      <button type="button" aria-expanded={futureExpanded} onClick={() => setFutureExpanded(x => !x)} style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'space-between', background:'#fff', border:'1px solid #ede8e0', borderRadius:12, padding:'12px 14px', marginBottom:12, cursor:'pointer', fontFamily:'inherit' }}>
                         <span style={{ fontSize:13, fontWeight:600, color:'#2c2820' }}>More about this day</span>
-                        <i className={`ti ti-chevron-${futureExpanded ? 'up' : 'down'}`} style={{ fontSize:15, color:'#9a9590' }} />
+                        <i className={`ti ti-chevron-${futureExpanded ? 'up' : 'down'}`} aria-hidden="true" style={{ fontSize:15, color:'#9a9590' }} />
                       </button>
                     )}
 
                     {/* YOUR BRAIN THIS DAY */}
                     {futureExpanded && brainData && (
                       <div style={{ background:'#fff', border:'1px solid #ede8e0', borderRadius:12, padding:14, marginBottom:12 }}>
-                        <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590', marginBottom:10 }}>YOUR BRAIN THIS DAY</div>
+                        <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590', marginBottom:10 }}>RESEARCH CONTEXT</div>
                         <span style={{ padding:'5px 14px', borderRadius:20, fontSize:12, fontWeight:600, background:brainData.bg, color:brainData.text, display:'inline-block', marginBottom:10 }}>{brainData.state}</span>
-                        <div style={{ fontSize:13, color:'#3a3530', lineHeight:1.6, marginBottom: BRAIN_DETAIL[sub] ? 10 : 0 }}>{brainData.sentence}</div>
-                        {BRAIN_DETAIL[sub] && (
+                        <div style={{ fontSize:13, color:'#3a3530', lineHeight:1.6, marginBottom: brainDetail ? 10 : 0 }}>{brainData.sentence}</div>
+                        {brainDetail && (
                           <>
-                            <button
+                            <button type="button" aria-expanded={brainExpanded}
                               onClick={() => setBrainExpanded(x => !x)}
                               style={{ background:'none', border:'none', padding:0, cursor:'pointer', display:'flex', alignItems:'center', gap:4, color:'#7a7268', fontSize:12, fontFamily:'inherit' }}
                             >
                               <span>{brainExpanded ? 'Less' : 'Full explanation'}</span>
-                              <i className={`ti ti-chevron-${brainExpanded ? 'up' : 'down'}`} style={{ fontSize:12 }} />
+                              <i className={`ti ti-chevron-${brainExpanded ? 'up' : 'down'}`} aria-hidden="true" style={{ fontSize:12 }} />
                             </button>
                             {brainExpanded && (
                               <div style={{ marginTop:10, paddingTop:10, borderTop:'1px solid #ede8e0', fontSize:13, color:'#5a5048', lineHeight:1.7 }}>
-                                {BRAIN_DETAIL[sub]}
+                                {brainDetail}
                               </div>
                             )}
                           </>

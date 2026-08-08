@@ -6,8 +6,10 @@
 //  - Only predict from >= MIN_CYCLES past cycles of data in that phase; otherwise say "needs N".
 //  - Describe what SHE logged (energy/symptoms/mood), hedged, never a diagnosis.
 // Pure computation only, unit-tested.
+import { cycleInfoForDate } from './cycleHistory.js'
 
-const MIN_CYCLES = 2 // past cycles of data needed in a phase before predicting it
+const MIN_CYCLES = 3
+const MIN_LOGS_PER_CYCLE = 2
 const ENERGY = { 'Very low':1, 'Low':2, 'Normal':3, 'Good':3, 'High':4 }
 
 function ovulationDay(cl) { return Math.max(8, Math.round((cl || 28) - 14)) }
@@ -20,12 +22,10 @@ function phaseOf(cd, cl) {
 }
 const WORD = { Menstrual:'menstrual', Follicular:'follicular', Ovulatory:'ovulatory', Luteal:'luteal' }
 
-export function buildPhaseOutlook({ logs = [], lastPeriodDate = null, cycleLen = 28, cycleDay = null } = {}) {
+export function buildPhaseOutlook({ logs = [], lastPeriodDate = null, periodStarts = [], cycleLen = 28, cycleDay = null } = {}) {
   if (!lastPeriodDate || !cycleDay) return null
   const cl = cycleLen || 28
-  const lp = new Date(lastPeriodDate + 'T00:00:00')
-  const today = new Date(); today.setHours(0, 0, 0, 0)
-  const curCycleNum = Math.floor(Math.floor((today - lp) / 86400000) / cl)
+  const anchors = [...new Set([...(periodStarts || []), lastPeriodDate].filter(Boolean))].sort()
 
   // The phase she moves into over the next few days.
   const futureCd = ((cycleDay + 5 - 1) % cl) + 1
@@ -33,16 +33,20 @@ export function buildPhaseOutlook({ logs = [], lastPeriodDate = null, cycleLen =
   const w = WORD[upcoming]
 
   // Collect her logs that fell in that phase, in PAST cycles.
-  const inPhasePast = []
-  const cyclesSeen = new Set()
+  const byCycle = new Map()
   for (const l of logs) {
     if (!l.log_date) continue
-    const diff = Math.floor((new Date(l.log_date + 'T00:00:00') - lp) / 86400000)
-    const cycleNum = Math.floor(diff / cl)
-    const cd = (((diff % cl) + cl) % cl) + 1
-    if (phaseOf(cd, cl) === upcoming && cycleNum < curCycleNum) { inPhasePast.push(l); cyclesSeen.add(cycleNum) }
+    const info = cycleInfoForDate(l.log_date, anchors, cl)
+    if (!info || info.anchor === lastPeriodDate) continue
+    if (phaseOf(info.cycleDay, info.cycleLength) === upcoming) {
+      const bucket = byCycle.get(info.anchor) || []
+      bucket.push(l)
+      byCycle.set(info.anchor, bucket)
+    }
   }
-  const cyclesInPhase = cyclesSeen.size
+  const qualifying = [...byCycle.entries()].filter(([, entries]) => entries.length >= MIN_LOGS_PER_CYCLE)
+  const cyclesInPhase = qualifying.length
+  const inPhasePast = qualifying.flatMap(([, entries]) => entries)
 
   if (cyclesInPhase < MIN_CYCLES) {
     const need = MIN_CYCLES - cyclesInPhase
@@ -67,9 +71,7 @@ export function buildPhaseOutlook({ logs = [], lastPeriodDate = null, cycleLen =
   if (topSym.length) parts.push(`you tend to log ${topSym.join(' and ')}`)
   if (topMood) parts.push(`your mood often leans ${topMood.toLowerCase()}`)
 
-  const adj = upcoming === 'Luteal' ? ' Em~power will ease your training and lift your protein to match.'
-    : upcoming === 'Menstrual' ? ' Em~power will keep movement gentle and focus on iron and recovery.'
-    : ' Em~power will lean your plan into this stronger window.'
+  const adj = ' Empower will show planned, lighter and recovery options so you can combine this pattern with how you actually feel that day.'
 
   return {
     status: 'ok', upcoming, cyclesInPhase,

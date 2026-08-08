@@ -40,6 +40,11 @@ export function watchSyncAvailable() {
   return isIOSNative()
 }
 
+export async function clearWatchPlan() {
+  if (!isIOSNative()) return
+  try { await WatchBridge.clearPlan() } catch { /* no paired watch is harmless */ }
+}
+
 // Manual sync for the dashboard button. Unlike syncPlanToWatch (fire-and-forget), this returns a
 // short, user-facing result so the button can tell her exactly what happened.
 export async function syncWatchWithFeedback(status) {

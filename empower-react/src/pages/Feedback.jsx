@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { runSave } from '../lib/dbSave'
 import TopBar from '../components/TopBar'
 
 const CATEGORIES = [
@@ -109,6 +110,7 @@ export default function Feedback() {
   const [frustration, setFrustration] = useState(null)
   const [saving, setSaving] = useState(false)
   const [done, setDone] = useState(false)
+  const [saveError, setSaveError] = useState(null)
   const [adminFeedback, setAdminFeedback] = useState(null)
   const [openFb, setOpenFb] = useState(null)
 
@@ -142,24 +144,23 @@ export default function Feedback() {
 
   async function submit() {
     if (!canSubmit) return
-    setSaving(true)
-    try {
-      const priority = PRIORITY_MAP[category] || 'LOW'
-      const instruction = buildClaudeInstruction(category, screen || 'general', description, followup, frustration)
-      await supabase.from('user_feedback').insert({
-        user_id: user.id,
-        user_email: user.email,
-        category,
-        screen: screen || 'general',
-        description,
-        followup_answer: followup,
-        frustration_rating: frustration,
-        priority,
-        claude_code_instruction: instruction,
-        status: 'pending',
-      })
-      setDone(true)
-    } catch(e) { console.error(e) }
+    setSaving(true); setSaveError(null)
+    const priority = PRIORITY_MAP[category] || 'LOW'
+    const instruction = buildClaudeInstruction(category, screen || 'general', description, followup, frustration)
+    const res = await runSave(supabase.from('user_feedback').insert({
+      user_id: user.id,
+      user_email: user.email,
+      category,
+      screen: screen || 'general',
+      description,
+      followup_answer: followup,
+      frustration_rating: frustration,
+      priority,
+      claude_code_instruction: instruction,
+      status: 'pending',
+    }))
+    if (!res.ok) { setSaveError(res.message); setSaving(false); return }
+    setDone(true)
     setSaving(false)
   }
 
@@ -332,8 +333,9 @@ export default function Feedback() {
           </div>
         )}
 
+        {saveError && <div role="alert" style={{ fontSize:13, color:'#c05858', marginBottom:10, lineHeight:1.6 }}>{saveError}</div>}
         <button className="btn-primary" onClick={submit} disabled={!canSubmit || saving}>
-          {saving ? 'Sending...' : canSubmit ? 'Send feedback' : 'Tell me what you want fixed first'}
+          {saving ? 'Sending...' : saveError ? 'Try again' : canSubmit ? 'Send feedback' : 'Tell me what you want fixed first'}
         </button>
       </div>
     </div>

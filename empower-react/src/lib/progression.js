@@ -20,32 +20,30 @@ export function progressionIncrement(exerciseName) {
 
 function round(kg) { return Math.round(kg * 2) / 2 } // nearest 0.5kg
 
-// getProgressionTarget, returns a personalised prescription for an exercise, or null when
+// getProgressionTarget, returns a performance-led suggestion for an exercise, or null when
 // there is no history for it (first time → caller falls back to the level-based range).
 //   { weight, delta, action: 'progress' | 'hold' | 'hold-hard', reason }
-export function getProgressionTarget({ lastWeight, exerciseName, intensityModifier = 0.9 } = {}) {
+export function getProgressionTarget({ lastWeight, exerciseName, successfulSessions = 0, lastSessionFeel = null } = {}) {
   const w = Number(lastWeight)
-  if (lastWeight == null || Number.isNaN(w)) return null
+  if (lastWeight == null || Number.isNaN(w) || w <= 0 || w > 500) return null
   const inc = progressionIncrement(exerciseName)
-  const mod = intensityModifier ?? 0.9
 
-  // Favourable phase (follicular / ovulatory): add load.
-  if (mod >= 0.95) {
+  // Progress only after two completed, tolerable sessions. Phase never substitutes for
+  // evidence that the user actually handled the exercise safely.
+  if (successfulSessions >= 2 && ['Felt strong', 'Felt average'].includes(lastSessionFeel)) {
     return {
       weight: round(w + inc), delta: inc, action: 'progress',
-      reason: `Up ${inc}kg from last time (${w}kg). You are in a strong phase for adding load, if the last two reps moved well, take the jump. Steady overload like this is how you get stronger.`,
+      reason: `Your last ${successfulSessions} sessions were completed at ${w}kg without being marked hard. Try ${round(w + inc)}kg only if your warm-up is comfortable and your form stays solid; otherwise repeat ${w}kg.`,
     }
   }
-  // Neutral phase (early luteal): hold and consolidate.
-  if (mod >= 0.85) {
+  if (lastSessionFeel === 'Felt hard') {
     return {
-      weight: round(w), delta: 0, action: 'hold',
-      reason: `Match last time (${w}kg). Lock the weight in here, then take the next jump in your follicular phase when you adapt best.`,
+      weight: round(w), delta: 0, action: 'hold-hard',
+      reason: `Last time felt hard at ${w}kg. Repeat it only if your warm-up feels comfortable, or choose a lighter load. Progression can wait until the movement feels controlled.`,
     }
   }
-  // Demanding phase (mid/late luteal, menstrual, observation): hold, reset expectations.
   return {
-    weight: round(w), delta: 0, action: 'hold-hard',
-    reason: `Match last time (${w}kg) and count it a win. Your core temperature and resting heart rate are higher this phase, so the same load genuinely feels harder, that is physiology, not a step back.`,
+    weight: round(w), delta: 0, action: 'hold',
+    reason: `Your last recorded load was ${w}kg. Repeat it while you build two comfortable completed sessions, then Empower can suggest a small progression.`,
   }
 }

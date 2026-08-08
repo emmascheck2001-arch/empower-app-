@@ -23,7 +23,7 @@ describe('applyWearableOvulation', () => {
     expect(out.phase).toBe('Luteal')
     expect(out.ovulationSource).toBe('wearable')
     expect(out.guardian.corrected).toBe(true)
-    expect(out.cycleDay).toBe(14 + 6) // ovulation day (28-14) anchored + 6 days
+    expect(out.cycleDay).toBe(10) // temperature cannot invent a different cycle day without a period date
   })
 
   it('reports Ovulatory on the day of / day after the shift', () => {
@@ -64,5 +64,13 @@ describe('applyWearableOvulation', () => {
     const out = applyWearableOvulation(status, confirmed(4))
     expect(out.phase).toBe('Luteal')
     expect(out.guardian.corrected).toBe(true)
+    expect(out.cycleDay).toBe(null)
+  })
+
+  it('keeps cycle day anchored to the recorded period while correcting phase', () => {
+    const status = { phase: 'Follicular', subPhase: null, cycleDay: 18, cycleLen: 31 }
+    const out = applyWearableOvulation(status, confirmed(4), daysAgo(17))
+    expect(out.phase).toBe('Luteal')
+    expect(out.cycleDay).toBe(18)
   })
 })

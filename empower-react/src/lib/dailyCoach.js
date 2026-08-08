@@ -9,6 +9,8 @@
 //    surfaced as a hedged "may be lower today" when the user's OWN logs support it.
 //  - Pregnancy (path 6) NEVER gets an auto-prescribed workout, defer to her provider.
 
+import { diffCalendarDays } from './dateUtils.js'
+
 function greet(hour) {
   if (hour == null || Number.isNaN(hour)) return 'Hello'
   if (hour < 12) return 'Good morning'
@@ -20,15 +22,15 @@ function greet(hour) {
 // recovery note that can appear right below them).
 function focusFor(effPhase) {
   switch (effPhase) {
-    case 'Menstrual':      return { label: 'Restore', sub: 'Gentle movement and replenishing fuel' }
+    case 'Menstrual':      return { label: 'Check in', sub: 'Use bleeding, pain and energy to guide today' }
     case 'Early follicular':
-    case 'Follicular':     return { label: 'Build', sub: 'Energy is returning' }
-    case 'Late follicular':return { label: 'Build', sub: 'A strong training window' }
-    case 'Ovulatory':      return { label: 'Peak', sub: 'Your highest-output day of the cycle' }
-    case 'Early luteal':   return { label: 'Steady', sub: 'Steady, consistent energy' }
-    case 'Mid luteal':     return { label: 'Recovery', sub: 'A higher-effort phase, protect recovery' }
-    case 'Late luteal':    return { label: 'Recovery', sub: 'Pre-period: ease off and rest more' }
-    case 'Luteal':         return { label: 'Recovery', sub: 'Progesterone is up, train to feel' }
+    case 'Follicular':
+    case 'Late follicular':return { label: 'Check in', sub: 'Use your warm-up and recent recovery' }
+    case 'Ovulatory':      return { label: 'Estimated window', sub: 'Timing does not determine performance' }
+    case 'Early luteal':
+    case 'Mid luteal':
+    case 'Late luteal':
+    case 'Luteal':         return { label: 'Check in', sub: 'Use your symptoms and recent recovery' }
     case 'Perimenopause':  return { label: 'Strength & protect', sub: 'Train for muscle and bone' }
     case 'Pregnancy':      return { label: 'Move gently', sub: 'Led by your provider' }
     case 'bc-combined':
@@ -37,30 +39,25 @@ function focusFor(effPhase) {
   }
 }
 
-function trainingLine(phase, intensityModifier) {
+function trainingLine(phase, intensityModifier, readiness) {
+  void intensityModifier
   if (phase === 'Pregnancy')
     return 'Movement is encouraged in pregnancy once your provider has cleared you, walking, swimming, or prenatal strength. Stop and call them if anything feels wrong. We do not prescribe a set workout here.'
   if (phase === 'Perimenopause')
-    return 'Strength training 2 to 3 times a week is the single best thing for muscle and bone today. Aim for 30 to 45 minutes.'
-  const m = intensityModifier ?? 0.9
-  if (m >= 1.0)  return 'A strong day for training. Aim for 45 to 60 minutes and push your harder sets.'
-  if (m >= 0.9)  return 'Moderate strength or cardio suits today. Aim for 40 to 50 minutes.'
-  if (m >= 0.8)  return 'Keep it moderate today and train to feel. Aim for 30 to 40 minutes.'
-  return 'Light movement is best today, a walk, mobility, or an easy session of 20 to 30 minutes.'
+    return readiness || 'Resistance training supports muscle and bone. Keep the planned session and adapt it to symptoms, pain, sleep and your warm-up.'
+  return readiness || 'Start with your planned session. Your warm-up, symptoms and recent performance decide whether to progress, maintain or choose the lighter option.'
 }
 
 function nutritionLines(phase, targets) {
   const lines = []
-  const protein = targets?.proteinG
-  const extra = targets?.extraCalories
+  const proteinRange = targets?.proteinRangeG
   if (phase === 'Pregnancy') {
-    if (protein) lines.push(`Aim for about ${protein}g protein, spread across the day.`)
-    if (extra > 0) lines.push(`Your body needs roughly ${extra} extra calories this trimester, quality over quantity.`)
+    if (proteinRange) lines.push(`Your general protein range is ${proteinRange[0]} to ${proteinRange[1]}g, spread across the day.`)
     lines.push('Keep up your prenatal vitamin and stay well hydrated.')
     return lines
   }
-  if (protein) lines.push(`Aim for about ${protein}g protein today.`)
-  if (extra > 0) lines.push(`Add roughly ${extra} extra calories from whole foods, your body genuinely needs more in this phase.`)
+  if (proteinRange) lines.push(`Your research-informed protein range is ${proteinRange[0]} to ${proteinRange[1]}g; training and health determine where you fit.`)
+  else lines.push('Include a protein source at meals; add your weight to calculate a general range.')
   if (phase === 'Menstrual') lines.push('Add iron-rich foods while you are bleeding.')
   lines.push('Stay hydrated.')
   return lines
@@ -72,7 +69,7 @@ function sleepLine(phase, subPhase, lastSleepQuality) {
   let s = ''
   if (lastSleepQuality === 'Poor') s += 'You logged poor sleep last night, so be gentle with yourself today. '
   s += 'Aim for 7 to 9 hours and keep your wake time consistent.'
-  if (lutealish) s += ' Your core temperature runs higher in this phase, so a cool room helps you sleep deeper.'
+  if (lutealish) s += ' If you personally feel warmer or sleep worse in this window, a cooler room may help.'
   s += ' Try to limit caffeine after about 2pm.'
   return s
 }
@@ -80,17 +77,17 @@ function sleepLine(phase, subPhase, lastSleepQuality) {
 function mindsetLine(phase, subPhase) {
   const eff = subPhase || phase
   switch (eff) {
-    case 'Late luteal':   return 'You are entering a higher-stress hormonal phase. Lower mood or irritability now is hormonal, not a flaw. Plan extra recovery and self-kindness.'
-    case 'Mid luteal':    return 'Mood can feel less steady mid-luteal as estrogen dips. Anticipating it takes away some of its power.'
-    case 'Early luteal':  return 'Rising progesterone brings a calmer, steadier feeling today, a good day for focused, unhurried work.'
-    case 'Menstrual':     return 'Energy and mood are at their hormonal low right now. Rest is productive, be kind to yourself.'
+    case 'Late luteal':   return 'Some people notice pre-period mood or energy changes here. Notice what is true for you, and seek support for symptoms that persist or disrupt your life.'
+    case 'Mid luteal':    return 'Mood and sleep may shift for some people here, while others remain steady. Your log helps distinguish your pattern.'
+    case 'Early luteal':  return 'This is a possible transition window, not a prediction of your mood. Let today’s experience lead.'
+    case 'Menstrual':     return 'Bleeding, pain and energy affect people differently. Keep your plan if you feel well, and choose recovery when you need it.'
     case 'Late follicular':
     case 'Follicular':
-    case 'Early follicular': return 'Rising estrogen lifts mood, focus, and motivation. A great day to take on something demanding.'
-    case 'Ovulatory':     return 'Peak estrogen means peak confidence and drive. This is a great day to put yourself forward.'
-    case 'Perimenopause': return 'Hormone swings can move your mood day to day. The harder days have a real cause, and they pass.'
+    case 'Early follicular': return 'Some people notice better mood or focus here, but it is not universal. Empower will learn whether it repeats for you.'
+    case 'Ovulatory':     return 'This is an estimated ovulation window. Calendar timing does not determine confidence, mood or performance.'
+    case 'Perimenopause': return 'Hormonal transition can contribute to mood changes, while sleep, stress, health and medicines can also matter.'
     case 'bc-combined':
-    case 'bc-progestin':  return 'Your hormones are steady on contraception, so expect fewer cycle-driven mood swings day to day.'
+    case 'bc-progestin':  return 'Contraceptive effects vary by method and person. Track mood changes without assuming a single cause.'
     case 'Pregnancy':     return 'Be patient with your energy and mood, both shift a lot in pregnancy. Rest when your body asks.'
     default:              return 'Notice how you feel today and log it, that is exactly how the app learns your personal pattern.'
   }
@@ -100,6 +97,8 @@ function mindsetLine(phase, subPhase) {
 function recoveryNote(recentLogs = []) {
   const today = recentLogs[0]
   if (!today) return null
+  const age = today.log_date ? diffCalendarDays(new Date(), today.log_date + 'T00:00:00') : 99
+  if (age < 0 || age > 1) return null
   const poorSleep = today.sleep_quality === 'Poor'
   const lowEnergy = today.energy === 'Very low'
   const heavyLoad = Array.isArray(today.disruptors) && today.disruptors.some(d => ['High stress', 'Illness', 'Very poor sleep'].includes(d))
@@ -122,7 +121,7 @@ export function buildDailyCoach(status, hour, name) {
   return {
     greeting: name ? `${greet(hour)}, ${name}` : greet(hour),
     focus: focusFor(eff),
-    training: trainingLine(phase, status.intensityModifier),
+    training: trainingLine(phase, status.intensityModifier, status.workoutReadiness),
     nutrition: nutritionLines(phase, targets),
     sleep: sleepLine(phase, subPhase, lastSleepQuality),
     mindset: mindsetLine(phase, subPhase),

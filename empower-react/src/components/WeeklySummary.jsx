@@ -4,7 +4,9 @@
 
 import { buildWeeklyHighlights } from '../lib/weeklyHighlights'
 import { buildWeeklyObservation } from '../lib/weeklyObservation'
-import { getPhase } from '../lib/hormoneSync'
+import { getPhase, isMeaningfulHealthLog } from '../lib/hormoneSync'
+import { getUserLocal, setUserLocal } from '../lib/userLocalState'
+import { diffCalendarDays } from '../lib/dateUtils.js'
 
 function getWeekKey() {
   const d = new Date()
@@ -25,33 +27,36 @@ function scoreSleep(s) {
 // weekly insight entirely rather than show a hollow one.
 export const WEEKLY_MIN_LOGS = 4
 
-export function shouldShowWeeklySummary(logs) {
+export function shouldShowWeeklySummary(logs, userId) {
   const key = getWeekKey()
-  if (localStorage.getItem(`${key}-shown`)) return false   // already shown this calendar week
+  if (getUserLocal(userId, `${key}-shown`)) return false   // already shown this calendar week
   const thisWeek = logs.filter(l => {
-    const diff = Math.floor((new Date() - new Date(l.log_date + 'T00:00:00')) / 86400000)
-    return diff < 7
+    const diff = diffCalendarDays(new Date(), new Date(l.log_date + 'T00:00:00'))
+    return diff >= 0 && diff < 7 && isMeaningfulHealthLog(l)
   })
   return thisWeek.length >= WEEKLY_MIN_LOGS
 }
 
-export function markWeeklySummaryShown() {
-  localStorage.setItem(`${getWeekKey()}-shown`, '1')
+export function markWeeklySummaryShown(userId) {
+  setUserLocal(userId, `${getWeekKey()}-shown`, '1')
 }
 
-export function markWeeklySummaryDismissed() {
-  localStorage.setItem(`${getWeekKey()}-dismissed`, '1')
+export function markWeeklySummaryDismissed(userId) {
+  setUserLocal(userId, `${getWeekKey()}-dismissed`, '1')
 }
 
-export function wasDismissedToday() {
-  return !!localStorage.getItem(`${getWeekKey()}-dismissed`)
+export function wasDismissedToday(userId) {
+  return !!getUserLocal(userId, `${getWeekKey()}-dismissed`)
 }
 
 export function buildWeeklySummary(logs, phase, subPhase, confidence, daysUntilPeriod, cycleDay, cycleLen) {
   const now = new Date()
-  const thisWeek = logs.filter(l => Math.floor((now - new Date(l.log_date + 'T00:00:00')) / 86400000) < 7)
+  const thisWeek = logs.filter(l => {
+    const diff = diffCalendarDays(now, new Date(l.log_date + 'T00:00:00'))
+    return diff >= 0 && diff < 7 && isMeaningfulHealthLog(l)
+  })
   const lastWeek = logs.filter(l => {
-    const diff = Math.floor((now - new Date(l.log_date + 'T00:00:00')) / 86400000)
+    const diff = diffCalendarDays(now, new Date(l.log_date + 'T00:00:00'))
     return diff >= 7 && diff < 14
   })
   // Factual recap lines built only from logged data (and last-week comparisons when data exists).
@@ -142,8 +147,8 @@ export function WeeklySummaryModal({ summary, onDismiss, name }) {
       <div style={{ background:'#faf8f5', borderRadius:'20px 20px 0 0', padding:'20px 20px 40px', maxWidth:420, width:'100%', maxHeight:'92vh', overflowY:'auto' }}>
         <div style={{ width:36, height:4, background:'#c8b89a', borderRadius:2, margin:'0 auto 18px' }} />
 
-        <div style={{ fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:24, color:'#2c2820' }}>Weekly Review</div>
-        <div style={{ fontSize:14, color:'#7a7268', marginBottom:22 }}>{name ? `${name}, here's what we noticed.` : "Here's what we noticed this week."}</div>
+        <div style={{ fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:24, color:'#2c2820' }}>7-Day Review</div>
+        <div style={{ fontSize:14, color:'#7a7268', marginBottom:22 }}>{name ? `${name}, here is what your last seven days show.` : 'Here is what your last seven days show.'}</div>
 
         {/* Biggest win */}
         <div style={{ marginBottom:18 }}>
@@ -193,7 +198,7 @@ export function WeeklySummaryModal({ summary, onDismiss, name }) {
         <div style={{ marginBottom:18 }}>
           <div style={HDR}><span style={{ fontSize:15 }}>🧠</span>Your data</div>
           <div style={{ fontSize:14, color:'#5a5048', lineHeight:1.6 }}>
-            {confPct >= 55 ? 'You now have enough data for high-confidence, personalised insights.' : 'Every check-in sharpens how personalised your recommendations become.'} Personalisation is at {confPct}%.
+            {confPct >= 55 ? 'You now have enough data for detailed, personalised insights.' : 'Every check-in sharpens how personalised your recommendations become.'} Personalisation is at {confPct}%.
           </div>
         </div>
 
@@ -213,4 +218,3 @@ export function WeeklySummaryModal({ summary, onDismiss, name }) {
     </div>
   )
 }
-

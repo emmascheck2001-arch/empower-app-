@@ -5,6 +5,8 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { SUPPORT_EMAIL, APP_OWNER } from '../lib/appConfig'
 import TopBar from '../components/TopBar'
+import { clearUserLocalState } from '../lib/userLocalState'
+import { clearWatchPlan } from '../lib/watchBridge'
 
 export default function Privacy() {
   const navigate = useNavigate()
@@ -22,6 +24,8 @@ export default function Privacy() {
     try {
       const { error } = await supabase.rpc('delete_my_account')
       if (error) throw error
+      clearUserLocalState(user.id)
+      await clearWatchPlan()
       await supabase.auth.signOut()
       navigate('/login', { replace: true })
     } catch {
@@ -38,14 +42,15 @@ export default function Privacy() {
         <p style={{ fontSize: 12, color: '#9a9590', marginBottom: 24 }}>Last updated June 2026</p>
 
         <div style={{ background: '#f5f0e8', borderRadius: 12, padding: 16, marginBottom: 24 }}>
-          <p style={{ fontSize: 14, lineHeight: 1.7 }}>Your health data is yours. Em~power does not sell it, share it, or use it for advertising. Ever. And you can delete all of it yourself, any time.</p>
+          <p style={{ fontSize: 14, lineHeight: 1.7 }}>Your health data is yours. Em~power does not sell it or use it for advertising. You can choose to share specific friend-card fields with an accepted friend, and those fields are off by default. You can turn sharing off or delete your data at any time.</p>
         </div>
 
         {[
           { title: 'Who we are', body: `Em~power is a women's hormone-based fitness and wellness app developed and operated by ${APP_OWNER}, based in Canada.` },
-          { title: 'What we collect', body: 'Cycle data, daily logs, mood, symptoms, biometrics, and workout data you enter manually. Optionally, your birth year and ethnicity, used only to show you the health information most relevant to you. Ethnicity is sensitive and entirely optional. We do not collect location data or contacts.' },
-          { title: 'How we use your data', body: 'Only to power your personal recommendations inside the app. Never sold. Never used for advertising. Never used to train external AI models.' },
-          { title: 'What our team can and cannot see', body: 'Other users can never see your data. Inside the app, the team can only see the feedback you choose to send us. We do not browse your individual health logs. To improve the app we only ever look at anonymous, aggregate usage (like how many people logged a workout), never your personal data tied to your name.' },
+          { title: 'What we collect', body: 'Cycle data, daily logs, mood, symptoms, biometrics, and workout data you enter manually. Optionally, your birth year and ethnicity, used only to show you the health information most relevant to you. Ethnicity is sensitive and entirely optional. We also record basic in-app usage events (for example, that a workout was logged or a screen was opened) so we can improve the app. We do not collect location data or contacts.' },
+          { title: 'Health and fitness data from Apple Health / Health Connect', body: 'If you choose to connect Apple Health (iPhone) or Health Connect (Android), Em~power reads a limited set of health data to track your cycle automatically: resting heart rate, heart rate variability, overnight wrist or body temperature, sleep, and workouts. Access is read-only — we never write anything back to Apple Health or Health Connect. This is optional, you control it in your phone settings, and today’s readings are saved to your account (on our Supabase database) alongside your other health data so the app can use them. Health data is never sold, never used for advertising, and never used to train AI models.' },
+          { title: 'How we use your data', body: 'Your health data is used only to power your personal recommendations inside the app. Usage events are used only to understand how the app is used and to fix and improve it. Never sold. Never used for advertising. Never used to train external AI models.' },
+          { title: 'Sharing with friends and our team', body: 'Other users cannot see your health logs. If you accept a friend request, you may separately opt in to sharing selected friend-card fields such as an estimated phase, streak, sleep rating, or workout feel; all sharing toggles start off and can be withdrawn. Inside the app, the team can see feedback you choose to send. Usage events are linked to your account so we can support you and fix problems; we review them in aggregate and do not use them to browse individual health entries. All of it is deleted when you delete your account.' },
           { title: 'Where it is stored', body: 'Supabase (AWS infrastructure). Row-level security means only you can access your own data.' },
           { title: 'Security', body: 'Your data is encrypted in transit and at rest, and row-level security ensures no other user can read it. No system is perfectly secure, but if a breach ever affected your data we would act promptly and notify you as required by law.' },
           { title: 'What we keep and for how long', body: 'We collect only what the app needs to work, keep it only while your account is active, and delete it when you delete your account. Sensitive fields such as ethnicity are always optional. We do not sell your data, and we would only ever disclose it if strictly required by a valid legal order.' },

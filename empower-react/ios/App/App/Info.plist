@@ -8,6 +8,15 @@
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
 	<string>Em~power</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>empowerhealth</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -27,9 +36,7 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSHealthShareUsageDescription</key>
-	<string>Em~power reads your temperature, heart rate, and cycle data from Apple Health to track your cycle automatically, so you get guidance without logging it all by hand.</string>
-	<key>NSHealthUpdateUsageDescription</key>
-	<string>Em~power can save your cycle and symptom data to Apple Health so it stays in sync across your health apps.</string>
+	<string>Em~power reads your overnight temperature, resting heart rate, heart rate variability, sleep, and workouts from Apple Health to track your cycle automatically, so you get guidance without logging it all by hand. This access is read-only — Em~power never writes to Apple Health.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

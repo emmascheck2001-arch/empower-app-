@@ -236,7 +236,7 @@ struct WorkoutDetailView: View {
                 .padding(.vertical, 1)
             }
 
-            NavigationLink(destination: LiveWorkoutView(workout: workout, phase: phase, age: age)) {
+            NavigationLink(destination: LiveWorkoutView(workout: workout, age: age)) {
                 Label("Start guided workout", systemImage: "play.fill")
                     .font(.headline)
                     .foregroundStyle(empowerGold)

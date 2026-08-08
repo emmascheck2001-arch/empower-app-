@@ -21,13 +21,13 @@ export function buildCyclePlan(cycleDay, cycleLen, days = 7, periodLength) {
 // read identically. Each tier rotates through its options across the week.
 const POOLS = {
   peak: [
-    { title:'Peak session', detail:'Your strongest day of the cycle. Go for heavy lifts or a hard effort, and warm up thoroughly first.' },
+    { title:'Planned challenge', detail:'Use the hard session you planned if recent recovery and today’s warm-up support it.' },
   ],
   high: [
-    { title:'Strength, lower body', detail:'Squats, deadlifts, lunges. Recovery is quick this week, so add weight where you can.' },
-    { title:'Strength, upper body', detail:'Presses, rows, and pulls. Push for an extra rep or a little more load than last time.' },
-    { title:'Faster cardio', detail:'Intervals, a tempo run, or a spin. Your engine handles intensity well right now.' },
-    { title:'Strength, full body', detail:'Compound lifts across the whole body. A great use of this window.' },
+    { title:'Strength, lower body', detail:'Squats, hinges and lunges at a load supported by recent completed sessions.' },
+    { title:'Strength, upper body', detail:'Presses, rows and pulls. Progress only after repeated comfortable completions.' },
+    { title:'Cardio session', detail:'Use the intervals, steady session or recovery work already in your plan.' },
+    { title:'Strength, full body', detail:'Compound lifts across the whole body, adjusted from your warm-up.' },
   ],
   moderate: [
     { title:'Steady strength', detail:'Normal volume at a moderate load. Solid, consistent work.' },
@@ -35,9 +35,9 @@ const POOLS = {
     { title:'Pilates or core', detail:'Controlled strength and stability without heavy loading.' },
   ],
   low: [
-    { title:'Gentle walk', detail:'20 to 30 min easy. Movement genuinely eases cramps and lifts your mood.' },
-    { title:'Restorative yoga', detail:'Slow flow and stretching, kind to your body today.' },
-    { title:'Mobility & stretch', detail:'Loosen up and breathe. No intensity needed today.' },
+    { title:'Gentle walk', detail:'An optional 20 to 30 minute easy walk when recovery is the goal.' },
+    { title:'Restorative yoga', detail:'An optional slow flow or stretching session.' },
+    { title:'Mobility & stretch', detail:'An optional mobility session when symptoms or recovery call for it.' },
   ],
   rest: [
     { title:'Rest day', detail:'Full rest. Recovery is when the work you did actually pays off.' },
@@ -45,10 +45,9 @@ const POOLS = {
 }
 
 function tierOf(sub) {
-  if (sub === 'Ovulatory') return 'peak'
-  if (['Follicular', 'Late follicular', 'Early luteal'].includes(sub)) return 'high'
-  if (['Menstrual', 'Late luteal'].includes(sub)) return 'low'
-  return 'moderate' // Early follicular, Mid luteal, Luteal
+  void sub
+  // Phase stays attached as context, but it cannot assign training capacity.
+  return 'moderate'
 }
 
 // Turn a phase-per-day plan into an actual varied training week: rotates session types within
@@ -81,7 +80,7 @@ export function assignSessions(plan, goal) {
 // A lighter alternative session, used when the user chooses to adapt a day (e.g. because their
 // own history shows lower energy around that cycle day).
 export function lighterSession() {
-  return { title: 'Lighter day (your choice)', detail: 'A walk, gentle yoga, or mobility instead of the harder session. You tend to have less in the tank around here.' }
+  return { title: 'Lighter day (your choice)', detail: 'A walk, gentle yoga, mobility or reduced-volume version of your planned session.' }
 }
 
 // Group a 28-day plan into 4 weeks, returning each week's dominant phase (the phase on its

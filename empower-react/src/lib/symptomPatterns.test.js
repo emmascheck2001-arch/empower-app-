@@ -2,7 +2,11 @@ import { describe, it, expect } from 'vitest'
 import { analyzeSymptomPatterns } from './symptomPatterns.js'
 
 const LP = '2026-01-01'
-const cycleData = { last_period_date: LP, cycle_length: 28 }
+// analyzeSymptomPatterns now anchors each log to the user's recorded period-start HISTORY
+// (via cycleInfoForDate), not a single last_period_date projected forward. So the test cycle
+// data carries the real starts for cycles 0..3 (every 28 days from LP) in notes.periodStarts.
+const PERIOD_STARTS = ['2026-01-01', '2026-01-29', '2026-02-26', '2026-03-26']
+const cycleData = { last_period_date: LP, cycle_length: 28, notes: JSON.stringify({ periodStarts: PERIOD_STARTS }) }
 
 function fmt(d) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
 // A log placed at a specific cycle number + cycle day from the anchor period.

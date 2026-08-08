@@ -19,13 +19,11 @@ final class WorkoutManager: NSObject, ObservableObject {
     @Published var running = false
     @Published var authorized = false
     @Published var errorMessage: String?
-    // Non-nil ONLY when the heart rate is high for the user's phase — this is the one time HR
-    // surfaces on screen (per the design: HR stays out of the way and only pops up as a flag).
+    // Non-nil only in an estimated high-effort zone. It is explicitly not a safety threshold.
     @Published var hrFlag: String? = nil
 
     var age: Int = 30            // from the phone payload; used to estimate max HR
-    var phase: String = ""       // current cycle phase, for phase-aware flag wording
-    // Estimated max HR (220 − age), floored so a bad age never makes the threshold absurd.
+    // Estimated max HR (220 − age) is used only for an informational effort-zone notice.
     private var maxHR: Double { Double(max(140, 220 - age)) }
 
     private let healthStore = HKHealthStore()
@@ -38,31 +36,29 @@ final class WorkoutManager: NSObject, ObservableObject {
 
     /// Ask for permission to read heart rate + write the workout. The OS only asks once; after
     /// that this resolves silently. Toggles must be granted by the user in the sheet.
-    func requestAuthorization() {
+    func requestAuthorization(completion: @escaping (Bool) -> Void) {
         guard HKHealthStore.isHealthDataAvailable() else {
             errorMessage = "Health data isn't available on this device."
+            completion(false)
             return
         }
         let typesToShare: Set = [HKQuantityType.workoutType()]
-        let typesToRead: Set = [
-            HKQuantityType(.heartRate),
-            HKQuantityType(.activeEnergyBurned),
-        ]
+        let typesToRead: Set = [HKQuantityType(.heartRate)]
         healthStore.requestAuthorization(toShare: typesToShare, read: typesToRead) { [weak self] ok, error in
             DispatchQueue.main.async {
                 self?.authorized = ok
                 if let error { self?.errorMessage = error.localizedDescription }
+                completion(ok && error == nil)
             }
         }
     }
 
     // MARK: Session control
 
-    func start(age: Int, phase: String) {
+    func start(age: Int, activity: String) {
         self.age = age
-        self.phase = phase
         let config = HKWorkoutConfiguration()
-        config.activityType = .other        // generic; phase workouts span strength/cardio/yoga
+        config.activityType = activityType(activity)
         config.locationType = .indoor
 
         do {
@@ -87,6 +83,20 @@ final class WorkoutManager: NSObject, ObservableObject {
             }
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+
+    private func activityType(_ activity: String) -> HKWorkoutActivityType {
+        switch activity.lowercased() {
+        case "run", "running": return .running
+        case "walk", "walking", "hiking": return .walking
+        case "cycle", "cycling": return .cycling
+        case "swim", "swimming": return .swimming
+        case "gym", "strength": return .traditionalStrengthTraining
+        case "yoga": return .yoga
+        case "pilates": return .pilates
+        case "hiit": return .highIntensityIntervalTraining
+        default: return .other
         }
     }
 
@@ -145,18 +155,12 @@ extension WorkoutManager: HKLiveWorkoutBuilderDelegate {
         }
     }
 
-    // HR only appears on screen when it crosses a high threshold (≈90% of estimated max HR).
-    // Below that it stays silent. In the luteal phase HR naturally runs higher, so we say so in
-    // the flag rather than nagging — the flag means "genuinely high," not "higher than follicular".
+    // Informational only: formulas cannot determine whether a heart rate is safe for an individual.
     private func evaluateFlag(_ current: Double) {
         guard current > 0 else { return }
-        let high = maxHR * 0.90
+        let high = maxHR * 0.95
         if current >= high {
-            let luteal = phase.lowercased().contains("luteal")
-            let tail = luteal
-                ? "Some extra elevation is normal in your luteal phase, but this is genuinely high — ease back."
-                : "Ease back and let it settle."
-            hrFlag = "Heart rate high · \(Int(current)) bpm. \(tail)"
+            hrFlag = "Estimated high-effort zone · \(Int(current)) bpm. This is not a safety limit. Ease back if this effort is not intentional or you feel unwell."
         } else if current < high - 6 {
             hrFlag = nil   // recovered — hide it again
         }

@@ -89,20 +89,20 @@ const ARTICLES = {
       { p: 'Almost every hormone reference range you have ever seen was built from population averages, often using studies that underrepresented women. Your normal is not the chart. Your normal is your own pattern across multiple cycles over time. A single blood test result tells you almost nothing on its own.' },
       { box: 'The most cited hormone reference values for women come from a study of 97 women across 2,105 cycles. Your personal normal may be different from those averages and still be completely healthy. What matters is your pattern, not a single number. (Munster et al. 2021)' },
       { h: 'Estrogen' },
-      { p: 'Estrogen rises through the first half of your cycle, peaks just before ovulation, drops briefly, rises again in mid-luteal phase, then falls sharply before your period. You will feel this pattern even if you have never tracked it before.' },
-      { p: 'Estrogen directly supports mood by driving serotonin production. It improves how your cells respond to insulin, which is why energy tends to be more stable and cravings are lower in the follicular phase. It supports bone density, cardiovascular health, cognitive function, and muscle protein synthesis. When it drops before your period, all of those effects drop with it. The physical and emotional low you feel before your period has a direct biological cause. (Source: Lokuge et al. Biological Psychiatry 2011; Mauvais-Jarvis et al. JCI 2013.)' },
+      { p: 'In an ovulatory cycle, estrogen generally rises through the first half, peaks near ovulation, changes again after ovulation, and falls before a period. The timing and symptoms vary, and some people do not feel a clear pattern.' },
+      { p: 'Estrogen interacts with brain, bone, cardiovascular and metabolic systems. Changes may contribute to mood or physical symptoms for some people, but sleep, stress, health, medicines and life events can create the same experiences. A symptom cannot reveal an estrogen level or prove one cause. (Sources: Lokuge et al. 2011; Mauvais-Jarvis et al. 2013.)' },
       { h: 'Progesterone' },
-      { p: 'Progesterone rises after ovulation and is only present in meaningful amounts in the second half of your cycle. If you ovulate, progesterone rises. If you do not, it does not.' },
-      { p: 'Progesterone does several things that matter practically. It raises your core body temperature by 0.3 to 0.5 degrees Celsius, which is why wrist temperature tracking can detect ovulation. It increases how fast your body breaks down protein, which is why protein needs are higher in the luteal phase. And it competes with cortisol for the same receptors in the body, which means training stress hits harder in the second half of your cycle than the first. (Source: Charkoudian and Stachenfeld. Comprehensive Physiology 2014; Hackney. JSSM 2006.)' },
+      { p: 'Progesterone generally rises after ovulation. A single calendar date, symptom or app estimate cannot establish whether ovulation occurred or what an individual progesterone level is.' },
+      { p: 'Progesterone rises after ovulation and is associated with a small temperature shift. When temperature is measured consistently, a sustained change can retrospectively support an ovulation estimate; it does not predict the exact day in advance or confirm ovulation on its own. Evidence does not support automatically changing protein or training load for everyone in the luteal phase. (Source: Charkoudian and Stachenfeld. Comprehensive Physiology 2014.)' },
       { p: 'Progesterone levels pulse throughout the luteal phase rather than sitting at a constant level. Population charts smooth this into a curve that does not reflect any real woman\'s experience. (Filicori et al. JCEM 1984.)' },
       { h: 'LH' },
-      { p: 'Luteinising hormone surges sharply just before ovulation, triggering the release of an egg. This is the surge that home LH tests detect. A surge above approximately 8 IU/L is consistent with ovulation being imminent, typically within 12 to 36 hours. (Source: Munster et al. 2021.)' },
+      { p: 'Luteinising hormone commonly surges before ovulation, which is what home urine LH tests are designed to detect. A positive result suggests a possible fertile window but does not guarantee ovulation or predict an exact release time; follow the test instructions and use clinical guidance for interpretation.' },
       { h: 'Cortisol' },
-      { p: 'Cortisol is your primary stress hormone. Normal morning cortisol is 10 to 30 nmol/L (LifeLabs/EORLA). In the luteal phase, cortisol and progesterone compete for the same receptors. High-intensity training raises cortisol. When that combines with high progesterone in mid-luteal phase, the total stress load on your body is higher than the same workout would create in the follicular phase. This is not in your head. It is a real physiological difference. (Source: Hackney. JSSM 2006.)' },
+      { p: 'Cortisol helps regulate the stress response, metabolism and the sleep-wake cycle. A result must be interpreted using the reporting laboratory’s reference interval together with collection time, sample type, medicines and clinical context. Empower stores a result but does not diagnose from it or use it to change a workout.' },
       { h: 'Thyroid' },
       { p: 'Your thyroid is not a sex hormone, but it is checked alongside them for good reason. An under- or over-active thyroid causes fatigue, low mood, weight changes, and irregular or heavy periods, and those overlap almost exactly with hormonal symptoms. If you have these symptoms, ask your doctor to check thyroid function (TSH, and free T4) as part of the picture, not just sex hormones.' },
       { h: 'A note on hormone testing' },
-      { p: 'If you are testing your hormones, always record where you are in your cycle. The same hormone at the same level means something completely different depending on the cycle day. Progesterone is only clinically meaningful when measured approximately 7 days after confirmed ovulation. Testing it on a fixed "day 21" only makes sense for a 28-day cycle with ovulation on day 14, which is not most women.' },
+      { p: 'If you are testing hormones, record the cycle timing, collection time, sample type, units and the laboratory reference interval. A clinician may time progesterone testing relative to expected ovulation rather than using a fixed cycle day. Interpretation depends on the purpose of testing and the full clinical context.' },
       { h: 'From a result to what you actually do' },
       { p: 'A test result is a starting point, not an answer. A number on a page only becomes useful when it is read alongside your symptoms, your cycle day, and your history. Bring your results and your logged symptoms to your doctor and ask three things: what does this mean for me, why might it be happening, and what are my options. You are entitled to leave understanding all three. If you do not, it is reasonable to ask again or to seek a second opinion.' },
       { cite: 'Sources: Munster et al. 2021 (n=97, 2,105 cycles); LifeLabs/EORLA Canadian reference ranges; Charkoudian N, Stachenfeld NS. Comprehensive Physiology 2014; Hackney AC. JSSM 2006; Mauvais-Jarvis F et al. JCI 2013; Lokuge S et al. Biological Psychiatry 2011; Filicori M et al. JCEM 1984.' },
@@ -112,14 +112,14 @@ const ARTICLES = {
     title: 'Sleep and your cycle',
     content: [
       { h: 'Sleep is not passive recovery' },
-      { p: 'Reproductive hormones are produced and regulated during sleep. LH pulses, which drive follicle development and ovulation, happen predominantly at night. Disrupted sleep disrupts those pulses. Poor sleep raises cortisol, which directly suppresses the hormone signal that tells your ovaries to function. The relationship runs both ways: your hormones affect your sleep, and your sleep affects your hormones.' },
-      { box: 'Sleep quality is measurably worse in the mid-luteal and late luteal phases compared to the follicular phase. This is not anxiety or lifestyle. It is a direct effect of progesterone and temperature changes on sleep architecture. (De Martin Topranin et al. IJSPP 2023)' },
+      { p: 'Sleep supports overall health and can interact with reproductive and stress systems. Cycle changes can affect sleep for some people, while stress, illness, medicines, pain, environment and sleep disorders can produce the same pattern. One poor night does not reveal a hormonal problem.' },
+      { box: 'Some people report phase-related sleep changes, while studies and individual responses vary. Temperature, symptoms, stress, environment, medicines and sleep conditions can all contribute. Tracking repeated timing can show whether a pattern is personal to you.' },
       { h: 'How sleep changes across your cycle' },
       { p: 'Menstrual phase: Estrogen and progesterone are both at their lowest. Prostaglandins driving cramping can also interrupt sleep, particularly in the first one to two nights.' },
-      { p: 'Follicular phase: Rising estrogen supports serotonin production and improves mood stability, which typically improves sleep quality. Most women report their best sleep in the follicular phase. (Shechter A, Boivin DB. Sleep Med Rev 2010)' },
-      { p: 'Luteal phase: Progesterone raises your core temperature by 0.3 to 0.5 degrees Celsius. Your body needs to cool down to fall into and maintain deep sleep. That elevated temperature works against this. Resting heart rate is on average 1.7 bpm higher. By late luteal, progesterone and estrogen are both dropping sharply, and GABA receptor activity falls with progesterone. For many women this creates a rebound effect: lighter sleep, more waking, and a feeling of not having rested properly. (De Martin Topranin et al. IJSPP 2023; Backstrom T et al. Psychoneuroendocrinology 2014)' },
+      { p: 'Follicular phase: some people report sleep changes and others remain stable. Evidence and individual response vary, so Empower does not call this a best-sleep window.' },
+      { p: 'Luteal phase: temperature and resting heart rate may shift after ovulation, and some people notice sleep changes. Others do not. Repeated personal observations are more useful than assuming an average response. (De Martin Topranin et al. 2023)' },
       { h: 'What actually helps' },
-      { ul: ['Keep the bedroom cool. 18 to 20 degrees Celsius. Especially important in the luteal phase when your core temperature is already elevated.', 'Consistent sleep and wake times. Circadian rhythm stability helps buffer against the hormonal disruption of late luteal. Even on weekends.', 'Magnesium glycinate before bed (studies use around 300 to 400mg) is associated with better sleep quality and falling asleep faster, and is well tolerated. Check with your doctor before starting. (Abbasi B et al. J Res Med Sci 2012)', 'Protein before bed in the luteal phase. Progesterone causes your body to break down muscle protein faster overnight, so a small protein snack helps offset this.', 'Reduce alcohol. Even moderate alcohol fragments sleep architecture and reduces REM sleep.', 'Limit caffeine after 12pm. Caffeine has a half-life of 5 to 6 hours and reduces slow-wave sleep even when you feel like you slept fine.'] },
+      { ul: ['Use a cool, dark room at a temperature comfortable for you.', 'Keep sleep and wake times reasonably consistent when life allows.', 'Move caffeine earlier if you notice it delays or fragments your sleep.', 'Reduce alcohol if it disrupts sleep or worsens night sweats.', 'Seek clinical advice before using a supplement for sleep, especially during pregnancy or with medicines or health conditions.'] },
       { h: 'When to talk to a doctor' },
       { p: 'If poor sleep is consistently affecting your daily function across multiple cycles, bring your logged sleep data to your doctor. A clear pattern of luteal-phase sleep disruption is clinical information, not a vague complaint.' },
       { cite: 'Sources: De Martin Topranin V et al. IJSPP 2023; Shechter A, Boivin DB. Sleep Med Rev 2010; Charkoudian N, Stachenfeld NS. Comprehensive Physiology 2014; Backstrom T et al. Psychoneuroendocrinology 2014; Abbasi B et al. J Res Med Sci 2012; Sims ST. ROAR. Rodale 2024.' },
@@ -131,51 +131,51 @@ const ARTICLES = {
       { h: 'The four phases' },
       { p: 'Your cycle has four phases. Their timing varies between women and between your own cycles. The lengths that matter are yours, not the textbook 28-day model.' },
       { h: 'Menstrual phase' },
-      { p: 'This is day one of your period through to roughly day five. Estrogen and progesterone are both at their lowest point of the entire cycle. Energy is often low, mood may be more vulnerable, and physical performance tends to feel harder. These are not signs of weakness. They are the direct result of your lowest hormone levels of the month.' },
+      { p: 'This begins on day one of bleeding and lasts for the period. Estrogen and progesterone are generally low, but energy, mood, pain and performance vary. A phase label does not determine how the day will feel.' },
       { p: 'Your body is also losing iron through blood loss. Iron supports how your blood carries oxygen to your muscles. Low iron directly impairs training performance and energy. Prioritising iron-rich foods and eating vitamin C alongside them improves absorption by up to 67%. (Source: Angeli et al. European Journal of Sport Science 2016.)' },
       { h: 'Follicular phase' },
-      { p: 'The follicular phase runs from the end of your period to just before ovulation. Estrogen is rising steadily. As it rises, mood, motivation, energy, and strength all tend to improve. Insulin sensitivity is higher, meaning your body handles carbohydrates more efficiently. This is generally the best training window of the cycle for most women, with some research suggesting this is when strength adaptations are strongest. (Source: Kissow et al. Sports Medicine 2022; Colenso-Semple et al. Frontiers 2023.)' },
+      { p: 'The follicular phase runs from the end of your period to just before ovulation. Estrogen is rising steadily. As it rises, many women find mood, motivation, energy, and strength tend to improve, though this varies a lot from person to person. Insulin sensitivity is higher, meaning your body handles carbohydrates more efficiently. Many women find this feels like a stronger training window, and some research suggests follicular resistance training may produce stronger strength adaptations. Large reviews find these phase effects are small and inconsistent between individuals, so your own tracked response matters more than the phase (McNulty et al. 2020, Sports Medicine; 2023 umbrella review; Colenso-Semple et al. Frontiers 2023). (Source: Kissow et al. Sports Medicine 2022.)' },
       { h: 'Ovulatory phase' },
-      { p: 'Ovulation lasts roughly one to two days. Estrogen peaks. There is a brief surge in testosterone as well. For many women, this is when energy, confidence, and cognitive performance feel best. Peak estrogen also slightly increases the laxity of ligaments. A thorough warmup before heavy training is especially important around ovulation.' },
+      { p: 'Ovulation is the release of an egg. Calendar timing can only estimate the window; an LH result and later sustained temperature change can add context. Current evidence does not justify predicting peak mood or performance or giving a phase-specific injury warning, so warm up appropriately in every phase.' },
       { h: 'Luteal phase' },
-      { p: 'The luteal phase runs from after ovulation until the start of your next period, typically 12 to 14 days. Progesterone rises significantly, core temperature increases, and resting heart rate is on average 1.7 bpm higher than in the early follicular phase. The same workout will feel harder. That is a measurable physiological difference, not reduced fitness. (Source: De Martin Topranin et al. IJSPP 2023.)' },
-      { p: 'Protein needs rise to approximately 1.8 to 2.2g per kg of bodyweight per day because progesterone increases how fast your body breaks down muscle protein. Eating more protein in the luteal phase is not optional if you are training. (Source: ISSN 2023.)' },
+      { p: 'The luteal phase runs from after ovulation until the next period. A roughly 14-day luteal length is a population fallback, not a personal fact. Temperature, resting heart rate, symptoms and perceived effort may change for some people, while performance often remains stable. Track your own response. (Source: De Martin Topranin et al. 2023.)' },
+      { p: 'Evidence does not support assigning everyone a mandatory phase-specific protein increase. Empower calculates a general range only when body weight is provided, and activity, goals, diet and health determine where an individual fits.' },
       { h: 'What is a normal cycle?' },
       { p: 'A healthy cycle is 21 to 35 days long. Your period may last 3 to 7 days. Mild discomfort is common. Pain that stops you going about your day is not normal and is worth investigating properly.' },
-      { cite: 'Sources: Kissow et al. Sports Medicine 2022; Colenso-Semple et al. Frontiers 2023; De Martin Topranin et al. IJSPP 2023; ISSN 2023; Angeli et al. 2016; Sims ST. ROAR. Rodale 2024.' },
+      { cite: 'Sources: McNulty KL et al. Sports Medicine 2020 (systematic review and meta-analysis); 2023 umbrella review of menstrual cycle and exercise performance; Kissow et al. Sports Medicine 2022; Colenso-Semple et al. Frontiers 2023; De Martin Topranin et al. IJSPP 2023; ISSN 2023; Angeli et al. 2016; Sims ST. ROAR. Rodale 2024.' },
     ]
   },
   brain: {
     title: 'Your brain and your cycle',
     content: [
       { h: 'Your mood is not random' },
-      { p: 'The way you feel across your cycle is not a personality trait or a lack of emotional control. It is a biological pattern driven by how your hormones interact directly with your brain chemistry. Your hormones do not just affect your reproductive system. They change the actual neurochemical environment of your brain throughout the month.' },
+      { p: 'Cycle changes can contribute to mood for some people, and the symptoms are real. They are not proof of one hormonal cause: sleep, stress, health, medicines and life events also matter. Tracking timing can help distinguish a repeated cyclical pattern from symptoms that persist throughout the month.' },
       { h: 'Estrogen and serotonin' },
-      { p: 'Estrogen directly drives serotonin production and increases the sensitivity of serotonin receptors in the brain. As estrogen rises through the follicular phase, serotonin activity rises with it. This is why mood, motivation, and mental clarity tend to improve in the first half of your cycle. When estrogen drops sharply in the days before your period, serotonin drops with it. The low mood, reduced motivation, and emotional sensitivity many women experience before their period is a measurable neurochemical event, not a character flaw. (Source: Lokuge et al. Biological Psychiatry 2011; Backstrom et al. 2008.)' },
+      { p: 'Estrogen interacts with serotonin systems, but this does not create a simple one-to-one prediction of mood, motivation or clarity. Premenstrual mood symptoms occur for some people and deserve support, while persistent or severe symptoms should not be dismissed as only hormonal. (Sources: Lokuge et al. 2011; Backstrom et al. 2008.)' },
       { h: 'Progesterone and GABA' },
-      { p: 'Progesterone is converted in the brain into a calming compound that works on the same receptors as anti-anxiety medication. This is why the early luteal phase often feels more grounded and peaceful than the week before your period. Progesterone is directly calming your nervous system.' },
-      { p: 'In the late luteal phase, progesterone drops quickly. When it does, GABA activity falls with it. For many women this creates a rebound effect: anxiety, irritability, low mood, and poor sleep, all arriving in the days before the period starts. The moment your period begins and the hormonal cycle resets, these symptoms lift. That pattern is the clearest way to distinguish PMS from general mood problems. (Source: Backstrom et al. Mol Cell Endocrinol 2014.)' },
+      { p: 'Progesterone metabolites interact with GABA systems. Responses vary: an estimated early-luteal window is not a prediction that someone will feel calm.' },
+      { p: 'Some people experience anxiety, irritability, low mood or sleep changes before a period. A repeated pattern that improves after menstruation is useful clinical information, but symptoms do not always lift immediately and can have other causes. (Source: Backstrom et al. 2014.)' },
       { box: 'Women with PMDD experience a greater neurological response to normal progesterone fluctuations, not abnormally high progesterone levels. The difference is in the brain\'s sensitivity to the change, not the size of the change itself. This is why PMDD is a real, biologically grounded condition that responds to specific treatments. (Source: Osborn et al. Frontiers in Pharmacology 2025.)' },
       { h: 'Knowing the cause changes things' },
-      { p: 'Understanding that late luteal mood is hormonal does not make it disappear. But it can help you respond to it differently. Nutritional strategies, training adjustments, sleep prioritisation, and in some cases medical support all have evidence behind them. The emotions are real. They are also explainable. And explainable things are more manageable.' },
+      { p: 'Understanding timing can help you prepare without assuming causation. Sleep support, movement that feels manageable, regular meals and clinical care can all be considered. Severe mood symptoms or thoughts of self-harm need prompt support regardless of cycle timing.' },
       { cite: 'Sources: Backstrom T et al. 2008; Backstrom T et al. Mol Cell Endocrinol 2014; Lokuge S et al. Biological Psychiatry 2011; Osborn E et al. Front Pharmacol 2025; DSM-5 PMDD diagnostic criteria.' },
     ]
   },
   nutrition: {
     title: 'Nutrition and hormones',
     content: [
-      { h: 'Your nutritional needs change across your cycle' },
-      { p: 'This is not about restriction or a complicated phase-by-phase meal plan. It is about understanding why the same eating habits feel different at different points in your cycle, and why certain things like stronger hunger before your period are biology rather than lack of discipline.' },
-      { h: 'Protein needs are higher in the luteal phase' },
-      { p: 'Progesterone increases the rate at which your body breaks down muscle protein. In the luteal phase, protein needs rise to approximately 1.8 to 2.2g per kg of bodyweight per day, compared to around 1.5g in the follicular phase. If you are training through the luteal phase without enough protein, you are losing muscle at a faster rate than usual without replacing it. (Source: ISSN 2023; Lariviere et al. Am J Physiol 2006.)' },
+      { h: 'Your experience can change across your cycle' },
+      { p: 'Appetite or digestive comfort may change for some people, but the direction and size vary. This is not a reason for restriction or a mandatory phase-by-phase meal plan.' },
+      { h: 'Protein needs depend on the person and activity' },
+      { p: 'Current evidence does not justify a mandatory luteal-phase protein target for everyone. Empower uses a broad activity-informed range when body weight is provided; goals, diet, pregnancy, kidney health and clinical advice also matter.' },
       { h: 'Why carbohydrate cravings increase before your period' },
-      { p: 'Estrogen improves insulin sensitivity, which means your cells respond well to carbohydrates throughout the follicular phase. When estrogen drops in the late luteal phase, insulin sensitivity decreases and your body starts seeking quick energy sources. This is the biological mechanism behind pre-period carbohydrate cravings. Understanding this means you can plan for increased carbohydrate needs and choose good sources rather than feeling out of control. (Source: Mauvais-Jarvis et al. JCI 2013.)' },
+      { p: 'Premenstrual cravings are common, but they are not a moral failure and do not have one simple cause. Appetite, sleep, stress, energy availability and hormonal changes may all contribute. Plan satisfying foods without assuming an exact carbohydrate requirement.' },
       { h: 'Iron and your period' },
       { p: 'Iron loss during menstruation directly affects how much oxygen your blood can carry to your muscles. Many women with completely normal blood test results are still iron deficient because stored iron (ferritin) is depleted. When stored iron is low, training performance and energy are affected even though a routine test will not flag anything. If you are persistently fatigued, ask your doctor for a full iron panel that includes ferritin, not just a standard blood count. Vitamin C alongside iron-rich foods improves absorption by up to 67%. (Source: Angeli et al. 2016; Burden et al. BJSM 2015.)' },
       { h: 'Creatine' },
-      { p: 'Women have naturally lower creatine stores than men. 3 to 5g of creatine monohydrate daily with food supports muscle strength, cognitive function, and mood across all phases of the cycle. It is well-studied and safe. It is particularly useful in the luteal phase when protein breakdown is elevated. (Source: Rawson et al. JISSN 2018; Candow et al. Nutrients 2021.)' },
+      { p: 'Creatine monohydrate has evidence for strength and training support, but a supplement dose is not personalised by cycle phase. Ask a clinician or sports dietitian whether it fits your goals, pregnancy status, medicines and health. (Sources: Rawson et al. 2018; Candow et al. 2021.)' },
       { h: 'Fasting and women' },
-      { p: 'Intermittent fasting and regularly skipping breakfast may work against you if you are a woman who trains. Research suggests that fasting can suppress the hypothalamic-pituitary-adrenal axis in women, raise cortisol, and disrupt the hormonal cascade that regulates your cycle. Eating within 30 to 60 minutes of waking is particularly important if you train in the morning. (Source: Sims ST. ROAR 2024; Hamadeh MJ et al. Am J Physiol 2005.)' },
+      { p: 'Intermittent fasting is not automatically helpful or harmful for women. It may be a poor fit if it causes under-fuelling, worsens recovery or symptoms, or conflicts with pregnancy, diabetes, medicines or an eating-disorder history. Cycle phase alone does not require a breakfast window.' },
       { cite: 'Sources: ISSN 2023; Lariviere F et al. Am J Physiol 2006; Mauvais-Jarvis F et al. JCI 2013; Angeli A et al. 2016; Burden RJ et al. BJSM 2015; Rawson ES et al. JISSN 2018; Candow DG et al. Nutrients 2021; Sims ST. ROAR 2024; Hamadeh MJ et al. Am J Physiol 2005.' },
     ]
   },
@@ -187,15 +187,15 @@ const ARTICLES = {
       { h: 'Do strength results actually change by phase?' },
       { p: 'The honest answer is: possibly, but individual variation is large enough that population averages have limited value for any one woman. Some research suggests follicular phase resistance training may produce stronger adaptations (Kissow et al. Sports Medicine 2022). A 2023 review found no consistent evidence that strength outcomes differ reliably by phase once individual variation is accounted for (Colenso-Semple et al. Frontiers 2023). Track your own response across cycles rather than applying a population rule.' },
       { box: 'Your personal pattern across multiple cycles is more useful than any population average. Track how your training feels across phases and let that guide your programming.' },
-      { h: 'Why the luteal phase feels harder' },
-      { p: 'The same workout genuinely requires more physiological effort in mid and late luteal phase. Core temperature is elevated. Resting heart rate is on average 1.7 bpm higher than in the early follicular phase. Protein breakdown is increased. Cortisol competes with progesterone and compounds the total stress load. Perceived exertion is higher for the same load. This is not in your head. It is a measurable physiological difference. (Source: De Martin Topranin et al. IJSPP 2023; Hackney. JSSM 2006.)' },
+      { h: 'Why the luteal phase can feel harder' },
+      { p: 'For many women the same workout may require more physiological effort in mid and late luteal phase. Core temperature is elevated. Resting heart rate is on average 1.7 bpm higher than in the early follicular phase. Protein breakdown is increased. Cortisol competes with progesterone and can compound the total stress load. Perceived exertion is often higher for the same load. When you feel this, it is not in your head, it is a measurable physiological difference. How much it affects you varies a lot between individuals, so your own tracked response matters more than the phase. (Source: De Martin Topranin et al. IJSPP 2023; Hackney. JSSM 2006.)' },
       { h: 'A hard day is information, not failure' },
-      { p: 'Energy, strength, and coordination genuinely vary across your cycle, and a flat session or heavy-legged race day in the menstrual or late-luteal phase is physiology, not a lack of effort or fitness. Coaches and athletes often blame a bad day on being tired, run-down, or "off," when the real driver is where she is in her cycle. Naming it changes how you respond. Where you can, plan your hardest sessions for the follicular and ovulatory phases and treat low-phase days as quality-and-recovery work. When a fixed event like a tryout or competition lands on a low day, you cannot move your cycle, but you can prepare for it: a longer warm-up, extra carbohydrate and iron-rich fuelling, and realistic expectations beat being blindsided. (Sources: De Martin Topranin et al. IJSPP 2023; Kissow et al. Sports Medicine 2022; Colenso-Semple et al. Frontiers 2023.)' },
+      { p: 'For many women, energy, strength, and coordination can vary across the cycle, and a flat session or heavy-legged race day in the menstrual or late-luteal phase may be physiology rather than a lack of effort or fitness. Coaches and athletes often blame a bad day on being tired, run-down, or "off," when where she is in her cycle may be part of the picture. Naming that possibility changes how you respond. Large reviews find these effects are small and inconsistent between individuals, so no universal rule fits everyone, and your own tracked response matters more than the phase (McNulty et al. 2020, Sports Medicine; 2023 umbrella review). If your own tracking shows a reliable pattern, you can lean into it where you can, treating your tougher-feeling days as quality-and-recovery work. When a fixed event like a tryout or competition lands on a day you tend to feel flat, you cannot move your cycle, but you can prepare for it: a longer warm-up, extra carbohydrate and iron-rich fuelling, and realistic expectations beat being blindsided. (Sources: De Martin Topranin et al. IJSPP 2023; Kissow et al. Sports Medicine 2022; Colenso-Semple et al. Frontiers 2023.)' },
       { h: 'Building muscle protects your future health' },
       { p: 'Muscle mass is one of the most important things you can build for long-term hormonal health. It improves insulin sensitivity, supports healthy estrogen metabolism, and directly influences how well you move through perimenopause and menopause. Bone responds to load at every age. Every weighted squat and deadlift stimulates bone formation. (Source: Kohrt WM et al. MSSE 2004.)' },
       { h: 'RED-S: when exercise costs more than it returns' },
       { p: 'Relative Energy Deficiency in Sport happens when energy burned through exercise consistently exceeds energy taken in through food. Your body responds by shutting down non-essential systems, starting with reproduction. You do not need to be an elite athlete or visibly underweight for this to happen. A missing period is not a sign that you are training hard. It is a sign that your body has decided reproduction is too costly given your current energy balance. (Source: Mountjoy M et al. BJSM 2023, IOC RED-S Consensus Statement.)' },
-      { cite: 'Sources: Sims ST. ROAR. Rodale 2024; Kissow et al. Sports Medicine 2022; Colenso-Semple et al. Frontiers 2023; De Martin Topranin et al. IJSPP 2023; Hackney AC. JSSM 2006; Kohrt WM et al. MSSE 2004; Mountjoy M et al. BJSM 2023 (IOC RED-S Consensus); NIH Revitalization Act 1993.' },
+      { cite: 'Sources: Sims ST. ROAR. Rodale 2024; McNulty KL et al. Sports Medicine 2020 (systematic review and meta-analysis); 2023 umbrella review of menstrual cycle and exercise performance; Kissow et al. Sports Medicine 2022; Colenso-Semple et al. Frontiers 2023; De Martin Topranin et al. IJSPP 2023; Hackney AC. JSSM 2006; Kohrt WM et al. MSSE 2004; Mountjoy M et al. BJSM 2023 (IOC RED-S Consensus); NIH Revitalization Act 1993.' },
     ]
   },
   conditions: {
@@ -301,7 +301,7 @@ const ARTICLES = {
     title: 'Sleep in perimenopause',
     content: [
       { h: 'Why sleep changes' },
-      { p: 'Sleep disruption is one of the most common and most disruptive symptoms of perimenopause. Multiple hormonal mechanisms are involved: declining progesterone reduces GABA receptor activity that promotes deep sleep, estrogen fluctuations affect temperature regulation, and night sweats can wake women repeatedly through the night. This is not anxiety or stress causing poor sleep. It is direct hormonal interference with sleep architecture.' },
+      { p: 'Sleep disruption is common during perimenopause. Hormonal changes and night sweats can contribute, while stress, anxiety, medicines, pain and sleep disorders may also be involved. Persistent sleep problems deserve assessment rather than being assigned to one cause automatically.' },
       { box: 'Reproductive hormones are produced and regulated during sleep. Poor sleep worsens hormonal disruption, which worsens sleep, creating a reinforcing cycle. Breaking this cycle is one of the highest-impact interventions in perimenopause. (Sims ST. ROAR 2024; De Martin Topranin et al. IJSPP 2023)' },
       { h: 'Evidence-backed strategies' },
       { ul: ['Keep the bedroom cool. Lower ambient temperature reduces the intensity and frequency of night sweats. 18 to 20 degrees Celsius is often cited.', 'Consistent sleep and wake times. Regulating circadian rhythm is especially important when hormonal disruption is making sleep harder to maintain.', 'Reduce alcohol. Even moderate alcohol significantly worsens sleep quality and increases night sweat frequency.', 'Magnesium glycinate before bed (studies use around 300 to 400mg) is well tolerated and associated with improved sleep quality. Check with your doctor before starting. (Abbasi B et al. J Res Med Sci 2012)', 'Limit screens before bed. Blue light suppresses melatonin, which is already more vulnerable to disruption in perimenopause.'] },
@@ -311,7 +311,7 @@ const ARTICLES = {
   peri_mood: {
     title: 'Mood and mental health in perimenopause',
     content: [
-      { h: 'This is hormonal, not personal' },
+      { h: 'Symptoms are real and can have more than one cause' },
       { p: 'The hormonal transition into and through menopause is associated with significantly increased risk of depression and mood disorders, particularly in women with no prior history of depression. This is not a psychological weakness or a reaction to getting older. It is a direct effect of hormonal fluctuations on neurotransmitter systems. Estrogen regulates serotonin, dopamine, and norepinephrine production and receptor sensitivity. When estrogen becomes erratic, so does mood.' },
       { box: 'Women with no prior history of depression have roughly two to four times the risk of a depressive episode during perimenopause. This peaks in the late transition, when hormone fluctuations are most extreme. Perimenopausal depression can respond well to hormone therapy, sometimes when antidepressants alone have not been enough. (Freeman EW et al. Archives of General Psychiatry 2004 and 2006; Bromberger JT et al. Depression and Anxiety 2018)' },
       { h: 'Brain fog, focus, and being assessed for ADHD' },
@@ -648,16 +648,16 @@ export default function Learn() {
       <div style={{ padding:'16px 16px 0' }}>
         {/* Prep for a doctor visit, moved here from the home screen: turn tracked data into a
             clear summary to bring to an appointment. */}
-        <div onClick={() => navigate('/visit-prep')} style={{ cursor:'pointer', display:'flex', alignItems:'center', gap:12, background:'#faf7f1', border:'1px solid #e4d8c2', borderRadius:14, padding:'14px 16px', marginBottom:14 }}>
+        <button type="button" onClick={() => navigate('/visit-prep')} style={{ cursor:'pointer', width:'100%', textAlign:'left', font:'inherit', display:'flex', alignItems:'center', gap:12, background:'#faf7f1', border:'1px solid #e4d8c2', borderRadius:14, padding:'14px 16px', marginBottom:14 }}>
           <div style={{ width:38, height:38, borderRadius:11, background:'#f0e6d2', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-            <i className="ti ti-clipboard-heart" style={{ fontSize:19, color:'#a07a40' }} />
+            <i className="ti ti-clipboard-heart" aria-hidden="true" style={{ fontSize:19, color:'#a07a40' }} />
           </div>
           <div style={{ flex:1 }}>
             <div style={{ fontSize:14, fontWeight:600, color:'#2c2820' }}>Prep for a doctor visit</div>
             <div style={{ fontSize:12, color:'#7a7268', marginTop:1, lineHeight:1.4 }}>Turn your tracking into a clear summary to bring to your appointment.</div>
           </div>
-          <i className="ti ti-chevron-right" style={{ fontSize:16, color:'#c8b89a', flexShrink:0 }} />
-        </div>
+          <i className="ti ti-chevron-right" aria-hidden="true" style={{ fontSize:16, color:'#c8b89a', flexShrink:0 }} />
+        </button>
 
         {/* Relevant for you, surfaces ancestry-linked health info the user selected at
             signup. Additive only: population patterns, never a diagnosis, never hides content. */}
@@ -667,14 +667,20 @@ export default function Learn() {
               <div style={{ fontSize:11, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:'#5a5a8a', marginBottom:4 }}>Relevant for you</div>
               <div style={{ fontSize:11, color:'#9a9590', lineHeight:1.55 }}>These are population patterns, not predictions about you. Everyone is different. This is general information to discuss with your doctor, never a diagnosis.</div>
             </div>
-            {myNotes.map((n, i) => (
-              <div key={i} onClick={() => n.article && setOpenArticle(n.article)}
-                style={{ display:'flex', alignItems:'flex-start', gap:10, padding:'11px 16px', borderTop:'1px solid #f0f0f6', cursor:n.article?'pointer':'default' }}>
-                <i className="ti ti-point-filled" style={{ color:'#9a9aca', fontSize:14, flexShrink:0, marginTop:2 }} />
+            {myNotes.map((n, i) => {
+              const noteStyle = { display:'flex', alignItems:'flex-start', gap:10, padding:'11px 16px', borderTop:'1px solid #f0f0f6', cursor:n.article?'pointer':'default' }
+              const inner = <>
+                <i className="ti ti-point-filled" aria-hidden="true" style={{ color:'#9a9aca', fontSize:14, flexShrink:0, marginTop:2 }} />
                 <div style={{ flex:1, fontSize:13, color:'#3a3a4a', lineHeight:1.55 }}>{n.text}</div>
-                {n.article && <i className="ti ti-chevron-right" style={{ color:'#c8b89a', fontSize:15, flexShrink:0, marginTop:2 }} />}
-              </div>
-            ))}
+                {n.article && <i className="ti ti-chevron-right" aria-hidden="true" style={{ color:'#c8b89a', fontSize:15, flexShrink:0, marginTop:2 }} />}
+              </>
+              return n.article ? (
+                <button type="button" key={i} onClick={() => setOpenArticle(n.article)}
+                  style={{ ...noteStyle, width:'100%', textAlign:'left', font:'inherit', background:'none', border:'none' }}>{inner}</button>
+              ) : (
+                <div key={i} style={noteStyle}>{inner}</div>
+              )
+            })}
           </div>
         )}
 
@@ -686,13 +692,13 @@ export default function Learn() {
             <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590', padding:'4px 0 10px' }}>Your cycle phases</div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:14 }}>
               {PHASE_GRID.map(p => (
-                <div key={p.name} onClick={() => setPhaseSheet(p.name)} style={{ background:'#fff', border:'1px solid #ede8e0', borderRadius:14, padding:'16px 14px', cursor:'pointer' }}>
+                <button type="button" key={p.name} onClick={() => setPhaseSheet(p.name)} style={{ background:'#fff', border:'1px solid #ede8e0', borderRadius:14, padding:'16px 14px', cursor:'pointer', textAlign:'left', font:'inherit', color:'#2c2820' }}>
                   <div style={{ width:44, height:44, borderRadius:12, background:p.iconBg, display:'flex', alignItems:'center', justifyContent:'center', marginBottom:10 }}>
-                    <i className={`ti ${p.icon}`} style={{ fontSize:22, color:p.iconColor }} />
+                    <i className={`ti ${p.icon}`} aria-hidden="true" style={{ fontSize:22, color:p.iconColor }} />
                   </div>
                   <div style={{ fontSize:14, fontWeight:600, marginBottom:3 }}>{p.name}</div>
                   <div style={{ fontSize:11, color:'#9a9590', lineHeight:1.4 }}>{p.desc}</div>
-                </div>
+                </button>
               ))}
             </div>
           </>
@@ -703,39 +709,40 @@ export default function Learn() {
           <>
             <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590', padding:'4px 0 10px' }}>Your pregnancy</div>
             {PREG_SECTIONS.map(s => (
-              <div key={s.id} onClick={() => setOpenArticle(s.id)} style={{ background:'#fff', border:'1px solid #ede8e0', borderRadius:14, marginBottom:10, cursor:'pointer', overflow:'hidden' }}>
+              <button type="button" key={s.id} onClick={() => setOpenArticle(s.id)} style={{ display:'block', width:'100%', textAlign:'left', font:'inherit', background:'#fff', border:'1px solid #ede8e0', borderRadius:14, marginBottom:10, cursor:'pointer', overflow:'hidden' }}>
                 <div style={{ display:'flex', alignItems:'center', gap:14, padding:'18px 16px' }}>
-                  <div style={{ width:40, height:40, borderRadius:10, background:s.iconBg, color:s.iconColor, display:'flex', alignItems:'center', justifyContent:'center', fontSize:18, flexShrink:0 }}><i className={s.icon} /></div>
+                  <div style={{ width:40, height:40, borderRadius:10, background:s.iconBg, color:s.iconColor, display:'flex', alignItems:'center', justifyContent:'center', fontSize:18, flexShrink:0 }}><i className={s.icon} aria-hidden="true" /></div>
                   <div style={{ flex:1, minWidth:0 }}>
                     <div style={{ fontSize:15, fontWeight:600, color:'#2c2820' }}>{s.title}</div>
                     <div style={{ fontSize:12, color:'#9a9590', marginTop:2, lineHeight:1.4 }}>{s.desc}</div>
                     {ARTICLES[s.id] && <ReadTime minutes={readMinutes(ARTICLES[s.id].content)} />}
                   </div>
-                  <i className="ti ti-chevron-right" style={{ fontSize:16, color:'#c8b89a', flexShrink:0 }} />
+                  <i className="ti ti-chevron-right" aria-hidden="true" style={{ fontSize:16, color:'#c8b89a', flexShrink:0 }} />
                 </div>
-              </div>
+              </button>
             ))}
             <div style={{ fontSize:11, color:'#9a9590', lineHeight:1.6, padding:'6px 4px 16px', textAlign:'center' }}>Educational only. Your pregnancy care is led by your doctor or midwife.</div>
           </>
         )}
 
         {userPath !== '6' && SECTIONS.map(s => (
-          <div key={s.id} onClick={() => setOpenArticle(s.id)} style={{
+          <button type="button" key={s.id} onClick={() => setOpenArticle(s.id)} style={{
+            display:'block', width:'100%', textAlign:'left', font:'inherit',
             background:'#fff', border:'1px solid #ede8e0', borderRadius:14, marginBottom:10,
             cursor:'pointer', overflow:'hidden',
           }}>
             <div style={{ display:'flex', alignItems:'center', gap:14, padding:'18px 16px' }}>
               <div style={{ width:40, height:40, borderRadius:10, background:s.iconBg, color:s.iconColor, display:'flex', alignItems:'center', justifyContent:'center', fontSize:18, flexShrink:0 }}>
-                <i className={s.icon} />
+                <i className={s.icon} aria-hidden="true" />
               </div>
               <div style={{ flex:1, minWidth:0 }}>
                 <div style={{ fontSize:15, fontWeight:600, color:'#2c2820' }}>{s.title}</div>
                 <div style={{ fontSize:12, color:'#9a9590', marginTop:2, lineHeight:1.4 }}>{s.desc}</div>
                 {ARTICLES[s.id] && <ReadTime minutes={readMinutes(ARTICLES[s.id].content)} />}
               </div>
-              <i className="ti ti-chevron-right" style={{ fontSize:16, color:'#c8b89a', flexShrink:0 }} />
+              <i className="ti ti-chevron-right" aria-hidden="true" style={{ fontSize:16, color:'#c8b89a', flexShrink:0 }} />
             </div>
-          </div>
+          </button>
         ))}
 
         {/* Perimenopause section for Path 4 */}
@@ -743,44 +750,46 @@ export default function Learn() {
           <>
             <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590', padding:'8px 0 8px', marginTop:8 }}>Perimenopause</div>
             {PERI_SECTIONS.map(s => (
-              <div key={s.id} onClick={() => setOpenArticle(s.id)} style={{
+              <button type="button" key={s.id} onClick={() => setOpenArticle(s.id)} style={{
+                display:'block', width:'100%', textAlign:'left', font:'inherit',
                 background:'#fff', border:'1px solid #ede8e0', borderRadius:14, marginBottom:10,
                 cursor:'pointer', overflow:'hidden',
               }}>
                 <div style={{ display:'flex', alignItems:'center', gap:14, padding:'18px 16px' }}>
                   <div style={{ width:40, height:40, borderRadius:10, background:s.iconBg, color:s.iconColor, display:'flex', alignItems:'center', justifyContent:'center', fontSize:18, flexShrink:0 }}>
-                    <i className={s.icon} />
+                    <i className={s.icon} aria-hidden="true" />
                   </div>
                   <div style={{ flex:1, minWidth:0 }}>
                     <div style={{ fontSize:15, fontWeight:600, color:'#2c2820' }}>{s.title}</div>
                     <div style={{ fontSize:12, color:'#9a9590', marginTop:2, lineHeight:1.4 }}>{s.desc}</div>
                     {ARTICLES[s.id] && <ReadTime minutes={readMinutes(ARTICLES[s.id].content)} />}
                   </div>
-                  <i className="ti ti-chevron-right" style={{ fontSize:16, color:'#c8b89a', flexShrink:0 }} />
+                  <i className="ti ti-chevron-right" aria-hidden="true" style={{ fontSize:16, color:'#c8b89a', flexShrink:0 }} />
                 </div>
-              </div>
+              </button>
             ))}
           </>
         )}
 
         {/* Your path card */}
         {userPath && (
-          <div onClick={() => setOpenArticle('path_' + userPath)} style={{
+          <button type="button" onClick={() => setOpenArticle('path_' + userPath)} style={{
+            display:'block', width:'100%', textAlign:'left', font:'inherit',
             background:'#fff', border:'1px solid #ede8e0', borderRadius:14, marginBottom:10,
             cursor:'pointer', overflow:'hidden',
           }}>
             <div style={{ display:'flex', alignItems:'center', gap:14, padding:'18px 16px' }}>
               <div style={{ width:40, height:40, borderRadius:10, background:'#f5f0e8', color:'#8a6a4a', display:'flex', alignItems:'center', justifyContent:'center', fontSize:18, flexShrink:0 }}>
-                <i className="ti ti-route" />
+                <i className="ti ti-route" aria-hidden="true" />
               </div>
               <div style={{ flex:1, minWidth:0 }}>
                 <div style={{ fontSize:15, fontWeight:600, color:'#2c2820' }}>Your path</div>
                 <div style={{ fontSize:12, color:'#9a9590', marginTop:2, lineHeight:1.4 }}>What to expect based on your specific situation</div>
                 <ReadTime minutes={readMinutes(PATH_ARTICLES['path_' + userPath] || PATH_ARTICLES.default)} />
               </div>
-              <i className="ti ti-chevron-right" style={{ fontSize:16, color:'#c8b89a', flexShrink:0 }} />
+              <i className="ti ti-chevron-right" aria-hidden="true" style={{ fontSize:16, color:'#c8b89a', flexShrink:0 }} />
             </div>
-          </div>
+          </button>
         )}
 
         <div style={{ fontSize:10, color:'#b0a89a', lineHeight:1.5, marginBottom:24, padding:'0 4px', textAlign:'center' }}>
@@ -793,10 +802,10 @@ export default function Learn() {
       {/* Article bottom sheet */}
       {openArticle && (
         <>
-          <div onClick={() => setOpenArticle(null)} style={{
-            position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:100
+          <button type="button" aria-label="Close" onClick={() => setOpenArticle(null)} style={{
+            position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:100, border:'none', padding:0, cursor:'pointer'
           }} />
-          <div style={{
+          <div role="dialog" aria-modal="true" aria-label={article ? article.title : PATH_TITLES[openArticle] || 'Your path'} style={{
             position:'fixed', bottom:0, left:'50%', transform:'translateX(-50%)',
             width:'100%', maxWidth:420, maxHeight:'92vh',
             background:'#faf8f5', borderRadius:'20px 20px 0 0',
@@ -812,7 +821,7 @@ export default function Learn() {
                   {article ? article.title : PATH_TITLES[openArticle] || 'Your path'}
                 </h2>
               </div>
-              <button onClick={() => setOpenArticle(null)} style={{ background:'none', border:'none', fontSize:18, color:'#9a9590', cursor:'pointer', padding:4, lineHeight:1 }}>&#x2715;</button>
+              <button type="button" aria-label="Close" onClick={() => setOpenArticle(null)} style={{ background:'none', border:'none', fontSize:18, color:'#9a9590', cursor:'pointer', padding:4, lineHeight:1 }}>&#x2715;</button>
             </div>
             <div style={{ overflowY:'auto', flex:1 }}>
               {article
@@ -829,14 +838,14 @@ export default function Learn() {
         const info = PHASE_SHEET_INFO[phaseSheet] || PHASE_SHEET_INFO.Follicular
         return (
           <>
-            <div onClick={() => setPhaseSheet(null)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:200 }} />
-            <div style={{ position:'fixed', bottom:0, left:'50%', transform:'translateX(-50%)', width:'100%', maxWidth:420, maxHeight:'88vh', background:'#faf8f5', borderRadius:'20px 20px 0 0', overflow:'hidden', display:'flex', flexDirection:'column', zIndex:201 }}>
+            <button type="button" aria-label="Close" onClick={() => setPhaseSheet(null)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:200, border:'none', padding:0, cursor:'pointer' }} />
+            <div role="dialog" aria-modal="true" aria-label={phaseSheet} style={{ position:'fixed', bottom:0, left:'50%', transform:'translateX(-50%)', width:'100%', maxWidth:420, maxHeight:'88vh', background:'#faf8f5', borderRadius:'20px 20px 0 0', overflow:'hidden', display:'flex', flexDirection:'column', zIndex:201 }}>
               <div style={{ padding:'12px 20px 0', textAlign:'center', flexShrink:0 }}>
                 <div style={{ width:36, height:4, background:'#ddd', borderRadius:2, margin:'0 auto 12px' }} />
               </div>
               <div style={{ padding:'0 20px 12px', borderBottom:'1px solid #ede8e0', display:'flex', alignItems:'center', justifyContent:'space-between', flexShrink:0 }}>
                 <div style={{ fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:18, fontWeight:600 }}>{phaseSheet}</div>
-                <button onClick={() => setPhaseSheet(null)} style={{ background:'none', border:'none', fontSize:20, color:'#9a9590', cursor:'pointer' }}>&#x2715;</button>
+                <button type="button" aria-label="Close" onClick={() => setPhaseSheet(null)} style={{ background:'none', border:'none', fontSize:20, color:'#9a9590', cursor:'pointer' }}>&#x2715;</button>
               </div>
               <div style={{ overflowY:'auto', flex:1, padding:'16px 20px 40px' }}>
                 <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590', marginBottom:10 }}>What is happening</div>

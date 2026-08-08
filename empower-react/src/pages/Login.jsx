@@ -3,6 +3,12 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { Capacitor } from '@capacitor/core'
+
+function authRedirectUrl(type) {
+  const base = Capacitor.isNativePlatform() ? 'empowerhealth://login' : `${window.location.origin}/login`
+  return type ? `${base}?type=${encodeURIComponent(type)}` : base
+}
 
 export default function Login() {
   const navigate = useNavigate()
@@ -19,10 +25,20 @@ export default function Login() {
     async function init() {
       const params = new URLSearchParams(window.location.search)
       const code = params.get('code')
+      const type = params.get('type')
       const hash = window.location.hash
+      if (sessionStorage.getItem('empowerRecovery') === '1') {
+        sessionStorage.removeItem('empowerRecovery')
+        setMode('newpassword')
+        return
+      }
       if (code) {
         const { error } = await supabase.auth.exchangeCodeForSession(code)
-        if (!error) { setMode('newpassword'); return }
+        if (!error) {
+          if (type === 'recovery') setMode('newpassword')
+          else navigate('/dashboard', { replace:true })
+          return
+        }
       }
       if (hash.includes('type=recovery')) { setMode('newpassword'); return }
       const { data: { session } } = await supabase.auth.getSession()
@@ -52,7 +68,7 @@ export default function Login() {
     setLoading(true); setMsg(null)
     const { data, error } = await supabase.auth.signUp({
       email, password,
-      options: { emailRedirectTo: 'https://empowerhealth.netlify.app/login' }
+      options: { emailRedirectTo: authRedirectUrl() }
     })
     if (error) {
       setMsg({ text: /already registered|already exists/i.test(error.message) ? 'An account with this email already exists. Try signing in instead.' : error.message, type: 'error' })
@@ -76,7 +92,7 @@ export default function Login() {
     if (!resetEmail) { setMsg({ text: 'Please enter your email.', type: 'error' }); return }
     setLoading(true); setMsg(null)
     const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-      redirectTo: 'https://empowerhealth.netlify.app/login'
+      redirectTo: authRedirectUrl('recovery')
     })
     setLoading(false)
     setMsg(error ? { text: error.message, type: 'error' } : { text: 'Check your email for a reset link.', type: 'success' })

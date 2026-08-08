@@ -22,12 +22,13 @@ public class WatchBridge: CAPPlugin, CAPBridgedPlugin, WCSessionDelegate {
     public let jsName = "WatchBridge"
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "sendPlan", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "clearPlan", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "isReachable", returnType: CAPPluginReturnPromise)
     ]
 
-    // The most recent plan JSON, always retained. Lets us (a) flush the first send of a session
+    // The most recent plan JSON. Lets us (a) flush the first send of a session
     // once activation finishes — activation is async, so a cold-launch send often arrives too
-    // early — and (b) resend when a watch is newly paired/installed. Never cleared.
+    // early — and (b) resend when a watch is newly paired/installed. Cleared on account exit.
     private var lastPlanJSON: String?
 
     private var session: WCSession? {
@@ -42,14 +43,22 @@ public class WatchBridge: CAPPlugin, CAPBridgedPlugin, WCSessionDelegate {
         _ = session   // activate as soon as the plugin is created
     }
 
-    /// Push the plan over every available channel so it lands regardless of watch state:
-    /// - updateApplicationContext: latest-state, delivered on the watch's next launch.
-    /// - transferUserInfo: FIFO queue, delivered in the background even if the watch app is
-    ///   asleep or not currently reachable. This is the reliable one; app context alone can be
-    ///   missed if the watch never relaunches.
+    /// Latest-state delivery prevents repeated app opens from building a FIFO of stale plans.
     private func deliver(_ json: String, over session: WCSession) {
         try? session.updateApplicationContext(["planJSON": json])
-        session.transferUserInfo(["planJSON": json])
+    }
+
+    /// Removes the previous account's cached plan from both devices.
+    @objc func clearPlan(_ call: CAPPluginCall) {
+        lastPlanJSON = nil
+        guard let session = session, session.activationState == .activated else {
+            call.resolve(["cleared": true, "sent": false])
+            return
+        }
+        session.outstandingUserInfoTransfers.forEach { $0.cancel() }
+        try? session.updateApplicationContext(["clearPlan": true])
+        if session.isReachable { session.sendMessage(["clearPlan": true], replyHandler: nil) }
+        call.resolve(["cleared": true, "sent": session.isReachable])
     }
 
     /// sendPlan({ plan: { phase, workouts:[…], date } }) — pushes today's plan to the watch.

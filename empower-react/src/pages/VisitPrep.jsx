@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { buildVisitSummary, summaryToText } from '../lib/visitPrep'
 import { analyzeSymptomPatterns } from '../lib/symptomPatterns'
+import { getHormonalContext } from '../lib/hormoneSync'
 import { track } from '../lib/analytics'
 import TopBar from '../components/TopBar'
 import BottomNav from '../components/BottomNav'
@@ -37,11 +38,13 @@ export default function VisitPrep() {
           supabase.from('daily_logs').select('*').eq('user_id', user.id).order('log_date', { ascending: false }).limit(120),
           supabase.from('user_baselines').select('*').eq('id', user.id).maybeSingle(),
         ])
+        const context = getHormonalContext(prof)
+        const contextLogs = (logs || []).filter(log => log.hormonal_context ? log.hormonal_context === context : context === 'natural-cycle')
         setProfile(prof)
-        setSummary(buildVisitSummary({ profile: prof || {}, cycleData, logs: logs || [], baselines, todayStr: localDateStr() }))
+        setSummary(buildVisitSummary({ profile: prof || {}, cycleData, logs: contextLogs, baselines, todayStr: localDateStr() }))
         // Symptom Coach, how her logged symptoms line up (or don't) with her cycle.
-        setSymptomTiming(analyzeSymptomPatterns({ logs: logs || [], cycleData }))
-        track('visit_prep_view', { logs: (logs || []).length })
+        setSymptomTiming(analyzeSymptomPatterns({ logs: contextLogs, cycleData }))
+        track('visit_prep_view', { logs: contextLogs.length })
       } catch (e) { console.error(e) }
       finally { setLoading(false) }
     }

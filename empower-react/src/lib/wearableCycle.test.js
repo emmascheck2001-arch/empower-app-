@@ -16,7 +16,7 @@ describe('detectOvulationFromTemp (3-over-6 coverline)', () => {
     const temps = series([36.4, 36.4, 36.35, 36.45, 36.4, 36.4, 36.7, 36.75, 36.7])
     const ov = detectOvulationFromTemp(temps)
     expect(ov).toBeTruthy()
-    expect(ov.confirmedDate).toBe(temps[8].date)
+    expect(ov.estimatedAfterDate).toBe(temps[8].date)
     expect(ov.ovulationDate).toBe(temps[5].date) // day before the first high
     expect(ov.coverline).toBeCloseTo(36.65, 2)   // max(baseline 36.45)+0.2
   })
@@ -33,21 +33,30 @@ describe('detectOvulationFromTemp (3-over-6 coverline)', () => {
     expect(detectOvulationFromTemp(null)).toBe(null)
   })
 
+  it('does not treat readings separated by missing days as consecutive', () => {
+    const temps = series([36.4, 36.4, 36.35, 36.45, 36.4, 36.4, 36.7, 36.75, 36.7])
+    temps[7].date = '2026-08-11'
+    temps[8].date = '2026-08-12'
+    expect(detectOvulationFromTemp(temps)).toBe(null)
+  })
+
   it('returns the most recent shift when several exist', () => {
     const temps = series([
       36.3, 36.3, 36.3, 36.3, 36.3, 36.3, 36.6, 36.6, 36.6, // shift 1
       36.3, 36.3, 36.3, 36.3, 36.3, 36.3, 36.6, 36.6, 36.6, // shift 2 (later)
     ])
     const ov = detectOvulationFromTemp(temps)
-    expect(ov.confirmedDate).toBe(temps[17].date)
+    expect(ov.estimatedAfterDate).toBe(temps[17].date)
   })
 })
 
 describe('wearableCycleSignals', () => {
-  it('reports confirmed ovulation from temperature', () => {
+  it('reports ESTIMATED ovulation from a sustained temperature rise (never "confirmed")', () => {
     const temps = series([36.4, 36.4, 36.35, 36.45, 36.4, 36.4, 36.7, 36.75, 36.7])
     const s = wearableCycleSignals({ temps })
-    expect(s.ovulationConfirmed).toBe(true)
+    // A wearable temperature shift is an estimate, not a medical confirmation (FDA-caution framing).
+    expect(s.ovulationEstimated).toBe(true)
+    expect(s.ovulationConfirmed).toBe(false)
     expect(s.hasTemperatureData).toBe(true)
     expect(s.method).toMatch(/temperature/)
   })

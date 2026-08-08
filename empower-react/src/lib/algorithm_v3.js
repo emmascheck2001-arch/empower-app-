@@ -6,6 +6,8 @@
 // Source: Lokuge et al. Journal of Psychiatry and Neuroscience 2011
 // Source: Osborn et al. Frontiers in Pharmacology 2025
 
+import { diffCalendarDays } from './dateUtils.js'
+
 // ── Flag confidence thresholds ───────────────────────────────────────────────
 // Before any insight card, flag, or pattern observation appears, the algorithm
 // must meet these minimum conditions. If not met, return nothing, no placeholder.
@@ -230,6 +232,15 @@ export const PHASE_PREDICTIONS = {
   }
 }
 
+// Keep the legacy keys for saved UI references, but neutralise the old deterministic layer.
+// Population phase research is context, not an individual brain-state or training prescription.
+for (const prediction of Object.values(PHASE_PREDICTIONS)) {
+  prediction.intensity = 1
+  prediction.why = 'Hormones and symptoms can vary across the cycle, but a calendar phase cannot determine mood, cognition or performance for an individual. Treat this as an estimated timing label and compare it with your own repeated observations.'
+  prediction.training = 'Keep the session you planned when you feel well. Use symptoms, sleep, recent performance and your warm-up to decide whether to continue, reduce volume or choose a recovery option.'
+  prediction.nutrition = 'Use consistent, adequate nutrition and the range shown from your profile. Cycle timing alone does not create an exact calorie or protein requirement.'
+}
+
 // ── Mood signal interpreter ───────────────────────────────────────────────────
 // Returns phase signal, confidence adjustment, and insight message
 // Source: Backstrom 2008; Lokuge 2011
@@ -240,60 +251,14 @@ export function interpretMoodSignal(todayLog, recentLogs, calendarPhase, calenda
 
   if (!mood.length && !energy) return result
 
-  // Check each pattern against today's log
-  for (const [, pattern] of Object.entries(MOOD_PHASE_SIGNALS)) {
-    const moodMatches = mood.filter(m => pattern.moods.includes(m)).length
-    const energyMatches = !pattern.energy || pattern.energy.includes(energy) || pattern.energy.includes(null)
-
-    if (moodMatches >= pattern.requires && energyMatches) {
-      result.phaseSignal = pattern.phaseSignal
-
-      // Determine if mood confirms or contradicts calendar phase
-      const calendarKey = (calendarSubPhase || calendarPhase || '').toLowerCase()
-      const signalKey = pattern.phaseSignal.toLowerCase()
-      const confirms = calendarKey.includes(signalKey.split(' ')[0]) ||
-                       signalKey.includes((calendarPhase || '').toLowerCase().split(' ')[0])
-
-      if (confirms) {
-        result.confidenceAdjustment = pattern.confidenceBonus
-        result.insight = {
-          type: 'mood_phase_confirmation',
-          priority: 'low',
-          message: pattern.note,
-          science: 'Source: Backstrom et al. Archives of Women\'s Mental Health 2008.'
-        }
-      } else if (calendarPhase) {
-        result.mismatch = true
-        result.confidenceAdjustment = -0.05
-        result.insight = {
-          type: 'mood_phase_mismatch',
-          priority: 'medium',
-          message: 'How you feel today looks more like ' + pattern.phaseSignal + ' than ' + calendarPhase + '. Your cycle may be running slightly ahead of or behind the calendar estimate. Keep logging, the algorithm will update as the pattern becomes clearer.',
-          science: 'Source: Backstrom et al. 2008.'
-        }
-      }
-      break
-    }
-  }
-
-  // Check for persistent late-luteal mood across 3 consecutive days
-  if (recentLogs && recentLogs.length >= 3) {
-    const recentMoods = recentLogs.slice(0, 3).flatMap(l => l.mood || [])
-    const negativeMoodCount = recentMoods.filter(m =>
-      ['Irritable', 'Anxious', 'Low', 'Overwhelmed', 'Sad'].includes(m)
-    ).length
-
-    if (negativeMoodCount >= 4 &&
-        calendarPhase !== 'Luteal' && calendarPhase !== 'Menstrual') {
-      result.mismatch = true
-      result.confidenceAdjustment = Math.min(result.confidenceAdjustment, -0.08)
-      result.insight = {
-        type: 'persistent_negative_mood_signal',
-        priority: 'high',
-        message: 'You have logged lower mood for a few days in a row. This kind of pattern often appears in the days before a period as hormones drop. If your period arrives soon this will confirm the pattern, and it will ease once it does.',
-        science: 'Source: Backstrom et al. Archives of Women\'s Mental Health 2008.'
-      }
-    }
+  void recentLogs
+  void MOOD_PHASE_SIGNALS
+  const timing = calendarSubPhase || calendarPhase
+  result.insight = {
+    type: 'mood_context',
+    priority: 'low',
+    message: `${timing ? `This was logged during your estimated ${timing.toLowerCase()} window. ` : ''}Mood and energy can be affected by cycle changes for some people, but they cannot identify a phase or prove a hormonal cause. Sleep, stress, health, medicines and life events can create the same experience. Empower will look for repetition across cycles.`,
+    science: 'Cycle timing is contextual and mood is not used as an ovulation signal.'
   }
 
   return result
@@ -326,7 +291,7 @@ export function detectPMDDPattern(logs, cycleLen, cycleDayToday) {
     // Estimate cycle day from log date, rough approximation
     const logDate = new Date(log.log_date + 'T00:00:00')
     const today = new Date(); today.setHours(0, 0, 0, 0)
-    const daysAgo = Math.floor((today - logDate) / 86400000)
+    const daysAgo = diffCalendarDays(today, logDate)
     // Anchor each log to its real cycle day: today is cycleDayToday, so a log
     // daysAgo days back sits that many days earlier in the cycle (wrapping mod cl).
     const approxCycleDay = (((cycleDayToday - 1 - daysAgo) % cl) + cl) % cl + 1
@@ -378,87 +343,18 @@ export function getMoodContextFeedback(latestLog, phase, subPhase) {
   const isLow = ['Irritable', 'Anxious', 'Low', 'Overwhelmed'].some(m => mood.includes(m))
   const isVeryLow = energy === 'Very low' || energy === 'Low'
   const isHighEnergy = ['Energised', 'Energetic', 'Happy', 'Motivated'].some(m => mood.includes(m))
+  if (!(isLow || isVeryLow || isHighEnergy || mood.includes('Calm'))) return null
 
-  // BC-active: mood affected by synthetic hormones, not natural cycle
-  const isBCActive = phase === 'bc-combined' || phase === 'bc-progestin'
-  if (isBCActive) {
-    const isProgestin = phase === 'bc-progestin'
-    if (isLow || isVeryLow) {
-      return {
-        type: 'mood_context',
-        icon: 'brain',
-        headline: isProgestin ? 'Progestin can affect mood in some women' : 'Mood changes on the pill are real',
-        body: isProgestin
-          ? 'Low mood, fatigue, or reduced motivation on progestin-only contraception is well documented and not psychological. Progestin without the counterbalancing effect of natural estrogen can suppress serotonin and dopamine activity in some women. If this is consistent, it is worth discussing with your doctor. A different method or formulation may feel very different. You deserve to feel well. Source: Skovlund CW et al. JAMA Psychiatry 2016.'
-          : 'Some women experience mood changes on combined hormonal contraception. The synthetic progestin component in particular can affect serotonin receptor sensitivity in a way that differs from natural progesterone. If low mood is consistent month to month rather than occasional, it is worth mentioning to your doctor. Different pill formulations and progestin types can have meaningfully different effects. Source: Skovlund CW et al. JAMA Psychiatry 2016.'
-      }
-    }
-    return null
+  const cycleContext = ['Menstrual', 'Follicular', 'Ovulatory', 'Luteal', 'Early luteal', 'Mid luteal', 'Late luteal'].includes(effectivePhase)
+    ? `This was logged during your estimated ${effectivePhase.toLowerCase()} window. `
+    : ''
+  const direction = isLow || isVeryLow ? 'lower mood or energy' : isHighEnergy ? 'higher mood or energy' : 'a calm mood'
+  return {
+    type: 'mood_context',
+    icon: 'brain',
+    headline: 'A real observation, with more than one possible cause',
+    body: `${cycleContext}Hormonal changes can contribute to ${direction} for some people, but sleep, stress, health, medicines and life events can produce the same experience. Empower will only call this a cycle pattern if it repeats across several cycles. Persistent or severe mood changes deserve support regardless of timing.`
   }
-
-  // Perimenopause: estrogen variability drives mood, not cycle phases
-  const isPeri = phase === 'Perimenopause'
-  if (isPeri) {
-    if (isLow || isVeryLow) {
-      return {
-        type: 'mood_context',
-        icon: 'brain',
-        headline: 'This is estrogen variability, not you',
-        body: 'The irritability, anxiety, or low mood you are feeling right now has a direct neurological cause. Estrogen drives serotonin production and receptor sensitivity. When estrogen fluctuates unpredictably in perimenopause, serotonin stability goes with it. This is a measurable neurochemical effect of estrogen variability, not anxiety, not weakness, not ageing. It has a biological explanation and there are effective approaches. Source: Osborn et al. Frontiers in Pharmacology 2025. Backstrom et al. 2008.'
-      }
-    }
-    if (isHighEnergy) {
-      return {
-        type: 'mood_context',
-        icon: 'brain',
-        headline: 'Estrogen surge, make the most of it',
-        body: 'Good mood and high energy in perimenopause often signal an estrogen surge. Estrogen drives dopamine and serotonin, when it peaks, mood, motivation, and mental clarity peak with it. These windows are worth planning around for training and demanding work. Source: Backstrom et al. Archives of Women\'s Mental Health 2008.'
-      }
-    }
-    return null
-  }
-
-  const isLateLuteal = effectivePhase === 'Late luteal' || effectivePhase === 'Mid luteal'
-
-  if (isLateLuteal && isLow && isVeryLow) {
-    return {
-      type: 'mood_context',
-      icon: 'brain',
-      headline: 'This is neurochemistry, not you',
-      body: 'The irritability and anxiety right now have a specific biological cause. Estrogen is dropping and serotonin drops with it. Progesterone is also declining which removes its GABA-calming effect. This combination is the neurochemical mechanism behind PMS. It resolves when menstruation begins and hormones reset. Source: Backstrom et al. 2008.'
-    }
-  }
-
-  const isPositivePhase = phase === 'Follicular' || phase === 'Ovulatory'
-
-  if (isHighEnergy && isPositivePhase) {
-    return {
-      type: 'mood_context',
-      icon: 'brain',
-      headline: 'This energy is real and biological',
-      body: 'The motivation and positive mood right now are driven by rising estrogen and dopamine. This is not luck, it is measurable neurochemistry. Make the most of this window. Your brain is genuinely performing at a higher level right now. Source: Backstrom et al. 2008. Lokuge et al. 2011.'
-    }
-  }
-
-  if (mood.includes('Calm') && effectivePhase === 'Early luteal') {
-    return {
-      type: 'mood_context',
-      icon: 'brain',
-      headline: 'Progesterone is your natural calm',
-      body: 'The settled feeling right now is progesterone converting in your brain into a calming compound, the same type targeted by anti-anxiety medications. This is your body\'s own calming mechanism. Source: Backstrom et al. Psychoneuroendocrinology 2014.'
-    }
-  }
-
-  if (phase === 'Menstrual' && (isLow || isVeryLow)) {
-    return {
-      type: 'mood_context',
-      icon: 'brain',
-      headline: 'The lowest point of the cycle, hormonally',
-      body: 'Both estrogen and progesterone are at their lowest right now and serotonin is at its lowest with them. This is the measurable neurochemical reason for low mood and low energy during menstruation. It is not a reflection of your character or your health. Source: Lokuge et al. 2011.'
-    }
-  }
-
-  return null
 }
 
 // Returns the symptom area most relevant to what the user has actually logged recently.
@@ -472,7 +368,7 @@ export function getPersonalisedNutritionFocus(recentLogs) {
   const today = new Date(); today.setHours(0, 0, 0, 0)
   const recent = recentLogs.filter(l => {
     if (!l.log_date) return false
-    const days = Math.floor((today - new Date(l.log_date + 'T00:00:00')) / 86400000)
+    const days = diffCalendarDays(today, new Date(l.log_date + 'T00:00:00'))
     return days >= 0 && days <= 3   // today and the previous 3 days
   })
   if (!recent.length) return null
@@ -504,18 +400,18 @@ export function getPersonalisedWorkoutReadiness(recentLogs) {
   if (!recentLogs?.length) return null
   // Time-bound to real recent days, so a log from weeks ago can't be called "today".
   const today = new Date(); today.setHours(0, 0, 0, 0)
-  const daysAgo = (l) => l.log_date ? Math.floor((today - new Date(l.log_date + 'T00:00:00')) / 86400000) : Infinity
+  const daysAgo = (l) => l.log_date ? diffCalendarDays(today, new Date(l.log_date + 'T00:00:00')) : Infinity
   const recent = recentLogs.filter(l => { const d = daysAgo(l); return d >= 0 && d <= 6 }) // last week
   if (!recent.length) return null
   // "today / last night" claims only when the newest log is genuinely today or yesterday.
-  const todayLog = daysAgo(recentLogs[0]) <= 1 ? recentLogs[0] : null
+  const todayLog = recent.find(l => { const d = daysAgo(l); return d === 0 || d === 1 }) || null
   const workoutFeels = recent.slice(0, 5).map(l => l.workout_feel).filter(Boolean)
   const recentDisruptors = recent.flatMap(l => l.disruptors || [])
 
   const hardCount = workoutFeels.filter(f => ['Felt hard','Hard'].includes(f)).length
   const strongCount = workoutFeels.filter(f => ['Felt strong','Strong','Stronger than usual'].includes(f)).length
 
-  if (todayLog?.energy === 'Very low') return 'You logged very low energy today. Start at 80% and adjust from there. Your body is telling you something real.'
+  if (todayLog?.energy === 'Very low') return 'You logged very low energy today or yesterday. Begin with an easy warm-up, then choose the planned, lighter or recovery option based on how you feel now.'
   if (todayLog?.sleep_quality === 'Poor') return 'You logged poor sleep last night. Trust how you feel over your targets today.'
   if (hardCount >= 3) return `Your last ${hardCount} sessions have felt hard. A lighter session today actively supports recovery.`
   if (strongCount >= 2) return 'Your recent sessions have felt strong. This is a good window to work toward the top of your ranges.'

@@ -108,38 +108,37 @@ describe('interpretMoodSignal', () => {
     expect(() => interpretMoodSignal({}, undefined, undefined, undefined)).not.toThrow()
     expect(interpretMoodSignal(null, null, null, null).insight).toBeNull()
   })
-  it('detects a matching mood/energy pattern and confirms the calendar phase', () => {
+  it('keeps mood contextual and never confirms the calendar phase', () => {
     const r = interpretMoodSignal({ mood: ['Happy', 'Motivated'], energy: 'High' }, [], 'Follicular', null)
-    expect(r.phaseSignal).toBe('Follicular')
+    expect(r.phaseSignal).toBeNull()
     expect(r.mismatch).toBe(false)
-    expect(r.confidenceAdjustment).toBeGreaterThan(0)
-    expect(r.insight.type).toBe('mood_phase_confirmation')
+    expect(r.confidenceAdjustment).toBe(0)
+    expect(r.insight.type).toBe('mood_context')
   })
-  it('flags a mismatch with a negative adjustment when mood conflicts with the calendar', () => {
+  it('does not move phase confidence when mood differs from a population expectation', () => {
     const r = interpretMoodSignal({ mood: ['Happy', 'Motivated'], energy: 'High' }, [], 'Luteal', null)
-    expect(r.phaseSignal).toBe('Follicular')
-    expect(r.mismatch).toBe(true)
-    expect(r.confidenceAdjustment).toBe(-0.05)
-    expect(r.insight.type).toBe('mood_phase_mismatch')
+    expect(r.phaseSignal).toBeNull()
+    expect(r.mismatch).toBe(false)
+    expect(r.confidenceAdjustment).toBe(0)
+    expect(r.insight.type).toBe('mood_context')
   })
-  it('detects persistent negative mood across 3+ recent logs', () => {
+  it('does not relabel persistent negative mood as a phase signal', () => {
     const neg = { mood: ['Irritable', 'Anxious'], energy: 'Low', log_date: daysAgoStr(0) }
     const recent = [neg, { ...neg }, { ...neg }]
     const r = interpretMoodSignal(neg, recent, 'Follicular', null)
-    expect(r.insight.type).toBe('persistent_negative_mood_signal')
-    expect(r.confidenceAdjustment).toBeLessThanOrEqual(-0.08)
-    expect(r.mismatch).toBe(true)
+    expect(r.insight.type).toBe('mood_context')
+    expect(r.confidenceAdjustment).toBe(0)
+    expect(r.mismatch).toBe(false)
   })
   it('does NOT trigger the persistent signal with fewer than 3 recent logs', () => {
     const neg = { mood: ['Irritable', 'Anxious'], energy: 'Low' }
     const r = interpretMoodSignal(neg, [neg, { ...neg }], 'Follicular', null)
     expect(r.insight?.type).not.toBe('persistent_negative_mood_signal')
   })
-  it('ignores unrecognised mood/energy strings without matching or throwing', () => {
-    // Unknown values match no MOOD_PHASE_SIGNALS pattern, so no signal is produced.
+  it('keeps unrecognised mood/energy strings contextual without matching a phase', () => {
     const r = interpretMoodSignal({ mood: ['Whimsical', 'Peckish'], energy: 'Quite good' }, [], 'Follicular', null)
     expect(r.phaseSignal).toBeNull()
-    expect(r.insight).toBeNull()
+    expect(r.insight?.type).toBe('mood_context')
   })
 })
 
@@ -208,41 +207,41 @@ describe('getMoodContextFeedback', () => {
     expect(getMoodContextFeedback(null, 'Follicular')).toBeNull()
     expect(getMoodContextFeedback(undefined, 'Menstrual')).toBeNull()
   })
-  it('returns pill-specific feedback for bc-combined low mood', () => {
+  it('uses multi-cause feedback for combined-contraception low mood', () => {
     const r = getMoodContextFeedback({ mood: ['Low'], energy: 'Low' }, 'bc-combined')
     expect(r.type).toBe('mood_context')
-    expect(r.headline).toMatch(/pill/i)
+    expect(r.headline).toMatch(/more than one possible cause/i)
   })
-  it('returns progestin-specific feedback for bc-progestin low mood', () => {
+  it('uses multi-cause feedback for progestin-contraception low mood', () => {
     const r = getMoodContextFeedback({ mood: ['Low'] }, 'bc-progestin')
-    expect(r.headline).toMatch(/progestin/i)
+    expect(r.headline).toMatch(/more than one possible cause/i)
   })
-  it('returns nothing for BC when mood is neither low nor high-energy', () => {
-    expect(getMoodContextFeedback({ mood: ['Calm'] }, 'bc-combined')).toBeNull()
+  it('can record calm without attributing it to contraception', () => {
+    expect(getMoodContextFeedback({ mood: ['Calm'] }, 'bc-combined')?.body).toMatch(/many possible causes|sleep, stress/i)
   })
   it('returns perimenopause feedback for low mood', () => {
     const r = getMoodContextFeedback({ mood: ['Anxious'], energy: 'Low' }, 'Perimenopause')
-    expect(r.headline).toMatch(/estrogen variability/i)
+    expect(r.headline).toMatch(/more than one possible cause/i)
   })
   it('returns perimenopause feedback for high energy', () => {
     const r = getMoodContextFeedback({ mood: ['Happy'] }, 'Perimenopause')
-    expect(r.headline).toMatch(/surge/i)
+    expect(r.headline).toMatch(/more than one possible cause/i)
   })
   it('returns late-luteal context for low mood + very low energy', () => {
     const r = getMoodContextFeedback({ mood: ['Irritable'], energy: 'Very low' }, 'Luteal', 'Late luteal')
-    expect(r.headline).toMatch(/neurochemistry/i)
+    expect(r.headline).toMatch(/more than one possible cause/i)
   })
   it('returns positive-phase feedback for follicular high energy', () => {
     const r = getMoodContextFeedback({ mood: ['Motivated'] }, 'Follicular')
-    expect(r.headline).toMatch(/real and biological/i)
+    expect(r.headline).toMatch(/more than one possible cause/i)
   })
   it('returns menstrual feedback for low mood + low energy', () => {
     const r = getMoodContextFeedback({ mood: ['Low'], energy: 'Low' }, 'Menstrual')
-    expect(r.headline).toMatch(/lowest point/i)
+    expect(r.headline).toMatch(/more than one possible cause/i)
   })
   it('returns early-luteal calm feedback for Calm', () => {
     const r = getMoodContextFeedback({ mood: ['Calm'] }, 'Luteal', 'Early luteal')
-    expect(r.headline).toMatch(/calm/i)
+    expect(r.headline).toMatch(/more than one possible cause/i)
   })
   it('returns null when no condition matches', () => {
     expect(getMoodContextFeedback({ mood: ['Focused'] }, 'Follicular')).toBeNull()

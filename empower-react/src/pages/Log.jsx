@@ -2,8 +2,10 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { getPhase, interpretHormones, getTodayStatus, mergePeriodStartsNotes } from '../lib/hormoneSync'
+import { getPhase, interpretHormones, getTodayStatus, mergePeriodStartsNotes, removePeriodStartNotes, parsePeriodStarts, getHormonalContext } from '../lib/hormoneSync'
+import { diffCalendarDays } from '../lib/dateUtils.js'
 import { track } from '../lib/analytics'
+import { sanitize } from '../lib/validate'
 import TopBar from '../components/TopBar'
 import BottomNav from '../components/BottomNav'
 import Spinner from '../components/Spinner'
@@ -38,6 +40,8 @@ const LH_OPTS      = ['No test','Negative','Positive']
 const FLOW_OPTS    = ['Spotting only','Light','Moderate','Heavy','Very heavy']
 const PAIN_OPTS    = [{v:1,label:'1 None'},{v:2,label:'2 Mild'},{v:3,label:'3 Moderate'},{v:4,label:'4 Severe'},{v:5,label:'5 Debilitating'}]
 const WORKOUT_OPTS = ['Rest day','Weaker than usual','Average','Stronger than usual','Skipped']
+const WORKOUT_TO_STORAGE = { 'Weaker than usual':'Felt hard', Average:'Felt average', 'Stronger than usual':'Felt strong' }
+const WORKOUT_FROM_STORAGE = { 'Felt hard':'Weaker than usual', 'Felt average':'Average', 'Felt strong':'Stronger than usual' }
 const STRESS_OPTS  = [{v:1,label:'1 Calm'},{v:2,label:'2 Low'},{v:3,label:'3 Medium'},{v:4,label:'4 High'},{v:5,label:'5 Overwhelmed'}]
 const LIBIDO_OPTS  = ['Low','Normal','High']
 
@@ -57,7 +61,7 @@ const sectionHead = { fontSize:12, fontWeight:700, letterSpacing:'0.08em', textT
 
 const BLANK_LOG = {
   energy:null, sleep_quality:null, stress_level:null, resting_hr:null, resting_hr_exact:'',
-  wrist_temp:'', cervical_fluid:null, lh_result:null, libido:null, mood:[], symptoms:[], disruptors:[],
+  wrist_temp:'', temperature_source:'other', cervical_fluid:null, lh_result:null, libido:null, mood:[], symptoms:[], disruptors:[],
   workout_feel:null, flow_volume:null, pain_rating:null, notes:'',
   hormone_estradiol:'', hormone_progesterone:'', hormone_lh:'', hormone_cortisol:'',
   hot_flash_count:'', night_sweats_severity:null, joint_pain_rating:null, brain_fog_rating:null,
@@ -69,7 +73,7 @@ function PillRow({ opts, selected, onToggle, single=false }) {
       {opts.map(o => {
         const val = typeof o==='object'?o.v:o, label = typeof o==='object'?o.label:o
         const active = single ? selected===val : Array.isArray(selected) && selected.includes(val)
-        return <button key={String(val)} style={pill(active)} onClick={()=>onToggle(val)}>{label}</button>
+        return <button type="button" key={String(val)} aria-pressed={active} style={pill(active)} onClick={()=>onToggle(val)}>{label}</button>
       })}
     </div>
   )
@@ -77,7 +81,7 @@ function PillRow({ opts, selected, onToggle, single=false }) {
 function GridRow({ opts, selected, onSelect }) {
   return (
     <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:16 }}>
-      {opts.map(o => <button key={o} style={gridBtn(selected===o)} onClick={()=>onSelect(o)}>{o}</button>)}
+      {opts.map(o => <button type="button" key={o} aria-pressed={selected===o} style={gridBtn(selected===o)} onClick={()=>onSelect(o)}>{o}</button>)}
     </div>
   )
 }
@@ -96,6 +100,7 @@ export default function Log() {
   const [phase, setPhase] = useState('observation')
   const [isMenstrual, setIsMenstrual] = useState(false)
   const [isPath4, setIsPath4] = useState(false)
+  const [isPregnant, setIsPregnant] = useState(false)
   const [showMore, setShowMore] = useState(false)
   const [showHormones, setShowHormones] = useState(false)
   const [cycleLen, setCycleLen] = useState(28)
@@ -105,11 +110,15 @@ export default function Log() {
   const [periodOpen, setPeriodOpen] = useState(false)
   const [saved, setSaved] = useState(false)
   const [savedPct, setSavedPct] = useState(null)
+  const [saveError, setSaveError] = useState('')
   const [lastPeriodDate, setLastPeriodDate] = useState(null)
   const [cycleDay, setCycleDay] = useState(null)
   const [periodLen, setPeriodLen] = useState(null)
   const [periodEnded, setPeriodEnded] = useState(false)
+  const [periodStarts, setPeriodStarts] = useState([])
+  const [cycleNotes, setCycleNotes] = useState(null)
   const [log, setLog] = useState(BLANK_LOG)
+  const [contextKey, setContextKey] = useState('natural-cycle')
 
   // Reload whenever the selected day changes, so the form shows that day's saved data.
   useEffect(()=>{ init() },[logDate])
@@ -125,13 +134,19 @@ export default function Log() {
       supabase.from('cycle_data').select('*').eq('user_id',user.id).order('created_at',{ascending:false}).limit(1).maybeSingle(),
     ])
     const path4 = profile?.user_path==='4'
+    const pregnant = profile?.user_path==='6'
+    setContextKey(getHormonalContext(profile))
     setIsPath4(path4)
+    setIsPregnant(pregnant)
+    if (pregnant) setPhase('Pregnancy')
     setCycleLen(cycleData?.cycle_length || profile?.cycle_length || 28)
-    if (!path4 && cycleData?.last_period_date) {
+    setCycleNotes(cycleData?.notes || null)
+    setPeriodStarts(parsePeriodStarts(cycleData))
+    if (!path4 && !pregnant && cycleData?.last_period_date) {
       const last = new Date(cycleData.last_period_date+'T00:00:00')
       // Phase reflects the day being logged (so backfilling a past period day shows Flow/Pain).
       const ref = new Date(logDate+'T00:00:00')
-      const cd = Math.floor((ref-last)/86400000)+1
+      const cd = diffCalendarDays(ref, last)+1
       setLastPeriodDate(cycleData.last_period_date); setCycleDay(cd); setPeriodLen(cycleData.period_length || null)
       if (cd >= 1) {
         const p = getPhase(cd, cycleData.cycle_length||28)
@@ -147,9 +162,9 @@ export default function Log() {
       setLog(prev=>({...prev,
         energy:existing.energy||null, sleep_quality:existing.sleep_quality||null, stress_level:existing.stress_level||null,
         resting_hr:existing.resting_hr||null, resting_hr_exact:existing.resting_hr_exact?String(existing.resting_hr_exact):'',
-        wrist_temp:existing.wrist_temp?String(existing.wrist_temp):'',
+        wrist_temp:existing.wrist_temp?String(existing.wrist_temp):'', temperature_source:existing.temperature_source||'other',
         lh_result:existing.lh_result||null, libido:existing.libido||null, mood:existing.mood||[], symptoms:existing.symptoms||[], disruptors:existing.disruptors||[],
-        workout_feel:existing.workout_feel||null, notes:existing.notes||'',
+        workout_feel:WORKOUT_FROM_STORAGE[existing.workout_feel] || existing.workout_feel || null, notes:existing.notes||'',
         flow_volume:existing.flow_volume||null, pain_rating:existing.pain_rating||null,
         hot_flash_count:existing.hot_flash_count?String(existing.hot_flash_count):'',
         night_sweats_severity:existing.night_sweats_severity||null,
@@ -187,15 +202,38 @@ export default function Log() {
         { user_id:user.id, last_period_date:latestStart, cycle_length:cycleLen, notes },
         { onConflict:'user_id' }
       )
-      if (error) { console.error(error); setSavingPeriod(false); return }
-      const last = new Date(latestStart+'T00:00:00')
+      if (error) { console.error(error); setSaveError('Your period start could not be saved. Please try again.'); setSavingPeriod(false); return }
       const now = new Date(); now.setHours(0,0,0,0)
-      const cd = Math.floor((now-last)/86400000)+1
+      const cd = diffCalendarDays(now, latestStart+'T00:00:00')+1
       const p = getPhase(cd, cycleLen)
       setPhase(p); setIsMenstrual(p==='Menstrual'); setPeriodSaved(true)
       setLastPeriodDate(latestStart); setCycleDay(cd); setPeriodEnded(false)
+      setCycleNotes(notes)
+      setPeriodStarts(parsePeriodStarts({ notes, last_period_date:latestStart }))
     } catch(e) { console.error(e) }
     setSavingPeriod(false)
+  }
+
+  async function removeRecordedPeriodStart(date) {
+    if (!window.confirm(`Remove ${date} as a recorded period start? Daily symptoms and bleeding logs for that date will stay saved.`)) return
+    setSavingPeriod(true); setSaveError('')
+    try {
+      const { data:{ user } } = await supabase.auth.getUser()
+      if (!user) return
+      const next = removePeriodStartNotes(cycleNotes, lastPeriodDate, date)
+      const { error } = await supabase.from('cycle_data').update({ notes:next.notes, last_period_date:next.lastPeriodDate }).eq('user_id', user.id)
+      if (error) throw error
+      setCycleNotes(next.notes); setPeriodStarts(next.periodStarts); setLastPeriodDate(next.lastPeriodDate)
+      setPeriodSaved(false)
+      if (!next.lastPeriodDate) { setCycleDay(null); setPhase('observation'); setIsMenstrual(false) }
+      else {
+        const cd = diffCalendarDays(new Date(logDate+'T00:00:00'), next.lastPeriodDate+'T00:00:00') + 1
+        setCycleDay(cd)
+        const nextPhase = cd >= 1 ? getPhase(cd, cycleLen) : 'observation'
+        setPhase(nextPhase); setIsMenstrual(nextPhase === 'Menstrual')
+      }
+    } catch (error) { console.error(error); setSaveError('That period start could not be removed. Please try again.') }
+    finally { setSavingPeriod(false) }
   }
 
   // Mark the period as finished today → records its length so the app can show an
@@ -214,17 +252,16 @@ export default function Log() {
         .order('log_date',{ascending:false}).limit(1)
       let len = Math.max(1, cycleDay - 1)  // fallback: ended as of today, so last bleed was before today
       if (flowLogs?.length) {
-        const start = new Date(lastPeriodDate+'T00:00:00')
-        const lastFlow = new Date(flowLogs[0].log_date+'T00:00:00')
-        len = Math.floor((lastFlow - start)/86400000) + 1
+        len = diffCalendarDays(flowLogs[0].log_date+'T00:00:00', lastPeriodDate+'T00:00:00') + 1
       }
       len = Math.min(Math.max(len,1),14)
-      await supabase.from('cycle_data').upsert(
+      const { error } = await supabase.from('cycle_data').upsert(
         { user_id:user.id, last_period_date:lastPeriodDate, cycle_length:cycleLen, period_length:len },
         { onConflict:'user_id' }
       )
+      if (error) throw error
       setPeriodLen(len); setPeriodEnded(true)
-    } catch(e) { console.error(e) }
+    } catch(e) { console.error(e); setSaveError('The period end could not be saved. Please try again.') }
   }
 
   const set = (field,val) => setLog(prev=>({...prev,[field]:val}))
@@ -247,25 +284,31 @@ export default function Log() {
 
   async function save() {
     setSaving(true)
+    setSaveError('')
     let user
     try { user = (await supabase.auth.getUser()).data.user } catch { setSaving(false); return }
     if (!user) { navigate('/login',{replace:true}); return }
     const today = logDate
     const payload = {
       user_id:user.id, log_date:today,
-      energy:log.energy, symptoms:log.symptoms, lh_result:log.lh_result, mood:log.mood,
+      hormonal_context:contextKey,
+      energy:log.energy, symptoms:(log.symptoms || []).filter(s => s !== 'None'), lh_result:log.lh_result, mood:log.mood,
       sleep_quality:log.sleep_quality, stress_level:log.stress_level, libido:log.libido,
+      // Sanitize every numeric health field: out-of-range or malformed values are dropped to null
+      // rather than persisted, so a typo can never corrupt the algorithm (mirrors DB CHECKs).
       resting_hr:log.resting_hr_exact?String(log.resting_hr_exact):log.resting_hr,
-      resting_hr_exact:log.resting_hr_exact?parseInt(log.resting_hr_exact):null,
+      resting_hr_exact:sanitize('resting_hr_exact', log.resting_hr_exact),
       disruptors:log.disruptors,
-      wrist_temp:log.wrist_temp?parseFloat(log.wrist_temp):null,
-      hormone_estradiol:log.hormone_estradiol?parseFloat(log.hormone_estradiol):null,
-      hormone_progesterone:log.hormone_progesterone?parseFloat(log.hormone_progesterone):null,
-      hormone_lh:log.hormone_lh?parseFloat(log.hormone_lh):null,
-      hormone_cortisol:log.hormone_cortisol?parseFloat(log.hormone_cortisol):null,
-      workout_feel:log.workout_feel,
+      wrist_temp:sanitize('wrist_temp', log.wrist_temp),
+      temperature_source:log.wrist_temp ? log.temperature_source : null,
+      hormone_estradiol:sanitize('hormone_estradiol', log.hormone_estradiol),
+      hormone_progesterone:sanitize('hormone_progesterone', log.hormone_progesterone),
+      hormone_lh:sanitize('hormone_lh', log.hormone_lh),
+      hormone_cortisol:sanitize('hormone_cortisol', log.hormone_cortisol),
+      workout_feel:WORKOUT_TO_STORAGE[log.workout_feel] || log.workout_feel,
+      workout_feel_reported:Boolean(log.workout_feel),
       flow_volume:log.flow_volume, pain_rating:log.pain_rating, notes:log.notes?.trim()||null,
-      hot_flash_count:log.hot_flash_count?parseInt(log.hot_flash_count):null,
+      hot_flash_count:sanitize('hot_flash_count', log.hot_flash_count),
       night_sweats_severity:log.night_sweats_severity, joint_pain_rating:log.joint_pain_rating,
       brain_fog_rating:log.brain_fog_rating,
     }
@@ -273,15 +316,19 @@ export default function Log() {
       const { error } = await supabase.from('daily_logs').upsert(payload,{onConflict:'user_id,log_date'})
       if (error) throw error
       if (log.cervical_fluid) {
-        await supabase.from('mucus_logs').upsert({user_id:user.id,log_date:today,discharge_type:log.cervical_fluid},{onConflict:'user_id,log_date'})
+        const { error:mucusError } = await supabase.from('mucus_logs').upsert({user_id:user.id,log_date:today,discharge_type:log.cervical_fluid},{onConflict:'user_id,log_date'})
+        if (mucusError) throw mucusError
+      } else {
+        const { error:mucusDeleteError } = await supabase.from('mucus_logs').delete().eq('user_id',user.id).eq('log_date',today)
+        if (mucusDeleteError) throw mucusDeleteError
       }
       track('log_saved', { isToday, symptoms: (log.symptoms||[]).length, hasMood: (log.mood||[]).length > 0 })
       if (isToday) {
-        try { const ns = await getTodayStatus(supabase, user.id); setSavedPct(Math.round((ns?.confidence||0)*100)) } catch { /* ignore */ }
+        try { const ns = await getTodayStatus(supabase, user.id); setSavedPct(ns?.personalisationPct ?? 0) } catch { /* ignore */ }
       }
       setSaved(true)
       setTimeout(() => navigate('/dashboard'), 1900)
-    } catch(e) { console.error(e); setSaving(false) }
+    } catch(e) { console.error(e); setSaveError('Your log could not be saved. Please check your connection and try again.'); setSaving(false) }
   }
 
   if (loading) return <><TopBar title="Daily log" backTo="/dashboard"/><div style={{paddingTop:60}}><Spinner/></div><BottomNav/></>
@@ -297,10 +344,10 @@ export default function Log() {
         {/* Day selector, log today or backfill a missed day. Never the future. */}
         <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8,flexWrap:'wrap'}}>
           <span style={{fontSize:12,color:'#7a7268'}}>Logging for</span>
-          <input type="date" value={logDate} max={localDateStr()}
+          <input type="date" aria-label="Date to log for" value={logDate} max={localDateStr()}
             onChange={e=>{ if(e.target.value) setLogDate(e.target.value) }}
             style={{padding:'6px 10px',borderRadius:8,border:'1px solid #ede8e0',fontSize:13,fontFamily:'inherit',color:'#2c2820'}}/>
-          {!isToday && <button onClick={()=>setLogDate(localDateStr())}
+          {!isToday && <button type="button" onClick={()=>setLogDate(localDateStr())}
             style={{padding:'6px 10px',borderRadius:8,border:'1px solid #ede8e0',background:'#f5f0e8',color:'#5a5248',fontSize:12,fontWeight:500,cursor:'pointer',fontFamily:'inherit'}}>Today</button>}
         </div>
 
@@ -329,7 +376,7 @@ export default function Log() {
             signal of cycle phase, and key to inferring the cycle when no period date is known. */}
         {/* Hidden during the period, menstrual flow masks cervical fluid, so it is not a
             meaningful signal then (and asking for it while bleeding confused testers). */}
-        {!isPath4&&!isMenstrual&&<>
+        {!isPath4&&!isPregnant&&!isMenstrual&&<>
           <span style={sLabel}>Cervical fluid</span>
           <div id="cervicalFluidWhy" style={{fontSize:11,color:'#9a9590',marginBottom:8,fontStyle:'italic'}}>One of the strongest day-to-day signs of where you are in your cycle. Not sure? That is fine, just tap "Not sure". (Bigelow et al. 2004)</div>
           <PillRow opts={FLUID_OPTS} selected={log.cervical_fluid} single onToggle={v=>set('cervical_fluid',v)}/>
@@ -338,10 +385,23 @@ export default function Log() {
           )}
         </>}
 
+        {isPregnant&&<>
+          <span style={sectionHead}>Pregnancy safety check</span>
+          <span style={sLabel}>Vaginal bleeding today</span>
+          <PillRow opts={FLOW_OPTS} selected={log.flow_volume} single onToggle={v=>set('flow_volume',v)}/>
+          <span style={sLabel}>Pain level</span>
+          <PillRow opts={PAIN_OPTS} selected={log.pain_rating} single onToggle={v=>set('pain_rating',v)}/>
+          {((log.flow_volume && log.flow_volume !== 'None') || log.pain_rating>=4) && <div style={{background:'#fdeeee',border:'1px solid #e8b0a0',borderRadius:12,padding:'13px 15px',marginBottom:16,fontSize:13,color:'#5a2a20',lineHeight:1.6}}>Stop exercise and contact your pregnancy care provider now for advice. Seek urgent care for heavy bleeding, severe or one-sided pain, shoulder pain, fainting, chest pain, fluid loss, or feeling very unwell.</div>}
+        </>}
+
         {isPath4&&<>
           <span style={sectionHead}>Symptoms to track</span>
-          <span style={sLabel}>Hot flashes this week</span>
-          <input type="number" min="0" placeholder="Count" value={log.hot_flash_count} onChange={e=>set('hot_flash_count',e.target.value)}
+          <span style={sLabel}>Bleeding today</span>
+          <PillRow opts={FLOW_OPTS} selected={log.flow_volume} single onToggle={v=>set('flow_volume',v)}/>
+          <span style={sLabel}>Pelvic pain (1-5)</span>
+          <PillRow opts={PAIN_OPTS} selected={log.pain_rating} single onToggle={v=>set('pain_rating',v)}/>
+          <span style={sLabel}>Hot flashes today</span>
+          <input type="number" min="0" aria-label="Hot flashes today" placeholder="Count" value={log.hot_flash_count} onChange={e=>set('hot_flash_count',e.target.value)}
             style={{width:'100%',padding:'12px 14px',borderRadius:10,border:'1px solid #ede8e0',fontSize:15,fontFamily:'inherit',marginBottom:16}}/>
           <span style={sLabel}>Night sweats</span>
           <PillRow opts={[{v:0,label:'None'},{v:1,label:'Mild'},{v:2,label:'Moderate'},{v:3,label:'Severe'}]} selected={log.night_sweats_severity} single onToggle={v=>set('night_sweats_severity',v)}/>
@@ -353,23 +413,23 @@ export default function Log() {
 
         {/* Period start, record a period and begin cycle tracking. Shown to non-perimenopause
             users until they are menstruating; essential for observation/Depo-recovery users. */}
-        {!isPath4 && (!isMenstrual || periodSaved) && (
+        {!isPath4 && !isPregnant && (!isMenstrual || periodSaved) && (
           periodSaved ? (
             <div className="card" style={{marginBottom:16, background:'#fdf0f0', border:'1px solid #f0d8d8', padding:'12px 14px'}}>
               <div style={{fontSize:13,color:'#5a2a28',lineHeight:1.5}}>Period start logged 🌿 Your cycle is now tracking from {periodDate}.</div>
             </div>
           ) : (
             <div style={{marginBottom:16, background:'#fdf0f0', border:'1px solid #f0d8d8', borderRadius:14, overflow:'hidden'}}>
-              <button onClick={()=>setPeriodOpen(o=>!o)} style={{width:'100%', display:'flex', alignItems:'center', justifyContent:'space-between', gap:10, padding:'13px 16px', background:'none', border:'none', cursor:'pointer', fontFamily:'inherit', textAlign:'left'}}>
+              <button type="button" aria-expanded={periodOpen} onClick={()=>setPeriodOpen(o=>!o)} style={{width:'100%', display:'flex', alignItems:'center', justifyContent:'space-between', gap:10, padding:'13px 16px', background:'none', border:'none', cursor:'pointer', fontFamily:'inherit', textAlign:'left'}}>
                 <span style={{fontSize:14, fontWeight:600, color:'#5a2a28'}}>Did your period start?</span>
-                <i className={`ti ti-chevron-${periodOpen?'up':'down'}`} style={{color:'#c08878', fontSize:16}}/>
+                <i className={`ti ti-chevron-${periodOpen?'up':'down'}`} aria-hidden="true" style={{color:'#c08878', fontSize:16}}/>
               </button>
               {periodOpen && (
                 <div style={{padding:'0 16px 14px'}}>
                   <div style={{fontSize:12,color:'#7a7268',marginBottom:10,lineHeight:1.5}}>Log the first day to start tracking your cycle. (If it began earlier, pick that date.)</div>
-                  <input type="date" value={periodDate} max={localDateStr()} onChange={e=>setPeriodDate(e.target.value)}
+                  <input type="date" aria-label="Period start date" value={periodDate} max={localDateStr()} onChange={e=>setPeriodDate(e.target.value)}
                     style={{width:'100%',padding:'10px 14px',borderRadius:10,border:'1px solid #ede8e0',fontSize:14,fontFamily:'inherit',marginBottom:10,boxSizing:'border-box'}}/>
-                  <button onClick={logPeriodStart} disabled={savingPeriod}
+                  <button type="button" onClick={logPeriodStart} disabled={savingPeriod}
                     style={{width:'100%',padding:'12px',borderRadius:10,background:'#c05858',color:'#fff',border:'none',fontSize:14,fontWeight:500,cursor:'pointer',fontFamily:'inherit'}}>
                     {savingPeriod?'Saving...':'Log period start'}
                   </button>
@@ -377,6 +437,19 @@ export default function Log() {
               )}
             </div>
           )
+        )}
+
+        {!isPath4 && !isPregnant && periodStarts.length > 0 && (
+          <details style={{margin:'-6px 0 16px',background:'#fff',border:'1px solid #ede8e0',borderRadius:12,padding:'10px 12px'}}>
+            <summary style={{fontSize:12,color:'#7a7268',cursor:'pointer'}}>Correct recorded period starts</summary>
+            <div style={{fontSize:11,color:'#9a9590',lineHeight:1.5,margin:'10px 0'}}>Remove only dates that were entered by mistake. This changes future estimates but keeps the daily symptom log.</div>
+            {[...periodStarts].reverse().slice(0,8).map(date => (
+              <div key={date} style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,padding:'8px 0',borderTop:'1px solid #f2eee8'}}>
+                <span style={{fontSize:13,color:'#3a3530'}}>{new Date(date+'T00:00:00').toLocaleDateString(undefined,{month:'long',day:'numeric',year:'numeric'})}</span>
+                <button type="button" disabled={savingPeriod} onClick={()=>removeRecordedPeriodStart(date)} style={{background:'none',border:'none',color:'#a04a42',fontSize:12,cursor:'pointer',fontFamily:'inherit'}}>Remove</button>
+              </div>
+            ))}
+          </details>
         )}
 
         {/* Flow + pain stay in the quick view during the period, they matter most then */}
@@ -409,37 +482,42 @@ export default function Log() {
           {isToday && <div style={{fontSize:11,color:'#9a9590',marginBottom:16,lineHeight:1.5}}>
             {periodEnded
               ? `Period logged as ${periodLen} day${periodLen===1?'':'s'}.`
-              : <>Day {cycleDay||1}. {periodLen ? `Yours usually last about ${periodLen} days` : 'Most periods last 3 to 7 days'}{lastPeriodDate?`, likely easing by ${addDaysStr(lastPeriodDate,(periodLen||7)-1)}`:''}. <button onClick={markPeriodEnded} style={{background:'none',border:'none',padding:0,color:'#c05858',fontWeight:600,textDecoration:'underline',cursor:'pointer',fontFamily:'inherit',fontSize:11}}>It ended</button></>}
+              : <>Day {cycleDay||1}. {periodLen ? `Yours usually last about ${periodLen} days` : 'Most periods last 3 to 7 days'}{lastPeriodDate?`, likely easing by ${addDaysStr(lastPeriodDate,(periodLen||7)-1)}`:''}. <button type="button" onClick={markPeriodEnded} style={{background:'none',border:'none',padding:0,color:'#c05858',fontWeight:600,textDecoration:'underline',cursor:'pointer',fontFamily:'inherit',fontSize:11}}>It ended</button></>}
           </div>}
         </>}
 
         {/* ── Add more detail (collapsed by default) ───────────────────────── */}
-        <button onClick={()=>setShowMore(v=>!v)} style={{width:'100%',padding:'13px 16px',borderRadius:12,border:'1px solid #ede8e0',background:'#f5f0e8',color:'#5a5248',fontSize:14,fontWeight:500,cursor:'pointer',fontFamily:'inherit',display:'flex',alignItems:'center',justifyContent:'center',gap:8,marginBottom:16}}>
-          <i className={`ti ti-chevron-${showMore?'up':'down'}`}/> {showMore?'Hide extra detail':'Add more detail'}
+        <button type="button" aria-expanded={showMore} onClick={()=>setShowMore(v=>!v)} style={{width:'100%',padding:'13px 16px',borderRadius:12,border:'1px solid #ede8e0',background:'#f5f0e8',color:'#5a5248',fontSize:14,fontWeight:500,cursor:'pointer',fontFamily:'inherit',display:'flex',alignItems:'center',justifyContent:'center',gap:8,marginBottom:16}}>
+          <i className={`ti ti-chevron-${showMore?'up':'down'}`} aria-hidden="true"/> {showMore?'Hide extra detail':'Add more detail'}
         </button>
 
         {showMore&&<>
-          {!isPath4&&<>
+          {!isPath4&&!isPregnant&&<>
             <span style={sLabel}>Sex drive</span>
-            <div style={{fontSize:11,color:'#9a9590',marginBottom:8,fontStyle:'italic'}}>Often rises around ovulation as estrogen and testosterone peak, and dips when estrogen is low. A small extra cycle signal.</div>
+            <div style={{fontSize:11,color:'#9a9590',marginBottom:8,fontStyle:'italic'}}>Sex drive varies and can be influenced by relationships, stress, sleep, health, medicines and hormones. It is tracked as an experience, not used to infer phase.</div>
             <PillRow opts={LIBIDO_OPTS} selected={log.libido} single onToggle={v=>set('libido',v)}/>
           </>}
 
           <span style={sLabel}>Resting heart rate</span>
           <PillRow opts={RHR_OPTS} selected={log.resting_hr} single onToggle={v=>{set('resting_hr',v);set('resting_hr_exact','')}}/>
-          <input type="number" min="30" max="120" placeholder="Or type exact bpm" value={log.resting_hr_exact}
+          <input type="number" min="30" max="120" aria-label="Resting heart rate, exact bpm" placeholder="Or type exact bpm" value={log.resting_hr_exact}
             onChange={e=>{set('resting_hr_exact',e.target.value);if(e.target.value)set('resting_hr',null)}}
             style={{width:'100%',padding:'10px 14px',borderRadius:10,border:'1px solid #ede8e0',fontSize:14,fontFamily:'inherit',marginBottom:16}}/>
 
-          {!isPath4&&<>
+          {!isPath4&&!isPregnant&&<>
             <span style={sLabel}>LH test</span>
-            <div id="lhTestWhy" style={{fontSize:11,color:'#9a9590',marginBottom:8,fontStyle:'italic'}}>Strongest single ovulation signal: a positive test means ovulation is likely within 12 to 36 hours. These signals are for understanding your body, not a reliable method of preventing or planning pregnancy.</div>
+            <div id="lhTestWhy" style={{fontSize:11,color:'#9a9590',marginBottom:8,fontStyle:'italic'}}>A positive home LH test can suggest a possible fertile window, but it does not guarantee ovulation or predict an exact time. Follow the test instructions. These signals are not contraception or a pregnancy-planning tool.</div>
             <PillRow opts={LH_OPTS} selected={log.lh_result} single onToggle={v=>set('lh_result',v)}/>
           </>}
 
-          <span style={sLabel}>Wrist temperature °C (optional)</span>
-          <div style={{fontSize:11,color:'#9a9590',marginBottom:8,fontStyle:'italic'}}>For this to work, measure first thing on waking, before you get up, at about the same time each day. A small sustained rise (0.3 to 0.5°C) is a sign ovulation has likely passed. (Zhu et al. 2021)</div>
-          <input type="number" step="0.1" min="34" max="40" placeholder="e.g. 36.2" value={log.wrist_temp} onChange={e=>set('wrist_temp',e.target.value)}
+          <span style={sLabel}>Temperature °C (optional)</span>
+          <div style={{fontSize:11,color:'#9a9590',marginBottom:8,fontStyle:'italic'}}>For basal temperature, measure immediately after waking and before getting up, using the same method and time each day. A sustained shift can retrospectively support an ovulation estimate, but illness, alcohol, sleep and device method can also change temperature.</div>
+          <select aria-label="Temperature source" value={log.temperature_source} onChange={e=>set('temperature_source',e.target.value)} style={{width:'100%',padding:'10px 12px',borderRadius:10,border:'1px solid #ede8e0',fontSize:14,fontFamily:'inherit',marginBottom:8,background:'#fff'}}>
+            <option value="oral-bbt">Oral basal thermometer</option>
+            <option value="wearable-wrist">Wearable / wrist sensor</option>
+            <option value="other">Other or unknown method</option>
+          </select>
+          <input type="number" step="0.1" min="34" max="40" aria-label="Temperature in Celsius (optional)" placeholder="e.g. 36.2" value={log.wrist_temp} onChange={e=>set('wrist_temp',e.target.value)}
             style={{width:'100%',padding:'12px 14px',borderRadius:10,border:'1px solid #ede8e0',fontSize:15,fontFamily:'inherit',marginBottom:16}}/>
 
           <span style={sLabel}>Workout today</span>
@@ -449,12 +527,12 @@ export default function Log() {
           <PillRow opts={DISRUPTORS} selected={log.disruptors} onToggle={v=>toggleMulti('disruptors',v)}/>
 
           <span style={sLabel}>Notes</span>
-          <textarea value={log.notes} onChange={e=>set('notes',e.target.value)} placeholder="Anything else worth noting today?" rows={3}
+          <textarea aria-label="Notes" value={log.notes} onChange={e=>set('notes',e.target.value)} placeholder="Anything else worth noting today?" rows={3}
             style={{width:'100%',padding:'10px 14px',borderRadius:10,border:'1px solid #ede8e0',fontSize:14,fontFamily:'inherit',marginBottom:16,resize:'vertical',color:'#2c2820'}}/>
 
           <div style={{marginBottom:20}}>
-            <button onClick={()=>setShowHormones(v=>!v)} style={{background:'none',border:'none',fontSize:13,color:'#9a9590',cursor:'pointer',fontFamily:'inherit',padding:0,display:'flex',alignItems:'center',gap:6}}>
-              <i className={`ti ti-chevron-${showHormones?'up':'down'}`}/> Hormone test results (optional)
+            <button type="button" aria-expanded={showHormones} onClick={()=>setShowHormones(v=>!v)} style={{background:'none',border:'none',fontSize:13,color:'#9a9590',cursor:'pointer',fontFamily:'inherit',padding:0,display:'flex',alignItems:'center',gap:6}}>
+              <i className={`ti ti-chevron-${showHormones?'up':'down'}`} aria-hidden="true"/> Hormone test results (optional)
             </button>
             {showHormones&&<div style={{marginTop:12,display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
               {[{label:'Estradiol pmol/L',field:'hormone_estradiol',ph:'e.g. 450'},
@@ -463,7 +541,7 @@ export default function Log() {
                 {label:'Cortisol nmol/L',field:'hormone_cortisol',ph:'e.g. 18.0'}].map(h=>(
                 <div key={h.field}>
                   <div style={{fontSize:11,color:'#9a9590',marginBottom:4}}>{h.label}</div>
-                  <input type="number" step="0.1" placeholder={h.ph} value={log[h.field]} onChange={e=>set(h.field,e.target.value)}
+                  <input type="number" step="0.1" aria-label={h.label} placeholder={h.ph} value={log[h.field]} onChange={e=>set(h.field,e.target.value)}
                     style={{width:'100%',padding:'10px 12px',borderRadius:8,border:'1px solid #ede8e0',fontSize:14,fontFamily:'inherit'}}/>
                 </div>
               ))}
@@ -481,10 +559,11 @@ export default function Log() {
           </div>
         </>}
 
-        <button onClick={()=>setLog(p=>({...p, symptoms:['None'], disruptors:['None of these']}))}
+        <button type="button" onClick={()=>setLog(p=>({...p, symptoms:['None'], disruptors:['None of these']}))}
           style={{width:'100%',padding:'12px',borderRadius:12,border:'1px solid #ede8e0',background:'#fff',color:'#7a7268',fontSize:13,fontWeight:500,cursor:'pointer',fontFamily:'inherit',marginBottom:10}}>
           Nothing notable today
         </button>
+        {saveError && <div role="alert" style={{fontSize:12,color:'#9a3f2c',marginBottom:10,lineHeight:1.5}}>{saveError}</div>}
         <button className="btn-primary" onClick={save} disabled={saving}>{saving?'Saving...':'Save check-in →'}</button>
       </div>
 
@@ -495,7 +574,7 @@ export default function Log() {
             <div style={{fontFamily:'Georgia,serif',fontStyle:'italic',fontSize:20,color:'#2c2820',marginBottom:8}}>{isToday ? 'Logged' : 'Saved'}</div>
             <div style={{fontSize:14,color:'#5a5248',lineHeight:1.6,marginBottom:6}}>
               {isToday
-                ? (savedPct!=null ? `Your algorithm is now ${savedPct}% personalised to you.` : 'Your data is helping the algorithm learn your pattern.')
+                ? (savedPct!=null ? `Your personal data coverage is now ${savedPct}%. Guidance remains an estimate.` : 'Your data is helping Empower look for a pattern over time.')
                 : `Updated ${new Date(logDate+'T00:00:00').toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'})}.`}
             </div>
             <div style={{fontSize:12,color:'#9a9590'}}>Heading to your dashboard...</div>

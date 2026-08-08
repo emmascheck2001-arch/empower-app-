@@ -24,7 +24,8 @@ describe('buildVisitSummary', () => {
       log('2026-06-02', { pain_rating: 4 }),
     ]
     const r = buildVisitSummary({ profile: { user_path: '1' }, logs, todayStr: '2026-06-02' })
-    expect(r.symptoms.some(s => /severe period pain/i.test(s.label))).toBe(true)
+    // Wording softened (no longer labels it "severe"), but 4+/5 pain must still surface.
+    expect(r.symptoms.some(s => /pain affecting daily life|pain.*4\+/i.test(s.label))).toBe(true)
     expect(r.patternsToRaise.some(p => /pain/i.test(p))).toBe(true)
   })
 
@@ -43,13 +44,16 @@ describe('buildVisitSummary', () => {
       log('2026-06-03', { energy: 'Very low' }),
     ]
     const r = buildVisitSummary({ profile: { user_path: '3' }, logs, todayStr: '2026-06-03' })
-    expect(r.tests.some(t => /ferritin/i.test(t))).toBe(true)
+    // Softened from "Full iron panel including ferritin" to a non-prescriptive iron-studies prompt.
+    expect(r.tests.some(t => /iron/i.test(t))).toBe(true)
   })
 
   it('gives perimenopause-specific questions and tests for path 4', () => {
     const r = buildVisitSummary({ profile: { user_path: '4' }, logs: [log('2026-06-01', { hot_flash_count: 5 })], todayStr: '2026-06-01' })
-    expect(r.questions.some(q => /hormone therapy/i.test(q))).toBe(true)
-    expect(r.tests.some(t => /FSH/i.test(t))).toBe(true)
+    // Questions/tests reworded to be non-prescriptive (no directive "hormone therapy"/"FSH"),
+    // but must still be perimenopause-specific for path 4.
+    expect(r.questions.some(q => /perimenopause|treatment options|bone/i.test(q))).toBe(true)
+    expect(r.tests.some(t => /perimenopause|testing|iron/i.test(t))).toBe(true)
   })
 
   it('computes age from birth_year', () => {

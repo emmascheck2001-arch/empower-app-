@@ -4,18 +4,18 @@
 // Science: Kissow 2022 (follicular strength), De Martin Topranin 2023 (luteal feels harder),
 // Herzberg 2017 (ovulatory ligament laxity), Daley 2015 (movement eases cramps), Kohrt 2004.
 export const MOVEMENT_TODAY = {
-  Menstrual:          { title: 'Gentle movement',      detail: 'A 20 to 30 minute walk, easy yoga, or mobility. Movement genuinely eases cramps. Save the heavy lifts for next week.' },
-  'Early follicular': { title: 'Ease back in',         detail: 'A lighter strength session or a brisk walk. Your energy is returning, so there is no need to push hard yet.' },
-  Follicular:         { title: 'A strong build day',   detail: 'A solid strength session or a faster run. Recovery is quickest this phase, so it is a great day to challenge yourself.' },
-  'Late follicular':  { title: 'Peak strength day',    detail: 'Your strongest window. Heavy lower body or compound lifts respond best now. Expect to feel powerful.' },
-  Ovulatory:          { title: 'Peak power day',       detail: 'High energy and strength today. Great for a hard session. Warm up thoroughly, as ligaments are a little laxer around ovulation.' },
-  'Early luteal':     { title: 'Steady strength',      detail: 'Your energy is still good. Keep your normal training volume with steady, solid work.' },
-  'Mid luteal':       { title: 'Go a little lighter',  detail: 'The same session honestly feels harder now. That is physiology, not weakness. Drop the load about 10 to 15 percent, or swap for tempo cardio or yoga.' },
-  'Late luteal':      { title: 'Recover gently',       detail: 'Keep it easy. A walk, yoga, or light stretching. Completing anything at all is a win this week.' },
-  Luteal:             { title: 'Lighter day',          detail: 'Reduce the intensity but stay consistent. Train to how you feel, not to the numbers.' },
-  Perimenopause:      { title: 'Strength is priority', detail: 'Resistance training 2 to 3 times a week protects muscle and bone through the transition. Even one session counts.' },
-  bc:                 { title: 'Train steady',         detail: 'Your hormones are steady on birth control, so train consistently. Progressive strength work pays off week to week.' },
-  observation:        { title: 'Move to feel good',    detail: 'Any movement counts and teaches the app your baseline. Walk, stretch, or train, whatever feels right today.' },
+  Menstrual:          { title: 'Planned or lighter option', detail: 'Training can continue if you feel well. Choose the lighter or recovery option for pain, heavy bleeding, low energy or a difficult warm-up.' },
+  'Early follicular': { title: 'Start with your plan', detail: 'Use your warm-up and recent performance to choose the load. Some people notice a shift here; others do not.' },
+  Follicular:         { title: 'Start with your plan', detail: 'Some studies report performance advantages here, but individual effects vary. Progress only when recent sessions support it.' },
+  'Late follicular':  { title: 'Planned session', detail: 'A possible higher-readiness window for some people. Let form, repetitions in reserve and your own history decide progression.' },
+  Ovulatory:          { title: 'Planned session', detail: 'Calendar phase alone does not establish a peak day. Warm up thoroughly and train from today’s readiness.' },
+  'Early luteal':     { title: 'Start with your plan', detail: 'Keep the planned session unless symptoms, sleep or your warm-up point toward a lighter option.' },
+  'Mid luteal':       { title: 'Planned or lighter option', detail: 'Some people notice higher perceived effort here. Adjust only if that is true for you today.' },
+  'Late luteal':      { title: 'Choose from readiness', detail: 'Use symptoms and your warm-up to choose the planned, lighter or recovery option. No automatic deload is required.' },
+  Luteal:             { title: 'Choose from readiness', detail: 'Cycle phase is context. Your symptoms, recovery and performance decide the session.' },
+  Perimenopause:      { title: 'Strength plus recovery', detail: 'Resistance training supports muscle and bone. Adapt exercises and loads to symptoms, experience and professional guidance.' },
+  bc:                 { title: 'Train from readiness', detail: 'Contraceptive responses vary by method and person. Progress from completed training, not an assumed hormone pattern.' },
+  observation:        { title: 'Choose what fits today', detail: 'Walk, stretch, train or recover. Logging what you chose and how it felt helps build your baseline.' },
 }
 
 export function getMovementToday(phase, subPhase) {

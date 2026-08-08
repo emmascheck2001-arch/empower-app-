@@ -3,7 +3,7 @@ import { buildDailyCoach } from './dailyCoach.js'
 
 const base = (over = {}) => ({
   phase: 'Follicular', subPhase: null, intensityModifier: 1.0,
-  nutritionTargets: { proteinG: 95, extraCalories: 0 },
+  nutritionTargets: { proteinRangeG: [80, 100], proteinRangePerKg: [1.2, 1.6] },
   recentLogs: [{}], ...over,
 })
 
@@ -28,10 +28,10 @@ describe('buildDailyCoach', () => {
     expect(c.mindset).toBeTruthy()
   })
 
-  it('uses the real protein target in nutrition (no fabricated number)', () => {
-    const c = buildDailyCoach(base({ nutritionTargets: { proteinG: 130, extraCalories: 250 } }), 9, 'Emma')
-    expect(c.nutrition.join(' ')).toMatch(/130g protein/)
-    expect(c.nutrition.join(' ')).toMatch(/250 extra calories/)
+  it('uses a profile-derived protein range without inventing calories', () => {
+    const c = buildDailyCoach(base({ nutritionTargets: { proteinRangeG: [110, 130] } }), 9, 'Emma')
+    expect(c.nutrition.join(' ')).toMatch(/110 to 130g/)
+    expect(c.nutrition.join(' ')).not.toMatch(/extra calories|calorie target/i)
   })
 
   it('adds an iron line only while menstruating', () => {
@@ -41,9 +41,11 @@ describe('buildDailyCoach', () => {
     expect(f.nutrition.join(' ')).not.toMatch(/iron-rich/)
   })
 
-  it('scales the training line to intensity', () => {
-    expect(buildDailyCoach(base({ intensityModifier: 1.05 }), 9).training).toMatch(/strong day/i)
-    expect(buildDailyCoach(base({ intensityModifier: 0.72 }), 9).training).toMatch(/light movement/i)
+  it('does not scale training from a phase multiplier', () => {
+    const high = buildDailyCoach(base({ intensityModifier: 1.05 }), 9).training
+    const low = buildDailyCoach(base({ intensityModifier: 0.72 }), 9).training
+    expect(high).toBe(low)
+    expect(high).toMatch(/warm-up|planned session/i)
   })
 
   it('NEVER prescribes a workout in pregnancy', () => {
@@ -53,9 +55,10 @@ describe('buildDailyCoach', () => {
   })
 
   it('surfaces a recovery caution ONLY when the user\'s own logs support it', () => {
-    expect(buildDailyCoach(base({ recentLogs: [{ sleep_quality: 'Poor' }] }), 9).recoveryNote).toMatch(/recovery may be lower/i)
-    expect(buildDailyCoach(base({ recentLogs: [{ energy: 'Very low' }] }), 9).recoveryNote).toMatch(/recovery may be lower/i)
-    expect(buildDailyCoach(base({ recentLogs: [{ energy: 'High', sleep_quality: 'Good' }] }), 9).recoveryNote).toBeNull()
+    const today = new Date(); const ds = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`
+    expect(buildDailyCoach(base({ recentLogs: [{ log_date:ds, sleep_quality: 'Poor' }] }), 9).recoveryNote).toMatch(/recovery may be lower/i)
+    expect(buildDailyCoach(base({ recentLogs: [{ log_date:ds, energy: 'Very low' }] }), 9).recoveryNote).toMatch(/recovery may be lower/i)
+    expect(buildDailyCoach(base({ recentLogs: [{ log_date:ds, energy: 'High', sleep_quality: 'Good' }] }), 9).recoveryNote).toBeNull()
   })
 
   it('acknowledges a poor night in the sleep line', () => {

@@ -2,7 +2,9 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { runSave } from '../lib/dbSave'
 import { getPhase, getLutealSubPhase } from '../lib/hormoneSync'
+import { diffCalendarDays } from '../lib/dateUtils'
 import TopBar from '../components/TopBar'
 import Spinner from '../components/Spinner'
 
@@ -35,7 +37,7 @@ function phaseForCard(card) {
   if (!card.last_period_date || !card.cycle_length) return null
   const last = new Date(card.last_period_date + 'T00:00:00')
   const now = new Date(); now.setHours(0,0,0,0)
-  const cd = Math.floor((now - last) / 86400000) + 1
+  const cd = diffCalendarDays(now, last) + 1
   if (cd < 1 || cd > card.cycle_length + 14) return null
   if (card.user_path === '4') return 'Perimenopause'
   const phase = getPhase(cd, card.cycle_length)
@@ -46,13 +48,14 @@ export default function Friends() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState(null)
-  const [vis, setVis] = useState({ show_phase:true, show_streak:true, show_sleep:false, show_workout:false })
+  const [vis, setVis] = useState({ show_phase:false, show_streak:false, show_sleep:false, show_workout:false })
   const [pendingIn, setPendingIn] = useState([])
   const [pendingOut, setPendingOut] = useState([])
   const [friends, setFriends] = useState([]) // [{ friendship_id, friend_id, card }]
   const [email, setEmail] = useState('')
   const [addStatus, setAddStatus] = useState('') // '' | sending | sent | not_found | already | error
   const [savingVis, setSavingVis] = useState(false)
+  const [visError, setVisError] = useState(null)
 
   useEffect(() => { load() }, [])
 
@@ -79,7 +82,8 @@ export default function Friends() {
       const friendCards = await Promise.all(accepted.map(async f => {
         const friendId = f.requester_id === u.id ? f.addressee_id : f.requester_id
         const { data: card } = await supabase.rpc('get_friend_card', { target_user_id: friendId })
-        return { friendship_id: f.id, friend_id: friendId, card: card || { name: f.requester_id === u.id ? f.addressee_name : f.requester_name } }
+        const visibleCard = Array.isArray(card) ? card[0] : card
+        return { friendship_id: f.id, friend_id: friendId, card: visibleCard || { name: f.requester_id === u.id ? f.addressee_name : f.requester_name } }
       }))
       setFriends(friendCards)
     } catch(e) { console.error(e) }
@@ -87,9 +91,11 @@ export default function Friends() {
   }
 
   async function saveVis(newVis) {
-    setVis(newVis)
-    setSavingVis(true)
-    await supabase.from('friend_visibility').upsert({ user_id: user.id, ...newVis }, { onConflict: 'user_id' })
+    const prevVis = vis
+    setVis(newVis)                 // optimistic
+    setSavingVis(true); setVisError(null)
+    const res = await runSave(supabase.from('friend_visibility').upsert({ user_id: user.id, ...newVis }, { onConflict: 'user_id' }))
+    if (!res.ok) { setVis(prevVis); setVisError(res.message) }   // revert so the toggle never lies
     setSavingVis(false)
   }
 
@@ -117,7 +123,8 @@ export default function Friends() {
   }
 
   async function respond(friendshipId, accept) {
-    await supabase.from('friendships').update({ status: accept ? 'accepted' : 'declined' }).eq('id', friendshipId)
+    const { error } = await supabase.rpc('respond_friend_request', { friendship_id:friendshipId, accept_request:accept })
+    if (error) { console.error(error); return }
     load()
   }
 
@@ -129,8 +136,8 @@ export default function Friends() {
   if (loading) return <><TopBar title="FRIENDS" backTo="/dashboard" /><div style={{ paddingTop:60 }}><Spinner /></div></>
 
   const VIS_OPTIONS = [
-    { key:'show_phase',  label:'Cycle phase',  desc:'Your current phase of cycle' },
-    { key:'show_streak', label:'Log streak',   desc:'How many days in a row you have logged' },
+    { key:'show_phase',  label:'Estimated cycle phase',  desc:'Shares an estimate derived from your period date; off by default' },
+    { key:'show_streak', label:'Log streak',   desc:'How many days in a row you have logged; off by default' },
     { key:'show_sleep',  label:'Sleep quality', desc:'Last night\'s sleep rating' },
     { key:'show_workout', label:'Workout feel', desc:'How your last workout felt' },
   ]
@@ -152,6 +159,7 @@ export default function Friends() {
               <Toggle on={vis[opt.key]} onChange={v => saveVis({ ...vis, [opt.key]: v })} />
             </div>
           ))}
+          {visError && <div role="alert" style={{ fontSize:12, color:'#c05858', marginTop:10, lineHeight:1.6 }}>{visError}</div>}
         </div>
 
         {/* Add a friend */}

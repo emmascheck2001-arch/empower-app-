@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { getTodayStatus, getPhase, getLutealSubPhase, getPregnancyWeek, getTrimester } from '../lib/hormoneSync'
+import { getTodayStatus, getPregnancyWeek, getTrimester, HealthDataError, parsePeriodStarts, getHormonalContext } from '../lib/hormoneSync'
 import { buildDailyCoach } from '../lib/dailyCoach'
 import { buildPhaseOutlook } from '../lib/phaseOutlook'
 import { syncPlanToWatch } from '../lib/watchBridge'
@@ -13,8 +13,11 @@ import { WeeklySummaryModal, markWeeklySummaryDismissed, markWeeklySummaryShown,
 import Confetti from '../components/Confetti'
 import HealthConnect from '../components/HealthConnect'
 import Disclaimer from '../components/Disclaimer'
-import { isNative, readWearableData } from '../lib/healthkit'
+import { isNative, readWearableData, connectHealth, healthStoreName } from '../lib/healthkit'
 import { wearableCycleSignals } from '../lib/wearableCycle'
+import { getUserLocal, removeUserLocal, setUserLocal } from '../lib/userLocalState'
+import { signOutAndClear } from '../lib/accountSession'
+import { diffCalendarDays } from '../lib/dateUtils'
 
 const HERO_GRADIENT = {
   Menstrual:      'linear-gradient(135deg,#3d2830,#2c1f25)',
@@ -29,42 +32,41 @@ const HERO_GRADIENT = {
   bc:             'linear-gradient(135deg,#26303a,#1a222c)',
 }
 
-// Short, honest, phase-based content for the "Today's Focus" headline and the "Today's Plan"
-// grid. All derived from cycle phase (no wearable/fabricated scores).
+// Cycle timing is context. It never overrides today's symptoms, recovery or planned training.
 const FOCUS_HEAD = {
-  Menstrual:'Rest and restore', Follicular:'High energy', 'Early follicular':'Energy building',
-  'Late follicular':'Peak energy', Ovulatory:'Peak energy', 'Early luteal':'Steady energy',
-  'Mid luteal':'Ease back', 'Late luteal':'Recovery mode', Luteal:'Recovery mode',
+  Menstrual:'Check in with yourself', Follicular:'Build your routine', 'Early follicular':'Build your routine',
+  'Late follicular':'Train to readiness', Ovulatory:'Train to readiness', 'Early luteal':'Stay consistent',
+  'Mid luteal':'Train to readiness', 'Late luteal':'Train to readiness', Luteal:'Train to readiness',
   Perimenopause:'Strong and steady', bc:'Steady', observation:'Tuning in',
 }
 const MOVE_PLAN = {
-  Menstrual:{t:'Gentle move',s:'Rest is fine'}, Follicular:{t:'Build strength',s:'45 to 60 min'},
-  'Early follicular':{t:'Ease back in',s:'40 to 50 min'}, 'Late follicular':{t:'Train hard',s:'Push today'},
-  Ovulatory:{t:'Train hard',s:'Push today'}, 'Early luteal':{t:'Steady work',s:'40 to 50 min'},
-  'Mid luteal':{t:'Lighter day',s:'Recover'}, 'Late luteal':{t:'Light move',s:'Recover'},
-  Luteal:{t:'Lighter day',s:'Recover'}, Perimenopause:{t:'Strength',s:'2-3x a week'},
+  Menstrual:{t:'Your planned move',s:'Adjust for symptoms'}, Follicular:{t:'Your planned move',s:'Use your warm-up'},
+  'Early follicular':{t:'Your planned move',s:'Use your warm-up'}, 'Late follicular':{t:'Your planned move',s:'Use your warm-up'},
+  Ovulatory:{t:'Your planned move',s:'Use your warm-up'}, 'Early luteal':{t:'Your planned move',s:'Use your warm-up'},
+  'Mid luteal':{t:'Your planned move',s:'Use your warm-up'}, 'Late luteal':{t:'Your planned move',s:'Adjust for symptoms'},
+  Luteal:{t:'Your planned move',s:'Use your warm-up'}, Perimenopause:{t:'Strength',s:'Build consistently'},
   bc:{t:'Stay steady',s:'Weekly gains'}, observation:{t:'Move to feel',s:'Listen in'},
 }
 const MINDSET_PLAN = {
-  Menstrual:{t:'Be gentle',s:'Rest is good'}, Follicular:{t:'Confident',s:'Take it on'},
-  'Early follicular':{t:'Motivated',s:'Build it'}, 'Late follicular':{t:'Confident',s:'Take it on'},
-  Ovulatory:{t:'At your best',s:'Own it'}, 'Early luteal':{t:'Calm focus',s:'Steady'},
-  'Mid luteal':{t:'Be kind',s:'It is hormonal'}, 'Late luteal':{t:'Be kind',s:'This passes'},
-  Luteal:{t:'Be kind',s:'It is hormonal'}, Perimenopause:{t:'Steady',s:'It passes'},
+  Menstrual:{t:'Notice today',s:'Your experience leads'}, Follicular:{t:'Notice today',s:'Your experience leads'},
+  'Early follicular':{t:'Notice today',s:'Your experience leads'}, 'Late follicular':{t:'Notice today',s:'Your experience leads'},
+  Ovulatory:{t:'Notice today',s:'Your experience leads'}, 'Early luteal':{t:'Notice today',s:'Your experience leads'},
+  'Mid luteal':{t:'Notice today',s:'Your experience leads'}, 'Late luteal':{t:'Notice today',s:'Your experience leads'},
+  Luteal:{t:'Notice today',s:'Your experience leads'}, Perimenopause:{t:'Notice today',s:'Your experience leads'},
   bc:{t:'Steady',s:'Consistent'}, observation:{t:'Tune in',s:'Notice, log'},
 }
 
 const PHASE_DESC_BASE = {
-  Menstrual:      'Estrogen and progesterone are at their lowest. Iron, anti-inflammatory foods, and rest matter most right now.',
-  Follicular:     'Rising estrogen supports faster recovery, stronger training sessions, and better mood. A good window to push training load.',
-  Ovulatory:      'Peak estrogen and testosterone together. Your body is primed for high-intensity training and your brain is performing at its sharpest.',
-  'Early luteal': 'Progesterone is rising with a calming effect. Energy is typically still good this sub-phase, so expect a steady, focused week ahead.',
-  'Mid luteal':   'Your core temperature and resting heart rate are measurably higher right now, so the same session feels harder. That is your physiology, not a drop in fitness.',
-  'Late luteal':  'Both hormones are dropping. Mood changes, lighter sleep, and PMS symptoms have a direct hormonal cause and will ease when your period begins.',
-  Luteal:         'Progesterone is elevated and your body is working harder than it appears. Recovery takes longer and training may feel heavier.',
+  Menstrual:      'This is your estimated menstrual window. Bleeding, pain and energy vary, so keep the planned session or adjust it based on how you feel.',
+  Follicular:     'This is your estimated follicular window. Some studies find small performance differences across the cycle, but individual responses vary widely.',
+  Ovulatory:      'This is your estimated ovulatory window, not confirmation that ovulation occurred. Your warm-up and recent recovery are better training guides than the calendar alone.',
+  'Early luteal': 'This is your estimated early-luteal window. Temperature and resting heart rate can shift for some people after ovulation, while training capacity often remains stable.',
+  'Mid luteal':   'This is your estimated mid-luteal window. If heat, sleep or perceived effort changes for you, logging it will help reveal whether that pattern repeats.',
+  'Late luteal':  'This is your estimated late-luteal window. Premenstrual symptoms are real for many people, but the type and severity are highly individual.',
+  Luteal:         'This is your estimated luteal window. Use symptoms, sleep, recent performance and your warm-up to decide whether to keep or adapt today’s plan.',
   Perimenopause:  'Your hormonal landscape is shifting. Resistance training, adequate protein, and consistent sleep are your strongest tools for managing symptoms and protecting long-term health.',
   observation:    'We are learning your baseline. Keep logging and your personalised recommendations will emerge from your own data over time.',
-  bc:             'Your contraception keeps your hormones steady, so there is no natural cycle to track. Consistent training and protein matter more than timing, and strength work is the best thing you can do for your long-term hormonal health.',
+  bc:             'Hormonal contraception changes natural-cycle tracking, and the effect depends on the method. Empower tracks your method, bleeding and symptoms without assigning a natural-cycle phase unless that is appropriate.',
 }
 
 function getPersonalisedPhaseDesc(phase, subPhase, recentLogs) {
@@ -83,18 +85,18 @@ function getPersonalisedPhaseDesc(phase, subPhase, recentLogs) {
   const hasHighEnergy = energyValues.some(e => e === 'High')
   const hasNegMood = allMoods.some(m => ['Anxious','Irritable','Low','Sad'].includes(m))
 
-  if (today?.energy === 'Very low' && ['Follicular','Ovulatory'].includes(phase))
-    return `${base} You logged very low energy today, which is worth noting even in a higher-energy phase. Keep logging so we can track the pattern.`
+  if (today?.energy === 'Very low')
+    return `${base} You logged very low energy today. Let today’s symptoms and recovery guide your choices, and keep logging if it continues.`
   if (hasCramps && phase === 'Menstrual')
-    return `${base} You logged cramps. Salmon, ginger, and magnesium can all help right now.`
+    return `${base} You logged cramps. Heat, gentle movement if comfortable, and your usual pain-relief plan may help. Seek care for severe or disruptive pain.`
   if (poorSleepCount >= 3)
-    return `${base} You have logged poor sleep ${poorSleepCount} times recently. Sleep drives hormonal recovery, so try magnesium glycinate and a cool room tonight.`
-  if (lowEnergyCount >= 3 && phase === 'Follicular')
-    return `${base} Your logs show consistently low energy this follicular phase. Rising estrogen usually supports energy, so this is worth tracking across your next cycle.`
+    return `${base} You have logged poor sleep ${poorSleepCount} times recently. Try a steady wind-down and a comfortably cool, dark room; persistent sleep problems deserve attention regardless of cycle timing.`
+  if (lowEnergyCount >= 3)
+    return `${base} Your recent logs show consistently low energy. Keep tracking the timing, but consider sleep, stress, illness, medicines, nutrition and other causes too.`
   if (hasHighEnergy && ['Follicular','Ovulatory'].includes(phase))
-    return `${base} You logged high energy, which is exactly what rising estrogen tends to do. A good week to push your training.`
+    return `${base} You logged high energy. If your warm-up agrees, you can continue with the session you planned.`
   if (hasNegMood && ['Late luteal','Mid luteal','Luteal'].includes(key))
-    return `${base} You logged anxious or low mood, which lines up with where you are in your cycle. Magnesium, protein, and stable blood sugar can all help.`
+    return `${base} You logged anxious or low mood. Cycle timing may be one contributor, alongside sleep, stress, health and life events. Keep logging the timing; seek support if it is severe or persistent.`
   return base
 }
 
@@ -114,19 +116,48 @@ export default function Dashboard() {
   const [lateOpen, setLateOpen] = useState(false)
   const [pendingFriends, setPendingFriends] = useState(0)
   const [wear, setWear] = useState(null)
+  const [healthConnected, setHealthConnected] = useState(false)
+  const [resyncing, setResyncing] = useState(false)
 
   useEffect(() => { load() }, [])
+
+  // Re-run the Apple Health / Health Connect permission sheet, then reload so the tiles re-read.
+  // Recovers the common case where Sleep or Wrist Temperature was left OFF in the first grant —
+  // iOS never re-prompts on its own, so we give her a manual way to turn them on.
+  async function resyncHealth() {
+    if (!d?.userId) return
+    setResyncing(true)
+    const ok = await connectHealth()
+    if (ok) {
+      const data = await readWearableData()
+      if (data?.hasAnyData) {
+        setUserLocal(d.userId, 'healthConnected', '1')
+        window.location.reload()
+        return
+      }
+    }
+    setResyncing(false)
+  }
+
+  function disconnectHealth() {
+    if (!d?.userId) return
+    removeUserLocal(d.userId, 'healthConnected')
+    removeUserLocal(d.userId, 'wearableSignals')
+    setHealthConnected(false)
+    setWear(null)
+  }
 
   // Read the connected wearable (native only) and surface the live numbers in Today's Focus.
   // Also refreshes the stored ovulation signal that the cycle guardian uses. No-op on web.
   useEffect(() => {
     if (!isNative()) return
-    let connected = false
-    try { connected = !!localStorage.getItem('healthConnected') } catch { /* ignore */ }
-    if (!connected) return
-    readWearableData().then(async data => {
+    let cancelled = false
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user || !getUserLocal(user.id, 'healthConnected') || cancelled) return
+      setHealthConnected(true)
+      const data = await readWearableData()
       if (!data) return
-      try { localStorage.setItem('wearableSignals', JSON.stringify(wearableCycleSignals(data))) } catch { /* ignore */ }
+      setUserLocal(user.id, 'wearableSignals', JSON.stringify(wearableCycleSignals(data)))
       const rhr = data.restingHR?.[0] != null ? Math.round(data.restingHR[0]) : null
       const tempC = data.temps?.length ? Math.round(data.temps[data.temps.length - 1].value * 10) / 10 : null
       const sleepH = data.sleepHours != null ? Math.round(data.sleepHours * 10) / 10 : null
@@ -137,22 +168,27 @@ export default function Dashboard() {
       // data (blank days stay blank), and only plausible values. A partial upsert leaves her
       // manually-logged fields (energy/mood/symptoms) untouched.
       try {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) return
         const dateStr = localDateStr()
         // Only FILL fields that are currently empty for today. This makes the wearable the default
         // source, while any manual value you type in the Log wins and is never overwritten on a
         // later app open (a set value is left alone).
-        const { data: existing } = await supabase.from('daily_logs').select('resting_hr_exact,wrist_temp,sleep_hours').eq('user_id', user.id).eq('log_date', dateStr).maybeSingle()
-        const payload = { user_id: user.id, log_date: dateStr }
+        const [{ data: existing }, { data: wearableProfile }] = await Promise.all([
+          supabase.from('daily_logs').select('resting_hr_exact,wrist_temp,sleep_hours').eq('user_id', user.id).eq('log_date', dateStr).maybeSingle(),
+          supabase.from('profiles').select('user_path,bc_type').eq('id', user.id).maybeSingle(),
+        ])
+        const payload = { user_id: user.id, log_date: dateStr, hormonal_context:getHormonalContext(wearableProfile) }
         if (existing?.resting_hr_exact == null && rhr != null && rhr >= 25 && rhr <= 200) payload.resting_hr_exact = rhr
-        if (existing?.wrist_temp == null && tempC != null && tempC >= 30 && tempC <= 43) payload.wrist_temp = tempC
+        if (existing?.wrist_temp == null && tempC != null && tempC >= 30 && tempC <= 43) {
+          payload.wrist_temp = tempC
+          payload.temperature_source = 'wearable-wrist'
+        }
         if (existing?.sleep_hours == null && sleepH != null && sleepH >= 0 && sleepH <= 24) payload.sleep_hours = sleepH
-        if (Object.keys(payload).length > 2) {
+        if (Object.keys(payload).length > 3) {
           await supabase.from('daily_logs').upsert(payload, { onConflict: 'user_id,log_date' })
         }
       } catch { /* non-fatal, the numbers still show on the dashboard */ }
     }).catch(() => {})
+    return () => { cancelled = true }
   }, [])
 
   async function load() {
@@ -160,14 +196,16 @@ export default function Dashboard() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { navigate('/login', { replace: true }); return }
 
-      const todayStr = localDateStr()
-      const [{ data: profile }, { data: cycleData }, { data: recentLogs }, { data: twoWeekLogs }, { data: historyLogs }, { count: todayLoggers }, { data: pendingRequests }] = await Promise.all([
+      const cutoffDate = (daysAgo) => {
+        const date = new Date(); date.setHours(0,0,0,0); date.setDate(date.getDate() - daysAgo)
+        return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`
+      }
+      const [{ data: profile }, { data: cycleData }, { data: rawRecentLogs }, { data: rawTwoWeekLogs }, { data: rawHistoryLogs }, { data: pendingRequests }] = await Promise.all([
         supabase.from('profiles').select('*').eq('id', user.id).maybeSingle(),
         supabase.from('cycle_data').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(1).maybeSingle(),
-        supabase.from('daily_logs').select('energy,resting_hr,wrist_temp,log_date,sleep_quality,disruptors,symptoms,mood').eq('user_id', user.id).order('log_date', { ascending: false }).limit(7),
-        supabase.from('daily_logs').select('log_date,energy,sleep_quality,mood,workout_feel,stress_level').eq('user_id', user.id).order('log_date', { ascending: false }).limit(14),
-        supabase.from('daily_logs').select('log_date,energy,mood,symptoms').eq('user_id', user.id).order('log_date', { ascending: false }).limit(160),
-        supabase.from('daily_logs').select('*', { count: 'exact', head: true }).eq('log_date', todayStr),
+        supabase.from('daily_logs').select('energy,resting_hr,resting_hr_exact,wrist_temp,log_date,sleep_quality,disruptors,symptoms,mood,hormonal_context').eq('user_id', user.id).gte('log_date', cutoffDate(6)).order('log_date', { ascending: false }),
+        supabase.from('daily_logs').select('log_date,energy,sleep_quality,mood,workout_feel,stress_level,hormonal_context,workout_imported,workout_feel_reported').eq('user_id', user.id).gte('log_date', cutoffDate(13)).order('log_date', { ascending: false }),
+        supabase.from('daily_logs').select('log_date,energy,mood,symptoms,hormonal_context,workout_imported,workout_feel_reported').eq('user_id', user.id).order('log_date', { ascending: false }).limit(365),
         supabase.from('friendships').select('id').eq('addressee_id', user.id).eq('status', 'pending'),
       ])
       setPendingFriends(pendingRequests?.length || 0)
@@ -177,7 +215,7 @@ export default function Dashboard() {
       // broken dashboard.
       if (!profile || !profile.onboarding_complete) { navigate('/setup', { replace: true }); return }
 
-      const bw = profile?.body_weight_kg || 65
+      const bw = profile?.body_weight_kg || null
       const isPath4 = profile?.user_path === '4'
       // Hormonal BC (path 5, excluding the non-hormonal copper IUD) suppresses the
       // natural cycle, these users have no real cycle phase even if a last-period
@@ -187,11 +225,22 @@ export default function Dashboard() {
       // Single source of truth shared with Workout/Nutrition. Fetched once here so the
       // dashboard can never disagree with those screens about the user's phase.
       let status = null
-      try { status = await getTodayStatus(supabase, user.id) } catch { /* ignore */ }
+      try { status = await getTodayStatus(supabase, user.id) }
+      catch (e) {
+        // A real data-loading failure must show the explicit "couldn't load" UI below, never a
+        // fabricated/observation dashboard. Unexpected non-critical errors fall through with null.
+        if (e instanceof HealthDataError) throw e
+        console.error('getTodayStatus (non-critical):', e)
+      }
       // Push today's real phase-based plan to the paired Apple Watch as soon as the app opens
       // (iOS only; no-ops on web/Android or with no watch). Without this the watch only synced
       // when the Workout screen was opened, so it kept showing the built-in sample ("Luteal").
       if (status) syncPlanToWatch(status)
+      const contextKey = status?.contextKey || getHormonalContext(profile)
+      const inCurrentContext = log => log?.hormonal_context ? log.hormonal_context === contextKey : contextKey === 'natural-cycle'
+      const recentLogs = (rawRecentLogs || []).filter(inCurrentContext)
+      const twoWeekLogs = (rawTwoWeekLogs || []).filter(inCurrentContext)
+      const historyLogs = (rawHistoryLogs || []).filter(inCurrentContext)
 
       let phase = 'observation', subPhase = null, cycleDay = null, cycleLen = 28, daysLeft = null, confidence = 0.05
       let bcBleedDay = null, bcInBleedWindow = false
@@ -200,56 +249,39 @@ export default function Dashboard() {
       if (isPath4) {
         phase = 'Perimenopause'; subPhase = status?.subPhase || null; confidence = status?.confidence ?? 0.5
       } else if (isHormonalBC && status) {
-        // On hormonal birth control the natural cycle is suppressed and ovulation is
-        // paused, so we never label Follicular/Ovulatory/Luteal phases, even when a
-        // withdrawal-bleed date exists. The hormones are held steady by the method.
-        // BUT these users still get a withdrawal bleed and period-like symptoms, so
-        // if they gave a bleed date we still track their pill-pack cycle and predict
-        // the next bleed. This is accurate (the pack repeats on a fixed schedule) and
-        // keeps the screen genuinely useful for them.
+        // Hormonal methods affect ovulation differently, so we do not assign an unverified
+        // natural phase. For a user who explicitly supplied a scheduled pill/patch/ring bleed,
+        // retain a pack-calendar estimate; continuous regimens and unscheduled bleeding skip it.
         phase = 'bc'
         subPhase = status.subPhase            // e.g. "Combined pill", "Hormonal IUD"
         confidence = status.confidence || 0.3
-        if (cycleData?.last_period_date) {
+        const hasScheduledCycle = ['pill', 'patch', 'ring'].includes(profile?.bc_type)
+        if (hasScheduledCycle && cycleData?.last_period_date) {
           const lastBleed = new Date(cycleData.last_period_date + 'T00:00:00')
           const today = new Date(); today.setHours(0,0,0,0)
           cycleLen = cycleData.cycle_length || 28
-          let day = Math.floor((today - lastBleed) / 86400000) + 1
+          let day = diffCalendarDays(today, lastBleed) + 1
           if (day > cycleLen) day = ((day - 1) % cycleLen) + 1   // fold into the current pack
           bcBleedDay = day
           daysLeft = Math.max(0, cycleLen - day + 1)
           // Period-like symptoms cluster around the withdrawal bleed (pack start / end)
           bcInBleedWindow = day <= 5 || daysLeft <= 2
         }
-      } else if (cycleData?.last_period_date) {
-        const lastPeriod = new Date(cycleData.last_period_date + 'T00:00:00')
-        const today = new Date(); today.setHours(0,0,0,0)
-        cycleDay = Math.floor((today - lastPeriod) / 86400000) + 1
-        cycleLen = cycleData.cycle_length || 28
-        daysLeft = Math.max(0, cycleLen - cycleDay + 1)
-        if (cycleDay > 0 && cycleDay <= cycleLen + 7) {
-          phase = getPhase(cycleDay, cycleLen)
-          subPhase = phase === 'Luteal' ? getLutealSubPhase(cycleDay, cycleLen) : null
-          // Use the canonical confidence from getTodayStatus, it grows with the
-          // user's whole logging history and never resets. Falling back to a small
-          // base only if the shared status failed to load.
-          confidence = status?.confidence ?? 0.45
-        }
-      } else {
-        // No cycle data. getTodayStatus may have inferred a phase from the user's
-        // symptoms, if so, adopt it (flagged as an estimate) so every screen agrees.
-        // Otherwise stay in honest observation mode. Confidence comes from the shared
-        // status either way (the inference carries its own, lower confidence).
-        confidence = status?.confidence ?? 0.05
-        if (status?.estimated && status?.phase && status.phase !== 'observation') {
-          phase = status.phase
-          subPhase = status.subPhase || null
-          estimated = true
-        }
+      } else if (status) {
+        // The shared status pipeline includes learned cycle length, symptom inference, and
+        // wearable temperature-shift estimates. It is the only phase source used by every screen.
+        phase = status.phase || 'observation'
+        subPhase = status.subPhase || null
+        cycleDay = status.cycleDay ?? null
+        cycleLen = status.cycleLen || 28
+        daysLeft = status.daysUntilPeriod ?? null
+        confidence = status.confidence ?? 0.05
+        estimated = !!status.estimated
       }
 
       const today = localDateStr()
-      const { data: todayLog } = await supabase.from('daily_logs').select('energy,sleep_quality,mood,symptoms,workout_feel,disruptors,resting_hr,resting_hr_exact,wrist_temp,lh_result,flow_volume,pain_rating').eq('user_id', user.id).eq('log_date', today).maybeSingle()
+      const { data: rawTodayLog } = await supabase.from('daily_logs').select('energy,sleep_quality,mood,symptoms,workout_feel,disruptors,resting_hr,resting_hr_exact,wrist_temp,lh_result,flow_volume,pain_rating,hormonal_context').eq('user_id', user.id).eq('log_date', today).maybeSingle()
+      const todayLog = inCurrentContext(rawTodayLog) ? rawTodayLog : null
       // "Logged" means the user actively logged something (energy/sleep/mood/symptoms/etc.), NOT
       // merely that a row exists — the wearable auto-sync writes a temp/HR/sleep-only row, and that
       // must never count as her having logged the day (would fake the streak and hide "Log today").
@@ -260,7 +292,7 @@ export default function Dashboard() {
       if (recentLogs?.length) {
         const check = new Date(); check.setHours(0,0,0,0)
         for (const log of recentLogs.filter(isManualLog)) {
-          const diff = Math.floor((check - new Date(log.log_date + 'T00:00:00')) / 86400000)
+          const diff = diffCalendarDays(check, log.log_date + 'T00:00:00')
           if (diff === streak) { streak++; check.setDate(check.getDate() - 1) } else break
         }
       }
@@ -276,11 +308,14 @@ export default function Dashboard() {
       // Compute this week's insights every day so the dashboard "Insights" card can show them.
       // (The auto-popping standalone card still only appears on Sundays, as a deliberate recap.)
       if (twoWeekLogs) {
-        const thisWeekCount = twoWeekLogs.filter(l => Math.floor((new Date() - new Date(l.log_date + 'T00:00:00')) / 86400000) < 7).length
+        const thisWeekCount = twoWeekLogs.filter(l => diffCalendarDays(new Date(), l.log_date + 'T00:00:00') < 7).length
         if (thisWeekCount >= 1) {
-          const summary = buildWeeklySummary(twoWeekLogs, phase, subPhase, confidence, daysLeft, cycleDay, cycleData?.cycle_length || 28)
+          // Pass the honest personalisation fraction (not the internal flag-gating confidence) so
+          // the weekly recap shows "Personalisation is at X%" consistent with the rest of the app.
+          const personalisationFrac = status?.personalisationPct != null ? status.personalisationPct / 100 : confidence
+          const summary = buildWeeklySummary(twoWeekLogs, phase, subPhase, personalisationFrac, daysLeft, cycleDay, cycleData?.cycle_length || 28)
           // Looking ahead, predicted from her own past cycles (needs a couple of cycles first).
-          const lookingAhead = buildPhaseOutlook({ logs: historyLogs || [], lastPeriodDate: cycleData?.last_period_date, cycleLen: cycleData?.cycle_length || 28, cycleDay })
+          const lookingAhead = buildPhaseOutlook({ logs: historyLogs || [], lastPeriodDate: cycleData?.last_period_date, periodStarts: parsePeriodStarts(cycleData), cycleLen: cycleData?.cycle_length || 28, cycleDay })
           setWeeklySummary({ ...summary, lookingAhead })
           // Weekly review = a once-a-week moment, shown on the FIRST app-open of the week
           // (not every day). Guards, in order: (1) shouldShowWeeklySummary — not already shown
@@ -289,19 +324,17 @@ export default function Dashboard() {
           // so we never show a hollow one. We only mark it shown when it actually opens, so a
           // thin early-week review can still appear later once there's enough to say.
           const hasContent = (summary.highlights?.length >= 1) || summary.workouts > 0
-          if (hasContent && shouldShowWeeklySummary(twoWeekLogs)) {
-            markWeeklySummaryShown()
+          if (hasContent && shouldShowWeeklySummary(twoWeekLogs, user.id)) {
+            markWeeklySummaryShown(user.id)
             setTimeout(() => { setShowConfetti(true); setWeeklyModal(true) }, 400)
           }
         }
       }
 
-      // Hormonal BC users who track a bleed date now get cycle phases too, flagged as an
-      // estimate (hormonal contraception can flatten the natural hormone swings).
       // Daily Coach, pure synthesis of the status we already have (no new data). First name only.
       const firstName = (profile?.name || '').trim().split(/\s+/)[0] || null
       const coach = buildDailyCoach(status, new Date().getHours(), firstName)
-      setD({ profile, phase, subPhase, cycleDay, cycleLen, daysLeft, confidence, bw, proteinG: status?.nutritionTargets?.proteinG || null, bcBleedDay, bcInBleedWindow, alreadyLogged, todayLog, streak, recentLogs, twoWeekLogs, anomalyItems, isPath4, estimated, latePeriod: status?.latePeriod || false, daysLate: status?.daysLate || 0, latePeriodInsights: status?.latePeriodInsights || [], nextPeriod: status?.nextPeriodPrediction || null, userEmail: user.email, todayLoggers: todayLoggers || 0, coach, status })
+      setD({ userId:user.id, profile, phase, subPhase, cycleDay, cycleLen, daysLeft, confidence, bw, proteinRangeG: status?.nutritionTargets?.proteinRangeG || null, bcBleedDay, bcInBleedWindow, alreadyLogged, todayLog, streak, recentLogs, twoWeekLogs, anomalyItems, isPath4, estimated, latePeriod: status?.latePeriod || false, daysLate: status?.daysLate || 0, latePeriodInsights: status?.latePeriodInsights || [], nextPeriod: status?.nextPeriodPrediction || null, userEmail: user.email, coach, status })
     } catch(e) { console.error(e) }
     finally { setLoading(false) }
   }
@@ -322,7 +355,7 @@ export default function Dashboard() {
   if (d.profile?.user_path === '6') {
     const week = getPregnancyWeek(d.profile.pregnancy_due_date)
     const tri = getTrimester(week) || 'Pregnancy'
-    const pProtein = d.proteinG || Math.round((d.bw || 65) * 1.1)
+    const pProtein = d.proteinRangeG ? `${d.proteinRangeG[0]}–${d.proteinRangeG[1]}g` : 'Add weight for a range'
     const navCard = (icon, iconColor, iconBg, title, sub, to) => (
       <div className="card" style={{ cursor:'pointer', marginBottom:10 }} onClick={() => navigate(to)}>
         <div style={{ display:'flex', alignItems:'center', gap:12 }}>
@@ -336,7 +369,7 @@ export default function Dashboard() {
       <>
         <div style={{ background:'#f5f0e8', padding:'calc(20px + var(--sat)) 20px 16px', borderBottom:'1px solid #ede8e0', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
           <div style={{ fontSize:13, fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase' }}>Em~power</div>
-          <button onClick={async () => { await supabase.auth.signOut(); navigate('/login', { replace:true }) }} style={{ background:'none', border:'none', fontSize:12, color:'#9a9590', cursor:'pointer', fontFamily:'inherit' }}>Sign out</button>
+          <button onClick={async () => { await signOutAndClear(d.userId); navigate('/login', { replace:true }) }} style={{ background:'none', border:'none', fontSize:12, color:'#9a9590', cursor:'pointer', fontFamily:'inherit' }}>Sign out</button>
         </div>
         <div style={{ padding:'16px 16px 100px' }}>
           <div style={{ borderRadius:16, padding:'28px 24px', color:'#e8e0d4', background:'linear-gradient(135deg, #3a2c3a, #2a1f2a)', marginBottom:12 }}>
@@ -355,7 +388,7 @@ export default function Dashboard() {
             <div style={{ fontSize:11, color:'#9a6a58', marginTop:8, fontStyle:'italic' }}>Urgent maternal warning signs (CDC / ACOG). In crisis, call or text 988.</div>
           </div>
 
-          {navCard('ti-salad', '#2a6a2a', '#e8f8e8', 'Prenatal nutrition', `Aim for about ${pProtein}g protein today`, '/nutrition')}
+          {navCard('ti-salad', '#2a6a2a', '#e8f8e8', 'Prenatal nutrition', `Protein guidance: ${pProtein}`, '/nutrition')}
           {navCard('ti-book-2', '#7a4a9a', '#f0e8f8', 'Your pregnancy guide', 'Trimesters, safe movement, what to expect', '/learn')}
           {navCard('ti-moon', '#2a4a7a', '#e8f0f8', 'Sleep guide', 'Rest well through pregnancy', '/sleep')}
           {navCard('ti-message-chatbot', '#6a6a9a', '#f0f0f8', 'Ask Em~power', 'Questions about your body and your data', '/ask')}
@@ -395,7 +428,7 @@ export default function Dashboard() {
             style={{ background:'none', border:'none', fontSize:12, color:'#7a6a50', cursor:'pointer', fontFamily:'inherit', fontWeight:500 }}>
             Friends{pendingFriends > 0 ? ` (${pendingFriends})` : ''}
           </button>
-          <button onClick={async () => { await supabase.auth.signOut(); navigate('/login', { replace:true }) }}
+          <button onClick={async () => { await signOutAndClear(d.userId); navigate('/login', { replace:true }) }}
             style={{ background:'none', border:'none', fontSize:12, color:'#9a9590', cursor:'pointer', fontFamily:'inherit' }}>
             Sign out
           </button>
@@ -412,7 +445,7 @@ export default function Dashboard() {
         )}
 
         {/* Apple Health / wearable connect — native iOS only, renders nothing on web. */}
-        <HealthConnect />
+        <HealthConnect userId={d.userId} />
 
         {/* Retention: prompt install (home-screen apps return far better than browser tabs). */}
         <InstallPrompt />
@@ -444,7 +477,7 @@ export default function Dashboard() {
             : cycleDay ? `Day ${cycleDay} of ${cycleLen}` : estimated ? 'Estimated from your symptoms' : 'Tracking your patterns'
           const np = d.nextPeriod
           const stripT = dt => { const x = new Date(dt); x.setHours(0,0,0,0); return x }
-          const daysToNext = np ? Math.max(0, Math.round((stripT(np.predictedDate) - stripT(new Date())) / 86400000)) : daysLeft
+          const daysToNext = np ? Math.max(0, diffCalendarDays(stripT(np.predictedDate), stripT(new Date()))) : daysLeft
           const fmtLong = dt => new Date(dt).toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' })
           const fmtShort = dt => new Date(dt).toLocaleDateString('en-US', { month:'short', day:'numeric' })
           return (
@@ -456,15 +489,15 @@ export default function Dashboard() {
               <div style={{ fontSize:14, color:'#7a7268' }}>{d.coach?.focus?.sub || ''}</div>
               {d.coach?.recoveryNote && <div style={{ fontSize:12, color:'#8a6a3a', background:'#fbf3e6', border:'1px solid #ece0c8', borderRadius:10, padding:'9px 12px', lineHeight:1.5, marginTop:12 }}>{d.coach.recoveryNote}</div>}
               <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:8, marginTop:16, paddingTop:16, borderTop:'1px solid #ece4d6' }}>
-                {(wear?.hasAny ? [
+                {(healthConnected ? [
                   // Connected to Apple Health: the tiles show live wearable data instead of
-                  // manual logs (temperature, sleep, heart rate). Cycle day stays the same.
-                  // Blank when there is no Apple Health data for that signal — never show fake or
-                  // placeholder values, because people will not wear their device every day.
-                  { icon:'ti-temperature', label:'Temp', val: wear.tempC != null ? `${wear.tempC.toFixed(1)}°` : '' },
-                  { icon:'ti-zzz', label:'Sleep', val: wear.sleepHours != null ? `${wear.sleepHours.toFixed(1)}h` : '' },
-                  { icon:'ti-heartbeat', label:'Heart rate', val: wear.rhr != null ? `${wear.rhr} bpm` : '' },
-                  { icon:'ti-calendar-heart', label:'Cycle', val: cycleDay ? `Day ${cycleDay}` : '' },
+                  // manual logs (temperature, sleep, heart rate). Cycle day stays the same. A
+                  // signal with no data yet shows a dash (never a fake value) — the hint below
+                  // explains how to turn it on, since people will not wear their device every day.
+                  { icon:'ti-temperature', label:'Temp', val: wear?.tempC != null ? `${wear.tempC.toFixed(1)}°` : '—' },
+                  { icon:'ti-zzz', label:'Sleep', val: wear?.sleepHours != null ? `${wear.sleepHours.toFixed(1)}h` : '—' },
+                  { icon:'ti-heartbeat', label:'Heart rate', val: wear?.rhr != null ? `${wear.rhr} bpm` : '—' },
+                  { icon:'ti-calendar-heart', label:'Cycle', val: cycleDay ? `Day ${cycleDay}` : '—' },
                 ] : [
                   { icon:'ti-bolt', label:'Energy', val: tl.energy || ', ' },
                   { icon:'ti-zzz', label:'Sleep', val: tl.sleep_quality || ', ' },
@@ -478,10 +511,26 @@ export default function Dashboard() {
                   </div>
                 ))}
               </div>
-              {wear?.hasAny && (
+              {healthConnected && (
                 <div style={{ fontSize:10.5, fontWeight:600, letterSpacing:'0.04em', textTransform:'uppercase', color:'#b0a488', marginTop:10, textAlign:'center' }}>
-                  <i className="ti ti-heartbeat" style={{ fontSize:12, marginRight:4, verticalAlign:'-1px' }} />Live from Apple Health
+                  <i className="ti ti-heartbeat" style={{ fontSize:12, marginRight:4, verticalAlign:'-1px' }} />Live from {healthStoreName()}
                 </div>
+              )}
+              {healthConnected && (wear?.tempC == null || wear?.sleepHours == null) && (() => {
+                const missing = [wear?.tempC == null && 'temperature', wear?.sleepHours == null && 'sleep'].filter(Boolean).join(' and ')
+                return (
+                  <div style={{ fontSize:12, color:'#8a6a3a', background:'#fbf3e6', border:'1px solid #ece0c8', borderRadius:10, padding:'9px 12px', lineHeight:1.5, marginTop:10 }}>
+                    No {missing} from {healthStoreName()} yet. Open {healthStoreName()} → Sharing → Apps → Em~power and switch on {missing}, and wear your watch to bed so it can record overnight {missing}.
+                    <button onClick={resyncHealth} disabled={resyncing} style={{ display:'block', width:'100%', marginTop:8, padding:'8px', borderRadius:9, background:'#2c2820', color:'#f5f0e8', border:'none', fontSize:12.5, fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>
+                      {resyncing ? 'Syncing…' : `Re-sync ${healthStoreName()} permissions`}
+                    </button>
+                  </div>
+                )
+              })()}
+              {healthConnected && (
+                <button onClick={disconnectHealth} style={{ display:'block', margin:'9px auto 0', background:'none', border:'none', color:'#9a9590', fontSize:11.5, textDecoration:'underline', cursor:'pointer', fontFamily:'inherit' }}>
+                  Disconnect in Em~power
+                </button>
               )}
               {!alreadyLogged && <button onClick={() => navigate('/log')} style={{ width:'100%', marginTop:14, padding:'11px', borderRadius:12, background:'#2c2820', color:'#f5f0e8', border:'none', fontSize:14, fontWeight:500, cursor:'pointer', fontFamily:'inherit' }}>Log today</button>}
             </div>
@@ -515,7 +564,7 @@ export default function Dashboard() {
                   </div>
                 </div>
               )}
-              {estimated && <div style={{ fontSize:12, color:'rgba(232,224,212,0.6)', lineHeight:1.5, marginTop:12, fontStyle:'italic' }}>Read from your logged symptoms, not a confirmed cycle. Log your period for exact tracking.</div>}
+              {estimated && <div style={{ fontSize:12, color:'rgba(232,224,212,0.6)', lineHeight:1.5, marginTop:12, fontStyle:'italic' }}>Estimated from cycle-specific observations without a period anchor. Logging a period start improves the calendar estimate, but no method makes it exact.</div>}
               <button onClick={() => navigate('/workout')} style={{ marginTop:16, background:'rgba(232,224,212,0.16)', border:'1px solid rgba(232,224,212,0.3)', borderRadius:22, padding:'9px 16px', color:'#e8e0d4', fontSize:13, fontWeight:500, cursor:'pointer', fontFamily:'inherit', display:'inline-flex', alignItems:'center', gap:6 }}>Plan workout <i className="ti ti-chevron-right" style={{ fontSize:14 }} /></button>
             </div>
 
@@ -527,7 +576,7 @@ export default function Dashboard() {
             <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:10, marginBottom:12 }}>
               {[
                 { icon:'ti-barbell', c:'#5f7a4f', bg:'#e8eede', label:'Move', t:move.t, s:move.s, to:'/workout' },
-                { icon:'ti-salad', c:'#9a7838', bg:'#f2e9d4', label:'Nourish', t:'Protein', s: d.proteinG ? `${d.proteinG}g goal` : 'Fuel well', to:'/nutrition' },
+                { icon:'ti-salad', c:'#9a7838', bg:'#f2e9d4', label:'Nourish', t:'Protein', s: d.proteinRangeG ? `${d.proteinRangeG[0]}–${d.proteinRangeG[1]}g range` : 'Add weight for a range', to:'/nutrition' },
                 { icon:'ti-moon', c:'#7a6f5c', bg:'#ece5d7', label:'Restore', t:'Sleep', s:'7 to 9 hrs', to:'/sleep' },
                 { icon:'ti-mood-heart', c:'#9a6656', bg:'#f0e2da', label:'Mindset', t:mind.t, s:mind.s, to:null },
               ].map((p,i) => (
@@ -556,9 +605,9 @@ export default function Dashboard() {
         {/* Teen reassurance, irregular cycles are normal in the years after menarche */}
         {teenIrregular && (
           <div style={{ background:'#f5f0e8', borderRadius:14, padding:16, marginBottom:12 }}>
-            <div style={{ fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:16, marginBottom:6 }}>Irregular is normal right now</div>
+            <div style={{ fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:16, marginBottom:6 }}>Early cycles can be irregular</div>
             <div style={{ fontSize:13, color:'#5a5248', lineHeight:1.65 }}>
-              In the first few years after your first period, irregular cycles are completely normal and expected. It can take up to about three years for a young cycle to settle into a steady rhythm. Tracking now is the best way to learn your own pattern, so you will know what is normal for you. (ACOG, Menstruation in Girls and Adolescents)
+              Irregular timing is common in the first few years after a first period, but symptoms still deserve attention. A gap longer than 90 days, bleeding longer than 7 days, soaking through protection every 1 to 2 hours, faintness, or pain that stops daily activity is worth discussing with a healthcare professional. (ACOG, Menstruation in Girls and Adolescents)
             </div>
           </div>
         )}
@@ -569,7 +618,7 @@ export default function Dashboard() {
             <div style={{ display:'flex', gap:10, alignItems:'flex-start' }}>
               <i className="ti ti-info-circle" style={{ color:'#c8b89a', fontSize:18, flexShrink:0, marginTop:1 }} />
               <div style={{ fontSize:13, color:'#5a5248', lineHeight:1.6 }}>
-                Your birth control keeps your hormones steady and usually pauses ovulation, so there is no natural cycle to track. The bleed you get is a withdrawal bleed, not a true period, but cramps, mood changes, and other period-like symptoms are still worth logging. We track your pill cycle and flag when your next bleed is due.
+                Birth control methods affect ovulation and bleeding differently. Empower does not assign a natural cycle phase when it cannot verify one. For scheduled pill, patch or ring use, it can track the schedule you entered; for IUDs, implants, injections and mini-pills it tracks bleeding and symptoms without inventing a 28-day pack cycle.
               </div>
             </div>
           </div>
@@ -579,8 +628,8 @@ export default function Dashboard() {
         {!alreadyLogged && (!recentLogs || recentLogs.length === 0) && (
           <div className="card" style={{ marginBottom:12, border:'1px solid #c8b89a', background:'#faf6ef' }}>
             <div style={{ fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:18, marginBottom:6 }}>Welcome to Em~power</div>
-            <div style={{ fontSize:13, color:'#5a5248', lineHeight:1.65, marginBottom:6 }}>Your first check-in takes under a minute. The real magic builds with each day you log: your phases, workouts, and nutrition all personalise to you.</div>
-            <div style={{ fontSize:13, color:'#5a5248', lineHeight:1.65, marginBottom:14 }}>Check in daily for about a week and the app starts to feel like it was made for your body. Because it was.</div>
+            <div style={{ fontSize:13, color:'#5a5248', lineHeight:1.65, marginBottom:6 }}>Your first check-in takes under a minute. Each meaningful log helps Empower compare your symptoms, workouts and sleep with your own cycle history.</div>
+            <div style={{ fontSize:13, color:'#5a5248', lineHeight:1.65, marginBottom:14 }}>Early guidance uses clearly labelled population ranges. Personal patterns appear only after they repeat in your data.</div>
             <button className="btn-primary" onClick={() => navigate('/log')}>Log today · under a minute</button>
           </div>
         )}
@@ -680,7 +729,7 @@ export default function Dashboard() {
         <WeeklySummaryModal
           summary={weeklySummary}
           name={(d.profile?.name || '').trim().split(/\s+/)[0] || null}
-          onDismiss={() => { markWeeklySummaryDismissed(); setWeeklyModal(false); setShowConfetti(false) }}
+          onDismiss={() => { markWeeklySummaryDismissed(d.userId); setWeeklyModal(false); setShowConfetti(false) }}
         />
       )}
     </>
@@ -706,4 +755,3 @@ function CoachRow({ icon, label, body, onClick, dark }) {
     </div>
   )
 }
-

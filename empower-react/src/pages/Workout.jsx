@@ -11,6 +11,7 @@ import { syncPlanToWatch, syncWorkoutToWatch } from '../lib/watchBridge'
 import { buildCyclePlan, weekBlocks, assignSessions, lighterSession } from '../lib/cyclePlan'
 import GoalPicker, { getFitnessGoal } from '../components/GoalPicker'
 import { track } from '../lib/analytics'
+import { runSave } from '../lib/dbSave'
 import BottomNav from '../components/BottomNav'
 import WearableWorkouts from '../components/WearableWorkouts'
 import TopBar from '../components/TopBar'
@@ -85,6 +86,19 @@ const CARDIO_GUIDES = {
     Perimenopause:  { duration:'25 to 45 min', pace:'Comfortable to brisk', note:'Excellent low-impact cardiovascular and joint-friendly option. Pair it with resistance training, which does the bone-loading swimming cannot.', science:'Swimming supports cardiovascular health with minimal joint load; weight-bearing or resistance work is needed separately for bone. (Kohrt et al. 2004)' },
     observation:    { duration:'20 to 35 min', pace:'Comfortable', note:'Swim to feel. Aquatic exercise is one of the most joint-friendly training options available.', science:'Water-based exercise reduces joint load while maintaining cardiovascular stimulus. (ACSM guidelines)' },
   },
+}
+
+// Research-informed population defaults for someone who has not brought a cardio plan.
+// A calendar phase never changes these targets; the user's warm-up and recovery do.
+const GENERIC_CARDIO_GUIDES = {
+  walk:  { duration:'20 to 45 min', pace:'Comfortable to brisk', note:'Choose a pace that matches your goal. Shorten or slow down for pain, illness, unusual fatigue or a difficult warm-up.', science:'Cycle timing can add context, but it does not determine capacity on its own.' },
+  run:   { duration:'20 to 45 min', pace:'Easy to hard, by plan', note:'Follow the run you planned. Use perceived effort, recent training, sleep and the warm-up to decide whether to keep the target or choose an easier option.', science:'Average performance differences across cycle phases are small or inconsistent; your repeated response matters more.' },
+  cycle: { duration:'25 to 50 min', pace:'Comfortable to hard, by plan', note:'Use your planned session and adjust resistance if heat, symptoms or perceived effort are unusual today.', science:'Personal response and training history are stronger day-to-day guides than a calendar phase alone.' },
+  swim:  { duration:'20 to 45 min', pace:'Comfortable to hard, by plan', note:'Follow your planned sets and adapt from your warm-up, symptoms and recent recovery.', science:'Personal response and training history are stronger day-to-day guides than a calendar phase alone.' },
+}
+
+function getCardioGuide(activityId) {
+  return GENERIC_CARDIO_GUIDES[activityId] || pc(CARDIO_GUIDES[activityId], 'observation')
 }
 
 const WARMUP_MOVES = {
@@ -226,8 +240,8 @@ const HIIT_ROUNDS = {
   observation:    { rounds:3, work:30, rest:30, exercises:['Squat','High knees','Push-up','Lateral shuffle','Plank'] },
 }
 
-// Extra, phase-appropriate HIIT moves rotated in for day-to-day variety. Low-impact
-// options for menstrual/luteal phases; explosive options for follicular/ovulatory.
+// Extra HIIT moves rotated in for day-to-day variety. The observation pool is used for
+// generated sessions so a calendar phase never changes work/rest structure.
 const HIIT_POOL = {
   Menstrual:        ['Heel taps','Standing oblique crunch','Slow reverse lunge','Bird-dog','Toe-touch march'],
   Follicular:       ['Skater hops','Reverse lunge to knee drive','Plank shoulder taps','Speed squat','Tuck jump, low'],
@@ -682,14 +696,14 @@ const CLASS_TYPES = [
 ]
 
 const PHASE_BANNER = {
-  Menstrual:      { bg:'#3d2830', text:'#f5e8e8', note:'Lower intensity today is smart, not lazy. Low estrogen and prostaglandins, the hormones behind cramps, mean your body is already working hard. (Daley et al. 2015)' },
-  Follicular:     { bg:'#2c3828', text:'#e8f5e8', note:'Rising estrogen supports muscle protein synthesis and recovery. Research suggests late follicular may produce stronger adaptations. (Kissow et al. 2022)' },
-  Ovulatory:      { bg:'#2c3035', text:'#e8f0f8', note:'Peak estrogen and a small testosterone rise, so you may feel unusually strong. Complete your full warmup today: knee ligament laxity is measurably higher around ovulation, which raises ACL injury risk. (Herzberg et al. 2017)' },
-  'Early luteal': { bg:'#352c20', text:'#f5ede0', note:'Progesterone rising with a mild calming GABA effect. Good steady energy still available. Solid phase for focused progress. (Bäckström et al. 2014)' },
-  'Mid luteal':   { bg:'#352c20', text:'#f5ede0', note:'RHR is measurably higher and recovery is slower. The same weight costs more right now. That is your physiology, not lack of fitness. (De Martin Topranin et al. 2023)' },
-  'Late luteal':  { bg:'#352c20', text:'#f5ede0', note:'Both hormones dropping. Progesterone-cortisol competition means hard training creates a larger stress response than usual. Completing your sets cleanly is the goal. (Hackney 2006)' },
-  Luteal:         { bg:'#352c20', text:'#f5ede0', note:'Progesterone elevated and core temperature rising. Prioritise form and completing sets over adding weight. (De Martin Topranin et al. 2023)' },
-  Perimenopause:  { bg:'#2c2035', text:'#f0e8f8', note:'Lift heavy. Training at challenging loads builds bone and preserves muscle safely, where light high-rep work does not. In the LIFTMOR trial, postmenopausal women did 5 sets of 5 near their limit. This is the single highest-value thing you can do for your long-term health. (Watson et al. LIFTMOR, JBMR 2018; Kohrt et al. 2004)' },
+  Menstrual:      { bg:'#3d2830', text:'#f5e8e8', note:'Your period is useful context. Keep the session you planned if you feel well, or adapt it for bleeding, pain, fatigue or a difficult warm-up.' },
+  Follicular:     { bg:'#2c3828', text:'#e8f5e8', note:'This is an estimated follicular window. Population research does not support automatically increasing load; use recent performance and today’s warm-up.' },
+  Ovulatory:      { bg:'#2c3035', text:'#e8f0f8', note:'This is an estimated ovulatory window, not proof of ovulation or a special injury-risk score. A thorough warm-up is good practice in every phase.' },
+  'Early luteal': { bg:'#352c20', text:'#f5ede0', note:'This is an estimated early-luteal window. Keep your plan and adjust only if symptoms, recovery or your warm-up support it.' },
+  'Mid luteal':   { bg:'#352c20', text:'#f5ede0', note:'Temperature, heart rate or perceived effort can shift for some people after ovulation. Log your response; do not reduce training solely because of the calendar.' },
+  'Late luteal':  { bg:'#352c20', text:'#f5ede0', note:'Premenstrual symptoms can affect training for some people. Keep your plan when you feel well and choose a lighter option when your own signals support it.' },
+  Luteal:         { bg:'#352c20', text:'#f5ede0', note:'This is an estimated luteal window. Symptoms, sleep, recent performance and your warm-up should guide today’s effort.' },
+  Perimenopause:  { bg:'#2c2035', text:'#f0e8f8', note:'Resistance and aerobic training support health through midlife. Choose loads and progression that match your experience, health history and recovery.' },
   observation:    { bg:'#2c2820', text:'#f5f0e8', note:'Building your personal baseline. Log how every session feels. Individual variation is large and your data is more useful than population averages.' },
 }
 
@@ -730,8 +744,6 @@ function rotatePick(pool, n, seed) {
 }
 
 // A pure-bodyweight move has no kg number in its weight string (e.g. "Bodyweight").
-// On strong phases (follicular/ovulatory) we prioritise loadable lifts, so the strongest
-// day of the cycle isn't spent on bodyweight moves the rotation happened to surface.
 const isLoadable = (e) => /\d/.test(e?.weight || '')
 function pickPreferLoad(pool, n, seed, preferLoad) {
   if (!preferLoad || !pool) return rotatePick(pool, n, seed)
@@ -741,8 +753,7 @@ function pickPreferLoad(pool, n, seed, preferLoad) {
   if (picks.length < n) picks.push(...rotatePick(rest, n - picks.length, seed + 1))
   return picks
 }
-// HIIT: keep the phase's structure (rounds/work/rest) but rotate which exercises are
-// shown from an expanded, phase-appropriate pool, keeping the same number of moves.
+// HIIT variation is day-based, not phase-based.
 function hiitFor(ph) {
   const base = pc(HIIT_ROUNDS, ph)
   if (!base) return base
@@ -760,7 +771,11 @@ function hiitFor(ph) {
 export default function Workout() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(null)
   const [status, setStatus] = useState(null)
+  const [userId, setUserId] = useState(null)
+  const [fitnessGoal, setFitnessGoal] = useState(null)
+  const [showGoalPicker, setShowGoalPicker] = useState(false)
   const [screen, setScreen] = useState('pick') // pick | muscles | warmup | plan | checklist | feel | done | logClass
   const [planView, setPlanView] = useState(null)      // null (basic) | 'weekly' | 'monthly'
   const [showPlanPicker, setShowPlanPicker] = useState(false)
@@ -774,6 +789,7 @@ export default function Workout() {
   const [fitnessLevel, setFitnessLevel] = useState('intermediate')
   const [feel, setFeel] = useState(null)
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState(null)
   const [classType, setClassType] = useState(null)
   const [classDuration, setClassDuration] = useState('')
   const [playerIdx, setPlayerIdx] = useState(0)
@@ -822,7 +838,7 @@ export default function Workout() {
   useEffect(() => {
     if (!hiitRunning) return
     if (hiitSecondsLeft <= 0) {
-      const data = hiitFor(phase)
+      const data = hiitFor('observation')
       if (hiitPhase === 'work') {
         setHiitPhase('rest')
         setHiitSecondsLeft(data.rest)
@@ -849,15 +865,18 @@ export default function Workout() {
     }
     const id = setTimeout(() => setHiitSecondsLeft(s => s - 1), 1000)
     return () => clearTimeout(id)
-  }, [hiitRunning, hiitSecondsLeft, hiitPhase, hiitExIdx, hiitRound, phase])
+  }, [hiitRunning, hiitSecondsLeft, hiitPhase, hiitExIdx, hiitRound])
 
   async function init() {
+    setLoadError(null)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { navigate('/login', { replace: true }); return }
+    setUserId(user.id)
+    setFitnessGoal(getFitnessGoal(user.id))
     try {
       const s = await getTodayStatus(supabase, user.id)
       setStatus(s)
-      // Push today's phase-based plan to the paired Apple Watch (iOS only; no-ops elsewhere).
+      // Push today's readiness-led options to the paired Apple Watch (iOS only; no-ops elsewhere).
       syncPlanToWatch(s)
       if (s?.profile?.fitness_level) setFitnessLevel(s.profile.fitness_level === 'beginner' ? 'beginner' : s.profile.fitness_level === 'advanced' || s.profile.fitness_level === 'athlete' ? 'advanced' : 'intermediate')
       // Progression memory: what weight/reps the user hit last time, per exercise.
@@ -869,46 +888,27 @@ export default function Workout() {
       const since = new Date(); since.setDate(since.getDate() - 70)
       const sinceStr = `${since.getFullYear()}-${String(since.getMonth()+1).padStart(2,'0')}-${String(since.getDate()).padStart(2,'0')}`
       const [{ data: pastLogs }, { data: cyc }] = await Promise.all([
-        supabase.from('daily_logs').select('log_date,energy').eq('user_id', user.id).gte('log_date', sinceStr),
+        supabase.from('daily_logs').select('log_date,energy,hormonal_context').eq('user_id', user.id).gte('log_date', sinceStr),
         supabase.from('cycle_data').select('notes,last_period_date').eq('user_id', user.id).order('created_at', { ascending: false }).limit(1).maybeSingle(),
       ])
-      setCycleHistory(buildCycleDayHistory(pastLogs || [], parsePeriodStarts(cyc), s?.cycleLen || 28))
-    } catch { /* ignore */ }
+      const context = s?.contextKey || 'natural-cycle'
+      const contextLogs = (pastLogs || []).filter(log => log.hormonal_context ? log.hormonal_context === context : context === 'natural-cycle')
+      setCycleHistory(buildCycleDayHistory(contextLogs, parsePeriodStarts(cyc), s?.cycleLen || 28))
+    } catch(e) { console.error(e); setLoadError('We could not load your health data, so no personalised workout has been generated.') }
     setLoading(false)
   }
 
   function getPhaseWeightNote(exWeight, intensityModifier, phaseVal) {
+    void intensityModifier
     if (!exWeight) return null
     const lower = exWeight.toLowerCase()
     if (lower === 'bodyweight' || lower.startsWith('bodyweight or') || lower === 'light band') return null
     const m = exWeight.match(/(\d+)\s*to\s*(\d+)/)
-    if (!m) return null
-    const lo = parseInt(m[1])
-    const hi = parseInt(m[2])
-    const mid = (lo + hi) / 2
-    const raw = mid * intensityModifier
-    const suggested = Math.round(raw / 2.5) * 2.5
-    const clamped = Math.max(lo, Math.min(hi, suggested))
-    // The intensity-based notes below describe natural cycle physiology (elevated RHR,
-    // progesterone-cortisol load). Birth control, perimenopause, and observation users
-    // share those intensity values coincidentally but are NOT in a luteal phase, so use
-    // neutral wording for them rather than misattributing cycle physiology.
+    if (!m) return { weight: exWeight, note: 'Choose a load that leaves about 2 to 4 good repetitions in reserve. Your warm-up and form decide the starting point.', source: 'ACSM progressive resistance training principles' }
     if (phaseVal === 'Perimenopause') {
-      return { weight: `${clamped}kg`, note: 'Load is the priority now. Lifting heavy, meaning a weight where the last 2 reps are genuinely hard, directly builds bone and preserves muscle as estrogen declines, which light high-rep work does not. Progress the weight as you get stronger.', source: 'Watson et al. LIFTMOR trial, JBMR 2018; Kohrt et al. MSSE 2004' }
+      return { weight: exWeight, note: 'Resistance training supports muscle and bone. Begin within this range only if it matches your experience, and choose the load your warm-up confirms today.', source: 'Watson et al. LIFTMOR trial, JBMR 2018; Kohrt et al. MSSE 2004' }
     }
-    const CYCLE_PHASES = ['Menstrual','Follicular','Ovulatory','Early luteal','Mid luteal','Late luteal','Luteal']
-    if (!CYCLE_PHASES.includes(phaseVal)) {
-      return { weight: `${clamped}kg`, note: 'Train to how you feel today. Individual variation is large, so let your energy and form guide your load.', source: 'Colenso-Semple et al. 2023 Frontiers' }
-    }
-    if (intensityModifier >= 1.0) {
-      return { weight: `${clamped}kg`, note: 'Peak estrogen and testosterone phase. Aim toward the top of your range if you feel strong. Individual variation is large, so your body is the primary guide.', source: 'Kissow et al. 2022 Sports Medicine; Colenso-Semple et al. 2023 Frontiers' }
-    } else if (intensityModifier >= 0.90) {
-      return { weight: `${clamped}kg`, note: 'Good energy available. Mid-range weights with solid form. Recovery is still strong this phase.', source: 'Kissow et al. 2022 Sports Medicine' }
-    } else if (intensityModifier >= 0.80) {
-      return { weight: `${clamped}kg`, note: 'RHR is measurably elevated and recovery is slower. The same weight costs more right now. That is your physiology, not lost fitness.', source: 'De Martin Topranin et al. 2023 IJSPP' }
-    } else {
-      return { weight: `${clamped}kg`, note: 'Lower load today is appropriate. Progesterone-cortisol competition makes hard training carry a larger hormonal cost. Completing sets cleanly is the goal.', source: 'Hackney 2006 JSSM' }
-    }
+    return { weight: exWeight, note: 'This is a general starting range, not a prescription. Choose a load that leaves 2 to 4 good repetitions in reserve. Cycle effects vary, so your symptoms, warm-up and recent performance come first.', source: 'McNulty et al. 2020 Sports Medicine; Niering et al. 2024 Sports' }
   }
 
   function selectActivity(id) {
@@ -919,9 +919,7 @@ export default function Workout() {
   }
 
   function getExercises() {
-    // On the strongest phases, prioritise loadable lifts over bodyweight moves the rotation
-    // might otherwise surface, so a peak-strength day is actually spent lifting.
-    const preferLoad = phase === 'Follicular' || phase === 'Ovulatory'
+    const preferLoad = false
     // Custom builds directly from the muscles the user picked (Core -> core work, etc.).
     if (muscleGroup === 'custom') return buildCustomExercises(customMuscles, fitnessLevel, daySeedVal, preferLoad)
     const key = muscleGroup || 'full'
@@ -951,13 +949,13 @@ export default function Workout() {
 
   async function save() {
     if (!feel) return
-    setSaving(true)
+    setSaving(true); setSaveError(null)
     try {
       const { data: { user } } = await supabase.auth.getUser()
-      const { error } = await supabase.from('daily_logs').upsert({
-        user_id: user.id, log_date: localDateStr(), workout_feel: feel
-      }, { onConflict: 'user_id,log_date' })
-      if (error) throw error
+      const res = await runSave(supabase.from('daily_logs').upsert({
+        user_id: user.id, log_date: localDateStr(), hormonal_context: status?.contextKey || 'natural-cycle', workout_feel: feel, workout_feel_reported: true
+      }, { onConflict: 'user_id,log_date' }))
+      if (!res.ok) { setSaveError(res.message); setSaving(false); return }
       // Persist per-exercise progression: the top working weight + reps entered this gym
       // session, so next time the player can show "last time" and nudge progressive overload.
       if (activity === 'gym') {
@@ -967,33 +965,38 @@ export default function Workout() {
           Object.entries(setWeights).forEach(([exIdx, sets]) => {
             const ex = exs[parseInt(exIdx)]
             if (!ex) return
-            const weights = Object.values(sets).map(parseFloat).filter(n => !isNaN(n) && n > 0)
+            const weights = Object.values(sets).map(parseFloat).filter(n => !isNaN(n) && n > 0 && n <= 500)
             if (!weights.length) return
-            rows.push({ user_id: user.id, exercise: ex.name, last_weight: Math.max(...weights), last_reps: String(ex.reps), last_date: localDateStr(), updated_at: new Date().toISOString() })
+            const completedSets = Object.values(playerDone[exIdx] || {}).filter(Boolean).length
+            const completed = completedSets >= Number(ex.sets || 1)
+            const previousSuccesses = Number(exHistory[ex.name]?.successful_sessions || 0)
+            const successfulSessions = completed && ['Felt strong', 'Felt average'].includes(feel) ? previousSuccesses + 1 : 0
+            rows.push({ user_id: user.id, exercise: ex.name, last_weight: Math.max(...weights), last_reps: String(ex.reps), last_date: localDateStr(), last_completed: completed, last_session_feel: feel, successful_sessions: successfulSessions, updated_at: new Date().toISOString() })
           })
           if (rows.length) await supabase.from('exercise_history').upsert(rows, { onConflict: 'user_id,exercise' })
         } catch(e) { console.error(e) }
       }
       track('workout_completed', { activity, feel })
       setScreen('done')
-    } catch(e) { console.error(e) }
+    } catch(e) { console.error(e); setSaveError('Something went wrong saving your workout. Please try again.') }
     setSaving(false)
   }
 
   async function saveClass() {
     if (!classType) return
-    setSaving(true)
+    setSaving(true); setSaveError(null)
     const { data: { user } } = await supabase.auth.getUser()
-    const notes = classDuration ? `${CLASS_TYPES.find(c=>c.id===classType)?.label} class, ${classDuration} min` : `${CLASS_TYPES.find(c=>c.id===classType)?.label} class`
-    await supabase.from('daily_logs').upsert({
-      user_id: user.id, log_date: localDateStr(), workout_feel: 'Felt average', notes
-    }, { onConflict: 'user_id,log_date' })
-    track('workout_completed', { activity: classType })
+    const res = await runSave(supabase.from('daily_logs').upsert({
+      user_id: user.id, log_date: localDateStr(), hormonal_context: status?.contextKey || 'natural-cycle', workout_feel: null, workout_feel_reported: false, workout_imported: true
+    }, { onConflict: 'user_id,log_date' }))
+    if (!res.ok) { setSaveError(res.message); setSaving(false); return }
+    track('workout_completed', { activity: classType, duration: classDuration || null })
     setScreen('done')
     setSaving(false)
   }
 
   if (loading) return <div style={{ paddingTop:60 }}><Spinner /></div>
+  if (loadError || !status) return <div style={{ padding:'80px 24px', textAlign:'center' }}><div style={{ fontSize:14, color:'#7a7268', lineHeight:1.6, marginBottom:16 }}>{loadError || 'We could not load your health data.'}</div><button className="btn-primary" onClick={() => { setLoading(true); init() }}>Try again</button><BottomNav /></div>
 
   // Pregnancy mode, never auto-prescribe a workout. Show evidence-based movement guidance
   // (SOGC 2019 / ACOG 804), the stop-and-call-your-provider signs, and defer to her provider.
@@ -1037,12 +1040,10 @@ export default function Workout() {
 
   const intensity = status?.intensityModifier ?? 1.0
   const banner = pc(PHASE_BANNER, phase)
-  const isAcl = phase === 'Ovulatory' && (activity === 'gym' || activity === 'hiit')
-  const isHiitWarn = (phase === 'Mid luteal' || phase === 'Late luteal') && activity === 'hiit'
-  const workoutReadiness = status?.workoutReadiness || null
-  const rawProtein = status?.nutritionTargets?.proteinG
-  const isVeganWorkout = (() => { try { const d = status?.profile?.diet_preference; if (!d) return false; const p = JSON.parse(d); return Array.isArray(p) ? p.includes('vegan') : p === 'vegan' } catch { return status?.profile?.diet_preference === 'vegan' } })()
-  const protein = rawProtein ? (isVeganWorkout ? Math.round(rawProtein * 1.15) : rawProtein) : null
+  // Do not generate injury-risk or HIIT warnings from a calendar estimate alone.
+  const isAcl = false
+  const isHiitWarn = false
+  const proteinRange = status?.nutritionTargets?.proteinRangeG || null
 
   // DONE screen
   if (screen === 'done') return (
@@ -1055,13 +1056,13 @@ export default function Workout() {
          feel === 'Felt hard' ? 'You did it even when it was hard. That is the real win.' :
          'Rest is part of training. Your body rebuilds during recovery.'}
       </div>
-      {protein && <div style={{ background:'#f5f0e8', borderRadius:12, padding:14, marginBottom:24, fontSize:13, color:'#3a3530', lineHeight:1.6 }}><strong style={{ display:'block', fontSize:11, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590', marginBottom:6 }}>Post-workout</strong>Aim for <strong>{protein}g protein</strong> today, spread across your meals. A 20 to 40g serving within a couple of hours of training supports recovery, but your total protein for the day matters more than exact timing.</div>}
+      {proteinRange && <div style={{ background:'#f5f0e8', borderRadius:12, padding:14, marginBottom:24, fontSize:13, color:'#3a3530', lineHeight:1.6 }}><strong style={{ display:'block', fontSize:11, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590', marginBottom:6 }}>Post-workout</strong>Your general daily protein range is <strong>{proteinRange[0]} to {proteinRange[1]}g</strong>. Activity, goals, diet and health determine where you fit; cycle phase does not set one exact number.</div>}
       <button className="btn-primary" onClick={() => navigate('/dashboard')}>Back to dashboard</button>
     </div>
   )
 
   // ACTIVITY PICKER (+ cycle-aware weekly/monthly plan mode)
-  const goal = getFitnessGoal()
+  const goal = fitnessGoal
   const GOAL_NOTE = {
     strength: 'With your strength goal, prioritise the lifts you can add weight to.',
     consistency: 'For your consistency goal, even a short session counts.',
@@ -1085,7 +1086,7 @@ export default function Workout() {
   }
   if (screen === 'pick') return (
     <div style={{ paddingBottom:100 }}>
-      <GoalPicker />
+      <GoalPicker userId={userId} forceOpen={showGoalPicker} onDone={v => { setFitnessGoal(v); setShowGoalPicker(false) }} />
       <TopBar title="WORKOUT" backTo="/dashboard" />
       <div style={{ background:`linear-gradient(135deg, ${banner.bg}, ${banner.bg}cc)`, padding:'18px 16px', marginBottom:16 }}>
         <div style={{ fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:18, color:banner.text, marginBottom:4 }}>{phase}</div>
@@ -1097,6 +1098,7 @@ export default function Workout() {
           {getMovementToday(phase).detail}{goal && GOAL_NOTE[goal] ? ` ${GOAL_NOTE[goal]}` : ''}
         </div>
       </div>
+      {goal && <div style={{ textAlign:'right', margin:'-8px 16px 10px' }}><button onClick={() => setShowGoalPicker(true)} style={{ background:'none', border:'none', color:'#9a9590', fontSize:12, textDecoration:'underline', cursor:'pointer', fontFamily:'inherit' }}>Change movement goal</button></div>}
 
       {planView ? (
         /* PLAN MODE, the whole week or cycle, day by day */
@@ -1183,21 +1185,21 @@ export default function Workout() {
         /* BASIC MODE, pick today's activity */
         <div style={{ padding:'0 16px' }}>
           {/* Apple Watch / wearable workouts, native only, renders nothing on web */}
-          <WearableWorkouts />
+          <WearableWorkouts contextKey={status?.contextKey || 'natural-cycle'} />
           <span style={{ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590', marginBottom:12, display:'block' }}>What are you doing today?</span>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10, marginBottom:14 }}>
             {ACTIVITIES.map(a => (
-              <div key={a.id} onClick={() => selectActivity(a.id)} style={{
+              <button type="button" key={a.id} onClick={() => selectActivity(a.id)} style={{
                 padding:'16px 8px', borderRadius:14, border:'1px solid #ede8e0',
-                background:'#fff', cursor:'pointer', textAlign:'center',
+                background:'#fff', cursor:'pointer', textAlign:'center', font:'inherit', color:'#2c2820',
                 boxShadow:'0 1px 4px rgba(44,40,32,0.04)',
               }}>
                 {a.emoji
-                  ? <span style={{ fontSize:26, display:'block', marginBottom:6 }}>{a.emoji}</span>
-                  : <i className={`ti ${a.icon}`} style={{ fontSize:26, display:'block', marginBottom:6, color:'#c8b89a' }} />
+                  ? <span style={{ fontSize:26, display:'block', marginBottom:6 }} aria-hidden="true">{a.emoji}</span>
+                  : <i className={`ti ${a.icon}`} aria-hidden="true" style={{ fontSize:26, display:'block', marginBottom:6, color:'#c8b89a' }} />
                 }
                 <div style={{ fontSize:12, fontWeight:500, color:'#2c2820' }}>{a.label}</div>
-              </div>
+              </button>
             ))}
           </div>
           <button onClick={() => setShowPlanPicker(true)} style={{ width:'100%', background:'#2c2820', color:'#f5f0e8', border:'none', borderRadius:14, padding:'13px', fontSize:14, fontWeight:600, cursor:'pointer', fontFamily:'inherit', marginBottom:10 }}>
@@ -1213,11 +1215,11 @@ export default function Workout() {
 
       {/* Plan picker sheet */}
       {showPlanPicker && (<>
-        <div onClick={() => setShowPlanPicker(false)} style={{ position:'fixed', inset:0, background:'rgba(44,40,32,0.4)', zIndex:200 }} />
-        <div style={{ position:'fixed', bottom:0, left:'50%', transform:'translateX(-50%)', width:'100%', maxWidth:420, background:'#faf8f5', borderRadius:'20px 20px 0 0', zIndex:201, padding:'16px 20px 40px' }}>
+        <button type="button" aria-label="Close" onClick={() => setShowPlanPicker(false)} style={{ position:'fixed', inset:0, background:'rgba(44,40,32,0.4)', zIndex:200, border:'none', padding:0, cursor:'pointer' }} />
+        <div role="dialog" aria-modal="true" aria-label="Build your plan" style={{ position:'fixed', bottom:0, left:'50%', transform:'translateX(-50%)', width:'100%', maxWidth:420, background:'#faf8f5', borderRadius:'20px 20px 0 0', zIndex:201, padding:'16px 20px 40px' }}>
           <div style={{ width:36, height:4, background:'#c8b89a', borderRadius:2, margin:'0 auto 16px' }} />
           <div style={{ fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:20, marginBottom:6 }}>Build your plan</div>
-          <div style={{ fontSize:13, color:'#7a7268', lineHeight:1.6, marginBottom:16 }}>We&apos;ll map your training to your cycle{goal ? ' and your goal' : ''}. Pick a timeframe.</div>
+          <div style={{ fontSize:13, color:'#7a7268', lineHeight:1.6, marginBottom:16 }}>Build a balanced plan from your goal, fitness level and recent training. Cycle timing is shown as context and never forces a workout change.</div>
           {[
             { val:'daily',  icon:'ti-calendar',      title:'Just today', sub:"Today's recommended session" },
             { val:'weekly', icon:'ti-calendar-week', title:'This week',  sub:'A workout for every day this week' },
@@ -1247,26 +1249,28 @@ export default function Workout() {
       <TopBar title="WORKOUT" backTo={() => setScreen('pick')} />
       <div style={{ padding:'16px 16px 0' }}>
         <div style={{ fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:18, marginBottom:4 }}>Choose your focus</div>
-        <div style={{ fontSize:13, color:'#7a7268', marginBottom:20 }}>Your exercises will be chosen for your phase and fitness level.</div>
+        <div style={{ fontSize:13, color:'#7a7268', marginBottom:20 }}>Your exercises are chosen from your fitness level and selected focus. Cycle timing remains context only.</div>
 
         {MUSCLE_GROUPS.map(g => (
-          <div key={g.id} onClick={() => { setMuscleGroup(g.id); setCustomMuscles([]) }} style={{
+          <button type="button" key={g.id} aria-pressed={muscleGroup===g.id} onClick={() => { setMuscleGroup(g.id); setCustomMuscles([]) }} style={{
+            display:'block', width:'100%', textAlign:'left', font:'inherit', color:'#2c2820',
             padding:'16px', borderRadius:12, border:`1px solid ${muscleGroup===g.id?'#c8b89a':'#ede8e0'}`,
             background:muscleGroup===g.id?'#e8dfd0':'#fff', cursor:'pointer', marginBottom:10,
           }}>
             <div style={{ fontSize:14, fontWeight:600 }}>{g.label}</div>
             <div style={{ fontSize:12, color:'#7a7268', marginTop:2 }}>{g.desc}</div>
-          </div>
+          </button>
         ))}
 
         {/* Custom, dashed */}
-        <div onClick={() => { setMuscleGroup('custom') }} style={{
+        <button type="button" aria-pressed={muscleGroup==='custom'} onClick={() => { setMuscleGroup('custom') }} style={{
+          display:'block', width:'100%', textAlign:'left', font:'inherit', color:'#2c2820',
           padding:'16px', borderRadius:12, border:`2px dashed ${muscleGroup==='custom'?'#c8b89a':'#ede8e0'}`,
           background:muscleGroup==='custom'?'#e8dfd0':'transparent', cursor:'pointer', marginBottom:16,
         }}>
           <div style={{ fontSize:14, fontWeight:600 }}>Custom</div>
           <div style={{ fontSize:12, color:'#7a7268', marginTop:2 }}>Build your own session</div>
-        </div>
+        </button>
 
         {muscleGroup === 'custom' && (
           <div style={{ marginBottom:16 }}>
@@ -1275,11 +1279,12 @@ export default function Workout() {
               {CUSTOM_MUSCLES.map(m => {
                 const on = customMuscles.includes(m)
                 return (
-                  <div key={m} onClick={() => setCustomMuscles(p => on ? p.filter(x=>x!==m) : [...p,m])} style={{
+                  <button type="button" key={m} role="checkbox" aria-checked={on} onClick={() => setCustomMuscles(p => on ? p.filter(x=>x!==m) : [...p,m])} style={{
+                    textAlign:'left', font:'inherit',
                     padding:'10px 12px', borderRadius:10, border:`1px solid ${on?'#c8b89a':'#ede8e0'}`,
                     background:on?'#e8dfd0':'#fff', cursor:'pointer', fontSize:13, fontWeight:on?600:400,
                     color:on?'#5a4a3a':'#2c2820',
-                  }}>{m}</div>
+                  }}>{m}</button>
                 )
               })}
             </div>
@@ -1289,7 +1294,7 @@ export default function Workout() {
         <span style={{ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590', marginBottom:10, display:'block' }}>Fitness level</span>
         <div style={{ display:'flex', gap:8, marginBottom:24 }}>
           {['beginner','intermediate','advanced'].map(l => (
-            <button key={l} onClick={() => setFitnessLevel(l)} style={{
+            <button type="button" key={l} aria-pressed={fitnessLevel===l} onClick={() => setFitnessLevel(l)} style={{
               flex:1, padding:'10px 0', borderRadius:10, border:`1px solid ${fitnessLevel===l?'#c8b89a':'#ede8e0'}`,
               background:fitnessLevel===l?'#e8dfd0':'#fff', fontSize:12, fontWeight:fitnessLevel===l?600:400,
               color:fitnessLevel===l?'#5a4a3a':'#2c2820', cursor:'pointer', fontFamily:'inherit',
@@ -1310,7 +1315,7 @@ export default function Workout() {
 
   // GYM WARMUP SCREEN
   if (screen === 'warmup') {
-    const moves = pc(WARMUP_MOVES, phase)
+    const moves = pc(WARMUP_MOVES, 'observation')
     const totalDone = moves.filter((_, i) => checkedMoves[i]).length
     return (
       <div style={{ paddingBottom:100 }}>
@@ -1322,13 +1327,13 @@ export default function Workout() {
           {isAcl && (
             <div style={{ background:'#fff8e6', border:'1px solid #f0c040', borderRadius:12, padding:14, marginBottom:12 }}>
               <div style={{ fontSize:13, fontWeight:600, marginBottom:4, color:'#6a4a00' }}>Your warmup matters more today</div>
-              <div style={{ fontSize:12, color:'#7a6020', lineHeight:1.6 }}>Peak estrogen increases ligament laxity. Complete all warmup exercises before loading any weight.</div>
+              <div style={{ fontSize:12, color:'#7a6020', lineHeight:1.6 }}>Around ovulation, ligament laxity can be higher and knee-injury risk may rise (Herzberg et al. 2017). A good day to take your full warmup before loading heavy. This is general guidance, not a diagnosis.</div>
             </div>
           )}
 
           <div style={{ background:'#fff', border:'1px solid #ede8e0', borderRadius:12, marginBottom:12, overflow:'hidden' }}>
             <div style={{ padding:'10px 16px', borderBottom:'1px solid #f5f0e8', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-              <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590' }}>Warmup for {phase}</div>
+              <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590' }}>General warm-up</div>
               <div style={{ fontSize:12, color:'#9a9590' }}>{totalDone}/{moves.length}</div>
             </div>
             {moves.map((move, i) => {
@@ -1339,13 +1344,15 @@ export default function Workout() {
               return (
                 <div key={i} style={{ borderBottom:i<moves.length-1?'1px solid #f5f0e8':'none', background:checkedMoves[i]?'#f8f5f0':'#fff' }}>
                   <div style={{ padding:'12px 16px', display:'flex', alignItems:'center', gap:10 }}>
-                    <div onClick={() => setCheckedMoves(p => ({...p, [i]: !p[i]}))} style={{ width:22, height:22, borderRadius:11, border:`2px solid ${checkedMoves[i]?'#2c2820':'#c8c0b8'}`, background:checkedMoves[i]?'#2c2820':'transparent', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, cursor:'pointer' }}>
-                      {checkedMoves[i] && <div style={{ width:6, height:6, borderRadius:'50%', background:'#f5f0e8' }} />}
-                    </div>
-                    <div onClick={() => setCheckedMoves(p => ({...p, [i]: !p[i]}))} style={{ flex:1, fontSize:13, color:checkedMoves[i]?'#9a9590':'#2c2820', textDecoration:checkedMoves[i]?'line-through':'none', lineHeight:1.5, cursor:'pointer' }}>{move}</div>
+                    <button type="button" role="checkbox" aria-checked={!!checkedMoves[i]} onClick={() => setCheckedMoves(p => ({...p, [i]: !p[i]}))} style={{ flex:1, display:'flex', alignItems:'center', gap:10, background:'none', border:'none', padding:0, textAlign:'left', font:'inherit', cursor:'pointer' }}>
+                      <span style={{ width:22, height:22, borderRadius:11, border:`2px solid ${checkedMoves[i]?'#2c2820':'#c8c0b8'}`, background:checkedMoves[i]?'#2c2820':'transparent', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                        {checkedMoves[i] && <span style={{ width:6, height:6, borderRadius:'50%', background:'#f5f0e8' }} />}
+                      </span>
+                      <span style={{ flex:1, fontSize:13, color:checkedMoves[i]?'#9a9590':'#2c2820', textDecoration:checkedMoves[i]?'line-through':'none', lineHeight:1.5 }}>{move}</span>
+                    </button>
                     {desc && (
-                      <button onClick={() => setExpandedWarmupMove(isExpanded ? null : i)} style={{ background:'none', border:'none', cursor:'pointer', padding:'2px 4px', color:'#c8b89a', flexShrink:0, lineHeight:1 }}>
-                        <i className={`ti ti-chevron-${isExpanded?'up':'down'}`} style={{ fontSize:14 }} />
+                      <button type="button" aria-label={isExpanded ? 'Hide details' : 'Show details'} aria-expanded={isExpanded} onClick={() => setExpandedWarmupMove(isExpanded ? null : i)} style={{ background:'none', border:'none', cursor:'pointer', padding:'2px 4px', color:'#c8b89a', flexShrink:0, lineHeight:1 }}>
+                        <i className={`ti ti-chevron-${isExpanded?'up':'down'}`} aria-hidden="true" style={{ fontSize:14 }} />
                       </button>
                     )}
                   </div>
@@ -1381,7 +1388,7 @@ export default function Workout() {
         <div style={{ padding:'16px 16px 0' }}>
           {isAcl && <div style={{ background:'#fff8e6', border:'1px solid #f0c040', borderRadius:12, padding:14, marginBottom:12 }}>
             <div style={{ fontSize:13, fontWeight:600, marginBottom:4, color:'#6a4a00' }}>Your warmup matters more today</div>
-            <div style={{ fontSize:12, color:'#7a6020', lineHeight:1.6 }}>Peak estrogen increases ligament laxity. Complete all warmup exercises before loading any weight.</div>
+            <div style={{ fontSize:12, color:'#7a6020', lineHeight:1.6 }}>Around ovulation, ligament laxity can be higher and knee-injury risk may rise (Herzberg et al. 2017). A good day to take your full warmup before loading heavy. This is general guidance, not a diagnosis.</div>
           </div>}
           {isHiitWarn && <div style={{ background:'#fdf3f0', border:'1px solid #e8a080', borderRadius:12, padding:14, marginBottom:12 }}>
             <div style={{ fontSize:13, fontWeight:600, marginBottom:4, color:'#6a2800' }}>HIIT is more stressful in this phase</div>
@@ -1396,7 +1403,7 @@ export default function Workout() {
             <div style={{ fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:20, marginBottom:2 }}>
               {muscleGroup==='full'?'Full body':muscleGroup==='upper'?'Upper body':muscleGroup==='lower'?'Lower body':'Custom'} session
             </div>
-            <div style={{ fontSize:12, color:'#7a7268', marginBottom:8 }}>{fitnessLevel.charAt(0).toUpperCase()+fitnessLevel.slice(1)}, phase-matched intensity</div>
+            <div style={{ fontSize:12, color:'#7a7268', marginBottom:8 }}>{fitnessLevel.charAt(0).toUpperCase()+fitnessLevel.slice(1)}, readiness-guided intensity</div>
             <div style={{ fontSize:12, color:'#7a7268', marginBottom:16, lineHeight:1.5 }}>Aim for a weight where the last 2 to 3 reps are genuinely hard. If a set feels easy, go heavier.</div>
             <div style={{ background:'#fff', border:'1px solid #ede8e0', borderRadius:12, marginBottom:16, overflow:'hidden' }}>
               {exercises.map((exObj, i) => (
@@ -1413,10 +1420,10 @@ export default function Workout() {
             <button onClick={() => setScreen('feel')} style={{ display:'block', width:'100%', marginTop:10, background:'none', border:'none', fontSize:13, color:'#9a9590', cursor:'pointer', textDecoration:'underline', fontFamily:'inherit' }}>Already done, just log it</button>
           </> : (() => {
             const cardioKey = ['walk','run','cycle','swim'].includes(activity) ? activity : null
-            const cardioGuide = cardioKey ? pc(CARDIO_GUIDES[cardioKey], phase) : null
-            const hiitData = activity === 'hiit' ? (hiitFor(phase)) : null
-            const yogaSeq = activity === 'yoga' ? pc(YOGA_SEQUENCES, phase) : null
-            const pilatesSeq = activity === 'pilates' ? pc(PILATES_SEQUENCES, phase) : null
+            const cardioGuide = cardioKey ? getCardioGuide(cardioKey) : null
+            const hiitData = activity === 'hiit' ? hiitFor('observation') : null
+            const yogaSeq = activity === 'yoga' ? pc(YOGA_SEQUENCES, 'observation') : null
+            const pilatesSeq = activity === 'pilates' ? pc(PILATES_SEQUENCES, 'observation') : null
 
             if (activity === 'rest') return (
               <>
@@ -1497,7 +1504,7 @@ export default function Workout() {
                 </div>
 
                 <button className="btn-primary" onClick={() => {
-                  const data = hiitFor(phase)
+                  const data = hiitFor('observation')
                   setHiitRound(1); setHiitExIdx(0); setHiitPhase('work')
                   setHiitSecondsLeft(data.work); setHiitRunning(true)
                   setScreen('hiitTimer')
@@ -1513,7 +1520,7 @@ export default function Workout() {
               return (
                 <>
                   <div style={{ fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:20, marginBottom:2 }}>{label}</div>
-                  <div style={{ fontSize:12, color:'#9a9590', marginBottom:14 }}>{seq.length} movements, phase-matched sequence</div>
+                  <div style={{ fontSize:12, color:'#9a9590', marginBottom:14 }}>{seq.length} movements; adjust the sequence to your comfort and experience</div>
 
                   <div style={{ background:'#fff', border:'1px solid #ede8e0', borderRadius:12, marginBottom:12, overflow:'hidden' }}>
                     <div style={{ padding:'10px 16px', borderBottom:'1px solid #f5f0e8', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
@@ -1529,16 +1536,17 @@ export default function Workout() {
                       return (
                         <div key={i} style={{ borderBottom:i<seq.length-1?'1px solid #f5f0e8':'none' }}>
                           <div style={{ padding:'12px 16px', display:'flex', alignItems:'center', gap:12, background:checkedMoves[i]?'#f8f5f0':'#fff' }}>
-                            <div onClick={() => setCheckedMoves(p => ({...p, [i]: !p[i]}))}
-                              style={{ width:22, height:22, borderRadius:11, border:`2px solid ${checkedMoves[i]?'#2c2820':'#c8c0b8'}`, background:checkedMoves[i]?'#2c2820':'transparent', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, cursor:'pointer' }}>
-                              {checkedMoves[i] && <div style={{ width:6, height:6, borderRadius:'50%', background:'#f5f0e8' }} />}
-                            </div>
-                            <div style={{ flex:1, fontSize:13, color:checkedMoves[i]?'#9a9590':'#2c2820', textDecoration:checkedMoves[i]?'line-through':'none', lineHeight:1.5, cursor:'pointer' }}
-                              onClick={() => setCheckedMoves(p => ({...p, [i]: !p[i]}))}>{move}</div>
+                            <button type="button" role="checkbox" aria-checked={!!checkedMoves[i]} onClick={() => setCheckedMoves(p => ({...p, [i]: !p[i]}))}
+                              style={{ flex:1, display:'flex', alignItems:'center', gap:12, background:'none', border:'none', padding:0, textAlign:'left', font:'inherit', cursor:'pointer' }}>
+                              <span style={{ width:22, height:22, borderRadius:11, border:`2px solid ${checkedMoves[i]?'#2c2820':'#c8c0b8'}`, background:checkedMoves[i]?'#2c2820':'transparent', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                                {checkedMoves[i] && <span style={{ width:6, height:6, borderRadius:'50%', background:'#f5f0e8' }} />}
+                              </span>
+                              <span style={{ flex:1, fontSize:13, color:checkedMoves[i]?'#9a9590':'#2c2820', textDecoration:checkedMoves[i]?'line-through':'none', lineHeight:1.5 }}>{move}</span>
+                            </button>
                             {desc && (
-                              <button onClick={() => setExpandedChecklistMove(isExpanded ? null : i)}
+                              <button type="button" aria-label={isExpanded ? 'Hide details' : 'Show details'} aria-expanded={isExpanded} onClick={() => setExpandedChecklistMove(isExpanded ? null : i)}
                                 style={{ background:'none', border:'none', cursor:'pointer', padding:'2px 4px', color:'#c8b89a', flexShrink:0, lineHeight:1, fontSize:16 }}>
-                                <i className={`ti ti-chevron-${isExpanded ? 'up' : 'down'}`} />
+                                <i className={`ti ti-chevron-${isExpanded ? 'up' : 'down'}`} aria-hidden="true" />
                               </button>
                             )}
                           </div>
@@ -1582,7 +1590,12 @@ export default function Workout() {
     const isLast = playerIdx === exercises.length - 1
     const isBodyweight = !/^\d/.test(exObj.weight) // weight string starts with a number for loaded moves; "Bodyweight" otherwise
     // Personalised target from her own last lift + today's phase (null = first time → use the range).
-    const prog = isBodyweight ? null : getProgressionTarget({ lastWeight: exHistory[exObj.name]?.last_weight, exerciseName: exObj.name, intensityModifier: intensity })
+    const prog = isBodyweight ? null : getProgressionTarget({
+      lastWeight: exHistory[exObj.name]?.last_weight,
+      exerciseName: exObj.name,
+      successfulSessions: exHistory[exObj.name]?.successful_sessions,
+      lastSessionFeel: exHistory[exObj.name]?.last_session_feel,
+    })
     const svgType = getSvgType(exObj.name)
     const muscles = getMuscles(exObj.name)
     const equipment = getEquipment(exObj.name)
@@ -1594,7 +1607,7 @@ export default function Workout() {
       setSetWeights(prev => {
         const ex = { ...(prev[playerIdx] || {}) }
         const current = parseFloat(ex[setIdx]) || 0
-        const next = Math.max(0, Math.round((current + delta) * 2) / 2)
+        const next = Math.min(500, Math.max(0, Math.round((current + delta) * 2) / 2))
         ex[setIdx] = next
         return { ...prev, [playerIdx]: ex }
       })
@@ -1613,8 +1626,8 @@ export default function Workout() {
       <div style={{ paddingBottom:120 }}>
         {/* top bar with progress */}
         <div style={{ background:'#f5f0e8', padding:'calc(16px + var(--sat)) 20px 16px', borderBottom:'1px solid #ede8e0', display:'flex', alignItems:'center', gap:12 }}>
-          <button onClick={() => playerIdx === 0 ? setScreen('plan') : setPlayerIdx(i => i-1)} style={{ background:'none', border:'none', cursor:'pointer', padding:0, fontSize:20, color:'#2c2820', lineHeight:1 }}>
-            <i className="ti ti-arrow-left"/>
+          <button type="button" aria-label="Previous exercise" onClick={() => playerIdx === 0 ? setScreen('plan') : setPlayerIdx(i => i-1)} style={{ background:'none', border:'none', cursor:'pointer', padding:0, fontSize:20, color:'#2c2820', lineHeight:1 }}>
+            <i className="ti ti-arrow-left" aria-hidden="true"/>
           </button>
           <div style={{ flex:1 }}>
             <div style={{ fontSize:10, fontWeight:600, letterSpacing:'0.12em', textTransform:'uppercase', color:'#9a9590', marginBottom:4 }}>WORKOUT</div>
@@ -1694,9 +1707,9 @@ export default function Workout() {
 
           {/* Phase guidance accordion */}
           <div style={{ background:'#fff', border:'1px solid #ede8e0', borderRadius:12, marginBottom:12, overflow:'hidden' }}>
-            <button onClick={() => setPhaseOpen(o => !o)} style={{ width:'100%', padding:'14px 16px', background:'none', border:'none', cursor:'pointer', display:'flex', justifyContent:'space-between', alignItems:'center', fontFamily:'inherit' }}>
+            <button type="button" aria-expanded={phaseOpen} onClick={() => setPhaseOpen(o => !o)} style={{ width:'100%', padding:'14px 16px', background:'none', border:'none', cursor:'pointer', display:'flex', justifyContent:'space-between', alignItems:'center', fontFamily:'inherit' }}>
               <span style={{ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590' }}>PHASE GUIDANCE</span>
-              <i className={`ti ti-chevron-${phaseOpen?'up':'down'}`} style={{ color:'#9a9590', fontSize:14 }}/>
+              <i className={`ti ti-chevron-${phaseOpen?'up':'down'}`} aria-hidden="true" style={{ color:'#9a9590', fontSize:14 }}/>
             </button>
             {phaseOpen && (
               <div style={{ padding:'0 16px 14px', fontSize:13, color:'#3a3530', lineHeight:1.6 }}>{banner.note}</div>
@@ -1721,17 +1734,17 @@ export default function Workout() {
                     <div style={{ fontSize:14, color:'#7a7268', fontWeight:500 }}>Bodyweight</div>
                   ) : (
                     <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-                      <button onClick={() => updateWeight(si, -2.5)} style={{ width:30, height:30, borderRadius:8, border:'1px solid #ede8e0', background:'#faf8f5', cursor:'pointer', fontSize:16, color:'#7a7268', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontFamily:'inherit' }}>−</button>
-                      <input type="number" value={w} onChange={e => setSetWeights(prev => { const ex={...(prev[playerIdx]||{})}; ex[si]=e.target.value; return {...prev,[playerIdx]:ex} })}
+                      <button type="button" aria-label="Decrease weight" onClick={() => updateWeight(si, -2.5)} style={{ width:30, height:30, borderRadius:8, border:'1px solid #ede8e0', background:'#faf8f5', cursor:'pointer', fontSize:16, color:'#7a7268', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontFamily:'inherit' }}>−</button>
+                      <input type="number" min="0" max="500" step="0.5" aria-label={`Weight for set ${si+1} (kg)`} value={w} onChange={e => setSetWeights(prev => { const ex={...(prev[playerIdx]||{})}; const n=Number(e.target.value); ex[si]=e.target.value === '' ? '' : String(Math.min(500, Math.max(0, Number.isFinite(n) ? n : 0))); return {...prev,[playerIdx]:ex} })}
                         placeholder={prog ? String(prog.weight) : exObj.weight.split(' ')[0]}
                         style={{ flex:1, minWidth:0, padding:'6px 8px', border:'1px solid #ede8e0', borderRadius:8, fontSize:14, textAlign:'center', background:'#fff', fontFamily:'inherit', color:'#2c2820' }}/>
-                      <button onClick={() => updateWeight(si, 2.5)} style={{ width:30, height:30, borderRadius:8, border:'1px solid #ede8e0', background:'#faf8f5', cursor:'pointer', fontSize:16, color:'#7a7268', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontFamily:'inherit' }}>+</button>
+                      <button type="button" aria-label="Increase weight" onClick={() => updateWeight(si, 2.5)} style={{ width:30, height:30, borderRadius:8, border:'1px solid #ede8e0', background:'#faf8f5', cursor:'pointer', fontSize:16, color:'#7a7268', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontFamily:'inherit' }}>+</button>
                     </div>
                   )}
                   <div style={{ fontSize:15, textAlign:'center', color:'#2c2820', fontWeight:500 }}>{exObj.reps}</div>
                   <div style={{ display:'flex', justifyContent:'flex-end' }}>
-                    <button onClick={() => toggleSet(si, exObj.sets)} style={{ width:36, height:36, borderRadius:18, border:`2px solid ${done?'#2c2820':'#c8b89a'}`, background:done?'#2c2820':'transparent', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', transition:'all 0.15s' }}>
-                      {done && <i className="ti ti-check" style={{ color:'#f5f0e8', fontSize:14 }}/>}
+                    <button type="button" role="checkbox" aria-checked={!!done} aria-label={`Mark set ${si+1} done`} onClick={() => toggleSet(si, exObj.sets)} style={{ width:36, height:36, borderRadius:18, border:`2px solid ${done?'#2c2820':'#c8b89a'}`, background:done?'#2c2820':'transparent', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', transition:'all 0.15s' }}>
+                      {done && <i className="ti ti-check" aria-hidden="true" style={{ color:'#f5f0e8', fontSize:14 }}/>}
                     </button>
                   </div>
                 </div>
@@ -1750,9 +1763,9 @@ export default function Workout() {
               </div>
               <div style={{ display:'flex', gap:6 }}>
                 {[30,60,90].map(s => (
-                  <button key={s} onClick={() => setRestSecondsLeft(s)} style={{ padding:'6px 10px', borderRadius:8, border:'1px solid rgba(255,255,255,0.15)', background:'rgba(255,255,255,0.08)', color:'#c8b89a', fontSize:12, cursor:'pointer', fontFamily:'inherit' }}>{s}s</button>
+                  <button type="button" aria-label={`Rest ${s} seconds`} key={s} onClick={() => setRestSecondsLeft(s)} style={{ padding:'6px 10px', borderRadius:8, border:'1px solid rgba(255,255,255,0.15)', background:'rgba(255,255,255,0.08)', color:'#c8b89a', fontSize:12, cursor:'pointer', fontFamily:'inherit' }}>{s}s</button>
                 ))}
-                <button onClick={() => setRestSecondsLeft(0)} style={{ padding:'6px 10px', borderRadius:8, border:'none', background:'none', color:'#9a9590', fontSize:12, cursor:'pointer', fontFamily:'inherit' }}>Skip</button>
+                <button type="button" onClick={() => setRestSecondsLeft(0)} style={{ padding:'6px 10px', borderRadius:8, border:'none', background:'none', color:'#9a9590', fontSize:12, cursor:'pointer', fontFamily:'inherit' }}>Skip</button>
               </div>
             </div>
           )}
@@ -1770,7 +1783,7 @@ export default function Workout() {
   // CARDIO TIMER
   if (screen === 'cardioTimer') {
     const cardioKey = ['walk','run','cycle','swim'].includes(activity) ? activity : null
-    const cardioGuide = cardioKey ? pc(CARDIO_GUIDES[cardioKey], phase) : null
+    const cardioGuide = cardioKey ? getCardioGuide(cardioKey) : null
     const mm = String(Math.floor(cardioSeconds / 60)).padStart(2, '0')
     const ss = String(cardioSeconds % 60).padStart(2, '0')
     const label = ACTIVITIES.find(a => a.id === activity)?.label || activity
@@ -1790,11 +1803,11 @@ export default function Workout() {
           <div style={{ fontSize:12, color:'#9a9590', marginBottom:32 }}>{cardioRunning ? 'Running' : cardioSeconds > 0 ? 'Paused' : 'Ready'}</div>
 
           {/* Start / Pause */}
-          <button
+          <button type="button" aria-label={cardioRunning ? 'Pause' : 'Start'}
             onClick={() => setCardioRunning(r => !r)}
             style={{ width:80, height:80, borderRadius:40, background: cardioRunning ? '#f5f0e8' : '#2c2820', border:`2px solid ${cardioRunning?'#ede8e0':'#2c2820'}`, cursor:'pointer', display:'inline-flex', alignItems:'center', justifyContent:'center', marginBottom:32 }}
           >
-            <i className={`ti ti-${cardioRunning ? 'player-pause' : 'player-play'}`} style={{ fontSize:30, color: cardioRunning ? '#2c2820' : '#f5f0e8' }} />
+            <i className={`ti ti-${cardioRunning ? 'player-pause' : 'player-play'}`} aria-hidden="true" style={{ fontSize:30, color: cardioRunning ? '#2c2820' : '#f5f0e8' }} />
           </button>
 
           {cardioGuide && (
@@ -1816,7 +1829,7 @@ export default function Workout() {
 
   // HIIT TIMER
   if (screen === 'hiitTimer') {
-    const data = hiitFor(phase)
+    const data = hiitFor('observation')
     const isWork = hiitPhase === 'work'
     const currentExercise = data.exercises[hiitExIdx]
     const totalIntervals = data.rounds * data.exercises.length
@@ -1825,7 +1838,7 @@ export default function Workout() {
 
     function skipHiitPhase() {
       // Advance directly (not via the timer effect) so Skip also works while paused.
-      const data = hiitFor(phase)
+      const data = hiitFor('observation')
       if (hiitPhase === 'work') {
         setHiitPhase('rest'); setHiitSecondsLeft(data.rest)
       } else {
@@ -1846,8 +1859,8 @@ export default function Workout() {
     return (
       <div style={{ paddingBottom:100, minHeight:'100vh', background: isWork ? '#1e1010' : '#101a10' }}>
         <div style={{ background:'rgba(0,0,0,0.3)', padding:'16px 20px', borderBottom:'1px solid rgba(255,255,255,0.1)', display:'flex', alignItems:'center', gap:12 }}>
-          <button onClick={() => { setHiitRunning(false); setScreen('plan') }} style={{ background:'none', border:'none', cursor:'pointer', padding:0, fontSize:20, color:'rgba(255,255,255,0.7)', lineHeight:1 }}>
-            <i className="ti ti-arrow-left"/>
+          <button type="button" aria-label="Go back" onClick={() => { setHiitRunning(false); setScreen('plan') }} style={{ background:'none', border:'none', cursor:'pointer', padding:0, fontSize:20, color:'rgba(255,255,255,0.7)', lineHeight:1 }}>
+            <i className="ti ti-arrow-left" aria-hidden="true"/>
           </button>
           <div style={{ flex:1 }}>
             <div style={{ fontSize:10, fontWeight:600, letterSpacing:'0.12em', textTransform:'uppercase', color:'rgba(255,255,255,0.5)', marginBottom:6 }}>HIIT WORKOUT</div>
@@ -1888,11 +1901,11 @@ export default function Workout() {
           <div style={{ fontSize:12, color:'rgba(255,255,255,0.4)', marginBottom:36 }}>seconds</div>
 
           {/* Pause / Play */}
-          <button
+          <button type="button" aria-label={hiitRunning ? 'Pause' : 'Start'}
             onClick={() => setHiitRunning(r => !r)}
             style={{ width:80, height:80, borderRadius:40, background: hiitRunning ? 'rgba(255,255,255,0.15)' : '#fff', border:'2px solid rgba(255,255,255,0.3)', cursor:'pointer', display:'inline-flex', alignItems:'center', justifyContent:'center', marginBottom:20 }}
           >
-            <i className={`ti ti-${hiitRunning ? 'player-pause' : 'player-play'}`} style={{ fontSize:30, color: hiitRunning ? '#fff' : '#2c2820' }} />
+            <i className={`ti ti-${hiitRunning ? 'player-pause' : 'player-play'}`} aria-hidden="true" style={{ fontSize:30, color: hiitRunning ? '#fff' : '#2c2820' }} />
           </button>
 
           <div style={{ display:'flex', gap:12, justifyContent:'center', marginBottom:32 }}>
@@ -1928,14 +1941,16 @@ export default function Workout() {
         <div style={{ fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:18, marginBottom:4 }}>How did it go?</div>
         <div style={{ fontSize:13, color:'#7a7268', marginBottom:20 }}>This helps the algorithm understand your energy relative to your phase.</div>
         {FEEL_OPTIONS.map(f => (
-          <div key={f} onClick={() => setFeel(f)} style={{
+          <button type="button" key={f} aria-pressed={feel===f} onClick={() => setFeel(f)} style={{
+            display:'block', width:'100%', textAlign:'left', font:'inherit',
             padding:'16px', borderRadius:12, border:`1px solid ${feel===f?'#c8b89a':'#ede8e0'}`,
             background:feel===f?'#e8dfd0':'#fff', cursor:'pointer', marginBottom:10,
             fontSize:14, fontWeight:feel===f?600:400, color:feel===f?'#5a4a3a':'#2c2820',
-          }}>{f}</div>
+          }}>{f}</button>
         ))}
+        {saveError && <div role="alert" style={{ fontSize:13, color:'#c05858', marginTop:12, lineHeight:1.6 }}>{saveError}</div>}
         <button className="btn-primary" onClick={save} disabled={!feel || saving} style={{ marginTop:8 }}>
-          {saving ? 'Saving...' : 'Save workout'}
+          {saving ? 'Saving...' : saveError ? 'Try again' : 'Save workout'}
         </button>
       </div>
       <BottomNav />
@@ -1951,30 +1966,32 @@ export default function Workout() {
         <div style={{ fontSize:13, color:'#7a7268', marginBottom:20 }}>Quick log for studio and group classes.</div>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:20 }}>
           {CLASS_TYPES.map(c => (
-            <div key={c.id} onClick={() => setClassType(c.id)} style={{
+            <button type="button" key={c.id} aria-pressed={classType===c.id} onClick={() => setClassType(c.id)} style={{
+              textAlign:'left', font:'inherit',
               padding:'14px 12px', borderRadius:12, border:`1px solid ${classType===c.id?'#c8b89a':'#ede8e0'}`,
               background:classType===c.id?'#e8dfd0':'#fff', cursor:'pointer',
               display:'flex', alignItems:'center', gap:10,
             }}>
               {c.emoji
-                ? <span style={{ fontSize:20 }}>{c.emoji}</span>
-                : <i className={`ti ${c.icon}`} style={{ fontSize:20, color:classType===c.id?'#5a4a3a':'#c8b89a' }} />
+                ? <span style={{ fontSize:20 }} aria-hidden="true">{c.emoji}</span>
+                : <i className={`ti ${c.icon}`} aria-hidden="true" style={{ fontSize:20, color:classType===c.id?'#5a4a3a':'#c8b89a' }} />
               }
               <div style={{ fontSize:13, fontWeight:classType===c.id?600:400, color:classType===c.id?'#5a4a3a':'#2c2820' }}>{c.label}</div>
-            </div>
+            </button>
           ))}
         </div>
         <div style={{ marginBottom:24 }}>
           <span style={{ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590', marginBottom:8, display:'block' }}>Duration (minutes)</span>
           <input
-            type="number" inputMode="numeric" placeholder="e.g. 45"
+            type="number" inputMode="numeric" aria-label="Duration (minutes)" placeholder="e.g. 45"
             value={classDuration}
             onChange={e => setClassDuration(e.target.value)}
             style={{ width:'100%', padding:'12px 14px', borderRadius:10, border:'1px solid #ede8e0', fontSize:15, fontFamily:'inherit', boxSizing:'border-box', outline:'none' }}
           />
         </div>
+        {saveError && <div role="alert" style={{ fontSize:13, color:'#c05858', marginBottom:10, lineHeight:1.6 }}>{saveError}</div>}
         <button className="btn-primary" disabled={!classType || saving} onClick={saveClass}>
-          {saving ? 'Saving...' : 'Save class'}
+          {saving ? 'Saving...' : saveError ? 'Try again' : 'Save class'}
         </button>
       </div>
       <BottomNav />
