@@ -9,6 +9,7 @@
 //
 
 import SwiftUI
+import Combine
 
 // One exercise in the guided flow, with its set count. A guidance-only day (no per-move
 // breakdown) collapses to a single one-set step built from the workout's detail line.
