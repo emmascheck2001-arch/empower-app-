@@ -35,8 +35,9 @@ struct WatchWorkout: Identifiable, Codable {
     let title: String
     let detail: String    // e.g. "Strength · recovery-leaning"
     let exercises: [WatchExercise]
+    var recommended: Bool = false   // the phase-best option; shown first with a badge
 
-    enum CodingKeys: String, CodingKey { case activity, title, detail, exercises }
+    enum CodingKeys: String, CodingKey { case activity, title, detail, exercises, recommended }
 }
 
 struct TodayPlan: Codable {
@@ -98,9 +99,15 @@ struct ContentView: View {
                         NavigationLink(destination: WorkoutDetailView(workout: w, phase: store.plan.phase, age: store.plan.age ?? 30)) {
                             HStack(spacing: 10) {
                                 Image(systemName: activityIcon(w.activity))
-                                    .foregroundStyle(empowerGold)
+                                    .foregroundStyle(w.recommended ? empowerGold : .secondary)
                                     .frame(width: 22)
                                 VStack(alignment: .leading, spacing: 2) {
+                                    if w.recommended {
+                                        Text("RECOMMENDED")
+                                            .font(.system(size: 9, weight: .bold))
+                                            .foregroundStyle(empowerGold)
+                                            .tracking(0.5)
+                                    }
                                     Text(w.title).font(.headline)
                                     Text(w.detail).font(.caption2).foregroundStyle(.secondary)
                                 }
