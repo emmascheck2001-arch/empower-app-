@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase'
 import { getTodayStatus, getPhase, getLutealSubPhase, getPregnancyWeek, getTrimester } from '../lib/hormoneSync'
 import { buildDailyCoach } from '../lib/dailyCoach'
 import { buildPhaseOutlook } from '../lib/phaseOutlook'
-import { syncPlanToWatch } from '../lib/watchBridge'
+import { syncPlanToWatch, syncWatchWithFeedback, watchSyncAvailable } from '../lib/watchBridge'
 import BottomNav from '../components/BottomNav'
 import Spinner from '../components/Spinner'
 import InstallPrompt from '../components/InstallPrompt'
@@ -114,6 +114,16 @@ export default function Dashboard() {
   const [lateOpen, setLateOpen] = useState(false)
   const [pendingFriends, setPendingFriends] = useState(0)
   const [wear, setWear] = useState(null)
+  const [watchSyncing, setWatchSyncing] = useState(false)
+  const [watchMsg, setWatchMsg] = useState('')
+
+  async function handleSyncWatch() {
+    if (watchSyncing) return
+    setWatchSyncing(true); setWatchMsg('')
+    const res = await syncWatchWithFeedback(d?.status)
+    setWatchMsg(res.message)
+    setWatchSyncing(false)
+  }
 
   useEffect(() => { load() }, [])
 
@@ -301,7 +311,7 @@ export default function Dashboard() {
       // Daily Coach, pure synthesis of the status we already have (no new data). First name only.
       const firstName = (profile?.name || '').trim().split(/\s+/)[0] || null
       const coach = buildDailyCoach(status, new Date().getHours(), firstName)
-      setD({ profile, phase, subPhase, cycleDay, cycleLen, daysLeft, confidence, bw, proteinG: status?.nutritionTargets?.proteinG || null, bcBleedDay, bcInBleedWindow, alreadyLogged, todayLog, streak, recentLogs, twoWeekLogs, anomalyItems, isPath4, estimated, latePeriod: status?.latePeriod || false, daysLate: status?.daysLate || 0, latePeriodInsights: status?.latePeriodInsights || [], nextPeriod: status?.nextPeriodPrediction || null, userEmail: user.email, todayLoggers: todayLoggers || 0, coach })
+      setD({ profile, phase, subPhase, cycleDay, cycleLen, daysLeft, confidence, bw, proteinG: status?.nutritionTargets?.proteinG || null, bcBleedDay, bcInBleedWindow, alreadyLogged, todayLog, streak, recentLogs, twoWeekLogs, anomalyItems, isPath4, estimated, latePeriod: status?.latePeriod || false, daysLate: status?.daysLate || 0, latePeriodInsights: status?.latePeriodInsights || [], nextPeriod: status?.nextPeriodPrediction || null, userEmail: user.email, todayLoggers: todayLoggers || 0, coach, status })
     } catch(e) { console.error(e) }
     finally { setLoading(false) }
   }
@@ -623,7 +633,17 @@ export default function Dashboard() {
             the weekly review is a once-a-week (Sunday) moment with confetti, and doctor prep
             now lives in the Learn tab. */}
 
-        <div style={{ textAlign:'center', marginTop:8, display:'flex', justifyContent:'center', gap:20 }}>
+        {watchSyncAvailable() && (
+          <div style={{ textAlign:'center', marginTop:16 }}>
+            <button onClick={handleSyncWatch} disabled={watchSyncing} style={{ display:'inline-flex', alignItems:'center', gap:8, background:'#fff', border:'1px solid #ede8e0', borderRadius:12, padding:'11px 18px', fontSize:14, fontWeight:500, color:'#2c2820', cursor:'pointer', fontFamily:'inherit', opacity: watchSyncing ? 0.6 : 1 }}>
+              <i className="ti ti-device-watch" style={{ fontSize:18, color:'#c8b89a' }} />
+              {watchSyncing ? 'Syncing…' : 'Sync Apple Watch'}
+            </button>
+            {watchMsg && <div style={{ fontSize:12, color:'#7a7268', marginTop:8, lineHeight:1.5, maxWidth:300, marginLeft:'auto', marginRight:'auto' }}>{watchMsg}</div>}
+          </div>
+        )}
+
+        <div style={{ textAlign:'center', marginTop:16, display:'flex', justifyContent:'center', gap:20 }}>
           <button onClick={() => navigate('/setup?edit=1')} style={{ background:'none', border:'none', fontSize:12, color:'#9a9590', cursor:'pointer', fontFamily:'inherit' }}>Change information</button>
           <button onClick={() => navigate('/feedback')} style={{ background:'none', border:'none', fontSize:12, color:'#9a9590', cursor:'pointer', fontFamily:'inherit' }}>Share feedback</button>
           <button onClick={() => navigate('/privacy')} style={{ background:'none', border:'none', fontSize:12, color:'#9a9590', cursor:'pointer', fontFamily:'inherit' }}>Privacy &amp; data</button>
