@@ -87,57 +87,109 @@ func activityIcon(_ a: String) -> String {
     }
 }
 
-// MARK: - Today
+// Phone's activity-picker order, so the watch grid mirrors the phone.
+let ACTIVITY_ORDER = ["Walk", "Run", "Cycle", "Swim", "Gym", "Yoga", "Pilates", "HIIT", "Rest"]
+
+// MARK: - Today (activity grid, like the phone)
 struct ContentView: View {
     @EnvironmentObject private var store: PlanStore
 
+    // Distinct activities present in today's plan, in the phone's grid order.
+    private var activities: [String] {
+        let present = Set(store.plan.workouts.map { $0.activity })
+        return ACTIVITY_ORDER.filter { present.contains($0) }
+    }
+    private var recommended: WatchWorkout? { store.plan.workouts.first { $0.recommended } }
+
+    private let cols = [GridItem(.flexible(), spacing: 6), GridItem(.flexible(), spacing: 6)]
+
     var body: some View {
         NavigationStack {
-            List {
-                Section {
-                    ForEach(store.plan.workouts) { w in
-                        NavigationLink(destination: WorkoutDetailView(workout: w, phase: store.plan.phase, age: store.plan.age ?? 30)) {
-                            HStack(spacing: 10) {
-                                Image(systemName: activityIcon(w.activity))
-                                    .foregroundStyle(w.recommended ? empowerGold : .secondary)
-                                    .frame(width: 22)
-                                VStack(alignment: .leading, spacing: 2) {
-                                    HStack(spacing: 5) {
-                                        Text(w.activity.uppercased())
-                                            .font(.system(size: 9, weight: .bold))
-                                            .foregroundStyle(.secondary)
-                                            .tracking(0.5)
-                                        if w.recommended {
-                                            Text("· RECOMMENDED")
-                                                .font(.system(size: 9, weight: .bold))
-                                                .foregroundStyle(empowerGold)
-                                                .tracking(0.5)
-                                        }
-                                    }
-                                    Text(w.title).font(.headline)
-                                    Text(w.detail).font(.caption2).foregroundStyle(.secondary)
-                                }
-                            }
-                            .padding(.vertical, 2)
-                        }
-                    }
-                } header: {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 10) {
+                    // Header
                     VStack(alignment: .leading, spacing: 1) {
-                        Text("Today").font(.title3.bold()).foregroundStyle(.primary)
+                        Text("Today").font(.title3.bold())
                         Text(store.plan.phase).font(.caption).foregroundStyle(empowerGold)
                     }
-                    .textCase(nil)
-                    .padding(.bottom, 4)
-                } footer: {
+
+                    // Activity grid — pick an activity, exactly like the phone.
+                    LazyVGrid(columns: cols, spacing: 6) {
+                        ForEach(activities, id: \.self) { act in
+                            NavigationLink(destination: ActivityView(activity: act, plan: store.plan)) {
+                                VStack(spacing: 4) {
+                                    Image(systemName: activityIcon(act))
+                                        .font(.system(size: 20))
+                                        .foregroundStyle(empowerGold)
+                                    Text(act).font(.caption2).foregroundStyle(.primary)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 10)
+                                .background(Color.gray.opacity(0.18))
+                                .clipShape(RoundedRectangle(cornerRadius: 10))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+
+                    // Recommended for her cycle — highlighted, right below the grid.
+                    if let rec = recommended {
+                        Text("RECOMMENDED FOR YOUR CYCLE")
+                            .font(.system(size: 9, weight: .bold)).foregroundStyle(empowerGold).tracking(0.5)
+                            .padding(.top, 4)
+                        NavigationLink(destination: WorkoutDetailView(workout: rec, phase: store.plan.phase, age: store.plan.age ?? 30)) {
+                            HStack(spacing: 10) {
+                                Image(systemName: activityIcon(rec.activity)).foregroundStyle(empowerGold).frame(width: 22)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(rec.title).font(.headline)
+                                    Text(rec.detail).font(.caption2).foregroundStyle(.secondary)
+                                }
+                                Spacer(minLength: 0)
+                            }
+                            .padding(10)
+                            .background(empowerGold.opacity(0.15))
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                        }
+                        .buttonStyle(.plain)
+                    }
+
                     if !store.hasLiveData {
                         Text("Sample plan — open Em~power on your iPhone to sync today's workouts.")
-                            .font(.caption2).foregroundStyle(.secondary)
+                            .font(.caption2).foregroundStyle(.secondary).padding(.top, 4)
                     }
                 }
+                .padding(.horizontal, 4)
             }
             .navigationTitle("Em~power")
         }
         .tint(empowerGold)
+    }
+}
+
+// MARK: - Activity screen (the workouts for one picked activity)
+// Gym shows Full body / Upper body / Lower body; other activities usually have a single session.
+struct ActivityView: View {
+    let activity: String
+    let plan: TodayPlan
+    private var items: [WatchWorkout] { plan.workouts.filter { $0.activity == activity } }
+
+    var body: some View {
+        List {
+            ForEach(items) { w in
+                NavigationLink(destination: WorkoutDetailView(workout: w, phase: plan.phase, age: plan.age ?? 30)) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        if w.recommended {
+                            Text("RECOMMENDED")
+                                .font(.system(size: 9, weight: .bold)).foregroundStyle(empowerGold).tracking(0.5)
+                        }
+                        Text(w.title).font(.headline)
+                        Text(w.detail).font(.caption2).foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 2)
+                }
+            }
+        }
+        .navigationTitle(activity)
     }
 }
 
