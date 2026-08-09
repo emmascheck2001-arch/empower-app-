@@ -1,4 +1,4 @@
-// Weekly summary modal + dashboard card, a Sunday review of ONLY what she logged this week.
+// Weekly summary modal + dashboard card, a review of ONLY what she logged in the past week.
 // Permanent rule: every line here must be derived from the user's own logged data, no
 // generic "many women notice" predictions, no prescribed experiments, nothing invented.
 
@@ -6,15 +6,12 @@ import { buildWeeklyHighlights } from '../lib/weeklyHighlights'
 import { buildWeeklyObservation } from '../lib/weeklyObservation'
 import { getPhase, isMeaningfulHealthLog } from '../lib/hormoneSync'
 import { getUserLocal, setUserLocal } from '../lib/userLocalState'
-import { diffCalendarDays } from '../lib/dateUtils.js'
+import { diffCalendarDays, toDateStr } from '../lib/dateUtils.js'
 
-function getWeekKey() {
-  const d = new Date()
-  const day = d.getDay()
-  const monday = new Date(d)
-  monday.setDate(d.getDate() - (day === 0 ? 6 : day - 1))
-  return `weekly-${monday.getFullYear()}-${String(monday.getMonth()+1).padStart(2,'0')}-${String(monday.getDate()).padStart(2,'0')}`
-}
+// Rolling weekly cadence, keyed to the last time the review actually appeared (not the calendar
+// week). Stored as YYYY-MM-DD so we can measure a true 7-day gap.
+const LAST_SHOWN_KEY = 'weekly-last-shown'
+const DISMISSED_KEY = 'weekly-last-dismissed'
 
 function scoreEnergy(e) {
   return { 'Very low':1, 'Low':2, 'Normal':3, 'Good':3, 'High':4 }[e] ?? null
@@ -27,26 +24,33 @@ function scoreSleep(s) {
 // weekly insight entirely rather than show a hollow one.
 export const WEEKLY_MIN_LOGS = 4
 
+// Show the weekly review on the FIRST APP OPEN once at least 7 days have passed since it last
+// appeared (or it has never appeared), and there is enough logged in the past week to make a real
+// recap. Triggered by opening the app (the dashboard loads on every open), NEVER by a login event,
+// which almost never fires once the app is installed on a phone.
 export function shouldShowWeeklySummary(logs, userId) {
-  const key = getWeekKey()
-  if (getUserLocal(userId, `${key}-shown`)) return false   // already shown this calendar week
-  const thisWeek = logs.filter(l => {
-    const diff = diffCalendarDays(new Date(), new Date(l.log_date + 'T00:00:00'))
+  const last = getUserLocal(userId, LAST_SHOWN_KEY)
+  if (last && diffCalendarDays(new Date(), last + 'T00:00:00') < 7) return false
+  const thisWeek = (logs || []).filter(l => {
+    const diff = diffCalendarDays(new Date(), l.log_date + 'T00:00:00')
     return diff >= 0 && diff < 7 && isMeaningfulHealthLog(l)
   })
   return thisWeek.length >= WEEKLY_MIN_LOGS
 }
 
 export function markWeeklySummaryShown(userId) {
-  setUserLocal(userId, `${getWeekKey()}-shown`, '1')
+  setUserLocal(userId, LAST_SHOWN_KEY, toDateStr())   // today; next review is 7+ days out
 }
 
 export function markWeeklySummaryDismissed(userId) {
-  setUserLocal(userId, `${getWeekKey()}-dismissed`, '1')
+  // Dismissing also counts as shown, so it will not reappear until the next 7-day window.
+  setUserLocal(userId, DISMISSED_KEY, toDateStr())
+  setUserLocal(userId, LAST_SHOWN_KEY, toDateStr())
 }
 
 export function wasDismissedToday(userId) {
-  return !!getUserLocal(userId, `${getWeekKey()}-dismissed`)
+  const d = getUserLocal(userId, DISMISSED_KEY)
+  return !!d && diffCalendarDays(new Date(), d + 'T00:00:00') === 0
 }
 
 export function buildWeeklySummary(logs, phase, subPhase, confidence, daysUntilPeriod, cycleDay, cycleLen) {

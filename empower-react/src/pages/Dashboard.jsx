@@ -306,7 +306,8 @@ export default function Dashboard() {
       // auto-opens as a modal, and no longer depends on localStorage to dedupe (which
       // some browsers clear, making the insight pop up again every day).
       // Compute this week's insights every day so the dashboard "Insights" card can show them.
-      // (The auto-popping standalone card still only appears on Sundays, as a deliberate recap.)
+      // The auto-popping modal appears on the first APP OPEN of each new 7-day window (see
+      // shouldShowWeeklySummary) — triggered by opening the app, never by a login event.
       if (twoWeekLogs) {
         const thisWeekCount = twoWeekLogs.filter(l => diffCalendarDays(new Date(), l.log_date + 'T00:00:00') < 7).length
         if (thisWeekCount >= 1) {
