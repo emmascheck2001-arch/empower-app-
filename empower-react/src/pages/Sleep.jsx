@@ -98,7 +98,7 @@ export default function Sleep() {
       // Pre-fill if already logged today
       const { data: existing } = await supabase.from('daily_logs')
         .select('sleep_quality,sleep_hours,hormonal_context').eq('user_id', user.id).eq('log_date', localDateStr()).maybeSingle()
-      const existingInContext = existing && (existing.hormonal_context ? existing.hormonal_context === (s?.contextKey || 'natural-cycle') : (s?.contextKey || 'natural-cycle') === 'natural-cycle')
+      const existingInContext = existing && (existing.hormonal_context ? existing.hormonal_context === (s?.contextKey || 'natural-cycle') : true)
       if (existingInContext && existing?.sleep_quality) setQuality(existing.sleep_quality)
       if (existingInContext && existing?.sleep_hours != null) setHours(String(existing.sleep_hours))
       // Her recent sleep, to make tonight's guidance personal
@@ -106,7 +106,7 @@ export default function Sleep() {
         .select('sleep_quality,log_date,hormonal_context').eq('user_id', user.id)
         .not('sleep_quality', 'is', null).order('log_date', { ascending: false }).limit(5)
       const context = s?.contextKey || 'natural-cycle'
-      setRecentSleep((recent || []).filter(log => log.hormonal_context ? log.hormonal_context === context : context === 'natural-cycle'))
+      setRecentSleep((recent || []).filter(log => log.hormonal_context ? log.hormonal_context === context : true))
     } catch(e) { console.error(e); setLoadError('We could not load your health data, so personalised sleep guidance has been paused.') }
     setLoading(false)
   }

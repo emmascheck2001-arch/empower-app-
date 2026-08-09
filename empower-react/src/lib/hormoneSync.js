@@ -59,9 +59,9 @@ export function getHormonalContext(profile) {
 
 function belongsToCurrentContext(log, contextKey) {
   if (log?.hormonal_context) return log.hormonal_context === contextKey
-  // Legacy rows predate provenance. Count them only in natural-cycle mode; switching hormonal
-  // state starts a clean learning baseline instead of carrying old recommendations forward.
-  return contextKey === 'natural-cycle'
+  // Legacy rows predate provenance (no context tag). They are the user's real history, so ALWAYS
+  // count them in the current context. Only logs with an EXPLICIT different context are separated.
+  return true
 }
 
 // ── Phase calculation (canonical, never duplicate this elsewhere) ──────────

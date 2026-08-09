@@ -39,7 +39,7 @@ export default function VisitPrep() {
           supabase.from('user_baselines').select('*').eq('id', user.id).maybeSingle(),
         ])
         const context = getHormonalContext(prof)
-        const contextLogs = (logs || []).filter(log => log.hormonal_context ? log.hormonal_context === context : context === 'natural-cycle')
+        const contextLogs = (logs || []).filter(log => log.hormonal_context ? log.hormonal_context === context : true)
         setProfile(prof)
         setSummary(buildVisitSummary({ profile: prof || {}, cycleData, logs: contextLogs, baselines, todayStr: localDateStr() }))
         // Symptom Coach, how her logged symptoms line up (or don't) with her cycle.

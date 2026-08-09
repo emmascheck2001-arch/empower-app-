@@ -237,7 +237,7 @@ export default function Dashboard() {
       // when the Workout screen was opened, so it kept showing the built-in sample ("Luteal").
       if (status) syncPlanToWatch(status)
       const contextKey = status?.contextKey || getHormonalContext(profile)
-      const inCurrentContext = log => log?.hormonal_context ? log.hormonal_context === contextKey : contextKey === 'natural-cycle'
+      const inCurrentContext = log => log?.hormonal_context ? log.hormonal_context === contextKey : true
       const recentLogs = (rawRecentLogs || []).filter(inCurrentContext)
       const twoWeekLogs = (rawTwoWeekLogs || []).filter(inCurrentContext)
       const historyLogs = (rawHistoryLogs || []).filter(inCurrentContext)

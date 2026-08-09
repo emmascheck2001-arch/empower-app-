@@ -892,7 +892,7 @@ export default function Workout() {
         supabase.from('cycle_data').select('notes,last_period_date').eq('user_id', user.id).order('created_at', { ascending: false }).limit(1).maybeSingle(),
       ])
       const context = s?.contextKey || 'natural-cycle'
-      const contextLogs = (pastLogs || []).filter(log => log.hormonal_context ? log.hormonal_context === context : context === 'natural-cycle')
+      const contextLogs = (pastLogs || []).filter(log => log.hormonal_context ? log.hormonal_context === context : true)
       setCycleHistory(buildCycleDayHistory(contextLogs, parsePeriodStarts(cyc), s?.cycleLen || 28))
     } catch(e) { console.error(e); setLoadError('We could not load your health data, so no personalised workout has been generated.') }
     setLoading(false)

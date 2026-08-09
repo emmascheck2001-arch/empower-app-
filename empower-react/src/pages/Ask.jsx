@@ -38,7 +38,7 @@ export default function Ask() {
       ])
       let streak = 0
       const context = status?.contextKey || 'natural-cycle'
-      const ll = (logs || []).filter(log => log.hormonal_context ? log.hormonal_context === context : context === 'natural-cycle')
+      const ll = (logs || []).filter(log => log.hormonal_context ? log.hormonal_context === context : true)
       const check = new Date(); check.setHours(0,0,0,0)
       for (const l of ll) {
         const diff = diffCalendarDays(check, l.log_date+'T00:00:00')

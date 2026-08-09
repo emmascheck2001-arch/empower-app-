@@ -169,7 +169,7 @@ export default function Calendar() {
       }
       setStatus(s)
       const contextKey = s?.contextKey || 'natural-cycle'
-      setLogs((logData || []).filter(log => log.hormonal_context ? log.hormonal_context === contextKey : contextKey === 'natural-cycle'))
+      setLogs((logData || []).filter(log => log.hormonal_context ? log.hormonal_context === contextKey : true))
     } catch(e) { console.error('Calendar init error:', e) }
     setLoading(false)
   }
