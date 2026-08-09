@@ -320,18 +320,49 @@ function getFollicularSubPhase(cycleDay) {
   return cycleDay <= 9 ? 'Early follicular' : 'Late follicular'
 }
 
+// Breakthrough / intermenstrual bleeding is not a new cycle, but it is often logged as a period
+// start. When the pattern is clearly a short, light bleed too soon after the previous start, keep
+// it on the calendar but leave it out of cycle-length maths so one breakthrough bleed does not
+// teach the app a false 17-day "normal".
+const HEAVIER_THAN_LIGHT = ['moderate', 'heavy', 'very heavy']
+export function classifyPeriodStarts(periodStarts, logs = [], periodLengths = {}) {
+  const starts = [...(periodStarts || [])].sort()
+  if (!starts.length) return []
+  const byDate = {}
+  for (const l of logs || []) if (l?.log_date) byDate[l.log_date] = l
+  const derived = derivePeriodLengthsFromFlow(logs, starts)
+  return starts.map((start, i) => {
+    const prev = i > 0 ? starts[i - 1] : null
+    const gapFromPrev = prev ? diffCalendarDays(start + 'T00:00:00', prev + 'T00:00:00') : null
+    const days = periodLengths?.[start] ?? derived[start] ?? null
+    let heaviest = null
+    for (let d = 0; d < (days || 1); d++) {
+      const dt = new Date(start + 'T00:00:00')
+      dt.setDate(dt.getDate() + d)
+      const flow = byDate[dt.toISOString().slice(0, 10)]?.flow_volume
+      if (flow && HEAVIER_THAN_LIGHT.includes(String(flow).toLowerCase())) heaviest = flow
+    }
+    const likelyBreakthrough = gapFromPrev != null && gapFromPrev < 21 &&
+      days != null && days <= 2 && !heaviest
+    return { start, gapFromPrev, days, heaviest, likelyBreakthrough }
+  })
+}
+
 // Reconstruct how many real cycles the user has tracked, from the recorded period-start
 // history (cycle_data.notes + last_period_date). A "cycle" is the gap between two
 // consecutive recorded starts. Gaps under 15 days are excluded so duplicate/intermenstrual
 // entries do not inflate the number; long gaps remain visible rather than being normalised away.
 // confidence score should grow with accumulated cycles, the real measure of how much the app
-// has learned about YOU, not just how many days you've logged. Recorded period starts stay
-// authoritative here: prediction should not silently decide a logged start "didn't count".
-export function computeCycleHistory(cycleData, profileCycleLen) {
+// has learned about YOU, not just how many days you've logged. Recorded period starts remain on
+// the calendar; a likely breakthrough bleed is only excluded from cycle-length maths.
+export function computeCycleHistory(cycleData, profileCycleLen, logs = []) {
   const starts = parsePeriodStarts(cycleData)
+  const classified = classifyPeriodStarts(starts, logs, parsePeriodLengths(cycleData))
+  const breakthroughStarts = classified.filter(c => c.likelyBreakthrough).map(c => c.start)
+  const realStarts = starts.filter(s => !breakthroughStarts.includes(s))
   const gaps = []
-  for (let i = 1; i < starts.length; i++) {
-    const g = diffCalendarDays(starts[i] + 'T00:00:00', starts[i - 1] + 'T00:00:00')
+  for (let i = 1; i < realStarts.length; i++) {
+    const g = diffCalendarDays(realStarts[i] + 'T00:00:00', realStarts[i - 1] + 'T00:00:00')
     if (g >= 15 && g <= 365) gaps.push(g)
   }
   const cyclesTracked = gaps.length
@@ -339,12 +370,14 @@ export function computeCycleHistory(cycleData, profileCycleLen) {
   // preserving clinically meaningful short and long cycles instead of deleting them.
   const sorted = [...gaps].sort((a, b) => a - b)
   // Her own median only once two cycles exist to compare; before that the entered/population
-  // length carries it, so a single long or short cycle cannot masquerade as her normal.
+  // length carries it, so a single long or short cycle cannot masquerade as her normal. Prefer
+  // the profile/onboarding length here; cycle_data.cycle_length may itself be a stale learned
+  // value from before a mistaken start was corrected.
   const avgCycleLength = sorted.length >= MIN_CYCLES_FOR_PERSONAL_ESTIMATE
     ? Math.round(medianOf(sorted))
-    : (cycleData?.cycle_length || profileCycleLen || 28)
+    : (profileCycleLen || cycleData?.cycle_length || 28)
   const variabilityDays = sorted.length >= 2 ? sorted[sorted.length - 1] - sorted[0] : null
-  return { cyclesTracked, avgCycleLength, periodStarts: starts, gaps, variabilityDays }
+  return { cyclesTracked, avgCycleLength, periodStarts: starts, gaps, variabilityDays, breakthroughStarts, classifiedStarts: classified }
 }
 
 // When a period is late, look at the user's OWN recent logs and name the likely
@@ -1004,7 +1037,7 @@ function buildCycleStatus(profile, cycleData, recentLogs, mucusLogs, today, tota
   let estimated = false   // true when phase is inferred from symptoms, not a logged period
   const { periodLengths, current: currentPeriodLength } = resolvePeriodLengths(cycleData, historyLogs)
 
-  const cycleHistory = computeCycleHistory(cycleData, profile?.cycle_length)
+  const cycleHistory = computeCycleHistory(cycleData, profile?.cycle_length, historyLogs)
   const { cyclesTracked, avgCycleLength } = cycleHistory
 
   if (cycleData?.last_period_date) {
