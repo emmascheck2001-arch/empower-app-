@@ -18,6 +18,12 @@
 		50B271D11FEDC1A000F3C39B /* public in Resources */ = {isa = PBXBuildFile; fileRef = 50B271D01FEDC1A000F3C39B /* public */; };
 		9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9582B6822FE993A50072D4E8 /* SceneDelegate.swift */; };
 		E4B17A022FE9A00100000002 /* WatchBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4B17A012FE9A00100000001 /* WatchBridge.swift */; };
+		E4B17A042FE9A00100000004 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E4B17A032FE9A00100000003 /* Assets.xcassets */; };
+		E4B17A0B2FE9A0010000000B /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4B17A052FE9A00100000005 /* ContentView.swift */; };
+		E4B17A0C2FE9A0010000000C /* Empower_WatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4B17A062FE9A00100000006 /* Empower_WatchApp.swift */; };
+		E4B17A0D2FE9A0010000000D /* LiveWorkoutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4B17A072FE9A00100000007 /* LiveWorkoutView.swift */; };
+		E4B17A0E2FE9A0010000000E /* StickFigure.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4B17A082FE9A00100000008 /* StickFigure.swift */; };
+		E4B17A0F2FE9A0010000000F /* WorkoutManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4B17A092FE9A00100000009 /* WorkoutManager.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -59,11 +65,15 @@
 		9582B6822FE993A50072D4E8 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 		958DCC722DB07C7200EA8C5F /* debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = debug.xcconfig; path = ../debug.xcconfig; sourceTree = SOURCE_ROOT; };
 		E4B17A012FE9A00100000001 /* WatchBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchBridge.swift; sourceTree = "<group>"; };
+		E4B17A032FE9A00100000003 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		E4B17A052FE9A00100000005 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		E4B17A062FE9A00100000006 /* Empower_WatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Empower_WatchApp.swift; sourceTree = "<group>"; };
+		E4B17A072FE9A00100000007 /* LiveWorkoutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveWorkoutView.swift; sourceTree = "<group>"; };
+		E4B17A082FE9A00100000008 /* StickFigure.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickFigure.swift; sourceTree = "<group>"; };
+		E4B17A092FE9A00100000009 /* WorkoutManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutManager.swift; sourceTree = "<group>"; };
+		E4B17A0A2FE9A0010000000A /* Empower Watch Watch App.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Empower Watch Watch App.entitlements"; sourceTree = "<group>"; };
+		E4B17A102FE9A00100000010 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
-
-/* Begin PBXFileSystemSynchronizedRootGroup section */
-		32F24DE03024EAC3001282C2 /* Empower Watch Watch App */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = "Empower Watch Watch App"; sourceTree = "<group>"; };
-/* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		32F24DDC3024EAC3001282C2 /* Frameworks */ = {
@@ -121,6 +131,21 @@
 			path = App;
 			sourceTree = "<group>";
 		};
+		32F24DE03024EAC3001282C2 /* Empower Watch Watch App */ = {
+			isa = PBXGroup;
+			children = (
+				E4B17A032FE9A00100000003 /* Assets.xcassets */,
+				E4B17A052FE9A00100000005 /* ContentView.swift */,
+				E4B17A062FE9A00100000006 /* Empower_WatchApp.swift */,
+				E4B17A0A2FE9A0010000000A /* Empower Watch Watch App.entitlements */,
+				E4B17A102FE9A00100000010 /* Info.plist */,
+				E4B17A072FE9A00100000007 /* LiveWorkoutView.swift */,
+				E4B17A082FE9A00100000008 /* StickFigure.swift */,
+				E4B17A092FE9A00100000009 /* WorkoutManager.swift */,
+			);
+			path = "Empower Watch Watch App";
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -135,9 +160,6 @@
 			buildRules = (
 			);
 			dependencies = (
-			);
-			fileSystemSynchronizedGroups = (
-				32F24DE03024EAC3001282C2 /* Empower Watch Watch App */,
 			);
 			name = "Empower Watch Watch App";
 			packageProductDependencies = (
@@ -214,6 +236,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E4B17A042FE9A00100000004 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -237,6 +260,11 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E4B17A0B2FE9A0010000000B /* ContentView.swift in Sources */,
+				E4B17A0C2FE9A0010000000C /* Empower_WatchApp.swift in Sources */,
+				E4B17A0D2FE9A0010000000D /* LiveWorkoutView.swift in Sources */,
+				E4B17A0E2FE9A0010000000E /* StickFigure.swift in Sources */,
+				E4B17A0F2FE9A0010000000F /* WorkoutManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -298,12 +326,8 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = "Empower Watch";
-				INFOPLIST_KEY_NSHealthShareUsageDescription = "Em~power reads your heart rate during a workout so it can show your live rate and frame it by your cycle phase.";
-				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Em~power saves your workout sessions to Apple Health.";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
-				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.empowerhealth.app;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "Empower Watch Watch App/Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -346,12 +370,8 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = "Empower Watch";
-				INFOPLIST_KEY_NSHealthShareUsageDescription = "Em~power reads your heart rate during a workout so it can show your live rate and frame it by your cycle phase.";
-				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Em~power saves your workout sessions to Apple Health.";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
-				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.empowerhealth.app;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "Empower Watch Watch App/Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
