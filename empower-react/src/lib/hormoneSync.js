@@ -97,6 +97,21 @@ export function getLutealSubPhase(cycleDay, cycleLen) {
 }
 
 // Source: CLAUDE.md canonical period prediction, export so all screens use same logic
+// Two completed cycles is the point at which the app trusts a user's own history over
+// population norms — one cycle cannot show whether it is typical for her or a one-off.
+export const MIN_CYCLES_FOR_PERSONAL_ESTIMATE = 2
+
+// True median. With an EVEN number of cycles, taking sorted[n/2] returned the upper of the two
+// middle gaps, which pushed the prediction to the long end of the user's own range and left the
+// predicted day sitting on the window's outer edge (gaps [17,32] predicted 32, not 24.5).
+// Averaging the two middle values keeps the estimate inside the window it is drawn from.
+export function medianOf(values) {
+  const sorted = [...(values || [])].sort((a, b) => a - b)
+  if (!sorted.length) return null
+  const mid = Math.floor(sorted.length / 2)
+  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2
+}
+
 export const predictNextPeriod = (lastPeriodDate, avgCycleLength, cyclesTracked, gaps) => {
   const lastPeriod = new Date(lastPeriodDate + 'T00:00:00')
   const addDays = n => { const d = new Date(lastPeriod); d.setDate(d.getDate() + n); return d }
@@ -109,7 +124,11 @@ export const predictNextPeriod = (lastPeriodDate, avgCycleLength, cyclesTracked,
   //    remain as health history, though missing intermediate entries are also possible.
   const plausible = (gaps || []).filter(g => g >= 15 && g <= 365)
   const sorted = [...plausible].sort((a, b) => a - b)
-  const middle = sorted.length ? sorted[Math.floor(sorted.length / 2)] : null
+  // A single observed cycle is a data point, not a pattern — one atypical cycle would otherwise
+  // become the forecast outright. Population/onboarding cycle length carries the estimate until
+  // there are at least two completed cycles to compare against each other. The cycle is still
+  // used for the window and the irregular flag, so nothing she logged is ignored.
+  const middle = plausible.length >= MIN_CYCLES_FOR_PERSONAL_ESTIMATE ? medianOf(sorted) : null
   const point = Math.max(15, Math.round(middle || avgCycleLength) || 28)
   const predictedDate = addDays(point)
 
@@ -160,31 +179,121 @@ export function parsePeriodStarts(cycleData) {
   return [...set].sort()
 }
 
-// Merge a newly logged period start into the existing history and return the JSON
-// string to store in cycle_data.notes. Never drops a previously recorded start.
-export function mergePeriodStartsNotes(existingNotes, existingLastDate, newDate) {
-  const set = new Set()
+// Bleeding length has the same single-column problem period starts had: cycle_data holds
+// ONE period_length for the whole user, so marking a 3-day period ended retroactively redrew
+// every earlier cycle as 3 days. Lengths are therefore stored per cycle, keyed by that
+// cycle's start date: {"periodStarts":[...],"periodLengths":{"2026-06-18":5,...}}.
+export function parsePeriodLengths(cycleData) {
+  if (!cycleData?.notes) return {}
+  try {
+    const parsed = JSON.parse(cycleData.notes)
+    const raw = parsed?.periodLengths
+    if (!raw || typeof raw !== 'object') return {}
+    const out = {}
+    for (const [start, len] of Object.entries(raw)) {
+      const n = Number(len)
+      if (ISO_DATE.test(start) && Number.isFinite(n) && n >= 1 && n <= 14) out[start] = n
+    }
+    return out
+  } catch { return {} }
+}
+
+// Read whatever we already have in notes so no merge helper silently drops the other key.
+function parseNotesPayload(existingNotes) {
+  const starts = new Set()
+  let lengths = {}
   if (existingNotes) {
     try {
       const parsed = JSON.parse(existingNotes)
-      if (parsed && Array.isArray(parsed.periodStarts)) parsed.periodStarts.forEach(d => set.add(d))
+      if (parsed && Array.isArray(parsed.periodStarts)) parsed.periodStarts.forEach(d => starts.add(d))
+      lengths = parsePeriodLengths({ notes: existingNotes })
     } catch { /* ignore non-JSON notes */ }
   }
-  if (existingLastDate) set.add(existingLastDate)
-  if (newDate) set.add(newDate)
-  const periodStarts = [...set].filter(d => ISO_DATE.test(d)).sort()
-  return JSON.stringify({ periodStarts })
+  return { starts, lengths }
+}
+
+function serialiseNotes(starts, lengths) {
+  const periodStarts = [...starts].filter(d => ISO_DATE.test(d)).sort()
+  return Object.keys(lengths).length
+    ? JSON.stringify({ periodStarts, periodLengths: lengths })
+    : JSON.stringify({ periodStarts })
+}
+
+// Merge a newly logged period start into the existing history and return the JSON
+// string to store in cycle_data.notes. Never drops a previously recorded start.
+export function mergePeriodStartsNotes(existingNotes, existingLastDate, newDate) {
+  const { starts, lengths } = parseNotesPayload(existingNotes)
+  if (existingLastDate) starts.add(existingLastDate)
+  if (newDate) starts.add(newDate)
+  return serialiseNotes(starts, lengths)
+}
+
+// Record how long ONE period lasted, against the cycle it belongs to. Every other cycle's
+// recorded length is preserved untouched — logging today's period can never rewrite history.
+export function mergePeriodLengthNotes(existingNotes, existingLastDate, startDate, length) {
+  const { starts, lengths } = parseNotesPayload(existingNotes)
+  if (existingLastDate) starts.add(existingLastDate)
+  const n = Number(length)
+  if (ISO_DATE.test(startDate || '') && Number.isFinite(n)) {
+    starts.add(startDate)
+    lengths[startDate] = Math.min(Math.max(Math.round(n), 1), 14)
+  }
+  return serialiseNotes(starts, lengths)
+}
+
+// Rebuild each cycle's bleeding length from the days flow was actually logged. This is how
+// cycles recorded before per-cycle lengths existed get their real value back, with no
+// migration. A single missing day mid-period is bridged: a one-day hole is far more often a
+// skipped log than a genuine stop-start, and breaking the run there would under-count.
+const MAX_LOG_GAP_DAYS = 2   // consecutive = 1; a single skipped day = 2
+export function derivePeriodLengthsFromFlow(logs, periodStarts) {
+  if (!logs?.length || !periodStarts?.length) return {}
+  const bleedDays = logs
+    .filter(l => l.flow_volume && l.flow_volume !== 'None')
+    .map(l => l.log_date)
+    .filter(d => ISO_DATE.test(d))
+    .sort()
+  if (!bleedDays.length) return {}
+  const starts = [...periodStarts].sort()
+  const out = {}
+  for (let i = 0; i < starts.length; i++) {
+    const start = starts[i]
+    const nextStart = starts[i + 1] || null
+    // Only days belonging to THIS cycle: on/after its start, before the next one begins.
+    const own = bleedDays.filter(d => d >= start && (!nextStart || d < nextStart))
+    if (!own.length) continue
+    let last = own[0]
+    for (const d of own.slice(1)) {
+      if (diffCalendarDays(d + 'T00:00:00', last + 'T00:00:00') > MAX_LOG_GAP_DAYS) break
+      last = d
+    }
+    out[start] = Math.min(diffCalendarDays(last + 'T00:00:00', start + 'T00:00:00') + 1, 14)
+  }
+  return out
+}
+
+// Resolve the bleeding length for the cycle a date falls in. Falls back to the user's most
+// recent recorded length ONLY for the newest cycle, never for history.
+export function periodLengthForStart(startStr, periodLengths, latestStart, fallbackLength) {
+  if (periodLengths && periodLengths[startStr] != null) return periodLengths[startStr]
+  if (startStr && startStr === latestStart && fallbackLength) return fallbackLength
+  return null
 }
 
 // Remove a mistaken period-start entry without touching that day's symptom or bleeding log.
 // Returns the new most-recent anchor so every prediction can move back consistently.
 export function removePeriodStartNotes(existingNotes, existingLastDate, removeDate) {
-  const periodStarts = parsePeriodStarts({ notes:existingNotes, last_period_date:existingLastDate })
-    .filter(date => date !== removeDate)
+  const { starts, lengths } = parseNotesPayload(existingNotes)
+  if (existingLastDate) starts.add(existingLastDate)
+  starts.delete(removeDate)
+  delete lengths[removeDate]
+  const periodStarts = [...starts].filter(date => date !== removeDate && ISO_DATE.test(date)).sort()
+  const nextLatest = periodStarts.length ? periodStarts[periodStarts.length - 1] : null
   return {
-    notes:JSON.stringify({ periodStarts }),
+    notes:serialiseNotes(new Set(periodStarts), lengths),
     periodStarts,
-    lastPeriodDate:periodStarts.length ? periodStarts[periodStarts.length - 1] : null,
+    lastPeriodDate:nextLatest,
+    periodLength:lengths[nextLatest] ?? null,
   }
 }
 
@@ -197,8 +306,9 @@ function getFollicularSubPhase(cycleDay) {
 // history (cycle_data.notes + last_period_date). A "cycle" is the gap between two
 // consecutive recorded starts. Gaps under 15 days are excluded so duplicate/intermenstrual
 // entries do not inflate the number; long gaps remain visible rather than being normalised away.
-// confidence score should grow with, accumulated cycles are the real measure of how much
-// the app has learned about YOU, not just how many days you've logged.
+// confidence score should grow with accumulated cycles, the real measure of how much the app
+// has learned about YOU, not just how many days you've logged. Recorded period starts stay
+// authoritative here: prediction should not silently decide a logged start "didn't count".
 export function computeCycleHistory(cycleData, profileCycleLen) {
   const starts = parsePeriodStarts(cycleData)
   const gaps = []
@@ -210,8 +320,10 @@ export function computeCycleHistory(cycleData, profileCycleLen) {
   // Keep atypical cycles visible. A median is resistant to a single mistaken start while still
   // preserving clinically meaningful short and long cycles instead of deleting them.
   const sorted = [...gaps].sort((a, b) => a - b)
-  const avgCycleLength = sorted.length
-    ? Math.round(sorted[Math.floor(sorted.length / 2)])
+  // Her own median only once two cycles exist to compare; before that the entered/population
+  // length carries it, so a single long or short cycle cannot masquerade as her normal.
+  const avgCycleLength = sorted.length >= MIN_CYCLES_FOR_PERSONAL_ESTIMATE
+    ? Math.round(medianOf(sorted))
     : (cycleData?.cycle_length || profileCycleLen || 28)
   const variabilityDays = sorted.length >= 2 ? sorted[sorted.length - 1] - sorted[0] : null
   return { cyclesTracked, avgCycleLength, periodStarts: starts, gaps, variabilityDays }
@@ -272,6 +384,11 @@ function rhrToNum(v) {
 
 function logRhrToNum(log) {
   return rhrToNum(log?.resting_hr_exact ?? log?.resting_hr)
+}
+
+function logTempToNum(log) {
+  const n = parseFloat(log?.wrist_temp)
+  return isNaN(n) ? NaN : n
 }
 
 // Store-facing summary only. A numeric result cannot be safely interpreted without the sample
@@ -593,8 +710,11 @@ function getPredictions(phase, cycleDay, cycleLen) {
 
 // ── Symptom inference engine ─────────────────────────────────────────────────
 // Estimates only from cycle-specific body observations when no period date is available.
-// Mood, energy, sleep, pain and workout quality are deliberately excluded: they are important
-// readiness and health signals, but too non-specific to identify a cycle phase.
+// Mood, stress, energy, sleep and workout quality are deliberately excluded from DIRECT phase
+// assignment: they matter for readiness and recurring pattern-learning, but on their own they are
+// too non-specific to tell follicular from ovulatory from luteal. More phase-specific signals
+// (flow, cervical fluid, LH, temperature shift, a recent RHR rise, and a few timing-linked
+// symptoms) can support an estimate when they appear together.
 // Source: Janse de Jonge 2003 Sports Medicine, personal tracking improves prediction accuracy.
 // Source: Bigelow et al. 2004 Human Reproduction, egg white fluid 80% sensitivity for fertile window.
 // Source: De Martin Topranin et al. 2023 IJSPP. RHR 1.7 bpm higher mid-luteal vs early follicular.
@@ -608,6 +728,7 @@ export function inferPhaseFromSymptoms(recentLogs, mucusLogs = []) {
   const mucus = (mucusLogs || []).slice(0, 7)
 
   const allFluid = mucus.map(m => m.discharge_type).filter(Boolean)
+  const symptomSet = new Set(logs.flatMap(l => l.symptoms || []).filter(Boolean))
 
   const scores = { Menstrual: 0, Follicular: 0, Ovulatory: 0, Luteal: 0 }
   const signals = []
@@ -633,9 +754,39 @@ export function inferPhaseFromSymptoms(recentLogs, mucusLogs = []) {
   if (logs.some(l => l.lh_result && l.lh_result.toLowerCase() === 'positive')) {
     scores.Ovulatory += 3; signals.push('positive LH test')
   }
+  if (symptomSet.has('Ovulation pain')) {
+    scores.Ovulatory += 1; signals.push('ovulation pain logged')
+  }
   // Dry/sticky fluid can follow the fertile window but is weak evidence by itself.
   if (allFluid.some(f => f === 'Sticky or crumbly' || f === 'None or dry')) {
     scores.Luteal += 1; signals.push('dry or sticky cervical fluid')
+  }
+  if (symptomSet.has('Breast tenderness')) {
+    scores.Luteal += 1; signals.push('breast tenderness logged')
+  }
+  if (symptomSet.has('Bloating') || symptomSet.has('Cravings') || symptomSet.has('Mood swings')) {
+    scores.Luteal += 1; signals.push('late-cycle symptoms logged')
+  }
+
+  const acuteBiometricConfounders = logs.slice(0, 2).some(l =>
+    l?.sleep_quality === 'Poor' ||
+    Number(l?.stress_level) >= 4 ||
+    (l?.disruptors || []).some(d => ['Alcohol', 'Illness', 'Very poor sleep'].includes(d))
+  )
+  const latestTemps = logs.slice(0, 2).map(logTempToNum).filter(n => !isNaN(n))
+  const priorTemps = logs.slice(2).map(logTempToNum).filter(n => !isNaN(n))
+  const tempBaseline = priorTemps.length >= 3 ? priorTemps.reduce((a, b) => a + b, 0) / priorTemps.length : null
+  if (!acuteBiometricConfounders && latestTemps.length >= 2 && tempBaseline != null &&
+      latestTemps.every(t => t >= tempBaseline + 0.2)) {
+    scores.Luteal += 3; signals.push('sustained temperature rise')
+  }
+
+  const latestRhrs = logs.slice(0, 2).map(logRhrToNum).filter(n => !isNaN(n))
+  const priorRhrs = logs.slice(2).map(logRhrToNum).filter(n => !isNaN(n))
+  const rhrBaseline = priorRhrs.length >= 3 ? priorRhrs.reduce((a, b) => a + b, 0) / priorRhrs.length : null
+  if (!acuteBiometricConfounders && latestRhrs.length && rhrBaseline != null &&
+      latestRhrs[0] >= rhrBaseline + 3) {
+    scores.Luteal += 1; signals.push('resting heart rate above recent baseline')
   }
 
   const uniqueSignals = [...new Set(signals)]
@@ -903,6 +1054,9 @@ function buildCycleStatus(profile, cycleData, recentLogs, mucusLogs, today, tota
     cycleDay,
     cycleLen,
     periodLength: cycleData?.period_length || null,
+    // Per-cycle bleeding lengths keyed by period start. Screens drawing history must use this,
+    // not the single periodLength above, or the newest period rewrites every earlier cycle.
+    periodLengths: parsePeriodLengths(cycleData),
     cyclesTracked,
     avgCycleLength,
     daysUntilPeriod,

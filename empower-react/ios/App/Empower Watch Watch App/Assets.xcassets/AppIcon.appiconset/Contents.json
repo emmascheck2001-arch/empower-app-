@@ -1,14 +1,157 @@
 {
   "images" : [
     {
-      "filename" : "AppIcon-1024.png",
-      "idiom" : "universal",
+      "size" : "24x24",
+      "idiom" : "watch",
       "platform" : "watchos",
-      "size" : "1024x1024"
+      "scale" : "2x",
+      "role" : "notificationCenter",
+      "subtype" : "38mm",
+      "filename" : "48.png"
+    },
+    {
+      "size" : "27.5x27.5",
+      "idiom" : "watch",
+      "platform" : "watchos",
+      "scale" : "2x",
+      "role" : "notificationCenter",
+      "subtype" : "42mm",
+      "filename" : "55.png"
+    },
+    {
+      "size" : "33x33",
+      "idiom" : "watch",
+      "platform" : "watchos",
+      "scale" : "2x",
+      "role" : "notificationCenter",
+      "subtype" : "45mm",
+      "filename" : "66.png"
+    },
+    {
+      "size" : "29x29",
+      "idiom" : "watch",
+      "platform" : "watchos",
+      "role" : "companionSettings",
+      "scale" : "2x",
+      "filename" : "58.png"
+    },
+    {
+      "size" : "29x29",
+      "idiom" : "watch",
+      "platform" : "watchos",
+      "role" : "companionSettings",
+      "scale" : "3x",
+      "filename" : "87.png"
+    },
+    {
+      "size" : "40x40",
+      "idiom" : "watch",
+      "platform" : "watchos",
+      "scale" : "2x",
+      "role" : "appLauncher",
+      "subtype" : "38mm",
+      "filename" : "80.png"
+    },
+    {
+      "size" : "44x44",
+      "idiom" : "watch",
+      "platform" : "watchos",
+      "scale" : "2x",
+      "role" : "appLauncher",
+      "subtype" : "40mm",
+      "filename" : "88.png"
+    },
+    {
+      "size" : "46x46",
+      "idiom" : "watch",
+      "platform" : "watchos",
+      "scale" : "2x",
+      "role" : "appLauncher",
+      "subtype" : "41mm",
+      "filename" : "92.png"
+    },
+    {
+      "size" : "50x50",
+      "idiom" : "watch",
+      "platform" : "watchos",
+      "scale" : "2x",
+      "role" : "appLauncher",
+      "subtype" : "44mm",
+      "filename" : "100.png"
+    },
+    {
+      "size" : "51x51",
+      "idiom" : "watch",
+      "platform" : "watchos",
+      "scale" : "2x",
+      "role" : "appLauncher",
+      "subtype" : "45mm",
+      "filename" : "102.png"
+    },
+    {
+      "size" : "54x54",
+      "idiom" : "watch",
+      "platform" : "watchos",
+      "scale" : "2x",
+      "role" : "appLauncher",
+      "subtype" : "49mm",
+      "filename" : "108.png"
+    },
+    {
+      "size" : "86x86",
+      "idiom" : "watch",
+      "platform" : "watchos",
+      "scale" : "2x",
+      "role" : "quickLook",
+      "subtype" : "38mm",
+      "filename" : "172.png"
+    },
+    {
+      "size" : "98x98",
+      "idiom" : "watch",
+      "platform" : "watchos",
+      "scale" : "2x",
+      "role" : "quickLook",
+      "subtype" : "42mm",
+      "filename" : "196.png"
+    },
+    {
+      "size" : "108x108",
+      "idiom" : "watch",
+      "platform" : "watchos",
+      "scale" : "2x",
+      "role" : "quickLook",
+      "subtype" : "44mm",
+      "filename" : "216.png"
+    },
+    {
+      "size" : "117x117",
+      "idiom" : "watch",
+      "platform" : "watchos",
+      "scale" : "2x",
+      "role" : "quickLook",
+      "subtype" : "45mm",
+      "filename" : "234.png"
+    },
+    {
+      "size" : "129x129",
+      "idiom" : "watch",
+      "platform" : "watchos",
+      "scale" : "2x",
+      "role" : "quickLook",
+      "subtype" : "49mm",
+      "filename" : "258.png"
+    },
+    {
+      "idiom" : "watch-marketing",
+      "platform" : "watchos",
+      "size" : "1024x1024",
+      "scale" : "1x",
+      "filename" : "AppIcon-1024.png"
     }
   ],
   "info" : {
-    "author" : "xcode",
-    "version" : 1
+    "version" : 1,
+    "author" : "xcode"
   }
 }

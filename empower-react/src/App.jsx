@@ -178,6 +178,7 @@ export default function App() {
         <Route path="/dashboard" element={<AuthGuard><Dashboard /></AuthGuard>} />
         <Route path="/setup"     element={<AuthGuard requireOnboarded={false}><Setup /></AuthGuard>} />
         <Route path="/log"       element={<AuthGuard><Log /></AuthGuard>} />
+        {import.meta.env.DEV && <Route path="/log-preview" element={<Log previewMode />} />}
         {/* Check-in and full log are now one merged screen (quick questions + "add more detail") */}
         <Route path="/checkin"   element={<AuthGuard><Log /></AuthGuard>} />
         <Route path="/workout"   element={<AuthGuard><Workout /></AuthGuard>} />

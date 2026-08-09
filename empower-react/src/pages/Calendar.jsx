@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { getTodayStatus, getPhase, getLutealSubPhase, parsePeriodStarts, getOvulationDay } from '../lib/hormoneSync'
+import { getTodayStatus, getPhase, getLutealSubPhase, parsePeriodStarts, getOvulationDay, derivePeriodLengthsFromFlow } from '../lib/hormoneSync'
 import { diffCalendarDays } from '../lib/dateUtils.js'
 import { getMovementToday } from '../lib/movementToday'
 import BottomNav from '../components/BottomNav'
@@ -77,7 +77,13 @@ export function getPhaseForDate(date, periodStarts, cycleLen, periodLength, allo
     effLen = cycleLen
     cycleDay = (((diff % cycleLen) + cycleLen) % cycleLen) + 1
   }
-  const phase = getPhase(cycleDay, effLen, periodLength)
+  // periodLength may be a plain number (one length, legacy callers) or a map of period-start
+  // -> length. The map form is required for history: applying one length to every date made a
+  // newly logged 3-day period redraw all earlier cycles as 3 days.
+  const effPeriodLength = (periodLength && typeof periodLength === 'object')
+    ? periodLength[localDateStr(anchor)]
+    : periodLength
+  const phase = getPhase(cycleDay, effLen, effPeriodLength)
   const sub = phase === 'Luteal' ? getLutealSubPhase(cycleDay, effLen) : phase
   return { phase, sub, cycleDay, estimated: !nextStart, projectedCycle: !nextStart && diff >= cycleLen }
 }
@@ -150,7 +156,7 @@ export default function Calendar() {
       const [s, { data: logData }, { data: cycleData }] = await Promise.all([
         getTodayStatus(supabase, user.id),
         supabase.from('daily_logs')
-          .select('log_date,energy,mood,symptoms,sleep_quality,workout_feel,resting_hr,libido,hormonal_context')
+          .select('log_date,energy,mood,symptoms,sleep_quality,workout_feel,resting_hr,libido,hormonal_context,flow_volume')
           .eq('user_id', user.id)
           .gte('log_date', localDateStr(new Date(now.getFullYear(), now.getMonth() - 2, 1))),
         supabase.from('cycle_data')
@@ -189,7 +195,18 @@ export default function Calendar() {
   // most recent derived start. Sorted ascending and deduped so getPhaseForDate can pick the
   // nearest anchor and colour every month, not just the one after the newest period.
   const phaseAnchors = [...new Set([...periodStarts, lastPeriod].filter(Boolean))].sort()
-  const periodLength = status?.periodLength
+  // Each cycle keeps its OWN bleeding length. Recorded lengths win; cycles logged before
+  // per-cycle lengths existed are rebuilt from the days flow was actually logged; the single
+  // cycle_data.period_length applies only to the newest cycle, never backwards over history.
+  const latestStart = phaseAnchors.length ? phaseAnchors[phaseAnchors.length - 1] : null
+  const periodLength = (() => {
+    const derived = derivePeriodLengthsFromFlow(logs, phaseAnchors)
+    const map = { ...derived, ...(status?.periodLengths || {}) }
+    if (latestStart && map[latestStart] == null && status?.periodLength) {
+      map[latestStart] = status.periodLength
+    }
+    return map
+  })()
   const allowProjection = !status?.latePeriod
 
   const year = month.getFullYear()

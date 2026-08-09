@@ -6,9 +6,11 @@ const off = (iso, date) => Math.round((date - new Date(iso + 'T00:00:00')) / 864
 
 describe('predictNextPeriod (research-backed: Bull 2019, Li 2020/2023, FIGO 2018)', () => {
   it('irregular user: predicts from the median cycle gap, and flags low confidence', () => {
-    // Gaps 17 (breakthrough) + 32 (real). Median of [17, 32] = 32.
+    // Gaps 17 + 32. True median of an even count averages the two middle values (24.5 → 25).
+    // This previously asserted 32, because sorted[n/2] took the UPPER middle value — which put
+    // the predicted day on the outer edge of the window built from those same two gaps.
     const p = predictNextPeriod('2026-08-06', 32, 2, [17, 32])
-    expect(off('2026-08-06', p.predictedDate)).toBe(32)
+    expect(off('2026-08-06', p.predictedDate)).toBe(25)
     expect(p.irregular).toBe(true)
     expect(p.confidence).toBe('low')   // irregular + only 2 cycles → low, not moderate
   })
