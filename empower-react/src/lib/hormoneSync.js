@@ -280,6 +280,24 @@ export function periodLengthForStart(startStr, periodLengths, latestStart, fallb
   return null
 }
 
+// Resolve per-cycle bleeding lengths for status screens. Stored values remain authoritative for
+// completed past cycles, while the CURRENT cycle is allowed to extend from live flow logs so
+// today's phase cannot jump to Follicular mid-bleed just because the old scalar period_length
+// still says "3". That keeps Home aligned with Calendar for the active cycle.
+export function resolvePeriodLengths(cycleData, logs = []) {
+  const starts = parsePeriodStarts(cycleData)
+  const latestStart = starts.length ? starts[starts.length - 1] : null
+  const derived = derivePeriodLengthsFromFlow(logs, starts)
+  const recorded = parsePeriodLengths(cycleData)
+  const periodLengths = { ...derived, ...recorded }
+  if (latestStart && derived[latestStart] != null) {
+    periodLengths[latestStart] = Math.max(periodLengths[latestStart] || 0, derived[latestStart])
+  }
+  const currentStart = cycleData?.last_period_date || latestStart
+  const current = periodLengthForStart(currentStart, periodLengths, latestStart, cycleData?.period_length || null)
+  return { periodLengths, current }
+}
+
 // Remove a mistaken period-start entry without touching that day's symptom or bleeding log.
 // Returns the new most-recent anchor so every prediction can move back consistently.
 export function removePeriodStartNotes(existingNotes, existingLastDate, removeDate) {
@@ -984,6 +1002,7 @@ function buildCycleStatus(profile, cycleData, recentLogs, mucusLogs, today, tota
   let confidence = 0.05
   let symptomInference = null
   let estimated = false   // true when phase is inferred from symptoms, not a logged period
+  const { periodLengths, current: currentPeriodLength } = resolvePeriodLengths(cycleData, historyLogs)
 
   const cycleHistory = computeCycleHistory(cycleData, profile?.cycle_length)
   const { cyclesTracked, avgCycleLength } = cycleHistory
@@ -999,7 +1018,7 @@ function buildCycleStatus(profile, cycleData, recentLogs, mucusLogs, today, tota
     daysUntilPeriod = Math.max(0, cycleLen - cycleDay + 1)
 
     if (cycleDay > 0 && cycleDay <= cycleLen + 7) {
-      phase = getPhase(cycleDay, cycleLen, cycleData.period_length)
+      phase = getPhase(cycleDay, cycleLen, currentPeriodLength)
       if (phase === 'Luteal') subPhase = getLutealSubPhase(cycleDay, cycleLen)
       if (phase === 'Follicular') subPhase = getFollicularSubPhase(cycleDay)
       confidence = calcConfidence(phase, subPhase, recentLogs, mucusLogs, totalLogs, cyclesTracked, cycleHistory.variabilityDays)
@@ -1053,10 +1072,10 @@ function buildCycleStatus(profile, cycleData, recentLogs, mucusLogs, today, tota
     subPhase,
     cycleDay,
     cycleLen,
-    periodLength: cycleData?.period_length || null,
+    periodLength: currentPeriodLength,
     // Per-cycle bleeding lengths keyed by period start. Screens drawing history must use this,
     // not the single periodLength above, or the newest period rewrites every earlier cycle.
-    periodLengths: parsePeriodLengths(cycleData),
+    periodLengths,
     cyclesTracked,
     avgCycleLength,
     daysUntilPeriod,

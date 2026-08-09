@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { derivePeriodLengthsFromFlow, mergePeriodLengthNotes, mergePeriodStartsNotes, parsePeriodLengths, parsePeriodStarts } from './hormoneSync'
+import { derivePeriodLengthsFromFlow, getPhase, mergePeriodLengthNotes, mergePeriodStartsNotes, parsePeriodLengths, parsePeriodStarts, resolvePeriodLengths } from './hormoneSync'
 
 // Regression: cycle_data holds ONE period_length for the whole user, so marking a 3-day period
 // ended redrew every earlier cycle on the calendar as 3 days. Lengths are now per cycle.
@@ -62,6 +62,24 @@ describe('per-cycle period lengths', () => {
     notes = mergePeriodLengthNotes(notes, '2026-07-05', '2026-07-05', 2)
     expect(parsePeriodStarts({ notes })).toEqual(['2026-06-18', '2026-07-05'])
     expect(parsePeriodLengths({ notes })).toEqual({ '2026-06-18': 5, '2026-07-05': 2 })
+  })
+
+  it('keeps the active cycle menstrual when live flow has extended past the stale scalar length', () => {
+    const cycleData = {
+      last_period_date: '2026-08-06',
+      period_length: 3,
+      notes: JSON.stringify({ periodStarts: starts, periodLengths: { '2026-06-18': 5, '2026-07-05': 2 } }),
+    }
+    const logs = [
+      { log_date: '2026-08-06', flow_volume: 'Moderate' },
+      { log_date: '2026-08-07', flow_volume: 'Heavy' },
+      { log_date: '2026-08-08', flow_volume: 'Light' },
+      { log_date: '2026-08-09', flow_volume: 'Light' },
+    ]
+    const { periodLengths, current } = resolvePeriodLengths(cycleData, logs)
+    expect(periodLengths['2026-08-06']).toBe(4)
+    expect(current).toBe(4)
+    expect(getPhase(4, 25, current)).toBe('Menstrual')
   })
 
   it('tolerates rows with no notes or non-JSON notes', () => {
