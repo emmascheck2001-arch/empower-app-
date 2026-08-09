@@ -564,19 +564,27 @@ export default function Log({ previewMode = false }) {
           </div>}
         </>}
 
-        {!isPath4 && !isPregnant && !isMenstrual && (
+        {!isPath4 && !isPregnant && (
           <>
             <span style={{...sectionHead, marginTop:4, paddingTop:0, borderTop:'none'}}>Cycle signals</span>
-            <div style={sectionHint}>These are the most useful signals for timing your cycle.</div>
+            <div style={sectionHint}>
+              {isMenstrual
+                ? 'Wearable signals stay editable here in case Apple Health got something wrong.'
+                : 'These are the most useful signals for timing your cycle.'}
+            </div>
 
-            <span style={sLabel}>Cervical fluid</span>
-            <PillRow opts={FLUID_OPTS} selected={log.cervical_fluid} single onToggle={v=>set('cervical_fluid',v)}/>
-            {log.cervical_fluid && FLUID_HINTS[log.cervical_fluid] && (
-              <div style={{fontSize:12,color:'#7a7268',marginTop:-8,marginBottom:16,lineHeight:1.5}}>{FLUID_HINTS[log.cervical_fluid]}</div>
+            {!isMenstrual && (
+              <>
+                <span style={sLabel}>Cervical fluid</span>
+                <PillRow opts={FLUID_OPTS} selected={log.cervical_fluid} single onToggle={v=>set('cervical_fluid',v)}/>
+                {log.cervical_fluid && FLUID_HINTS[log.cervical_fluid] && (
+                  <div style={{fontSize:12,color:'#7a7268',marginTop:-8,marginBottom:16,lineHeight:1.5}}>{FLUID_HINTS[log.cervical_fluid]}</div>
+                )}
+
+                <span style={sLabel}>LH test</span>
+                <PillRow opts={LH_OPTS} selected={log.lh_result} single onToggle={v=>set('lh_result',v)}/>
+              </>
             )}
-
-            <span style={sLabel}>LH test</span>
-            <PillRow opts={LH_OPTS} selected={log.lh_result} single onToggle={v=>set('lh_result',v)}/>
 
             <span style={sLabel}>Temperature</span>
             {wearableInfo.temp && <div style={{fontSize:11,color:'#7a7268',marginTop:-4,marginBottom:8}}>{wearableInfo.store} filled this in. Change it if needed.</div>}
