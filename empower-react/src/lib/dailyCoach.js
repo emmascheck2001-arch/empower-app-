@@ -22,7 +22,7 @@ function greet(hour) {
 // recovery note that can appear right below them).
 function focusFor(effPhase) {
   switch (effPhase) {
-    case 'Menstrual':      return { label: 'Check in', sub: 'Use bleeding, pain and energy to guide today' }
+    case 'Menstrual':      return { label: 'Check in', sub: 'Let how you feel set the pace today' }
     case 'Early follicular':
     case 'Follicular':
     case 'Late follicular':return { label: 'Check in', sub: 'Use your warm-up and recent recovery' }
@@ -80,7 +80,7 @@ function mindsetLine(phase, subPhase) {
     case 'Late luteal':   return 'Some people notice pre-period mood or energy changes here. Notice what is true for you, and seek support for symptoms that persist or disrupt your life.'
     case 'Mid luteal':    return 'Mood and sleep may shift for some people here, while others remain steady. Your log helps distinguish your pattern.'
     case 'Early luteal':  return 'This is a possible transition window, not a prediction of your mood. Let today’s experience lead.'
-    case 'Menstrual':     return 'Bleeding, pain and energy affect people differently. Keep your plan if you feel well, and choose recovery when you need it.'
+    case 'Menstrual':     return 'Everyone feels their period differently. Keep your plan if you feel good, and choose rest when you need it.'
     case 'Late follicular':
     case 'Follicular':
     case 'Early follicular': return 'Some people notice better mood or focus here, but it is not universal. Empower will learn whether it repeats for you.'

@@ -57,7 +57,7 @@ const MINDSET_PLAN = {
 }
 
 const PHASE_DESC_BASE = {
-  Menstrual:      'This is your estimated menstrual window. Bleeding, pain and energy vary, so keep the planned session or adjust it based on how you feel.',
+  Menstrual:      'This is your estimated period window. How you feel can vary day to day, so keep your planned session if you feel good, or take it easier if you need to.',
   Follicular:     'This is your estimated follicular window. Some studies find small performance differences across the cycle, but individual responses vary widely.',
   Ovulatory:      'This is your estimated ovulatory window, not confirmation that ovulation occurred. Your warm-up and recent recovery are better training guides than the calendar alone.',
   'Early luteal': 'This is your estimated early-luteal window. Temperature and resting heart rate can shift for some people after ovulation, while training capacity often remains stable.',

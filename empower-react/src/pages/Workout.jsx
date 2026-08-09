@@ -696,7 +696,7 @@ const CLASS_TYPES = [
 ]
 
 const PHASE_BANNER = {
-  Menstrual:      { bg:'#3d2830', text:'#f5e8e8', note:'Your period is useful context. Keep the session you planned if you feel well, or adapt it for bleeding, pain, fatigue or a difficult warm-up.' },
+  Menstrual:      { bg:'#3d2830', text:'#f5e8e8', note:'Your period is useful context, not a rule. Keep the session you planned if you feel good, or take it easier if you are low on energy or not feeling your best.' },
   Follicular:     { bg:'#2c3828', text:'#e8f5e8', note:'This is an estimated follicular window. Population research does not support automatically increasing load; use recent performance and today’s warm-up.' },
   Ovulatory:      { bg:'#2c3035', text:'#e8f0f8', note:'This is an estimated ovulatory window, not proof of ovulation or a special injury-risk score. A thorough warm-up is good practice in every phase.' },
   'Early luteal': { bg:'#352c20', text:'#f5ede0', note:'This is an estimated early-luteal window. Keep your plan and adjust only if symptoms, recovery or your warm-up support it.' },

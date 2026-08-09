@@ -35,7 +35,8 @@ the privacy policy, and `delete_my_account()`.
 - The app requests **read-only** HealthKit access to: resting heart rate, heart rate variability (SDNN), sleeping wrist temperature / basal body temperature / body temperature, sleep analysis, and workouts.
 - The app requests **no HealthKit write** access.
 - HealthKit data is used only for the user's cycle tracking and recommendations. It is **not** used for advertising, marketing, or shared with third parties, and is **not** used for the app's App Store analytics beyond the app's own product analytics.
-- `NSHealthShareUsageDescription` must clearly describe this read-only use. (`NSHealthUpdateUsageDescription` is not needed since we never write.)
+- `NSHealthShareUsageDescription` describes the read-only use.
+- `NSHealthUpdateUsageDescription` **must also be present** even though the app does not write to HealthKit: the linked `@capgo/capacitor-health` SDK references HealthKit write APIs, so Apple's static analysis requires the purpose string (App Store rejection ITMS-90683 if missing). The string states the app only writes data the user chooses to log; in practice the app currently requests `write: []` and does not write.
 
 ## Google Play — Data safety answers
 

@@ -19,7 +19,7 @@ export const PHASE_SHEET_INFO = {
     bullets: ['Bleeding marks cycle day one','Estrogen and progesterone are generally low','Pain, flow, mood and energy vary widely','Heavy or prolonged bleeding can contribute to iron deficiency'],
     estrogen: { direction:'Generally low', patterns:['A calendar phase cannot predict mood or energy','Levels usually begin rising after menstruation'] },
     progesterone: { direction:'Generally low', patterns:['The previous decline is involved in menstruation','Temperature and heart rate may move toward personal baseline'] },
-    expect: 'Bleeding, pain, mood and energy vary. Keep normal activity if you feel well or adapt for your symptoms; repeated heavy bleeding or pain that limits daily life deserves care.',
+    expect: 'How you feel can vary a lot from day to day. Keep normal activity if you feel well, or ease off for your symptoms. Repeated heavy bleeding, or pain that limits daily life, deserves care.',
   },
   Follicular: {
     bullets: ['Estrogen generally rises before ovulation','Progesterone generally remains low','Energy, mood and recovery may or may not change','Calendar timing cannot confirm hormone levels'],
