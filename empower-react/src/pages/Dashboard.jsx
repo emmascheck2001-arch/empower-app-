@@ -118,8 +118,13 @@ export default function Dashboard() {
   const [wear, setWear] = useState(null)
   const [healthConnected, setHealthConnected] = useState(false)
   const [resyncing, setResyncing] = useState(false)
+  const [hideHealthMissingHint, setHideHealthMissingHint] = useState(false)
 
   useEffect(() => { load() }, [])
+  useEffect(() => {
+    if (!d?.userId) return
+    setHideHealthMissingHint(getUserLocal(d.userId, 'hideHealthMissingHint') === '1')
+  }, [d?.userId])
 
   // Re-run the Apple Health / Health Connect permission sheet, then reload so the tiles re-read.
   // Recovers the common case where Sleep or Wrist Temperature was left OFF in the first grant —
@@ -143,8 +148,15 @@ export default function Dashboard() {
     if (!d?.userId) return
     removeUserLocal(d.userId, 'healthConnected')
     removeUserLocal(d.userId, 'wearableSignals')
+    removeUserLocal(d.userId, 'hideHealthMissingHint')
     setHealthConnected(false)
+    setHideHealthMissingHint(false)
     setWear(null)
+  }
+
+  function dismissHealthMissingHint() {
+    if (d?.userId) setUserLocal(d.userId, 'hideHealthMissingHint', '1')
+    setHideHealthMissingHint(true)
   }
 
   // Read the connected wearable (native only) and surface the live numbers in Today's Focus.
@@ -477,8 +489,16 @@ export default function Dashboard() {
             ? (bcBleedDay ? (bcInBleedWindow ? `Day ${bcBleedDay} of your pill cycle · bleed likely now` : `Day ${bcBleedDay} · next bleed in about ${daysLeft} days`) : 'Steady hormones, tracking symptoms')
             : cycleDay ? `Day ${cycleDay} of ${cycleLen}` : estimated ? 'Estimated from your symptoms' : 'Tracking your patterns'
           const np = d.nextPeriod
+          const showNextPeriod = np && phase !== 'bc' && !latePeriod && phase !== 'Menstrual'
           const stripT = dt => { const x = new Date(dt); x.setHours(0,0,0,0); return x }
           const daysToNext = np ? Math.max(0, diffCalendarDays(stripT(np.predictedDate), stripT(new Date()))) : daysLeft
+          const currentPeriodLength = d.status?.periodLength || null
+          const periodDaysRemaining = phase === 'Menstrual' && cycleDay && currentPeriodLength
+            ? Math.max(0, currentPeriodLength - cycleDay)
+            : null
+          const currentPeriodEnd = periodDaysRemaining != null
+            ? new Date(Date.now() + periodDaysRemaining * 86400000)
+            : null
           const fmtLong = dt => new Date(dt).toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' })
           const fmtShort = dt => new Date(dt).toLocaleDateString('en-US', { month:'short', day:'numeric' })
           return (
@@ -517,11 +537,14 @@ export default function Dashboard() {
                   <i className="ti ti-heartbeat" style={{ fontSize:12, marginRight:4, verticalAlign:'-1px' }} />Live from {healthStoreName()}
                 </div>
               )}
-              {healthConnected && (wear?.tempC == null || wear?.sleepHours == null) && (() => {
+              {healthConnected && !hideHealthMissingHint && (wear?.tempC == null || wear?.sleepHours == null) && (() => {
                 const missing = [wear?.tempC == null && 'temperature', wear?.sleepHours == null && 'sleep'].filter(Boolean).join(' and ')
                 return (
-                  <div style={{ fontSize:12, color:'#8a6a3a', background:'#fbf3e6', border:'1px solid #ece0c8', borderRadius:10, padding:'9px 12px', lineHeight:1.5, marginTop:10 }}>
-                    No {missing} from {healthStoreName()} yet. Open {healthStoreName()} → Sharing → Apps → Em~power and switch on {missing}, and wear your watch to bed so it can record overnight {missing}.
+                  <div style={{ fontSize:12, color:'#8a6a3a', background:'#fbf3e6', border:'1px solid #ece0c8', borderRadius:10, padding:'9px 12px', lineHeight:1.5, marginTop:10, position:'relative' }}>
+                    <button onClick={dismissHealthMissingHint} aria-label="Dismiss health reminder" style={{ position:'absolute', top:8, right:8, width:24, height:24, border:'none', background:'transparent', color:'#9a8a6a', cursor:'pointer', fontSize:18, lineHeight:1, fontFamily:'inherit' }}>×</button>
+                    <div style={{ paddingRight:24 }}>
+                      No {missing} from {healthStoreName()} yet. Open {healthStoreName()} → Sharing → Apps → Em~power and switch on {missing}, and wear your watch to bed so it can record overnight {missing}.
+                    </div>
                     <button onClick={resyncHealth} disabled={resyncing} style={{ display:'block', width:'100%', marginTop:8, padding:'8px', borderRadius:9, background:'#2c2820', color:'#f5f0e8', border:'none', fontSize:12.5, fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>
                       {resyncing ? 'Syncing…' : `Re-sync ${healthStoreName()} permissions`}
                     </button>
@@ -545,7 +568,7 @@ export default function Dashboard() {
                   <div style={{ fontSize:13, color:'rgba(232,224,212,0.72)', marginBottom:10 }}>{cycleText}</div>
                   <div style={{ fontSize:13, color:'rgba(232,224,212,0.82)', lineHeight:1.6 }}>{getPersonalisedPhaseDesc(phase, subPhase, recentLogs)}</div>
                 </div>
-                {np && phase !== 'bc' && cycleDay && !latePeriod && (
+                {showNextPeriod && cycleDay && (
                   <div style={{ width:110, height:110, borderRadius:'50%', border:'2px dashed rgba(232,224,212,0.4)', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
                     <div style={{ fontSize:26, fontWeight:700 }}>{daysToNext}</div>
                     <div style={{ fontSize:9, color:'rgba(232,224,212,0.7)', textAlign:'center', lineHeight:1.2, padding:'2px 10px 0' }}>days to next period</div>
@@ -553,7 +576,16 @@ export default function Dashboard() {
                 )}
               </div>
               {/* Concrete next-period prediction from the user's own history. */}
-              {np && phase !== 'bc' && !latePeriod && (
+              {phase === 'Menstrual' && currentPeriodEnd && (
+                <div style={{ marginTop:14, padding:'12px 14px', background:'rgba(232,224,212,0.12)', borderRadius:12 }}>
+                  <div style={{ fontSize:10.5, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'rgba(232,224,212,0.7)', marginBottom:3 }}>Current period</div>
+                  <div style={{ fontSize:17, fontWeight:700 }}>Likely easing by {fmtLong(currentPeriodEnd)}</div>
+                  <div style={{ fontSize:12, color:'rgba(232,224,212,0.72)', marginTop:3, lineHeight:1.5 }}>
+                    We only show the next-period countdown once this period is over, so the home screen reflects what is happening right now.
+                  </div>
+                </div>
+              )}
+              {showNextPeriod && (
                 <div style={{ marginTop:14, padding:'12px 14px', background:'rgba(232,224,212,0.12)', borderRadius:12 }}>
                   <div style={{ fontSize:10.5, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'rgba(232,224,212,0.7)', marginBottom:3 }}>Next period</div>
                   <div style={{ fontSize:17, fontWeight:700 }}>{fmtLong(np.predictedDate)}</div>
