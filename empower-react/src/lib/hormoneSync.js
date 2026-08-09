@@ -316,7 +316,7 @@ export function getIntensityModifier(phase, subPhase) {
 // Colenso-Semple et al. 2023), so the copy leads with how you feel, not a mandate to push.
 function getIntensityLabel(modifier) {
   void modifier
-  return 'Start with your planned session. Use your warm-up, symptoms and recent performance to decide whether to progress, maintain or choose the lighter option.'
+  return 'Start with your planned session. If your warm-up feels good, aim to progress the load; if energy, sleep or recovery are low, hold steady or take the lighter option.'
 }
 
 // ── Nutrition targets ────────────────────────────────────────────────────────
@@ -324,14 +324,14 @@ function getIntensityLabel(modifier) {
 export function getNutritionTargets(phase, bodyWeight, dietPreference) {
   const bw = Number(bodyWeight) > 0 ? Number(bodyWeight) : null
   const targets = {
-    Menstrual:    { range: [1.4, 1.8], headline: 'Support recovery and replace nutrients lost through bleeding.', keyFoods: ['Red meat', 'Spinach', 'Lentils', 'Pumpkin seeds', 'Citrus'], avoid: 'If caffeine worsens your cramps or sleep, consider reducing it.', source: 'ISSN 2023; iron-rich foods are useful during bleeding. Individual needs depend on training and health.' },
-    Follicular:   { range: [1.4, 1.8], headline: 'Fuel the training you actually do.', keyFoods: ['Eggs', 'Chicken', 'Oats', 'Whole grains', 'Leafy greens'], avoid: null, source: 'ISSN 2023 female-athlete guidance. Phase effects and individual needs vary.' },
-    Ovulatory:    { range: [1.4, 1.8], headline: 'Fuel performance and recovery consistently.', keyFoods: ['Beef', 'Chickpeas', 'Berries', 'Dark leafy greens', 'Salmon'], avoid: null, source: 'ISSN 2023 female-athlete guidance. Phase alone does not set an exact requirement.' },
-    Luteal:       { range: [1.4, 2.0], headline: 'Appetite and recovery needs may shift. Use your own signals.', keyFoods: ['Sweet potato', 'Oats', 'Dark chocolate', 'Salmon', 'Eggs', 'Pumpkin seeds'], avoid: 'If alcohol or highly processed foods worsen your symptoms or sleep, reduce them.', source: 'ISSN 2023 suggests considering the upper end for active women in the luteal phase; this is not a universal prescription.' },
-    observation:  { range: [1.2, 1.6], headline: 'Consistent nutrition builds your baseline.', keyFoods: ['Protein source each meal', 'Complex carbohydrates', 'Healthy fats', 'Leafy greens'], avoid: null, source: 'General adult range. Training, age, goals and health change individual needs.' },
-    'bc-combined': { range: [1.4, 1.8], headline: 'Fuel your training and recovery consistently.', keyFoods: ['Chicken', 'Eggs', 'Greek yogurt', 'Lentils', 'Oats', 'Leafy greens'], avoid: null, source: 'ISSN 2023 female-athlete guidance; needs depend on activity rather than a presumed natural-cycle phase.' },
-    'bc-progestin': { range: [1.4, 1.8], headline: 'Consistent protein and bone-supporting foods matter.', keyFoods: ['Salmon', 'Eggs', 'Chicken', 'Sardines', 'Almonds', 'Dark leafy greens'], avoid: null, source: 'ISSN 2023 female-athlete guidance. Contraceptive methods and individual responses differ.' },
-    Perimenopause: { range: [1.4, 2.0], headline: 'Protein and resistance training support muscle and bone.', keyFoods: ['Salmon', 'Chicken', 'Eggs', 'Sardines', 'Dark leafy greens', 'Almonds'], avoid: 'Notice whether alcohol worsens hot flashes or sleep, and adjust to your own response.', source: 'ISSN 2023 and resistance-training guidance; individual needs vary with activity and health.' }
+    Menstrual:    { range: [1.4, 1.8], headline: 'Aim to replace iron lost through bleeding and keep protein around 1.4 to 1.8g per kg. (ISSN 2023)', keyFoods: ['Red meat', 'Spinach', 'Lentils', 'Pumpkin seeds', 'Citrus'], avoid: 'If caffeine worsens your cramps or sleep, consider reducing it.', source: 'ISSN 2023; iron-rich foods are useful during bleeding. Individual needs depend on training and health.' },
+    Follicular:   { range: [1.4, 1.8], headline: 'Fuel your rising energy well: aim for 1.4 to 1.8g of protein per kg and quality carbohydrates. (ISSN 2023)', keyFoods: ['Eggs', 'Chicken', 'Oats', 'Whole grains', 'Leafy greens'], avoid: null, source: 'ISSN 2023 female-athlete guidance. Phase effects and individual needs vary.' },
+    Ovulatory:    { range: [1.4, 1.8], headline: 'Fuel your peak-energy window: aim for 1.4 to 1.8g of protein per kg and enough carbohydrate for hard sessions. (ISSN 2023)', keyFoods: ['Beef', 'Chickpeas', 'Berries', 'Dark leafy greens', 'Salmon'], avoid: null, source: 'ISSN 2023 female-athlete guidance. Phase alone does not set an exact requirement.' },
+    Luteal:       { range: [1.4, 2.0], headline: 'Aim for more protein now, around 1.8 to 2.2g per kg, as your body breaks down protein faster. (ISSN 2023)', keyFoods: ['Sweet potato', 'Oats', 'Dark chocolate', 'Salmon', 'Eggs', 'Pumpkin seeds'], avoid: 'If alcohol or highly processed foods worsen your symptoms or sleep, reduce them.', source: 'ISSN 2023 suggests the upper end for active women in the luteal phase; individual needs still vary.' },
+    observation:  { range: [1.2, 1.6], headline: 'Aim for consistent nutrition and 1.2 to 1.6g of protein per kg while Empower builds your baseline. (ISSN 2023)', keyFoods: ['Protein source each meal', 'Complex carbohydrates', 'Healthy fats', 'Leafy greens'], avoid: null, source: 'General adult range. Training, age, goals and health change individual needs.' },
+    'bc-combined': { range: [1.4, 1.8], headline: 'Aim for steady protein around 1.4 to 1.8g per kg to fuel training and recovery. (ISSN 2023)', keyFoods: ['Chicken', 'Eggs', 'Greek yogurt', 'Lentils', 'Oats', 'Leafy greens'], avoid: null, source: 'ISSN 2023 female-athlete guidance; needs depend on activity rather than a presumed natural-cycle phase.' },
+    'bc-progestin': { range: [1.4, 1.8], headline: 'Aim for 1.4 to 1.8g of protein per kg plus calcium and vitamin D for bone support. (ISSN 2023)', keyFoods: ['Salmon', 'Eggs', 'Chicken', 'Sardines', 'Almonds', 'Dark leafy greens'], avoid: null, source: 'ISSN 2023 female-athlete guidance. Contraceptive methods and individual responses differ.' },
+    Perimenopause: { range: [1.4, 2.0], headline: 'Aim higher on protein now, around 1.8 to 2.0g per kg, to protect muscle and bone as anabolic signalling declines. (ISSN 2023)', keyFoods: ['Salmon', 'Chicken', 'Eggs', 'Sardines', 'Dark leafy greens', 'Almonds'], avoid: 'Notice whether alcohol worsens hot flashes or sleep, and adjust to your own response.', source: 'ISSN 2023 and resistance-training guidance; individual needs vary with activity and health.' }
   }
   const t = targets[phase] || targets.observation
   let vegan = false
@@ -673,7 +673,7 @@ function buildPath5Status(profile, recentLogs, totalLogs = 0) {
   const bcPhase = isCombined ? 'bc-combined' : 'bc-progestin'
   const bodyWeight = profile?.body_weight_kg || null
   const intensity = 1
-  const intensityLabel = 'Keep your planned session and use symptoms, recovery and your warm-up to adjust. Contraceptive responses vary by method and person.'
+  const intensityLabel = 'Your energy tends to be steadier day to day on contraception, so aim for consistent progressive overload week to week. Use your warm-up and recovery to fine-tune the load.'
   const subPhase = isCombined ? 'Combined pill'
     : bcType === 'minipill' ? 'Mini pill'
     : bcType === 'implant' ? 'Implant'
@@ -744,7 +744,7 @@ function buildPath4Status(profile, recentLogs, totalLogs = 0) {
     confidenceLabel: 'Symptom tracking for your selected life stage',
     confidencePct: null,
     intensityModifier: getIntensityModifier('Perimenopause', null),
-    intensityLabel: 'Keep your planned session when you feel well. Adjust for symptoms, sleep, pain and recovery rather than the stage label alone.',
+    intensityLabel: 'Aim for resistance training 2 to 3 times a week to protect muscle and bone through this transition. Push when you feel well and adjust for symptoms, sleep and pain.',
     nutritionTargets: getNutritionTargets('Perimenopause', bodyWeight, profile?.diet_preference),
     immediateFeedback: getImmediateFeedback(recentLogs[0], 'Perimenopause', subPhase),
     anomalies,

@@ -549,14 +549,38 @@ const APA_REFS = [
   'Weaver, C. M. Proulx, W. R. & Heaney, R. (1999). Choices for achieving adequate dietary calcium with a vegetarian diet. *American Journal of Clinical Nutrition*, *70*(3 Suppl), 543S, 548S.',
 ]
 
-// Plain-language, phase-aware explanation of the protein number so it isn't a bare figure.
+// Directive, phase-aware framing of the protein number so it lands as a target to aim for.
 const PROTEIN_NOTE = {
-  Menstrual:     'Protein supports general recovery; cycle timing alone does not set an exact target.',
-  Follicular:    'Protein supports training and general health; phase alone does not change the range.',
-  Ovulatory:     'Protein supports training and general health; an estimated ovulation window does not change the range.',
-  Luteal:        'Protein supports training and general health; phase alone does not require an increase.',
-  Perimenopause: 'Protein and resistance training can support muscle and bone; exact needs depend on your health and activity.',
-  observation:   'Consistent protein supports general health and training while we learn your pattern.',
+  Menstrual:     'Aim for this range daily to replace what bleeding costs you and steady your energy.',
+  Follicular:    'Aim for the top of this range on training days, this phase builds muscle most efficiently.',
+  Ovulatory:     'Aim for this range to fuel your strongest sessions and support recovery.',
+  Luteal:        'Aim toward the higher end of this range now, your body breaks down protein a little faster this phase.',
+  Perimenopause: 'Aim for the higher end daily to protect muscle and bone as estrogen declines.',
+  observation:   'Aim for this range daily to support muscle, recovery, and steady energy.',
+}
+
+// Informative per-phase nutrition banner: what is happening, what you may notice, and a clear food action.
+const PHASE_BANNER = {
+  Menstrual: {
+    desc: 'Nutrition for your period',
+    science: 'Iron drops with bleeding and carb cravings are common as serotonin dips, so prioritise iron-rich foods (red meat, lentils, spinach with vitamin C) and anti-inflammatory salmon and ginger to ease cramps. Aim for the protein range below; your activity and how you feel fine-tune it.',
+    sectionLabel: 'Foods to prioritise this week',
+  },
+  Follicular: {
+    desc: 'Fuel the building phase',
+    science: 'Rising estrogen improves how well you use carbohydrates and build muscle, so many women notice steady energy and easier recovery. Prioritise lean protein, complex carbohydrates, and colourful produce to make the most of it.',
+    sectionLabel: 'Foods to build on this week',
+  },
+  Ovulatory: {
+    desc: 'Fuel your peak',
+    science: 'Peak estrogen and a brief testosterone rise often bring your highest energy and strongest sessions. Prioritise light, protein-rich meals and hydrating foods so nothing weighs you down before you train.',
+    sectionLabel: 'Foods that match your energy',
+  },
+  Luteal: {
+    desc: 'Steady energy and mood support',
+    science: 'Progesterone rises and serotonin dips, so many women notice more cravings, appetite, and slower recovery. Prioritise protein at every meal and complex carbohydrates to steady mood and blood sugar.',
+    sectionLabel: 'Foods to prioritise this phase',
+  },
 }
 
 export default function Nutrition() {
@@ -675,19 +699,16 @@ export default function Nutrition() {
     : ['Early perimenopause','Late perimenopause','Postmenopause','Perimenopause'].includes(phase) ? 'Perimenopause'
     : phase
   const isNaturalCyclePhase = ['Menstrual','Follicular','Ovulatory','Luteal'].includes(phaseKey)
-  const basePhaseData = PHASE_DATA[isNaturalCyclePhase ? 'observation' : phaseKey] || PHASE_DATA.observation
+  const basePhaseData = PHASE_DATA[phaseKey] || PHASE_DATA.observation
   const phaseData = isNaturalCyclePhase ? {
     ...basePhaseData,
-    desc: `Balanced nutrition during your estimated ${phaseKey.toLowerCase()} window`,
-    science: 'Cycle timing can add context to appetite or symptoms, but it does not create a required food list, calorie change or exact protein target. Use your activity, health, preferences and repeated personal response.',
-    sectionLabel: 'General foods to build balanced meals',
-    avoid: ['Foods or drinks that repeatedly worsen your own symptoms, sleep, digestion or recovery'],
+    ...PHASE_BANNER[phaseKey],
   } : basePhaseData
   const gradient = PHASE_GRADIENT[phase] || PHASE_GRADIENT[phaseKey] || PHASE_GRADIENT.observation
   const displayPhase = phase === 'observation' ? 'Building baseline' : phase
   const activeDiets = parseDiets(profile?.diet_preference)
   const primaryDiet = DIET_PRIORITY.find(d => activeDiets.includes(d)) || null
-  const foodContextKey = isNaturalCyclePhase ? 'observation' : phaseKey
+  const foodContextKey = phaseKey
   const dietFoods = primaryDiet ? (DIET_FOODS[primaryDiet]?.[foodContextKey] || DIET_FOODS[primaryDiet]?.observation || phaseData.foods) : phaseData.foods
   const isVegan = activeDiets.includes('vegan')
   const displayProtein = targets?.proteinRangeG ? `${targets.proteinRangeG[0]}–${targets.proteinRangeG[1]}g` : null

@@ -82,35 +82,34 @@ export function getPhaseForDate(date, periodStarts, cycleLen, periodLength, allo
   return { phase, sub, cycleDay, estimated: !nextStart, projectedCycle: !nextStart && diff >= cycleLen }
 }
 
-// Calendar context never creates a required food change. These prompts keep useful
-// period preparation while avoiding a phase-only prescription.
+// Directive, phase-aware nutrition prompts for planning ahead: what to prioritise, hedged where the science is.
 const PLAN_NUTRITION = {
-  Menstrual:          'If bleeding is heavy or prolonged, include iron-rich foods with vitamin C and discuss possible iron deficiency with a clinician. No special diet is required for a normal period.',
-  'Early follicular': 'Keep your usual balanced meals. Cycle timing alone does not create a different calorie, carbohydrate or protein requirement.',
-  Follicular:         'Keep your usual balanced meals and fuel the activity you actually plan to do. Empower does not raise or lower nutrition targets from this phase alone.',
-  'Late follicular':  'Fuel from your planned activity, appetite and health needs rather than an estimated phase.',
-  Ovulatory:          'An estimated ovulation window does not require a special diet. Hydration and adequate overall intake remain the priorities.',
-  'Early luteal':     'Keep protein and carbohydrates consistent. If appetite or recovery shifts, log it so Empower can see whether it repeats for you.',
-  'Mid luteal':       'Use your normal nutrition range. Appetite, training, recovery and health matter more than the calendar alone.',
-  'Late luteal':      'If you notice repeat premenstrual appetite or digestive changes, plan foods that are satisfying and comfortable for you without treating cravings as a failure.',
-  Luteal:             'Use the nutrition range calculated from your own weight and activity rather than a phase-only target.',
-  Perimenopause:      'Protein-rich meals and calcium-containing foods can support muscle and bone. Exact needs depend on activity, health and your care plan.',
-  observation:        'Regular, adequate meals and enough protein, fibre and carbohydrates support general health and training while Empower learns your patterns.',
+  Menstrual:          'Prioritise iron-rich foods (red meat, lentils, spinach) paired with vitamin C to replace what bleeding costs you, and add salmon or ginger to help ease cramps. For heavy or prolonged bleeding, ask a clinician about iron.',
+  'Early follicular': 'Prioritise lean protein and complex carbohydrates to fuel returning energy. Aim for protein at every meal to make the most of the building phase ahead.',
+  Follicular:         'Rising estrogen helps you use carbohydrates and build muscle, so prioritise lean protein and colourful produce and fuel the training you have planned.',
+  'Late follicular':  'Keep protein high and carbohydrates ample to support harder efforts. Fuel before and after your planned sessions.',
+  Ovulatory:          'Prioritise light, protein-rich meals and plenty of hydrating foods so nothing weighs you down before your strongest sessions.',
+  'Early luteal':     'Keep protein and complex carbohydrates steady. Many women notice appetite ticking up here, so plan satisfying, balanced meals.',
+  'Mid luteal':       'Prioritise protein at every meal and complex carbohydrates to steady blood sugar and mood as progesterone peaks.',
+  'Late luteal':      'Cravings are common now as serotonin dips. Prioritise complex carbohydrates, magnesium-rich foods, and protein to feel satisfied and steady.',
+  Luteal:             'Prioritise protein at every meal and complex carbohydrates. Many women find this steadies mood and curbs cravings in the second half of the cycle.',
+  Perimenopause:      'Prioritise protein at every meal and calcium-rich foods to protect muscle and bone as estrogen declines. Aim for the higher end of your protein range.',
+  observation:        'Aim for consistent, adequate meals with protein at each one plus fibre and complex carbohydrates to support general health and training.',
 }
 
 // Phase-specific movement notes, sources: Kissow 2022, Hackney 2006, De Martin Topranin 2023, Kohrt 2004
 const PLAN_MOVEMENT = {
-  Menstrual:          'Training is safe for most people if they feel well. Keep your planned session, choose a lighter option for pain, heavy bleeding or low readiness, or rest if that is what you need. (McNulty et al. 2020)',
-  'Early follicular': 'Keep your planned session and use your warm-up to choose the load. Some people feel energy returning here; others notice no phase effect.',
-  Follicular:         'Many women find this a strong training window, a good time to push weights or try a faster run, though this varies between individuals. If you feel good, lean in. Large reviews find phase effects are small and inconsistent, so your own response matters most. (Kissow et al. 2022; McNulty et al. 2020)',
-  'Late follicular':  'Some studies report strength advantages here, while pooled findings vary. Progress only if your recent sessions and warm-up support it. (Niering et al. 2024; McNulty et al. 2020)',
-  Ovulatory:          'Keep your planned session. A thorough sport-specific warm-up is useful in every phase; adjust from your own readiness rather than an assumed performance peak.',
-  'Early luteal':     'Steady strength training remains effective. Keep the plan unless your symptoms, sleep or warm-up point toward another option.',
-  'Mid luteal':       'Some people report higher perceived effort here, while others do not. Begin as planned, then adapt volume or load only if today feels different for you.',
-  'Late luteal':      'Choose from the planned, lighter or recovery option based on symptoms and readiness. The calendar alone does not require a deload.',
-  Luteal:             'Train from your own readiness and recent performance. Cycle phase is context, not a required intensity reduction.',
-  Perimenopause:      'Resistance training is your most important tool. Even one strength session per week protects bone density and muscle mass long-term. (Kohrt et al. 2004)',
-  observation:        'Any movement logged teaches the algorithm your capacity baseline. Walk, stretch, or train. All of it counts.',
+  Menstrual:          'Movement is safe and often eases cramps if you feel well. Keep your planned session, choose a lighter option for pain or heavy bleeding, or rest if you need it. (McNulty et al. 2020)',
+  'Early follicular': 'Energy often returns here, so keep your planned session and progress the load if your warm-up agrees.',
+  Follicular:         'Many women find this a strong training window, a good time to push weights or try a faster run. If you feel good, lean in and progress. Phase effects vary between individuals, so let your own response guide you. (Kissow et al. 2022; McNulty et al. 2020)',
+  'Late follicular':  'Often a strong window for strength and threshold work. Progress your load when recent sessions and your warm-up support it. (Niering et al. 2024; McNulty et al. 2020)',
+  Ovulatory:          'Strength often peaks here, so this is a strong window to push if you feel good. Warm up thoroughly, since higher estrogen may loosen ligaments.',
+  'Early luteal':     'Energy often stays good. Keep steady strength training as planned, adjusting only if symptoms or sleep point elsewhere.',
+  'Mid luteal':       'The same effort may feel harder as temperature and heart rate rise. Begin as planned, hydrate well, and ease volume if today feels tougher.',
+  'Late luteal':      'PMS symptoms are common now. Keep your plan when you feel well and choose a lighter, lower-pressure session on harder days.',
+  Luteal:             'Workouts may feel harder as progesterone rises. Train from how you feel, favour steady strength and moderate cardio, and hydrate well.',
+  Perimenopause:      'Resistance training is your most important tool. Even one strength session a week protects bone density and muscle mass long-term. (Kohrt et al. 2004)',
+  observation:        'Aim for a balanced mix of strength, cardio, and recovery. Every session you log teaches Empower your baseline. Walk, stretch, or train, it all counts.',
 }
 
 // Expanded brain explanations for the tap-to-expand detail, sources: Backstrom 2008, Bäckström 2014, Lokuge 2011
@@ -456,15 +455,15 @@ export default function Calendar() {
                   }
 
                   const BRAIN_STATE = {
-                    Menstrual:          { state:'Possible lower-mood window', bg:'#ede0f0', text:'#5a3a6a', sentence:'Some people notice mood, pain or concentration changes during bleeding; others do not. Track what happens for you and do not assume persistent symptoms are only hormonal.' },
-                    'Early follicular': { state:'Possible transition window', bg:'#d8edd8', text:'#2a5a2a', sentence:'Some people notice energy or mood shift after bleeding ends. Your own repeated observations are more useful than a population expectation.' },
-                    Follicular:         { state:'Possible higher-readiness window', bg:'#d8edd8', text:'#2a5a2a', sentence:'Some studies and self-reports find improved readiness here, but the size and direction vary considerably between individuals.' },
-                    'Late follicular':  { state:'Possible higher-readiness window', bg:'#f5e898', text:'#4a3a00', sentence:'Some people report stronger focus or training here. Empower will only call it your pattern after it repeats in your own data.' },
-                    Ovulatory:          { state:'Estimated ovulation window', bg:'#f5d88a', text:'#4a2a00', sentence:'Hormones change around ovulation, but calendar timing cannot predict your mood, cognition or performance with certainty.' },
-                    'Early luteal':     { state:'Possible transition window', bg:'#d5e0f0', text:'#2a3a5a', sentence:'Some people feel steady here and others notice no change. Treat this as context, not a prediction of how you will feel.' },
-                    'Mid luteal':       { state:'Possible symptom window', bg:'#f5e0c0', text:'#5a3800', sentence:'Sleep, temperature or perceived effort may shift for some people. Persistent mood or cognitive symptoms deserve attention beyond cycle timing.' },
-                    'Late luteal':      { state:'Possible pre-period window', bg:'#f0d0c0', text:'#5a2a10', sentence:'Premenstrual symptoms can occur here, but their presence and severity vary. Empower learns whether this is actually a pattern for you.' },
-                    Luteal:             { state:'Possible symptom window', bg:'#f5e0c0', text:'#5a3800', sentence:'Some people notice changes in sleep, appetite, mood or effort here, while others remain stable.' },
+                    Menstrual:          { state:'Lower-mood window', bg:'#ede0f0', text:'#5a3a6a', sentence:'Serotonin is at its lowest, so many women notice lower mood, more pain sensitivity, or harder concentration. Be gentle with yourself, and seek care for symptoms that feel severe or persistent.' },
+                    'Early follicular': { state:'Energy returning', bg:'#d8edd8', text:'#2a5a2a', sentence:'Estrogen is rising again, so energy and mood often lift within a few days of your period ending. A good time to ease back into your routine.' },
+                    Follicular:         { state:'Higher-readiness window', bg:'#d8edd8', text:'#2a5a2a', sentence:'Rising estrogen and dopamine often bring strong focus, drive, and training readiness. If you feel good, this is a great phase to push and plan ahead.' },
+                    'Late follicular':  { state:'Peak focus window', bg:'#f5e898', text:'#4a3a00', sentence:'Dopamine and serotonin are often near their cycle high, so many women feel sharp focus and social confidence. Lean into demanding work and hard training.' },
+                    Ovulatory:          { state:'Estimated ovulation window', bg:'#f5d88a', text:'#4a2a00', sentence:'Estrogen peaks and testosterone briefly rises, so many women feel their most confident, social, and physically strong. A great day to go for it.' },
+                    'Early luteal':     { state:'Calm, settled window', bg:'#d5e0f0', text:'#2a3a5a', sentence:'Rising progesterone has a calming effect, so many women feel steady and settled here. A good phase for focused, consistent work.' },
+                    'Mid luteal':       { state:'Symptom window', bg:'#f5e0c0', text:'#5a3800', sentence:'Temperature and heart rate run higher and mood can feel more variable, so many women notice sleep or perceived effort shift. Prioritise recovery, and seek care for persistent mood symptoms.' },
+                    'Late luteal':      { state:'Pre-period window', bg:'#f0d0c0', text:'#5a2a10', sentence:'Hormones drop sharply and serotonin bottoms out, so PMS, irritability, and low mood are common now. These usually ease once your period begins.' },
+                    Luteal:             { state:'Symptom window', bg:'#f5e0c0', text:'#5a3800', sentence:'Serotonin becomes less stable as estrogen declines, so many women notice changes in sleep, appetite, mood, or effort. Prioritise steady meals and recovery.' },
                   }
 
                   // Sex drive is deliberately not predicted from phase; it varies within and

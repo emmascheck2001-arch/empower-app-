@@ -69,6 +69,6 @@ describe('buildDailyCoach', () => {
   it('does not throw on a sparse status object', () => {
     expect(() => buildDailyCoach({ phase: 'observation' }, 9)).not.toThrow()
     const c = buildDailyCoach({ phase: 'observation' }, 9)
-    expect(c.focus.label).toBe('Listen in')
+    expect(c.focus.label).toBe('Tune in')
   })
 })

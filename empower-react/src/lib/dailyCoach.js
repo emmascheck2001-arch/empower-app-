@@ -22,20 +22,20 @@ function greet(hour) {
 // recovery note that can appear right below them).
 function focusFor(effPhase) {
   switch (effPhase) {
-    case 'Menstrual':      return { label: 'Check in', sub: 'Let how you feel set the pace today' }
+    case 'Menstrual':      return { label: 'Ease in and refuel', sub: 'Energy is often lowest now, gentle movement and iron-rich food help' }
     case 'Early follicular':
     case 'Follicular':
-    case 'Late follicular':return { label: 'Check in', sub: 'Use your warm-up and recent recovery' }
-    case 'Ovulatory':      return { label: 'Estimated window', sub: 'Timing does not determine performance' }
+    case 'Late follicular':return { label: 'Building energy', sub: 'Many women feel stronger now, a good window to progress your lifts' }
+    case 'Ovulatory':      return { label: 'Peak energy window', sub: 'Many women feel strongest now, a good day to push if you feel good' }
     case 'Early luteal':
     case 'Mid luteal':
     case 'Late luteal':
-    case 'Luteal':         return { label: 'Check in', sub: 'Use your symptoms and recent recovery' }
-    case 'Perimenopause':  return { label: 'Strength & protect', sub: 'Train for muscle and bone' }
-    case 'Pregnancy':      return { label: 'Move gently', sub: 'Led by your provider' }
+    case 'Luteal':         return { label: 'Steady and recover', sub: 'Recovery can feel slower now, aim to maintain and keep protein high' }
+    case 'Perimenopause':  return { label: 'Strength and protect', sub: 'Prioritise resistance training for muscle and bone' }
+    case 'Pregnancy':      return { label: 'Move gently', sub: 'Stay active as your provider advises' }
     case 'bc-combined':
-    case 'bc-progestin':   return { label: 'Consistency', sub: 'Steady, week to week progress' }
-    default:               return { label: 'Listen in', sub: 'Tune into how you feel and log it' }
+    case 'bc-progestin':   return { label: 'Steady progress', sub: 'Energy is more consistent, focus on week to week progress' }
+    default:               return { label: 'Tune in', sub: 'Log how you feel today so Empower learns your pattern' }
   }
 }
 
@@ -44,8 +44,8 @@ function trainingLine(phase, intensityModifier, readiness) {
   if (phase === 'Pregnancy')
     return 'Movement is encouraged in pregnancy once your provider has cleared you, walking, swimming, or prenatal strength. Stop and call them if anything feels wrong. We do not prescribe a set workout here.'
   if (phase === 'Perimenopause')
-    return readiness || 'Resistance training supports muscle and bone. Keep the planned session and adapt it to symptoms, pain, sleep and your warm-up.'
-  return readiness || 'Start with your planned session. Your warm-up, symptoms and recent performance decide whether to progress, maintain or choose the lighter option.'
+    return readiness || 'Resistance training protects muscle and bone now more than ever. Aim for your planned session and let your warm-up, symptoms and sleep guide the load.'
+  return readiness || 'Start with your planned session. If your warm-up feels good, aim to progress; if energy or recovery are low, hold steady or take the lighter option.'
 }
 
 function nutritionLines(phase, targets) {
@@ -56,10 +56,10 @@ function nutritionLines(phase, targets) {
     lines.push('Keep up your prenatal vitamin and stay well hydrated.')
     return lines
   }
-  if (proteinRange) lines.push(`Your research-informed protein range is ${proteinRange[0]} to ${proteinRange[1]}g; training and health determine where you fit.`)
-  else lines.push('Include a protein source at meals; add your weight to calculate a general range.')
-  if (phase === 'Menstrual') lines.push('Add iron-rich foods while you are bleeding.')
-  lines.push('Stay hydrated.')
+  if (proteinRange) lines.push(`Aim for around ${proteinRange[0]} to ${proteinRange[1]}g of protein today, spread across your meals. (ISSN 2023)`)
+  else lines.push('Aim for a protein source at every meal; add your weight in settings for a personalised gram target.')
+  if (phase === 'Menstrual') lines.push('Prioritise iron-rich foods like red meat, lentils and spinach while you are bleeding to replace what is lost.')
+  lines.push('Keep well hydrated across the day.')
   return lines
 }
 
@@ -77,18 +77,18 @@ function sleepLine(phase, subPhase, lastSleepQuality) {
 function mindsetLine(phase, subPhase) {
   const eff = subPhase || phase
   switch (eff) {
-    case 'Late luteal':   return 'Some people notice pre-period mood or energy changes here. Notice what is true for you, and seek support for symptoms that persist or disrupt your life.'
-    case 'Mid luteal':    return 'Mood and sleep may shift for some people here, while others remain steady. Your log helps distinguish your pattern.'
-    case 'Early luteal':  return 'This is a possible transition window, not a prediction of your mood. Let today’s experience lead.'
-    case 'Menstrual':     return 'Everyone feels their period differently. Keep your plan if you feel good, and choose rest when you need it.'
+    case 'Late luteal':   return 'As hormones drop before your period, many women notice lower mood or irritability. Be kind to yourself and lean on calming routines; seek support for symptoms that persist or disrupt your life.'
+    case 'Mid luteal':    return 'With progesterone high, many women feel calmer but a little flatter. A steady routine and enough sleep help smooth the shift.'
+    case 'Early luteal':  return 'Rising progesterone often brings a settled, calm feeling now. A good window for focused, steady work.'
+    case 'Menstrual':     return 'Many women feel more inward and tired at the start of the cycle. Keep your plan if you feel good, and give yourself permission to rest.'
     case 'Late follicular':
     case 'Follicular':
-    case 'Early follicular': return 'Some people notice better mood or focus here, but it is not universal. Empower will learn whether it repeats for you.'
-    case 'Ovulatory':     return 'This is an estimated ovulation window. Calendar timing does not determine confidence, mood or performance.'
-    case 'Perimenopause': return 'Hormonal transition can contribute to mood changes, while sleep, stress, health and medicines can also matter.'
+    case 'Early follicular': return 'As estrogen rises, many women notice sharper focus and brighter mood. A good time to take on demanding tasks.'
+    case 'Ovulatory':     return 'Around ovulation many women feel most confident and social. A great day for connection and things that need energy.'
+    case 'Perimenopause': return 'Fluctuating hormones can bring mood ups and downs. Protecting sleep, movement and stress support goes a long way; reach out for help if low mood lingers.'
     case 'bc-combined':
-    case 'bc-progestin':  return 'Contraceptive effects vary by method and person. Track mood changes without assuming a single cause.'
-    case 'Pregnancy':     return 'Be patient with your energy and mood, both shift a lot in pregnancy. Rest when your body asks.'
+    case 'bc-progestin':  return 'On contraception your mood tends to be steadier day to day. If you notice persistent low mood, it is worth raising with your doctor.'
+    case 'Pregnancy':     return 'Energy and mood shift a lot in pregnancy. Be patient with yourself and rest when your body asks.'
     default:              return 'Notice how you feel today and log it, that is exactly how the app learns your personal pattern.'
   }
 }

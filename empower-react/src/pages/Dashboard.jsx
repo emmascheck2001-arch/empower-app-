@@ -57,15 +57,15 @@ const MINDSET_PLAN = {
 }
 
 const PHASE_DESC_BASE = {
-  Menstrual:      'This is your estimated period window. How you feel can vary day to day, so keep your planned session if you feel good, or take it easier if you need to.',
-  Follicular:     'This is your estimated follicular window. Some studies find small performance differences across the cycle, but individual responses vary widely.',
-  Ovulatory:      'This is your estimated ovulatory window, not confirmation that ovulation occurred. Your warm-up and recent recovery are better training guides than the calendar alone.',
-  'Early luteal': 'This is your estimated early-luteal window. Temperature and resting heart rate can shift for some people after ovulation, while training capacity often remains stable.',
-  'Mid luteal':   'This is your estimated mid-luteal window. If heat, sleep or perceived effort changes for you, logging it will help reveal whether that pattern repeats.',
-  'Late luteal':  'This is your estimated late-luteal window. Premenstrual symptoms are real for many people, but the type and severity are highly individual.',
-  Luteal:         'This is your estimated luteal window. Use symptoms, sleep, recent performance and your warm-up to decide whether to keep or adapt today’s plan.',
-  Perimenopause:  'Your hormonal landscape is shifting. Resistance training, adequate protein, and consistent sleep are your strongest tools for managing symptoms and protecting long-term health.',
-  observation:    'We are learning your baseline. Keep logging and your personalised recommendations will emerge from your own data over time.',
+  Menstrual:      'Estrogen and progesterone are at their lowest and prostaglandins drive cramps. Many women feel lower energy and more tired early on, then lift as the days pass. Prioritise iron-rich foods and rest, and keep your planned session if you feel good.',
+  Follicular:     'Rising estrogen improves energy, mood, and how well you build muscle. Many women notice this is their easiest phase to train hard and recover. Make the most of it with progressive strength work and full fuelling.',
+  Ovulatory:      'Estrogen peaks and testosterone briefly rises, so many women feel their strongest and most social now. Channel it into a challenging session, and warm up thoroughly since higher estrogen can loosen ligaments.',
+  'Early luteal': 'Progesterone is rising with a calming effect and your temperature ticks up slightly. Energy often stays good, so keep training as planned and lean on steady protein and complex carbohydrates.',
+  'Mid luteal':   'Progesterone peaks and your resting heart rate and temperature run a little higher, so the same effort may feel harder. Many women notice this. Keep moving, prioritise recovery, sleep, and protein.',
+  'Late luteal':  'Both hormones drop and serotonin dips, so many women notice PMS, cravings, and lower mood in the days before their period. Prioritise complex carbohydrates, magnesium, and gentler training if you need it.',
+  Luteal:         'Progesterone is elevated and serotonin becomes less stable, so many women notice more cravings and that workouts feel harder. Prioritise protein at every meal, steady sleep, and train from how you feel.',
+  Perimenopause:  'Your hormonal landscape is shifting and estrogen is declining. Many women notice changes in sleep, mood, and recovery. Resistance training, higher protein, and consistent sleep are your strongest tools for symptoms and long-term health.',
+  observation:    'We are learning your baseline. Keep logging and your personalised recommendations will sharpen from your own data. In the meantime, aim for consistent protein, balanced meals, and regular movement.',
   bc:             'Hormonal contraception changes natural-cycle tracking, and the effect depends on the method. Empower tracks your method, bleeding and symptoms without assigning a natural-cycle phase unless that is appropriate.',
 }
 

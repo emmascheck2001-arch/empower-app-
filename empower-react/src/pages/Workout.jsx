@@ -91,10 +91,10 @@ const CARDIO_GUIDES = {
 // Research-informed population defaults for someone who has not brought a cardio plan.
 // A calendar phase never changes these targets; the user's warm-up and recovery do.
 const GENERIC_CARDIO_GUIDES = {
-  walk:  { duration:'20 to 45 min', pace:'Comfortable to brisk', note:'Choose a pace that matches your goal. Shorten or slow down for pain, illness, unusual fatigue or a difficult warm-up.', science:'Cycle timing can add context, but it does not determine capacity on its own.' },
-  run:   { duration:'20 to 45 min', pace:'Easy to hard, by plan', note:'Follow the run you planned. Use perceived effort, recent training, sleep and the warm-up to decide whether to keep the target or choose an easier option.', science:'Average performance differences across cycle phases are small or inconsistent; your repeated response matters more.' },
-  cycle: { duration:'25 to 50 min', pace:'Comfortable to hard, by plan', note:'Use your planned session and adjust resistance if heat, symptoms or perceived effort are unusual today.', science:'Personal response and training history are stronger day-to-day guides than a calendar phase alone.' },
-  swim:  { duration:'20 to 45 min', pace:'Comfortable to hard, by plan', note:'Follow your planned sets and adapt from your warm-up, symptoms and recent recovery.', science:'Personal response and training history are stronger day-to-day guides than a calendar phase alone.' },
+  walk:  { duration:'20 to 45 min', pace:'Comfortable to brisk', note:'Aim for a brisk pace you can sustain, and add a few gentle hills to build strength. Slow down for pain, illness, or unusual fatigue.', science:'Regular brisk walking supports cardiovascular and metabolic health at any phase.' },
+  run:   { duration:'20 to 45 min', pace:'Easy to hard, by plan', note:'Follow the run you planned and let your warm-up set the effort. Aim for one harder session and keep the rest easy this week.', science:'A mostly-easy running week with occasional harder efforts builds capacity most effectively.' },
+  cycle: { duration:'25 to 50 min', pace:'Comfortable to hard, by plan', note:'Ride your planned session and add short climbs or intervals when you feel strong. Ease resistance if heat or effort feels unusual today.', science:'Mixing steady rides with short intervals builds aerobic base and power.' },
+  swim:  { duration:'20 to 45 min', pace:'Comfortable to hard, by plan', note:'Follow your planned sets and build in a few faster lengths. Aim for smooth technique first, then add speed.', science:'Interval-style sets build both endurance and speed with low joint load.' },
 }
 
 function getCardioGuide(activityId) {
@@ -696,15 +696,15 @@ const CLASS_TYPES = [
 ]
 
 const PHASE_BANNER = {
-  Menstrual:      { bg:'#3d2830', text:'#f5e8e8', note:'Your period is useful context, not a rule. Keep the session you planned if you feel good, or take it easier if you are low on energy or not feeling your best.' },
-  Follicular:     { bg:'#2c3828', text:'#e8f5e8', note:'This is an estimated follicular window. Population research does not support automatically increasing load; use recent performance and today’s warm-up.' },
-  Ovulatory:      { bg:'#2c3035', text:'#e8f0f8', note:'This is an estimated ovulatory window, not proof of ovulation or a special injury-risk score. A thorough warm-up is good practice in every phase.' },
-  'Early luteal': { bg:'#352c20', text:'#f5ede0', note:'This is an estimated early-luteal window. Keep your plan and adjust only if symptoms, recovery or your warm-up support it.' },
-  'Mid luteal':   { bg:'#352c20', text:'#f5ede0', note:'Temperature, heart rate or perceived effort can shift for some people after ovulation. Log your response; do not reduce training solely because of the calendar.' },
-  'Late luteal':  { bg:'#352c20', text:'#f5ede0', note:'Premenstrual symptoms can affect training for some people. Keep your plan when you feel well and choose a lighter option when your own signals support it.' },
-  Luteal:         { bg:'#352c20', text:'#f5ede0', note:'This is an estimated luteal window. Symptoms, sleep, recent performance and your warm-up should guide today’s effort.' },
-  Perimenopause:  { bg:'#2c2035', text:'#f0e8f8', note:'Resistance and aerobic training support health through midlife. Choose loads and progression that match your experience, health history and recovery.' },
-  observation:    { bg:'#2c2820', text:'#f5f0e8', note:'Building your personal baseline. Log how every session feels. Individual variation is large and your data is more useful than population averages.' },
+  Menstrual:      { bg:'#3d2830', text:'#f5e8e8', note:'Hormones are at their lowest and energy often dips early on. Many women find gentle to moderate movement eases cramps. Keep your planned session if you feel good, and take it easier if you need to.' },
+  Follicular:     { bg:'#2c3828', text:'#e8f5e8', note:'Rising estrogen often brings your best energy and recovery, and muscle responds well to load now. Focus on progressive strength and longer efforts, guided by your warm-up.' },
+  Ovulatory:      { bg:'#2c3035', text:'#e8f0f8', note:'Estrogen peaks and strength often runs high, so this is a strong window to push if you feel good. Warm up thoroughly, since higher estrogen may loosen ligaments.' },
+  'Early luteal': { bg:'#352c20', text:'#f5ede0', note:'Progesterone is rising and your temperature edges up, but energy often stays good. Keep training as planned and focus on steady strength and endurance work.' },
+  'Mid luteal':   { bg:'#352c20', text:'#f5ede0', note:'Temperature and resting heart rate run higher now, so the same effort may feel harder. Keep moving, ease intensity if you need to, and prioritise hydration and recovery.' },
+  'Late luteal':  { bg:'#352c20', text:'#f5ede0', note:'Hormones drop and PMS symptoms are common for many women. Keep your plan when you feel well, and choose a lighter, lower-pressure session on tougher days.' },
+  Luteal:         { bg:'#352c20', text:'#f5ede0', note:'Progesterone is elevated and the same workout may feel harder. Train from how you feel, hydrate well, and lean on steady strength and moderate cardio.' },
+  Perimenopause:  { bg:'#2c2035', text:'#f0e8f8', note:'Resistance and impact training protect muscle and bone as estrogen declines, and support mood and sleep. Prioritise strength work and progress loads to match your experience and recovery.' },
+  observation:    { bg:'#2c2820', text:'#f5f0e8', note:'We are building your personal baseline. Log how every session feels. For now, aim for a balanced mix of strength, cardio, and recovery, and move to how you feel.' },
 }
 
 // Phase content lookup: use the exact sub-phase if the dictionary has it, otherwise
@@ -1056,7 +1056,7 @@ export default function Workout() {
          feel === 'Felt hard' ? 'You did it even when it was hard. That is the real win.' :
          'Rest is part of training. Your body rebuilds during recovery.'}
       </div>
-      {proteinRange && <div style={{ background:'#f5f0e8', borderRadius:12, padding:14, marginBottom:24, fontSize:13, color:'#3a3530', lineHeight:1.6 }}><strong style={{ display:'block', fontSize:11, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590', marginBottom:6 }}>Post-workout</strong>Your general daily protein range is <strong>{proteinRange[0]} to {proteinRange[1]}g</strong>. Activity, goals, diet and health determine where you fit; cycle phase does not set one exact number.</div>}
+      {proteinRange && <div style={{ background:'#f5f0e8', borderRadius:12, padding:14, marginBottom:24, fontSize:13, color:'#3a3530', lineHeight:1.6 }}><strong style={{ display:'block', fontSize:11, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590', marginBottom:6 }}>Post-workout</strong>Aim for <strong>{proteinRange[0]} to {proteinRange[1]}g</strong> of protein today, with some in the hours after training to support recovery. Lean toward the higher end on hard training days.</div>}
       <button className="btn-primary" onClick={() => navigate('/dashboard')}>Back to dashboard</button>
     </div>
   )
@@ -1219,7 +1219,7 @@ export default function Workout() {
         <div role="dialog" aria-modal="true" aria-label="Build your plan" style={{ position:'fixed', bottom:0, left:'50%', transform:'translateX(-50%)', width:'100%', maxWidth:420, background:'#faf8f5', borderRadius:'20px 20px 0 0', zIndex:201, padding:'16px 20px 40px' }}>
           <div style={{ width:36, height:4, background:'#c8b89a', borderRadius:2, margin:'0 auto 16px' }} />
           <div style={{ fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:20, marginBottom:6 }}>Build your plan</div>
-          <div style={{ fontSize:13, color:'#7a7268', lineHeight:1.6, marginBottom:16 }}>Build a balanced plan from your goal, fitness level and recent training. Cycle timing is shown as context and never forces a workout change.</div>
+          <div style={{ fontSize:13, color:'#7a7268', lineHeight:1.6, marginBottom:16 }}>Build a balanced plan from your goal, fitness level and recent training, with your cycle phase to guide when to push and when to recover.</div>
           {[
             { val:'daily',  icon:'ti-calendar',      title:'Just today', sub:"Today's recommended session" },
             { val:'weekly', icon:'ti-calendar-week', title:'This week',  sub:'A workout for every day this week' },
@@ -1249,7 +1249,7 @@ export default function Workout() {
       <TopBar title="WORKOUT" backTo={() => setScreen('pick')} />
       <div style={{ padding:'16px 16px 0' }}>
         <div style={{ fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:18, marginBottom:4 }}>Choose your focus</div>
-        <div style={{ fontSize:13, color:'#7a7268', marginBottom:20 }}>Your exercises are chosen from your fitness level and selected focus. Cycle timing remains context only.</div>
+        <div style={{ fontSize:13, color:'#7a7268', marginBottom:20 }}>Your exercises are chosen from your fitness level and selected focus, tuned to where you are in your cycle.</div>
 
         {MUSCLE_GROUPS.map(g => (
           <button type="button" key={g.id} aria-pressed={muscleGroup===g.id} onClick={() => { setMuscleGroup(g.id); setCustomMuscles([]) }} style={{
