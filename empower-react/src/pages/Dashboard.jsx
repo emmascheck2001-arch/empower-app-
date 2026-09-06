@@ -18,6 +18,7 @@ import { wearableCycleSignals } from '../lib/wearableCycle'
 import { getUserLocal, removeUserLocal, setUserLocal } from '../lib/userLocalState'
 import { signOutAndClear } from '../lib/accountSession'
 import { diffCalendarDays } from '../lib/dateUtils'
+import { track } from '../lib/analytics'
 
 const HERO_GRADIENT = {
   Menstrual:      'linear-gradient(135deg,#3d2830,#2c1f25)',
@@ -455,6 +456,21 @@ export default function Dashboard() {
           <div style={{ marginBottom:14 }}>
             <div style={{ fontSize:25, fontWeight:700, color:'#2c2820' }}>{d.coach.greeting} {new Date().getHours() < 18 ? '☀️' : '🌙'}</div>
           </div>
+        )}
+
+        {/* Returning people reached the dashboard but were not being given a clear next action
+            until after the focus card. Put the one-minute check-in first, and track the click so
+            we can measure whether this prompt improves the log-start → log-saved conversion. */}
+        {!alreadyLogged && (
+          <button type="button" onClick={() => { track('daily_log_prompt_opened', { source: 'dashboard_top' }); navigate('/log') }}
+            style={{ width:'100%', display:'flex', alignItems:'center', gap:12, textAlign:'left', background:'linear-gradient(135deg,#3f6a3a,#2f5230)', color:'#eef5ea', border:'none', borderRadius:16, padding:'16px 18px', marginBottom:14, cursor:'pointer', fontFamily:'inherit' }}>
+            <i className="ti ti-pencil-heart" aria-hidden="true" style={{ fontSize:24, color:'#bfe3b0', flexShrink:0 }} />
+            <span style={{ flex:1 }}>
+              <span style={{ display:'block', fontSize:15, fontWeight:700, marginBottom:2 }}>Take your one-minute check-in</span>
+              <span style={{ display:'block', fontSize:12.5, color:'rgba(238,245,234,0.85)', lineHeight:1.5 }}>Log how you feel today and make your guidance more personal.</span>
+            </span>
+            <i className="ti ti-chevron-right" aria-hidden="true" style={{ fontSize:18, color:'rgba(238,245,234,0.8)', flexShrink:0 }} />
+          </button>
         )}
 
         {/* Apple Health / wearable connect — native iOS only, renders nothing on web. */}
