@@ -21,6 +21,10 @@ describe('personalisationProgress — honest, data-driven (not confidence)', () 
     expect(threeCycles).toBeGreaterThan(oneCycle)
   })
 
+  it('does not leave two completed cycles and a dense log history at the legacy 55% ceiling', () => {
+    expect(personalisationProgress(72, 2).personalisationPct).toBe(70)
+  })
+
   it('caps below 100 and is monotonic', () => {
     const maxed = personalisationProgress(999, 999).personalisationPct
     expect(maxed).toBeLessThanOrEqual(95)
