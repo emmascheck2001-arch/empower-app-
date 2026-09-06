@@ -259,9 +259,33 @@ async function scheduleNotificationPlan(status, hour = DEFAULT_REMINDER_HOUR, mi
 // Called on every dashboard load: keeps the daily reminder alive and rebuilds phase alerts against
 // the newest prediction. Safe to call repeatedly.
 export async function refreshNotifications({ enabled, hour, minute }, status) {
-  if (!notificationsSupported()) return
-  if (!enabled) { await cancelAllNotifications(); return }
+  if (!notificationsSupported()) return 0
+  if (!enabled) { await cancelAllNotifications(); return 0 }
   const perm = await getNotificationPermission()
-  if (perm !== 'granted') return
-  await scheduleNotificationPlan(status, hour ?? DEFAULT_REMINDER_HOUR, minute ?? DEFAULT_REMINDER_MINUTE)
+  if (perm !== 'granted') return 0
+  return scheduleNotificationPlan(status, hour ?? DEFAULT_REMINDER_HOUR, minute ?? DEFAULT_REMINDER_MINUTE)
+}
+
+// A visible, user-triggered proof that the OS can deliver notifications on this device. This is
+// deliberately separate from the daily schedule: it makes a permission or device-settings issue
+// obvious instead of leaving someone wondering whether tomorrow's reminder will arrive.
+export async function scheduleNotificationTest() {
+  if (!notificationsSupported()) return { ok: false, reason: 'unsupported' }
+  try {
+    const permission = await getNotificationPermission()
+    if (permission !== 'granted') return { ok: false, reason: 'permission' }
+    await LocalNotifications.schedule({
+      notifications: [{
+        id: 3001,
+        title: 'Em~power',
+        body: 'Notifications are working. Your next check-in reminder is scheduled.',
+        schedule: { at: new Date(Date.now() + 5000), allowWhileIdle: true },
+        extra: { route: '/log' },
+      }],
+    })
+    return { ok: true }
+  } catch (error) {
+    console.error('Failed to schedule notification test', error)
+    return { ok: false, reason: 'schedule' }
+  }
 }

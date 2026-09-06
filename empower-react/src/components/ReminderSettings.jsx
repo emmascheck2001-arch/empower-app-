@@ -6,7 +6,7 @@
 import { useEffect, useState } from 'react'
 import {
   notificationsSupported, getNotificationPermission, requestNotificationPermission,
-  refreshNotifications, cancelAllNotifications,
+  refreshNotifications, cancelAllNotifications, scheduleNotificationTest,
 } from '../lib/notifications'
 import { supabase } from '../lib/supabase'
 import { getUserLocal, setUserLocal } from '../lib/userLocalState'
@@ -21,6 +21,8 @@ export default function ReminderSettings({ userId, status, variant = 'card' }) {
   const [prefs, setPrefs] = useState(() => notificationPrefs(userId))
   const [perm, setPerm] = useState('prompt')
   const [busy, setBusy] = useState(false)
+  const [testing, setTesting] = useState(false)
+  const [testState, setTestState] = useState('')
   const [dismissed, setDismissed] = useState(() => getUserLocal(userId, 'notifyPromptDismissed') === '1')
 
   useEffect(() => {
@@ -52,7 +54,8 @@ export default function ReminderSettings({ userId, status, variant = 'card' }) {
         notifyMinute: next.minute,
         notifyPromptDismissed: false,
       })
-      await refreshNotifications(next, status)
+      const scheduled = await refreshNotifications(next, status)
+      setTestState(scheduled ? `${scheduled} reminders scheduled on this phone.` : 'Reminders are on. Use the test below to confirm your phone can show them.')
       track('reminders_enabled', { hour: next.hour })
     } finally { setBusy(false) }
   }
@@ -77,6 +80,20 @@ export default function ReminderSettings({ userId, status, variant = 'card' }) {
     setPrefs(next)
     await saveUserSettings(supabase, userId, { notifyHour: h, notifyMinute: m })
     if (next.enabled && perm === 'granted') await refreshNotifications(next, status)
+  }
+
+  async function testNotification() {
+    setTesting(true)
+    setTestState('')
+    const result = await scheduleNotificationTest()
+    if (result.ok) {
+      setTestState('Test scheduled. Lock your phone and wait a few seconds.')
+      track('reminder_test_scheduled', {})
+    } else {
+      setTestState('Your phone did not accept the test. Check Em~power is allowed in Settings → Notifications, then try again.')
+      track('reminder_test_failed', { reason: result.reason })
+    }
+    setTesting(false)
   }
 
   function dismiss() {
@@ -132,7 +149,14 @@ export default function ReminderSettings({ userId, status, variant = 'card' }) {
                 Turn off
               </button>
             )}
+            {on && (
+              <button type="button" onClick={testNotification} disabled={testing}
+                style={{ padding:'9px 14px', borderRadius:12, border:'1px solid #ede8e0', background:'#fff', color:'#7a7268', fontSize:13, cursor:'pointer', fontFamily:'inherit' }}>
+                {testing ? 'Sending…' : 'Send a test'}
+              </button>
+            )}
           </div>
+          {testState && <div role="status" style={{ marginTop:10, fontSize:12, color:'#5a5248', lineHeight:1.5 }}>{testState}</div>}
         </div>
       </div>
     </div>
