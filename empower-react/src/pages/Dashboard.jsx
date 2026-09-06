@@ -12,12 +12,16 @@ import InstallPrompt from '../components/InstallPrompt'
 import { WeeklySummaryModal, markWeeklySummaryDismissed, markWeeklySummaryShown, shouldShowWeeklySummary, buildWeeklySummary } from '../components/WeeklySummary'
 import Confetti from '../components/Confetti'
 import HealthConnect from '../components/HealthConnect'
+import ReminderSettings from '../components/ReminderSettings'
 import Disclaimer from '../components/Disclaimer'
+import { refreshNotifications } from '../lib/notifications'
 import { isNative, readWearableData, connectHealth, healthStoreName } from '../lib/healthkit'
 import { wearableCycleSignals } from '../lib/wearableCycle'
 import { getUserLocal, removeUserLocal, setUserLocal } from '../lib/userLocalState'
+import { cacheProfileSettings } from '../lib/userSettings'
 import { signOutAndClear } from '../lib/accountSession'
 import { diffCalendarDays } from '../lib/dateUtils'
+import { notificationPrefs } from '../lib/reminderSettings'
 import { track } from '../lib/analytics'
 
 const HERO_GRADIENT = {
@@ -127,6 +131,11 @@ export default function Dashboard() {
     setHideHealthMissingHint(getUserLocal(d.userId, 'hideHealthMissingHint') === '1')
   }, [d?.userId])
 
+  useEffect(() => {
+    if (!d?.userId) return
+    refreshNotifications(notificationPrefs(d.userId), d.status)
+  }, [d?.userId, d?.status])
+
   // Re-run the Apple Health / Health Connect permission sheet, then reload so the tiles re-read.
   // Recovers the common case where Sleep or Wrist Temperature was left OFF in the first grant —
   // iOS never re-prompts on its own, so we give her a manual way to turn them on.
@@ -228,6 +237,7 @@ export default function Dashboard() {
       // broken dashboard.
       if (!profile || !profile.onboarding_complete) { navigate('/setup', { replace: true }); return }
 
+      cacheProfileSettings(user.id, profile)
       const bw = profile?.body_weight_kg || null
       const isPath4 = profile?.user_path === '4'
       // Hormonal BC (path 5, excluding the non-hormonal copper IUD) suppresses the
@@ -475,6 +485,9 @@ export default function Dashboard() {
 
         {/* Apple Health / wearable connect — native iOS only, renders nothing on web. */}
         <HealthConnect userId={d.userId} />
+
+        {/* The reactivation loop: one optional daily nudge, entirely local to the person's phone. */}
+        <ReminderSettings userId={d.userId} status={d.status} />
 
         {/* Retention: prompt install (home-screen apps return far better than browser tabs). */}
         <InstallPrompt />

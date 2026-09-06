@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { App as CapApp } from '@capacitor/app'
+import { LocalNotifications } from '@capacitor/local-notifications'
 import { supabase } from './lib/supabase'
 import { track } from './lib/analytics'
 import { sessionFlags } from './lib/session'
@@ -134,6 +135,21 @@ function NativeAuthLinkHandler() {
   return null
 }
 
+// Notification taps land directly on the useful screen, and their return rate is measurable.
+function NotificationTapHandler() {
+  const navigate = useNavigate()
+  useEffect(() => {
+    let handle
+    LocalNotifications.addListener('localNotificationActionPerformed', ({ notification }) => {
+      const route = notification?.extra?.route
+      track('notification_opened', { route: route || 'unknown' })
+      if (route) navigate(route)
+    }).then(h => { handle = h }).catch(() => { /* native-only plugin */ })
+    return () => { handle?.remove?.() }
+  }, [navigate])
+  return null
+}
+
 // Records a pageview on every route change so we can see the activation funnel
 // (login -> setup -> dashboard -> log) and where people drop off.
 function PageTracker() {
@@ -167,6 +183,7 @@ export default function App() {
     <BrowserRouter>
       <PageTracker />
       <NativeAuthLinkHandler />
+      <NotificationTapHandler />
       <WatchResumeSync />
       <ErrorBoundary>
       <Suspense fallback={<div style={{ paddingTop: 60 }}><Spinner /></div>}>
