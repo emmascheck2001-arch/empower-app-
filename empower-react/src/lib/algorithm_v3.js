@@ -10,12 +10,19 @@
 // Before any insight card, flag, or pattern observation appears, the algorithm
 // must meet these minimum conditions. If not met, return nothing, no placeholder.
 // Source: principle of minimal harm, do not flag patterns that may be statistical noise
+import { isHard, isStrong } from './workoutFeel.js'
 export const FLAG_THRESHOLDS = {
   basic_phase_insight:       { minDaysLogged: 1, minConfidence: 0.05 },
   nutrition_suggestion:      { minDaysLogged: 3, minConfidence: 0.10 },
   pattern_observation:       { minDaysLogged: 7, minConfidence: 0.20 },
   cycle_return_signal:       { minDaysLogged: 14, minSignalCount: 2 },
   health_pattern_flag:       { minCycles: 2, minConfidence: 0.55, minConsecutiveDaysMatching: 3 },
+  // NOT WIRED, AND NOT TO BE WIRED WITHOUT A REGULATORY DECISION FIRST.
+  // Surfacing 'you may have PCOS / endometriosis' is condition identification, which
+  // takes the app outside FDA general-wellness enforcement discretion no matter how the
+  // message is worded. These thresholds are kept as design notes only. If you enable
+  // them, the output must describe her logged pattern without naming the condition,
+  // the way detectPMDDPattern() now does.
   pcos_pattern_flag:         { minCycles: 2, minConsecutiveLongCycles: 2, minConfidence: 0.60 },
   endometriosis_pain_flag:   { minCycles: 2, minHighPainDaysPerCycle: 2, minConfidence: 0.60 },
   pmdd_pattern_flag:         { minCycles: 3, minConfidence: 0.65, minConsecutiveDaysMatching: 3, requiresCyclicalContrast: true },
@@ -299,10 +306,13 @@ export function interpretMoodSignal(todayLog, recentLogs, calendarPhase, calenda
   return result
 }
 
-// ── PMDD pattern detection ───────────────────────────────────────────────────
-// Looks for the cyclical contrast pattern: severe negative mood in luteal,
-// absent in follicular, the DSM-5 diagnostic criterion for PMDD
-// Source: DSM-5 PMDD criteria. Osborn et al. Frontiers in Pharmacology 2025.
+// ── Cyclical mood pattern detection ─────────────────────────────────────────
+// Looks for a contrast between luteal and follicular mood logging: negative mood
+// concentrated in the luteal phase and largely absent in the follicular phase.
+// The clinical literature on premenstrual mood disorders is what makes this contrast
+// worth surfacing, but the output names no condition — see the note on the return
+// value below before changing anything here.
+// Background: DSM-5 premenstrual criteria; Osborn et al. Frontiers in Pharmacology 2025.
 export function detectPMDDPattern(logs, cycleLen, cycleDayToday) {
   if (!logs || logs.length < 14) return null
   // Need a real anchor (today's cycle day) to place each log in the cycle.
@@ -354,11 +364,19 @@ export function detectPMDDPattern(logs, cycleLen, cycleDayToday) {
   // so we require the remission (low follicular negativity), not the presence of good mood.
   // Source: DSM-5 PMDD criteria (luteal symptoms with follicular remission).
   if (lutealNegativeRate >= 0.6 && follicularNegativeRate <= 0.25) {
+    // The returned object names no condition. This function describes a pattern in the
+    // user's own logs — low mood in luteal, remitting after menstruation — and routes her
+    // to a doctor with the timing detail that matters. It deliberately does not identify,
+    // name, or estimate the likelihood of any diagnosis: outputting the likelihood of a
+    // named disorder is a diagnostic function and sits outside FDA general-wellness
+    // enforcement discretion regardless of how the message is worded.
+    // Clinical basis for the luteal/follicular contrast test: DSM-5 premenstrual criteria;
+    // Osborn et al. Frontiers in Pharmacology 2025.
     return {
-      type: 'possible_pmdd_pattern',
+      type: 'cyclical_mood_pattern',
       severity: 'informational',
-      message: 'Over your recent logs we have detected a consistent pattern of significant mood changes in the luteal phase that resolve around menstruation. This cyclical pattern, difficult in luteal, more positive in follicular, is associated with PMDD, Premenstrual Dysphoric Disorder. PMDD affects approximately 3 to 8% of women and is frequently misdiagnosed as general anxiety or depression because doctors do not ask about cycle timing. If this pattern is disrupting your daily life please discuss it with a doctor and specifically mention the cyclical timing. Effective treatments exist. This is a pattern observation, not a diagnosis.',
-      science: 'PMDD requires cyclical symptoms in luteal phase with remission in follicular phase (DSM-5). Source: Osborn et al. Frontiers in Pharmacology 2025.'
+      message: 'Across your recent logs there is a consistent pattern: you tend to log low or anxious mood in the second half of your cycle, and that lifts once your period begins. Cyclical timing like this is a detail doctors often do not ask about, so it is worth raising if it is affecting your daily life — and worth mentioning that the timing tracks your cycle. Your log here is exactly the kind of record that helps that conversation.',
+      science: 'Observed contrast between luteal and follicular mood logging. This is a description of your own logged pattern, not an assessment of any condition.'
     }
   }
 
@@ -512,8 +530,11 @@ export function getPersonalisedWorkoutReadiness(recentLogs) {
   const workoutFeels = recent.slice(0, 5).map(l => l.workout_feel).filter(Boolean)
   const recentDisruptors = recent.flatMap(l => l.disruptors || [])
 
-  const hardCount = workoutFeels.filter(f => ['Felt hard','Hard'].includes(f)).length
-  const strongCount = workoutFeels.filter(f => ['Felt strong','Strong','Stronger than usual'].includes(f)).length
+  // Read through the canonical normaliser (workoutFeel.js) instead of matching raw strings.
+  // These two lines previously understood only fragments of the two vocabularies in the
+  // database, so a daily-log user's 'Weaker than usual' was never counted as a hard session.
+  const hardCount = workoutFeels.filter(isHard).length
+  const strongCount = workoutFeels.filter(isStrong).length
 
   if (todayLog?.energy === 'Very low') return 'You logged very low energy today. Start at 80% and adjust from there. Your body is telling you something real.'
   if (todayLog?.sleep_quality === 'Poor') return 'You logged poor sleep last night. Trust how you feel over your targets today.'

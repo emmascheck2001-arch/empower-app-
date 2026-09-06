@@ -5,6 +5,7 @@
 import { buildWeeklyHighlights } from '../lib/weeklyHighlights'
 import { buildWeeklyObservation } from '../lib/weeklyObservation'
 import { getPhase } from '../lib/hormoneSync'
+import { didTrain } from '../lib/workoutFeel'
 
 function getWeekKey() {
   const d = new Date()
@@ -58,7 +59,7 @@ export function buildWeeklySummary(logs, phase, subPhase, confidence, daysUntilP
   const highlights = buildWeeklyHighlights(thisWeek, lastWeek)
 
   const daysLogged = thisWeek.length
-  const workouts = thisWeek.filter(l => l.workout_feel && l.workout_feel !== 'Rest day' && l.workout_feel !== 'Skipped').length
+  const workouts = thisWeek.filter(l => didTrain(l.workout_feel)).length
 
   // Percentage stats
   const energyDays = thisWeek.filter(l => scoreEnergy(l.energy) !== null)

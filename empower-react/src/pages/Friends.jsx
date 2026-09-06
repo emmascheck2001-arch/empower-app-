@@ -2,7 +2,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { getPhase, getLutealSubPhase } from '../lib/hormoneSync'
+import { phaseForCard } from '../lib/friendCard'
+import { feelEmoji, feelLabel } from '../lib/workoutFeel'
 import TopBar from '../components/TopBar'
 import Spinner from '../components/Spinner'
 
@@ -21,7 +22,9 @@ const PHASE_COLORS = {
 }
 
 const SLEEP_LABELS = { Poor:'😴 Poor sleep', Fair:'😴 Fair sleep', Good:'😴 Good sleep', Excellent:'😴 Great sleep', Great:'😴 Great sleep' }
-const WORKOUT_LABELS = { 'Rest day':'🏃 Rest day', 'Felt strong':'💪 Felt strong', 'Felt average':'🏃 Felt average', 'Felt hard':'😓 Felt hard', Skipped:'⏭ Skipped' }
+// Labels come from the canonical normaliser so BOTH vocabularies render properly — this map
+// previously only knew the workout-player values, so a friend who logged in the daily log
+// showed raw text with a generic icon.
 
 function Toggle({ on, onChange }) {
   return (
@@ -29,17 +32,6 @@ function Toggle({ on, onChange }) {
       <div style={{ width:20, height:20, borderRadius:'50%', background:'#fff', position:'absolute', top:3, left:3, transition:'transform 0.2s', transform:on?'translateX(18px)':'none', boxShadow:'0 1px 3px rgba(0,0,0,0.2)' }} />
     </div>
   )
-}
-
-function phaseForCard(card) {
-  if (!card.last_period_date || !card.cycle_length) return null
-  const last = new Date(card.last_period_date + 'T00:00:00')
-  const now = new Date(); now.setHours(0,0,0,0)
-  const cd = Math.floor((now - last) / 86400000) + 1
-  if (cd < 1 || cd > card.cycle_length + 14) return null
-  if (card.user_path === '4') return 'Perimenopause'
-  const phase = getPhase(cd, card.cycle_length)
-  return phase === 'Luteal' ? getLutealSubPhase(cd, card.cycle_length) : phase
 }
 
 export default function Friends() {
@@ -256,7 +248,7 @@ export default function Friends() {
                     )}
                     {card.show_workout && card.workout_feel && (
                       <div style={{ background:'#f0f8f0', color:'#2a5a2a', padding:'5px 10px', borderRadius:20, fontSize:12 }}>
-                        {WORKOUT_LABELS[card.workout_feel] || `🏃 ${card.workout_feel}`}
+                        {`${feelEmoji(card.workout_feel)} ${feelLabel(card.workout_feel)}`}
                       </div>
                     )}
                     {!card.show_phase && !card.show_streak && !card.show_sleep && !card.show_workout && (

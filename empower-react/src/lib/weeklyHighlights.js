@@ -1,3 +1,4 @@
+import { didTrain } from './workoutFeel.js'
 // weeklyHighlights.js, the "your week in review" recap lines for the Sunday Weekly Insights.
 // PERMANENT RULE: every line is a factual statement about what the user ACTUALLY logged this
 // week (or a comparison to last week, only when both weeks have data). No predictions, no
@@ -8,7 +9,7 @@
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 const ENERGY = { 'Very low': 1, 'Low': 2, 'Normal': 3, 'Good': 3, 'High': 4 }
 
-const isWorkout = (l) => l.workout_feel && l.workout_feel !== 'Rest day' && l.workout_feel !== 'Skipped'
+const isWorkout = (l) => didTrain(l.workout_feel)
 const weekdayOf = (dateStr) => WEEKDAYS[new Date(dateStr + 'T00:00:00').getDay()]
 const avg = (nums) => (nums.length ? nums.reduce((a, b) => a + b, 0) / nums.length : null)
 

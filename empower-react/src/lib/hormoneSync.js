@@ -2,6 +2,8 @@
 // All phase logic lives here. Import getTodayStatus into every screen.
 import { interpretMoodSignal, detectPMDDPattern, getMoodContextFeedback, checkFlag, getPersonalisedNutritionFocus, getPersonalisedWorkoutReadiness } from './algorithm_v3.js'
 import { applyWearableOvulationFromStorage } from './cycleGuardian.js'
+import { estimateCycleLength, MIN_PREDICT_GAP } from './cycleStats.js'
+import { isStrong, didTrain } from './workoutFeel.js'
 
 // ── Phase calculation (canonical, never duplicate this elsewhere) ──────────
 // Ovulation timing: the luteal phase is biologically near-fixed at ~14 days, so
@@ -38,37 +40,53 @@ export function getLutealSubPhase(cycleDay, cycleLen) {
 export const predictNextPeriod = (lastPeriodDate, avgCycleLength, cyclesTracked, gaps) => {
   const lastPeriod = new Date(lastPeriodDate + 'T00:00:00')
   const addDays = n => { const d = new Date(lastPeriod); d.setDate(d.getDate() + n); return d }
-  // Research-backed prediction (Bull 2019; Li 2020/2023; Munro/FIGO 2018; Symul 2019; Broad 2022):
-  //  - Point estimate = the user's TYPICAL cycle length (avgCycleLength is already averaged from
-  //    21-45 day cycles), so short breakthrough/intermenstrual bleeds don't bias the date early.
-  //  - Window scales to the user's OWN dispersion, not a fake ±2 days, and widens when the cycle
-  //    is irregular or history is thin — honesty over false precision.
-  //  - Never predict earlier than a physiological minimum (~21 days), so we can't paint a period
-  //    before one is plausible.
-  const plausible = (gaps || []).filter(g => g >= 15 && g <= 60)
-  const typical = plausible.filter(g => g >= 21 && g <= 45)
-  const point = Math.max(21, Math.round(avgCycleLength) || 28)   // never predict before ~21 days
+  // The estimate itself lives in cycleStats.js (robust median + MAD, recency-weighted, shrunk
+  // toward her stated cycle length when history is thin). Rationale for each choice is
+  // documented there. The headline change from the earlier version: the window is drawn from
+  // her real dispersion and NARROWS as she tracks more cycles, instead of being the min/max of
+  // every cycle she ever had — which made one unusual month widen the window permanently and
+  // meant more data produced a vaguer prediction.
+  // (Bull 2019; Li 2020/2023; Munro/FIGO 2018; Symul 2019.)
+  const est = estimateCycleLength(gaps || [], avgCycleLength || 28)
+
+  const point = Math.max(MIN_PREDICT_GAP, Math.round(est.centre))
   const predictedDate = addDays(point)
 
-  const irregular = plausible.length >= 2 && (Math.max(...plausible) - Math.min(...plausible)) >= 8
-  let startOff, endOff
-  if (typical.length >= 2) {
-    startOff = Math.min(...typical); endOff = Math.max(...typical)
-  } else {
-    const half = irregular ? 7 : (cyclesTracked >= 1 ? 4 : 5)
-    startOff = point - half; endOff = point + half
-  }
-  startOff = Math.max(21, Math.min(startOff, point))   // physiological floor; never after the point
-  endOff = Math.max(endOff, point)                     // window must include the predicted day
-  if (endOff <= startOff) { startOff = Math.max(21, point - 1); endOff = point + 1 }
+  // Window: floored at the physiological minimum, always containing the predicted day, always
+  // at least one day wide. Rounded outward so the displayed range never excludes a day the
+  // model actually considers likely.
+  let startOff = Math.max(MIN_PREDICT_GAP, Math.floor(est.low))
+  let endOff = Math.ceil(est.high)
+  startOff = Math.min(startOff, point)
+  endOff = Math.max(endOff, point)
+  if (endOff <= startOff) { startOff = Math.max(MIN_PREDICT_GAP, point - 1); endOff = point + 1 }
   const windowStart = addDays(startOff)
   const windowEnd = addDays(endOff)
 
-  const confidence = cyclesTracked >= 3 ? 'high'
-    : cyclesTracked === 2 ? 'moderate'
-    : cyclesTracked === 1 ? 'low'
-    : 'none'
-  return { predictedDate, windowStart, windowEnd, confidence, irregular }
+  // Irregularity is judged on every PLAUSIBLE bleed gap (FIGO: variation of ~8+ days across
+  // cycles is irregular), not just the typical-range ones, so a genuinely erratic history is
+  // still flagged even when only one cycle falls in the typical band.
+  const plausible = (gaps || []).filter(g => g >= 15 && g <= 60)
+  const irregular = plausible.length >= 2 && (Math.max(...plausible) - Math.min(...plausible)) >= 8
+
+  // Confidence now reflects the cycles the MODEL could actually use, not merely how many
+  // bleeds were logged, and an irregular history can never reach 'high'. Being honest that a
+  // prediction is shaky matters more than looking clever.
+  const n = est.nUsed
+  let confidence
+  if (n === 0) confidence = 'none'
+  else if (n === 1) confidence = 'low'
+  else if (n === 2) confidence = 'moderate'
+  else confidence = (est.regular === false || irregular) ? 'moderate' : 'high'
+  if (irregular && confidence === 'high') confidence = 'moderate'
+
+  return {
+    predictedDate, windowStart, windowEnd, confidence, irregular,
+    // extras for the accuracy scoreboard and the "what changed" delta card
+    pointGap: point, windowStartGap: startOff, windowEndGap: endOff,
+    cyclesUsed: n, spreadDays: Math.round((est.spread || 0) * 10) / 10,
+    regular: est.regular, method: est.method,
+  }
 }
 
 // ── Period-start history ────────────────────────────────────────────────────
@@ -138,10 +156,19 @@ export function computeCycleHistory(cycleData, profileCycleLen) {
   // breakthrough bleeding logged close to a real period, would otherwise report a misleading
   // "17 day average" in the doctor summary. Fall back to the user's set cycle length.
   const typical = gaps.filter(g => g >= 21 && g <= 45)
-  const avgCycleLength = typical.length
-    ? Math.round(typical.reduce((s, g) => s + g, 0) / typical.length)
-    : (cycleData?.cycle_length || profileCycleLen || 28)
-  return { cyclesTracked, avgCycleLength, periodStarts: starts, gaps }
+  // Robust, recency-weighted estimate rather than a plain mean of typical cycles: a plain mean
+  // lets one 45-day month drag a steady 28-day cycle, and it treats a cycle from a year ago as
+  // equal evidence to last month's. estimateCycleLength shrinks toward her stated length while
+  // history is thin, so a brand-new user is never over-fitted to a single observation.
+  const prior = cycleData?.cycle_length || profileCycleLen || 28
+  const est = estimateCycleLength(gaps, prior)
+  const avgCycleLength = gaps.length ? Math.round(est.centre) : prior
+  return {
+    cyclesTracked, avgCycleLength, periodStarts: starts, gaps,
+    typicalCount: typical.length,
+    cycleSpread: Math.round((est.spread || 0) * 10) / 10,
+    regular: est.regular,
+  }
 }
 
 // When a period is late, look at the user's OWN recent logs and name the likely
@@ -170,7 +197,7 @@ export function getLatePeriodInsights(recentLogs, profile, cycleInfo) {
     out.push('Your sleep has been poor on several recent days. Consistently disrupted sleep can unsettle the hormonal rhythm that regulates your cycle.')
   }
   const veryLow = logs.filter(l => l.energy === 'Very low').length
-  const trained = logs.filter(l => l.workout_feel && !['Rest day', 'Skipped'].includes(l.workout_feel)).length
+  const trained = logs.filter(l => didTrain(l.workout_feel)).length
   if (veryLow >= 3 || (trained >= 4 && veryLow >= 1)) {
     out.push('You have logged very low energy repeatedly. If you are training hard or eating less than your body is using, it can delay a period to conserve energy. Eating enough, especially around training, supports a regular cycle. (IOC RED-S 2023)')
   }
@@ -197,41 +224,69 @@ function rhrToNum(v) {
   return isNaN(n) ? NaN : n
 }
 
-// Interpret logged hormone lab values into ovulation signals + plain-language notes.
-// Progesterone >=10 nmol/L confirms ovulation has occurred (mid-luteal); LH >=8 IU/L is a
-// surge (ovulation imminent). Ranges per CLAUDE.md HORMONE_REFS / Münster 2021.
+// Record logged hormone lab values against published population reference ranges.
+//
+// DELIBERATE BOUNDARY — do not reintroduce interpretation here.
+// This function reports the number the user entered and where published ranges sit.
+// It does NOT draw a clinical conclusion from a lab result and does NOT infer whether
+// ovulation happened. Interpreting a laboratory test result is a medical-device
+// function and sits outside FDA general-wellness enforcement discretion; a disclaimer
+// does not change that, because classification follows the function, not the wording.
+// Her doctor interprets these alongside her history. Ranges per CLAUDE.md
+// HORMONE_REFS / Münster 2021; cortisol per LifeLabs/EORLA.
+
+// Published population ranges, shown as context only. `bands` are displayed verbatim.
+export const HORMONE_REFERENCE_RANGES = {
+  progesterone: {
+    field: 'hormone_progesterone', label: 'Progesterone', unit: 'nmol/L',
+    bands: [
+      { label: 'Follicular',   range: 'under 2' },
+      { label: 'Early luteal', range: '2 to 10' },
+      { label: 'Mid luteal',   range: 'over 10' },
+    ],
+  },
+  lh: {
+    field: 'hormone_lh', label: 'LH', unit: 'IU/L',
+    bands: [
+      { label: 'Baseline',      range: 'under 8' },
+      { label: 'Surge range',   range: '8 and above' },
+    ],
+  },
+  estradiol: {
+    field: 'hormone_estradiol', label: 'Estradiol', unit: 'pmol/L',
+    bands: [
+      { label: 'Early follicular', range: 'under 200' },
+      { label: 'Pre-ovulatory',    range: 'over 600' },
+    ],
+  },
+  cortisol: {
+    field: 'hormone_cortisol', label: 'Cortisol', unit: 'nmol/L',
+    bands: [
+      { label: 'Typical morning', range: '10 to 30' },
+    ],
+  },
+}
+
+const HORMONE_ORDER = ['progesterone', 'lh', 'estradiol', 'cortisol']
+
+// Returns the logged values paired with their reference ranges, or null if none logged.
+// Shape: { values: [{ key, label, value, unit, bands }], caveat, unitNote }
 export function interpretHormones(log) {
   if (!log) return null
-  const prog = parseFloat(log.hormone_progesterone)
-  const lh = parseFloat(log.hormone_lh)
-  const e2 = parseFloat(log.hormone_estradiol)
-  const notes = []
-  let ovulationConfirmed = false, lhSurge = false
-  if (!isNaN(prog)) {
-    // ≥10 nmol/L supports ovulation ONLY when drawn mid-luteal (~7 days post-ovulation),
-    // never on a random cycle day, so we phrase it as supporting evidence, not proof.
-    if (prog >= 10) { ovulationConfirmed = true; notes.push('Progesterone ' + prog + ' nmol/L. When measured about 7 days after ovulation (mid-luteal), a level this high supports that ovulation happened this cycle.') }
-    else if (prog >= 2) notes.push('Progesterone ' + prog + ' nmol/L is in the early-luteal range.')
-    else notes.push('Progesterone ' + prog + ' nmol/L is in the follicular range, before ovulation.')
+
+  const values = []
+  for (const key of HORMONE_ORDER) {
+    const ref = HORMONE_REFERENCE_RANGES[key]
+    const raw = parseFloat(log[ref.field])
+    if (isNaN(raw)) continue
+    values.push({ key, label: ref.label, value: raw, unit: ref.unit, bands: ref.bands })
   }
-  if (!isNaN(lh)) {
-    // A single LH value isn't a confirmed surge. LH is pulsatile and stays chronically
-    // high in some conditions (e.g. PCOS), so we avoid promising imminent ovulation.
-    if (lh >= 8) { lhSurge = true; notes.push('LH ' + lh + ' IU/L is high, consistent with an approaching LH surge, ovulation often follows within 12 to 36 hours. A single reading is not proof on its own, and LH can stay elevated without ovulation in some conditions such as PCOS.') }
-    else notes.push('LH ' + lh + ' IU/L is at baseline, no surge detected.')
-  }
-  if (!isNaN(e2)) {
-    if (e2 >= 600) notes.push('Estradiol ' + e2 + ' pmol/L is high, consistent with the pre-ovulatory peak.')
-    else notes.push('Estradiol ' + e2 + ' pmol/L logged.')
-  }
-  if (!notes.length) return null
+  if (!values.length) return null
+
   return {
-    ovulationConfirmed, lhSurge,
-    progesterone: isNaN(prog) ? null : prog,
-    lh: isNaN(lh) ? null : lh,
-    estradiol: isNaN(e2) ? null : e2,
-    notes,
-    caveat: 'These are population reference ranges. Your personal normal may differ; what matters most is your pattern across cycles.'
+    values,
+    caveat: 'These are population reference ranges, not a reading of your result. Where a value sits depends on when in your cycle the blood was drawn, and your personal normal may differ. Your doctor interprets these alongside your history.',
+    unitNote: 'Check your units match. US labs usually report progesterone in ng/mL and estradiol in pg/mL, which are different scales from the nmol/L and pmol/L shown here.',
   }
 }
 
@@ -588,7 +643,9 @@ export function inferPhaseFromSymptoms(recentLogs, mucusLogs = []) {
   if (allFluid.some(f => f === 'Creamy or lotion-like' || f === 'Watery')) {
     scores.Follicular += 2; signals.push('creamy or watery cervical fluid')
   }
-  if (logs.some(l => l.workout_feel === 'Stronger than usual')) {
+  // Was `=== 'Stronger than usual'`, so a session logged in the workout player (which writes
+  // 'Felt strong') never triggered this. Now reads both through the canonical normaliser.
+  if (logs.some(l => isStrong(l.workout_feel))) {
     scores.Follicular += 2; signals.push('strong workout feel')
   }
   if (allSymptoms.length > 0 && !allSymptoms.some(s => ['Cramping', 'Fatigue'].includes(s))) {
@@ -904,11 +961,13 @@ function buildCycleStatus(profile, cycleData, recentLogs, mucusLogs, today, tota
 
   const intensityModifier = getIntensityModifier(phase, subPhase)
   const bodyWeight = profile?.body_weight_kg || 65
-  // Logged hormone labs confirm the picture: progesterone >=10 nmol/L confirms ovulation,
-  // so trust the cycle much more when a lab backs it up, and expose the confirmation for
-  // the future fertility feature. (Previously these labs were captured but never used.)
+  // Logged hormone labs are surfaced to the user as numbers against published reference
+  // ranges (see interpretHormones). They deliberately do NOT feed confidence or the phase
+  // model: inferring ovulation from a lab value is an interpretation of a clinical test,
+  // and it also meant a value entered in the wrong unit could push confidence to 85% on
+  // bad data. Ovulation confirmation comes from the wearable temperature path only
+  // (wearableCycle.js -> cycleGuardian.js), which reads the body directly.
   const hormoneSignals = interpretHormones(recentLogs[0])
-  if (hormoneSignals?.ovulationConfirmed) confidence = Math.max(confidence, 0.85)
 
   return {
     phase,
@@ -918,13 +977,18 @@ function buildCycleStatus(profile, cycleData, recentLogs, mucusLogs, today, tota
     periodLength: cycleData?.period_length || null,
     cyclesTracked,
     avgCycleLength,
+    // The full logged period-start history, so the accuracy scorecard can backtest against it
+    // without every screen having to re-parse cycle_data.notes for itself.
+    periodStarts: cycleHistory.periodStarts,
+    cycleSpread: cycleHistory.cycleSpread,
+    cycleRegular: cycleHistory.regular,
     daysUntilPeriod,
     latePeriod,
     daysLate,
     latePeriodInsights,
     nextPeriodPrediction,
     estimated,
-    ovulationConfirmed: hormoneSignals?.ovulationConfirmed || false,
+    ovulationConfirmed: false, // labs never set this; the wearable path owns ovulation confirmation
     hormoneSignals,
     confidence,
     confidenceLabel: confidence > 0.90 ? 'Fully personalised'

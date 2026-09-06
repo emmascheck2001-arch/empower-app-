@@ -681,11 +681,23 @@ export default function Nutrition() {
     <div style={{ paddingBottom:120 }}>
       <TopBar title="NUTRITION" subtitle={displayPhase.toUpperCase()} subtitleColor="#c8b89a" />
 
-      {/* Phase banner */}
+      {/* Phase banner. When her own recent logs point somewhere specific, that leads — the
+          phase guidance is the same on every day of a phase, so opening on it made the screen
+          read as a reference page instead of something responding to her. */}
       <div style={{ background:gradient, padding:'20px 16px', marginBottom:16 }}>
-        <div style={{ fontSize:11, color:'#c8b89a', fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:4 }}>THIS PHASE</div>
-        <div style={{ fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:22, color:'#f5f0e8', marginBottom:6 }}>{phaseData.desc}</div>
-        <div style={{ fontSize:12, color:'rgba(245,240,232,0.75)', lineHeight:1.7 }}>{phaseData.science}</div>
+        {personalisedFocus ? (
+          <>
+            <div style={{ fontSize:11, color:'#c8b89a', fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:4 }}>BASED ON YOUR LOGS</div>
+            <div style={{ fontSize:14.5, color:'#f5f0e8', lineHeight:1.65, marginBottom:10 }}>{personalisedFocus.reason}</div>
+            <div style={{ fontSize:12, color:'rgba(245,240,232,0.72)', lineHeight:1.7 }}>{phaseData.desc}. {phaseData.science}</div>
+          </>
+        ) : (
+          <>
+            <div style={{ fontSize:11, color:'#c8b89a', fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:4 }}>THIS PHASE</div>
+            <div style={{ fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:22, color:'#f5f0e8', marginBottom:6 }}>{phaseData.desc}</div>
+            <div style={{ fontSize:12, color:'rgba(245,240,232,0.75)', lineHeight:1.7 }}>{phaseData.science}</div>
+          </>
+        )}
       </div>
 
       {/* Profile stats bar, always shown so user can always access Update sheet */}
@@ -734,11 +746,6 @@ export default function Nutrition() {
           <div style={{ fontSize:11, color:'#9a9590', textAlign:'center', marginTop:6 }}>
             {profile?.body_weight_kg ? 'Based on your weight and phase' : 'Set your weight above to personalise this'} · ISSN 2023
           </div>
-          {personalisedFocus && (
-            <div style={{ fontSize:12, color:'#5a4a3a', background:'#f5f0e8', borderRadius:8, padding:'8px 10px', marginTop:10, lineHeight:1.5 }}>
-              {personalisedFocus.reason}
-            </div>
-          )}
           {isVegan && (
             <div style={{ fontSize:11, color:'#7a7268', textAlign:'center', marginTop:6, lineHeight:1.5 }}>
               +15% applied for plant protein bioavailability (Rogerson, 2017)

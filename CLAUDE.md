@@ -31,7 +31,143 @@ Anon key: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6I
 - Sleep.jsx — route `/sleep` — sleep tracking and guidance
 - Ask.jsx — route `/ask` — "Ask Em~power" assistant (added 2026-06-26). One-directional: user asks, app answers. Answers ONLY from (a) the user's own logged data and (b) hand-written, cited content in the topic bank — NO LLM, NO generated medical claims, nothing made up. Red-flag questions (heavy bleeding, severe pain, possible pregnancy, crisis) route to seek-care / 988 before anything else. Unknown questions are NOT guessed — the user is offered a "Send to Em~power" button that inserts into `user_feedback` with `category:'assistant_question', screen:'ask'`. "Read more" links deep-link into Learn via `/learn?article=<id>`. Entry point: a dashboard card. Permanent rules: never let it fabricate, never strip the red-flag routing, keep the unknown→submit path. A future Phase 2 (true conversational AI) would need a Supabase Edge Function calling Claude server-side (key never in the client), per-query cost, and a tighter FDA/safety review.
 
+- CycleReview.jsx — route `/cycle-review` (added 2026-09-06) — "Your cycle in review". READ-ONLY.
+  Hands back everything her logs taught the app in one page: counts, the prediction scorecard
+  (misses included), the energy-guessing record, the cycle story (monthlyStory.js), life-context
+  patterns (contextInsights.js) and Looking Ahead (phaseOutlook.js). PERMANENT: every line comes
+  from her own logs; each section must be allowed to say "not enough data yet" rather than
+  softening a threshold to fill the page.
 - VisitPrep.jsx — route `/visit-prep` (added 2026-06-29) — turns the user's OWN tracked data into a doctor-ready summary ("walk in with data" — the antidote to being dismissed; product pillar #4 / appointment prep). READ-ONLY (writes nothing). Pure logic in `lib/visitPrep.js` (`buildVisitSummary` + `summaryToText`, unit-tested in `visitPrep.test.js`). Fetches profile + cycle_data + last 120 daily_logs + user_baselines; renders snapshot (life stage/age/tracking span/cycle), "what I have been tracking" (aggregated symptom/pain/flow/mood/sleep + peri tallies), "patterns worth discussing" (NEUTRAL — NEVER names PCOS/endo/etc., always "not a diagnosis"), questions to ask, tests worth asking about (path-tailored; iron/ferritin surfaced for heavy-flow/low-energy per Burden 2015). "Copy summary" + "Print/PDF". Dashboard entry card (`ti-clipboard-heart`). PERMANENT: keep never-name-a-condition + not-a-diagnosis framing.
+
+**Flow, pain and the seek-care escalation (fixed 2026-09-06) — PERMANENT**
+
+Two related bugs found in an audit, both safety-relevant:
+- Flow and pain were rendered under `!isMenstrual && !isPath4`. Path 4 never sets
+  `isMenstrual`, so **perimenopause users could never log flow or pain at all** — for exactly
+  the women whose defining symptom is irregular and heavy bleeding. Now available on every path.
+- The ACOG "when to seek care today" block (heavy/very heavy flow, or pain >= 4) was gated on
+  `isMenstrual`, so it never appeared for a perimenopause user, or for anyone logging heavy
+  bleeding outside a predicted period. **It is now gated ONLY on the logged values.**
+  PERMANENT RULE: that escalation must never again be conditioned on phase, path or cycle
+  state. Heavy bleeding and severe pain warrant the same guidance whenever they are recorded.
+
+**Workout logging + one vocabulary (added 2026-09-06) — PERMANENT RULES**
+
+Live usage drove this: of 20 completed workouts, 13 were CLASS LOGS and 7 were guided
+sessions, and the five most recent were all class logs (last guided completion: Aug 18).
+Meanwhile 58 training days were logged overall, so roughly two thirds of real workouts never
+touched the workout screen. The guided builder is not the problem — it was just the only
+thing on the front door.
+
+- `lib/workoutFeel.js` — THE canonical vocabulary for `daily_logs.workout_feel`, plus a
+  normaliser. Three screens previously wrote three different value sets into one column
+  (Log.jsx: 'Stronger than usual'/'Average'/'Weaker than usual'; Workout.jsx: 'Felt strong'/
+  'Felt average'/'Felt hard'; WearableWorkouts: always 'Average') and the engines matched raw
+  strings, so `hormoneSync` reacted only to 'Stronger than usual' (nothing from the workout
+  player ever triggered it) and `algorithm_v3` counted hard sessions as ['Felt hard','Hard']
+  (so 'Weaker than usual' was never counted at all). **PERMANENT RULES: (1) CANONICAL is the
+  only vocabulary new code may WRITE. (2) Every READER goes through `normaliseFeel`, forever —
+  legacy values are NEVER migrated in the database, because a woman's log is her record and
+  rewriting what she entered to suit our schema is not ours to do; we translate on read.
+  (3) An unrecognised value is never guessed at: `normaliseFeel` returns null while `didTrain`
+  still returns true, because "she wrote something in the workout box" is evidence she trained
+  even when we cannot grade how it felt (a live row reads 'yoga').** Covered by
+  `workoutFeel.test.js` and `workoutVocabIntegration.test.js`, which assert the engines are
+  blind to which screen wrote a row, including MIXED-dialect weeks.
+- **Workout.jsx front door**: an "Already trained today?" row now sits ABOVE the activity grid
+  and links to the class logger. NOTHING was removed or moved — the activity grid, the muscle
+  picker and the whole guided player are exactly where they were. Do not "tidy" this by
+  demoting the builder behind a button; the panel staying in place is a deliberate decision.
+- **Class logger** gained a free-text name (a live log read "Other class, 120 min" — the eight
+  fixed categories ran out; a typed name is stored verbatim so we learn what users actually do)
+  and a "how did it feel" step. It previously hard-coded 'Felt average' for every class.
+- **WearableWorkouts** now keeps the activity and duration the watch recorded (into `notes`,
+  in the same shape the class logger writes) instead of flattening a 52-minute Pilates class
+  to the single word 'Average', and fires `workout_completed` so wearable logs are measurable.
+  It must never claim a feel — the watch cannot know one, so it writes neutral 'Average'.
+
+**Re-engagement / notifications (added 2026-09-06) — PERMANENT RULES**
+
+Built after an audit of live usage: 24 signups, 22 completed onboarding, only 15 ever logged a
+day, and 2 active in the last 7 days. `@capacitor/push-notifications` was in package.json with
+ZERO lines of code using it — the app never spoke first.
+
+- `lib/notificationPlan.js` — PURE, unit-tested. Decides what to notify and when. Three
+  triggers only: a heads-up two days before the predicted period, an evening nudge ONLY for
+  someone already on a 3+ day streak who has not logged today, and the Sunday recap.
+  **PERMANENT RULES: (1) never more than MAX_PER_WEEK (3). (2) Never guilt — a missed day is
+  never "you broke your streak". (3) Never state a prediction as fact; period reminders say
+  "around" and are only scheduled above 'none' confidence. (4) Nothing medical in a
+  notification. (5) NOTHING PRIVATE ON A LOCK SCREEN — copy says "Day 1", never "your period",
+  and never names a symptom, ovulation or fertility.** `copyIsSafe()` enforces 2–5 in code and
+  is asserted in the tests; it already caught one unsafe string during development.
+- `lib/notifications.js` — the Capacitor bridge. LOCAL notifications, not push: every trigger
+  is computed on-device from her own data, so no backend, no APNs key, and her cycle
+  predictions never leave the phone to schedule a reminder about them. Opt-in and OFF by
+  default. Rescheduled on dashboard load and after every log save (so the evening nudge
+  disappears the moment she logs). Native only; no-ops on web.
+- `components/NotificationSettings.jsx` — the opt-in toggle, native only. States the weekly cap
+  up front. Requires `@capacitor/local-notifications` (added 2026-09-06, `npx cap sync` run).
+
+**Onboarding now ends with a real log (added 2026-09-06)** — `components/FirstLog.jsx`.
+Nine of 24 users completed setup and never logged anything, so setup no longer ends on a
+dashboard with nothing to say. The last step asks ONE question (energy), writes a real
+daily_logs row, and says one true thing back from `getTodayStatus`. RULES: one question only,
+always skippable, skipping is never punished, the line said back must be derived from the
+engine (never a compliment, never invented, never prescriptive on the pregnancy path).
+
+**Nutrition leads with her logs (changed 2026-09-06)** — `getPersonalisedNutritionFocus`
+already existed and already opened the matching symptom accordion, but its reason sat BELOW the
+protein card, so the screen opened identically on every day of a phase. The banner now leads
+with "based on your logs" when there is a real focus, and falls back to the phase banner
+otherwise. `dailyCoach.js` now ships the REASON with the protein number (`proteinWhy`) — a bare
+target is what prompted the only Ask question a trial user ever submitted.
+
+**Engagement + prediction engines (added 2026-09-06) — PERMANENT RULES**
+
+Built to fix a specific, diagnosed problem: the daily log asked the SAME ~7 questions every day
+forever, while every real payoff was gated (8 energy logs, 2 tracked cycles, Sundays only) and
+none of those thresholds were ever shown. Fixed input cost, invisible output. That is what made
+logging feel like a chore. All of the following are PURE and unit-tested (no supabase inside).
+
+- `lib/cycleStats.js` — the statistical core of prediction. Robust median + MAD, outlier
+  fencing, exponential recency weighting, shrink-toward-prior when history is thin, and an 80%
+  interval read from her real dispersion. **THE KEY PROPERTY: the window NARROWS as she tracks
+  more cycles.** The previous implementation took min/max of every past cycle, so one unusual
+  month widened the window permanently and more data produced a VAGUER prediction. Never
+  reintroduce a min/max or plain-mean estimator here.
+- `lib/predictionAccuracy.js` — the app grades its own homework. `backtestPeriodPredictions`
+  re-predicts every past period using ONLY the cycles before it (strict no-leakage rule, unit
+  tested) and reports the median error in DAYS, never a fake percentage. Also the energy
+  prediction game (`predictEnergyForCycleDay` / `scoreEnergyPrediction` / `backtestEnergy`).
+  RULES: never score on fewer than MIN_SCORED events, never hide the misses, never report a
+  number the backtest did not produce.
+- `lib/logPriority.js` — the ADAPTIVE LOG. Picks which questions are worth asking today
+  (cervical fluid only near the fertile window or when confidence is low, mood/symptoms in the
+  late-luteal PMS window, stress when the period is late, training only if she has been
+  training, nothing the watch already answered). RULES, never loosen: (1) NOTHING IS EVER
+  REMOVED — this chooses what is shown FIRST; every field stays reachable under "add more
+  detail". (2) Energy is always asked. (3) Flow and pain are NEVER demoted while bleeding,
+  because the heavy-flow / severe-pain seek-care escalation is anchored to them.
+- `lib/logDelta.js` — "what your log just changed", shown on save. RULES: never invent a
+  change; a no-change day says so honestly ("this confirmed what I already had"); the numbers
+  must be the real before/after values.
+- `lib/unlocks.js` — the progress ledger that replaces a bare streak. Mirrors the ENGINES' real
+  thresholds; if an engine's minimum changes, change `THRESHOLDS` too. No streak shaming — a
+  missed day never resets anything.
+- `lib/copyPool.js` — day-seeded copy variation so the dashboard does not say the identical
+  sentence every morning. RULE: variation is COSMETIC ONLY. Every line in a pool must mean the
+  same thing. Never vary a number, a health statement or a recommendation.
+- `lib/contextInsights.js` — life-context tags (taught a class, deadline, travel). RULES:
+  association never cause; real minimums (3 tagged + 3 comparison days, 0.5 energy spread);
+  her own data only. Needs `sql/2026-09-context-tags.sql` run; the Log screen degrades
+  gracefully (retries the save without the field) if the column is missing.
+
+**Prediction consistency fix (2026-09-06):** Dashboard.jsx used to recompute the phase from
+`cycleData.cycle_length` (the ONBOARDING value) while hormoneSync used the LEARNED average, so
+the dashboard could disagree with the calendar and the log. The dashboard now reads phase,
+cycleDay, cycleLen and daysUntilPeriod from `getTodayStatus`. Never recompute the phase from
+the raw onboarding value on any screen — `getTodayStatus` is the single source of truth.
 
 **Shared library (empower-react/src/lib/):**
 - hormoneSync.js — getTodayStatus shared function, getPhase, getLutealSubPhase, inferPhaseFromSymptoms

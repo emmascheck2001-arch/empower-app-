@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from './lib/supabase'
 import { track } from './lib/analytics'
 import { sessionFlags } from './lib/session'
+import { flushQueue } from './lib/pendingWrites'
+import { registerNotificationOpenHandler } from './lib/notifications'
 import Spinner from './components/Spinner'
 
 import Login    from './pages/Login'
@@ -20,6 +22,7 @@ import Friends  from './pages/Friends'
 import Ask      from './pages/Ask'
 import Terms    from './pages/Terms'
 import VisitPrep from './pages/VisitPrep'
+import CycleReview from './pages/CycleReview'
 
 // Lightweight "active today" tracking. Stamps profiles.last_active_at at most once
 // per 30 minutes per app session, fire-and-forget so it never blocks rendering or
@@ -95,10 +98,42 @@ function PageTracker() {
   return null
 }
 
+// Handles a tap on one of our own local notifications: records that it brought her back
+// (the return visit is the entire point of re-engagement, and nothing was measuring it) and
+// routes her to the screen the notification was about. Native only; no-ops on web.
+function NotificationOpenHandler() {
+  const navigate = useNavigate()
+  useEffect(() => { registerNotificationOpenHandler(navigate) }, [navigate])
+  return null
+}
+
+// Replays any log that failed to reach the server while offline. Runs once on load,
+// again whenever the browser regains connectivity, and again when the app is brought
+// back to the foreground (the reliable signal on iOS, where 'online' can be missed).
+// Fire-and-forget: it must never block rendering or surface an error of its own.
+function PendingWriteFlusher() {
+  useEffect(() => {
+    let cancelled = false
+    const flush = () => { if (!cancelled) flushQueue(supabase).catch(() => {}) }
+    flush()
+    const onVisible = () => { if (document.visibilityState === 'visible') flush() }
+    window.addEventListener('online', flush)
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      cancelled = true
+      window.removeEventListener('online', flush)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [])
+  return null
+}
+
 export default function App() {
   return (
     <BrowserRouter>
       <PageTracker />
+      <PendingWriteFlusher />
+      <NotificationOpenHandler />
       <Routes>
         <Route path="/login"   element={<Login />} />
         <Route path="/privacy" element={<Privacy />} />
@@ -118,6 +153,7 @@ export default function App() {
         <Route path="/ask"       element={<AuthGuard><Ask /></AuthGuard>} />
         <Route path="/visit-prep" element={<AuthGuard><VisitPrep /></AuthGuard>} />
         <Route path="/friends"   element={<AuthGuard><Friends /></AuthGuard>} />
+        <Route path="/cycle-review" element={<AuthGuard><CycleReview /></AuthGuard>} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </BrowserRouter>

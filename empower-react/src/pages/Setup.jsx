@@ -6,6 +6,7 @@ import { getPhase, mergePeriodStartsNotes } from '../lib/hormoneSync'
 import { track } from '../lib/analytics'
 import { sessionFlags } from '../lib/session'
 import Spinner from '../components/Spinner'
+import FirstLog from '../components/FirstLog'
 
 const PATH_OPTIONS = [
   { id:1, label:'I know my last period date', icon:'ti-calendar' },
@@ -73,6 +74,8 @@ export default function Setup() {
   const [agreed, setAgreed] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saveErr, setSaveErr] = useState(null)
+  // The final onboarding step: one real log before she reaches the dashboard.
+  const [showFirstLog, setShowFirstLog] = useState(false)
   const [preview, setPreview] = useState(null)
   const [birthYear, setBirthYear] = useState('')
 
@@ -189,10 +192,14 @@ export default function Setup() {
 
     track('onboarding_complete', { path: String(path), skipped: skip })
     sessionFlags.justOnboardedUid = user.id   // only THIS user skips the post-setup bounce, never a different account on the same tab
-    navigate('/dashboard', { replace: true })
+    // Editing an existing profile goes straight back; a NEW user finishes with her first log.
+    if (searchParams.get('edit') === '1') { navigate('/dashboard', { replace: true }); return }
+    setSaving(false)
+    setShowFirstLog(true)
   }
 
   if (checking) return <div style={{ paddingTop:60 }}><Spinner /></div>
+  if (showFirstLog) return <FirstLog onDone={() => navigate('/dashboard', { replace: true })} />
   if (!showStats) return (
     <div style={{ padding:'calc(24px + var(--sat)) 16px 120px', minHeight:'100svh' }}>
       <div style={{ fontSize:13, fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase', textAlign:'center', marginBottom:8 }}>Em~power</div>

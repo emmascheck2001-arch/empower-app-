@@ -54,12 +54,15 @@ function nutritionLines(phase, targets) {
   const protein = targets?.proteinG
   const extra = targets?.extraCalories
   if (phase === 'Pregnancy') {
-    if (protein) lines.push(`Aim for about ${protein}g protein, spread across the day.`)
+    if (protein) lines.push(`Aim for about ${protein}g protein, spread across the day${proteinWhy(phase)}.`)
     if (extra > 0) lines.push(`Your body needs roughly ${extra} extra calories this trimester, quality over quantity.`)
     lines.push('Keep up your prenatal vitamin and stay well hydrated.')
     return lines
   }
-  if (protein) lines.push(`Aim for about ${protein}g protein today.`)
+  // Always ship the REASON with the number. A bare target invites exactly the question a
+  // trial user actually asked ("why do I need higher protein today"), and the answer is one
+  // short clause. Reasons are phase-specific and trace to ISSN 2023.
+  if (protein) lines.push(`Aim for about ${protein}g protein today${proteinWhy(phase)}.`)
   if (extra > 0) lines.push(`Add roughly ${extra} extra calories from whole foods, your body genuinely needs more in this phase.`)
   if (phase === 'Menstrual') lines.push('Add iron-rich foods while you are bleeding.')
   lines.push('Stay hydrated.')
@@ -110,6 +113,19 @@ function recoveryNote(recentLogs = []) {
 
 // buildDailyCoach, the morning briefing. Takes the getTodayStatus result + current hour.
 // Returns null only if there is genuinely nothing to show (no status at all).
+// Why the target is what it is today, in one clause. Kept short enough to sit inside the
+// coach line, and never a claim that goes beyond getNutritionTargets' own sources (ISSN 2023).
+function proteinWhy(phase) {
+  switch (phase) {
+    case 'Luteal': return ' — it peaks now because progesterone speeds up how fast you break muscle down'
+    case 'Menstrual': return ' — it steadies energy and supports recovery while you bleed'
+    case 'Follicular': return ' — rising estrogen makes this your strongest phase to build muscle'
+    case 'Ovulatory': return ' — it fuels your peak training window'
+    case 'Perimenopause': return ' — it protects muscle and bone through the transition'
+    default: return ''
+  }
+}
+
 export function buildDailyCoach(status, hour, name) {
   if (!status) return null
   const phase = status.phase || 'observation'

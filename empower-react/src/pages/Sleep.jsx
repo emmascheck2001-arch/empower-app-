@@ -6,6 +6,8 @@ import { getTodayStatus } from '../lib/hormoneSync'
 import TopBar from '../components/TopBar'
 import BottomNav from '../components/BottomNav'
 import Spinner from '../components/Spinner'
+import SaveErrorBanner from '../components/SaveErrorBanner'
+import { enqueue } from '../lib/pendingWrites'
 
 const SLEEP_GUIDE = {
   Menstrual: {
@@ -156,6 +158,7 @@ export default function Sleep() {
   const [quality, setQuality] = useState(null)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [saveError, setSaveError] = useState(null)
   const [whyOpen, setWhyOpen] = useState(false)
   const [name, setName] = useState('')
   const [recentSleep, setRecentSleep] = useState([])
@@ -189,11 +192,32 @@ export default function Sleep() {
   async function saveSleep() {
     if (!quality) return
     setSaving(true)
+    setSaveError(null)
     // Only write the sleep fields. Hours live in their own column, never in `notes`,
     // so saving sleep can never overwrite notes the user wrote on the Log screen.
-    const record = { user_id: userId, log_date: localDateStr(), sleep_quality: quality, sleep_hours: hours ? parseFloat(hours) : null }
-    await supabase.from('daily_logs').upsert(record, { onConflict: 'user_id,log_date' })
-    setSaved(true)
+    const today = localDateStr()
+    const record = { user_id: userId, log_date: today, sleep_quality: quality, sleep_hours: hours ? parseFloat(hours) : null }
+    try {
+      // supabase-js returns { error } rather than throwing, so this has to be checked.
+      // Previously it was not, and setSaved(true) ran unconditionally — a failed write
+      // told her it had saved.
+      const { error } = await supabase.from('daily_logs').upsert(record, { onConflict: 'user_id,log_date' })
+      if (error) throw error
+      setSaved(true)
+    } catch (e) {
+      console.error(e)
+      // Namespaced dedupe key so a queued sleep entry never collides with a queued
+      // check-in for the same day; both are daily_logs upserts on (user_id, log_date)
+      // and only overwrite the columns they carry.
+      const queued = enqueue({ kind: 'daily_log', userId, dedupeKey: `sleep:${today}`, payload: record })
+      setSaveError({
+        scope: 'sleep',
+        retry: saveSleep,
+        text: queued
+          ? "Couldn't save just now — your sleep log is kept on this device and will save automatically when you're back online."
+          : "Couldn't save just now. Please check your connection and try again.",
+      })
+    }
     setSaving(false)
   }
 
@@ -243,9 +267,10 @@ export default function Sleep() {
           </div>
           {saved
             ? <div style={{ textAlign:'center', fontSize:14, color:'#4a8a4a', padding:'12px 0' }}>Saved. Take your time reading tonight's tips below.</div>
-            : <button className="btn-primary" onClick={saveSleep} disabled={!quality || saving}>
+            : <><SaveErrorBanner error={saveError} scope="sleep" busy={saving} />
+              <button className="btn-primary" onClick={saveSleep} disabled={!quality || saving}>
                 {saving ? 'Saving...' : 'Save sleep log'}
-              </button>
+              </button></>
           }
         </div>
 

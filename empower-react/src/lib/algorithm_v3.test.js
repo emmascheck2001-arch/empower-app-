@@ -173,8 +173,19 @@ describe('detectPMDDPattern', () => {
     const logs = buildCyclicalLogs(30, 28, 28, { lutealMood: ['Irritable', 'Anxious'], follicularMood: ['Happy'], otherMood: ['Focused'] })
     const r = detectPMDDPattern(logs, 28, 28)
     expect(r).not.toBeNull()
-    expect(r.type).toBe('possible_pmdd_pattern')
+    expect(r.type).toBe('cyclical_mood_pattern')
     expect(r.severity).toBe('informational')
+  })
+  // Regulatory boundary: the output describes the user's own logged pattern and must
+  // never name or assess a condition. If this fails, the message was reworded in a way
+  // that reintroduces a diagnostic claim.
+  it('names no clinical condition in anything user-facing', () => {
+    const logs = buildCyclicalLogs(30, 28, 28, { lutealMood: ['Irritable', 'Anxious'], follicularMood: ['Happy'], otherMood: ['Focused'] })
+    const r = detectPMDDPattern(logs, 28, 28)
+    const surfaced = `${r.type} ${r.message} ${r.science}`.toLowerCase()
+    for (const term of ['pmdd', 'premenstrual dysphoric', 'dsm', 'diagnos', 'disorder', 'pcos', 'endometrio']) {
+      expect(surfaced).not.toContain(term)
+    }
   })
   it('does NOT false-positive when mood is non-negative throughout', () => {
     const logs = buildCyclicalLogs(30, 28, 28, { lutealMood: ['Happy'], follicularMood: ['Happy'], otherMood: ['Focused'] })

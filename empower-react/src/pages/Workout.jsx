@@ -9,6 +9,8 @@ import { getMovementToday } from '../lib/movementToday'
 import { syncPlanToWatch } from '../lib/watchBridge'
 import { buildCyclePlan, weekBlocks, assignSessions, lighterSession } from '../lib/cyclePlan'
 import GoalPicker, { getFitnessGoal } from '../components/GoalPicker'
+import SaveErrorBanner from '../components/SaveErrorBanner'
+import { enqueue } from '../lib/pendingWrites'
 import { track } from '../lib/analytics'
 import BottomNav from '../components/BottomNav'
 import WearableWorkouts from '../components/WearableWorkouts'
@@ -746,7 +748,9 @@ function buildCustomExercises(muscles, level, seed = 0, preferLoad = false) {
   return out
 }
 
-const FEEL_OPTIONS = ['Felt strong','Felt average','Felt hard','Rest day','Skipped']
+// Canonical vocabulary (workoutFeel.js). These used to be 'Felt strong' / 'Felt average' /
+// 'Felt hard', a second vocabulary that half the insight engines could not read.
+const FEEL_OPTIONS = ['Stronger than usual','Average','Weaker than usual','Rest day','Skipped']
 
 const CLASS_TYPES = [
   { id:'swim', label:'Swim', icon:'ti-swimming' },
@@ -852,8 +856,16 @@ export default function Workout() {
   const [fitnessLevel, setFitnessLevel] = useState('intermediate')
   const [feel, setFeel] = useState(null)
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState(null)
   const [classType, setClassType] = useState(null)
   const [classDuration, setClassDuration] = useState('')
+  // Free-text name for anything the eight fixed categories do not cover. A live log reading
+  // "Other class, 120 min" is what prompted this: the category list ran out. Whatever she
+  // types is stored verbatim, so the app learns what her people actually do.
+  const [classCustom, setClassCustom] = useState('')
+  // How the session felt, captured at log time. Previously every class was silently recorded
+  // as 'Felt average' whatever it was actually like, which fed the engines a flat signal.
+  const [classFeel, setClassFeel] = useState(null)
   const [playerIdx, setPlayerIdx] = useState(0)
   const [setWeights, setSetWeights] = useState({}) // { exIdx: { setIdx: weight } }
   const [playerDone, setPlayerDone] = useState({}) // { exIdx: { setIdx: true } }
@@ -1020,8 +1032,10 @@ export default function Workout() {
   async function save() {
     if (!feel) return
     setSaving(true)
+    setSaveError(null)
+    let user
     try {
-      const { data: { user } } = await supabase.auth.getUser()
+      user = (await supabase.auth.getUser()).data.user
       const { error } = await supabase.from('daily_logs').upsert({
         user_id: user.id, log_date: localDateStr(), workout_feel: feel
       }, { onConflict: 'user_id,log_date' })
@@ -1044,20 +1058,51 @@ export default function Workout() {
       }
       track('workout_completed', { activity, feel })
       setScreen('done')
-    } catch(e) { console.error(e) }
+    } catch(e) {
+      console.error(e)
+      const today = localDateStr()
+      const queued = user?.id && enqueue({ kind:'daily_log', userId:user.id, dedupeKey:`workout:${today}`,
+        payload:{ user_id:user.id, log_date:today, workout_feel:feel } })
+      setSaveError({ scope:'workout', retry:save,
+        text: queued
+          ? "Couldn't save just now — this workout is kept on this device and will save automatically when you're back online."
+          : "Couldn't save just now. Please check your connection and try again." })
+    }
     setSaving(false)
   }
 
   async function saveClass() {
-    if (!classType) return
+    // Must mirror the Save button's own enabled condition. A typed name is enough on its own —
+    // guarding on classType alone made the button look active and then do nothing.
+    if (!classType && !classCustom.trim()) return
     setSaving(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    const notes = classDuration ? `${CLASS_TYPES.find(c=>c.id===classType)?.label} class, ${classDuration} min` : `${CLASS_TYPES.find(c=>c.id===classType)?.label} class`
-    await supabase.from('daily_logs').upsert({
-      user_id: user.id, log_date: localDateStr(), workout_feel: 'Felt average', notes
-    }, { onConflict: 'user_id,log_date' })
-    track('workout_completed', { activity: classType })
-    setScreen('done')
+    setSaveError(null)
+    const today = localDateStr()
+    // A typed name wins over the category label, so "Lagree" or "reformer" is recorded as
+    // what it actually was rather than being flattened into "Other".
+    const typed = classCustom.trim()
+    const label = typed || CLASS_TYPES.find(c=>c.id===classType)?.label || 'Workout'
+    const notes = classDuration ? `${label} class, ${classDuration} min` : `${label} class`
+    let user
+    try {
+      user = (await supabase.auth.getUser()).data.user
+      // Canonical vocabulary (workoutFeel.js). This used to hard-code 'Felt average'.
+      const record = { user_id: user.id, log_date: today, workout_feel: classFeel || 'Average', notes }
+      // Checked, not fire-and-forget: this previously advanced to the "done" screen
+      // whether or not the write landed.
+      const { error } = await supabase.from('daily_logs').upsert(record, { onConflict: 'user_id,log_date' })
+      if (error) throw error
+      track('workout_completed', { activity: typed ? 'custom' : classType, custom: typed || undefined, source: 'class' })
+      setScreen('done')
+    } catch(e) {
+      console.error(e)
+      const queued = user?.id && enqueue({ kind:'daily_log', userId:user.id, dedupeKey:`workout:${today}`,
+        payload:{ user_id:user.id, log_date:today, workout_feel: classFeel || 'Average', notes } })
+      setSaveError({ scope:'class', retry:saveClass,
+        text: queued
+          ? "Couldn't save just now — this class is kept on this device and will save automatically when you're back online."
+          : "Couldn't save just now. Please check your connection and try again." })
+    }
     setSaving(false)
   }
 
@@ -1118,9 +1163,9 @@ export default function Workout() {
       <div style={{ fontSize:40, marginBottom:16 }}>🌿</div>
       <div style={{ fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:22, marginBottom:8 }}>Workout complete.</div>
       <div style={{ fontSize:14, color:'#7a7268', marginBottom:32, lineHeight:1.6 }}>
-        {feel === 'Felt strong' ? 'You showed up and felt strong. That is what consistency looks like.' :
-         feel === 'Felt average' ? 'Solid session. Consistent average beats inconsistent great every time.' :
-         feel === 'Felt hard' ? 'You did it even when it was hard. That is the real win.' :
+        {feel === 'Stronger than usual' ? 'You showed up and felt strong. That is what consistency looks like.' :
+         feel === 'Average' ? 'Solid session. Consistent average beats inconsistent great every time.' :
+         feel === 'Weaker than usual' ? 'You did it even when it was hard. That is the real win.' :
          'Rest is part of training. Your body rebuilds during recovery.'}
       </div>
       {protein && <div style={{ background:'#f5f0e8', borderRadius:12, padding:14, marginBottom:24, fontSize:13, color:'#3a3530', lineHeight:1.6 }}><strong style={{ display:'block', fontSize:11, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590', marginBottom:6 }}>Post-workout</strong>Aim for <strong>{protein}g protein</strong> today, spread across your meals. A 20 to 40g serving within a couple of hours of training supports recovery, but your total protein for the day matters more than exact timing.</div>}
@@ -1252,7 +1297,29 @@ export default function Workout() {
         <div style={{ padding:'0 16px' }}>
           {/* Apple Watch / wearable workouts, native only, renders nothing on web */}
           <WearableWorkouts />
-          <span style={{ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590', marginBottom:12, display:'block' }}>What are you doing today?</span>
+
+          {/* ── Already trained? ─────────────────────────────────────────────
+              Live usage says logging is what people actually do here: of 20 completed
+              workouts, 13 were class logs and 7 were guided sessions, and the last five in a
+              row were class logs. That path was buried one level down, so this surfaces it
+              WITHOUT moving or removing anything below — the activity grid and the whole
+              guided builder stay exactly where they were. */}
+          <div onClick={() => setScreen('logClass')} style={{
+            display:'flex', alignItems:'center', gap:12, padding:'14px 16px', marginBottom:16,
+            background:'#fff', border:'1px solid #d8cdb8', borderRadius:14, cursor:'pointer',
+            boxShadow:'0 1px 4px rgba(44,40,32,0.04)',
+          }}>
+            <div style={{ width:38, height:38, borderRadius:10, background:'#f5f0e8', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+              <i className="ti ti-checkbox" style={{ fontSize:19, color:'#7a6a4a' }} />
+            </div>
+            <div style={{ flex:1 }}>
+              <div style={{ fontSize:15, fontWeight:600, color:'#2c2820', marginBottom:2 }}>Already trained today?</div>
+              <div style={{ fontSize:12.5, color:'#7a7268', lineHeight:1.45 }}>Log a class or session in three taps</div>
+            </div>
+            <i className="ti ti-chevron-right" style={{ fontSize:18, color:'#c8b89a' }} />
+          </div>
+
+          <span style={{ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590', marginBottom:12, display:'block' }}>Or plan one — what are you doing today?</span>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10, marginBottom:14 }}>
             {ACTIVITIES.map(a => (
               <div key={a.id} onClick={() => selectActivity(a.id)} style={{
@@ -2002,6 +2069,7 @@ export default function Workout() {
             fontSize:14, fontWeight:feel===f?600:400, color:feel===f?'#5a4a3a':'#2c2820',
           }}>{f}</div>
         ))}
+        <SaveErrorBanner error={saveError} scope="workout" busy={saving} />
         <button className="btn-primary" onClick={save} disabled={!feel || saving} style={{ marginTop:8 }}>
           {saving ? 'Saving...' : 'Save workout'}
         </button>
@@ -2032,7 +2100,21 @@ export default function Workout() {
             </div>
           ))}
         </div>
-        <div style={{ marginBottom:24 }}>
+        {/* Free-text name. The fixed categories produced a live log reading "Other class,
+            120 min" — the list ran out. Whatever she types is stored verbatim. */}
+        <div style={{ marginBottom:20 }}>
+          <span style={{ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590', marginBottom:8, display:'block' }}>
+            Or name it yourself {classType === 'other' ? '' : '(optional)'}
+          </span>
+          <input
+            type="text" placeholder="e.g. Lagree, reformer, barre, bootcamp"
+            value={classCustom}
+            onChange={e => setClassCustom(e.target.value)}
+            style={{ width:'100%', padding:'12px 14px', borderRadius:10, border:'1px solid #ede8e0', fontSize:15, fontFamily:'inherit', boxSizing:'border-box', outline:'none' }}
+          />
+        </div>
+
+        <div style={{ marginBottom:20 }}>
           <span style={{ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590', marginBottom:8, display:'block' }}>Duration (minutes)</span>
           <input
             type="number" inputMode="numeric" placeholder="e.g. 45"
@@ -2041,7 +2123,23 @@ export default function Workout() {
             style={{ width:'100%', padding:'12px 14px', borderRadius:10, border:'1px solid #ede8e0', fontSize:15, fontFamily:'inherit', boxSizing:'border-box', outline:'none' }}
           />
         </div>
-        <button className="btn-primary" disabled={!classType || saving} onClick={saveClass}>
+
+        {/* How it felt. Every class used to be recorded as "average" regardless, which fed
+            the readiness engine a flat signal it could never learn anything from. */}
+        <div style={{ marginBottom:24 }}>
+          <span style={{ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590', marginBottom:8, display:'block' }}>How did it feel? (optional)</span>
+          <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+            {['Stronger than usual','Average','Weaker than usual'].map(f => (
+              <button key={f} onClick={() => setClassFeel(classFeel === f ? null : f)} style={{
+                padding:'9px 14px', borderRadius:20, fontFamily:'inherit', fontSize:13, cursor:'pointer',
+                border:`1px solid ${classFeel===f?'#c8b89a':'#ede8e0'}`,
+                background: classFeel===f?'#e8dfd0':'#fff', color: classFeel===f?'#5a4a3a':'#2c2820',
+              }}>{f}</button>
+            ))}
+          </div>
+        </div>
+        <SaveErrorBanner error={saveError} scope="class" busy={saving} />
+        <button className="btn-primary" disabled={(!classType && !classCustom.trim()) || saving} onClick={saveClass}>
           {saving ? 'Saving...' : 'Save class'}
         </button>
       </div>

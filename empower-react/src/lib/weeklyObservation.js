@@ -1,3 +1,4 @@
+import { didTrain } from './workoutFeel.js'
 // weeklyObservation.js, the "One Observation" in the Weekly Review. Scans a user's own week
 // of logs for the single most compelling, PERSONAL pattern and states it plainly. This is the
 // "the app noticed something about me" moment, so it must be true, specific, and hedged.
@@ -15,7 +16,7 @@ const POS = new Set(['Energised','Energetic','Happy','Motivated','Confident','So
 const WEEKDAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
 
 const avg = (a) => (a.length ? a.reduce((x,y)=>x+y,0)/a.length : null)
-const isWorkout = (l) => l.workout_feel && l.workout_feel !== 'Rest day' && l.workout_feel !== 'Skipped'
+const isWorkout = (l) => didTrain(l.workout_feel)
 const weekdayOf = (s) => WEEKDAYS[new Date(s + 'T00:00:00').getDay()]
 const posRate = (logs) => {
   const m = logs.filter(l => Array.isArray(l.mood) && l.mood.length)

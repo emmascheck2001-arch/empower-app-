@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { isNative, readRecentWorkouts, healthStoreName } from '../lib/healthkit'
+import { track } from '../lib/analytics'
 
 // Shows the user's recent Apple Watch / wearable workouts (pulled from Apple Health / Health
 // Connect) and lets them log one into their Em~power day with a tap. Native only, and only after
@@ -57,11 +58,24 @@ export default function WearableWorkouts() {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
-        // Mark the day as a completed workout without overriding a feel the user already set.
+        // Keep what the watch actually recorded. This used to write the single word 'Average'
+        // and throw away the activity, the duration and the calories — so a 52-minute Pilates
+        // class became indistinguishable from a 10-minute walk, and none of it could ever
+        // feed an insight. The detail goes into notes, in the same shape the class logger
+        // writes, so both paths read alike.
+        const detail = [w.activity, w.minutes ? `${w.minutes} min` : null].filter(Boolean).join(', ')
+        const { data: existing } = await supabase.from('daily_logs')
+          .select('notes').eq('user_id', user.id).eq('log_date', w.date).maybeSingle()
+        const notes = existing?.notes && existing.notes.includes(detail)
+          ? existing.notes
+          : [existing?.notes, detail].filter(Boolean).join(' · ')
+        // 'Average' is the canonical neutral value (workoutFeel.js). We do not know how it
+        // felt — the watch cannot tell us — so we never claim it was strong or hard.
         await supabase.from('daily_logs').upsert(
-          { user_id: user.id, log_date: w.date, workout_feel: 'Average' },
+          { user_id: user.id, log_date: w.date, workout_feel: 'Average', notes },
           { onConflict: 'user_id,log_date' })
         setLoggedDates(prev => ({ ...prev, [w.date]: 'Average' }))
+        track('workout_completed', { activity: w.activity, source: 'wearable', minutes: w.minutes || null })
       }
     } catch { /* non-fatal */ }
     setBusy(null)

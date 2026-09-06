@@ -1,9 +1,19 @@
 // route /log, full daily log: energy, mood, cervical fluid, LH, RHR, wrist temp, symptoms, sleep, workout feel, disruptors, flow, pain, hormones
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getPhase, interpretHormones, getTodayStatus, mergePeriodStartsNotes } from '../lib/hormoneSync'
+import { enqueue } from '../lib/pendingWrites'
+import SaveErrorBanner from '../components/SaveErrorBanner'
 import { track } from '../lib/analytics'
+import { pickTodaysQuestions } from '../lib/logPriority'
+import { buildLogDelta } from '../lib/logDelta'
+import { buildUnlocks, newlyUnlocked } from '../lib/unlocks'
+import { predictEnergyForCycleDay } from '../lib/predictionAccuracy'
+import { SUGGESTED_TAGS } from '../lib/contextInsights'
+import { isNative, healthStoreName, readWearableData } from '../lib/healthkit'
+import { syncNotifications } from '../lib/notifications'
+import LogDeltaCard from '../components/LogDeltaCard'
 import TopBar from '../components/TopBar'
 import BottomNav from '../components/BottomNav'
 import Spinner from '../components/Spinner'
@@ -11,6 +21,11 @@ import CrisisSupport from '../components/CrisisSupport'
 
 function localDateStr() {
   const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+}
+// ISO date N days before today, for "is this log actually yesterday's?" comparisons.
+function isoDaysAgo(n) {
+  const d = new Date(); d.setDate(d.getDate() - n)
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
 }
 function addDaysStr(dateStr, days) {
@@ -55,13 +70,24 @@ const sLabel ={ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransfor
 // Subtle section divider, groups the form into scannable chunks without hiding anything.
 const sectionHead = { fontSize:12, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'#5a5248', display:'block', marginTop:24, marginBottom:14, paddingTop:16, borderTop:'1px solid #ede8e0' }
 
+// Tags describe the DAY, not the body — the log already covers symptoms. They exist so the
+// app can connect a real life (teaching two classes, a deadline, a flight) to what her body
+// then did, which is a question no hormone model can answer on its own.
+const CONTEXT_TAGS = SUGGESTED_TAGS
+
 const BLANK_LOG = {
   energy:null, sleep_quality:null, stress_level:null, resting_hr:null, resting_hr_exact:'',
   wrist_temp:'', cervical_fluid:null, lh_result:null, libido:null, mood:[], symptoms:[], disruptors:[],
   workout_feel:null, flow_volume:null, pain_rating:null, notes:'',
   hormone_estradiol:'', hormone_progesterone:'', hormone_lh:'', hormone_cortisol:'',
   hot_flash_count:'', night_sweats_severity:null, joint_pain_rating:null, brain_fog_rating:null,
+  context_tags:[],
 }
+
+// daily_logs.context_tags is added by a migration (see sql/2026-09-context-tags.sql). If the
+// column is not there yet the save must still succeed, so the first failed write flips this
+// flag and every later save silently drops the field instead of losing her whole entry.
+let contextTagsColumnMissing = false
 
 function PillRow({ opts, selected, onToggle, single=false }) {
   return (
@@ -93,6 +119,9 @@ export default function Log() {
   const isToday = logDate === localDateStr()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  // { text, retry } when a write failed. Kept on screen until the next attempt so
+  // she never leaves this page believing something saved that did not.
+  const [saveError, setSaveError] = useState(null)
   const [phase, setPhase] = useState('observation')
   const [isMenstrual, setIsMenstrual] = useState(false)
   const [isPath4, setIsPath4] = useState(false)
@@ -110,9 +139,37 @@ export default function Log() {
   const [periodLen, setPeriodLen] = useState(null)
   const [periodEnded, setPeriodEnded] = useState(false)
   const [log, setLog] = useState(BLANK_LOG)
+  // Adaptive log: which questions are worth asking TODAY (logPriority.js). Everything not in
+  // the plan still lives under "add more detail" — nothing is ever removed from the app.
+  const [plan, setPlan] = useState(null)
+  // The most recent earlier log, powering "same as yesterday" — one tap instead of forty.
+  const [prevLog, setPrevLog] = useState(null)
+  const [copiedYesterday, setCopiedYesterday] = useState(false)
+  // Model state BEFORE this save, so the save screen can show what her entry actually changed.
+  const [beforeState, setBeforeState] = useState(null)
+  const [delta, setDelta] = useState(null)
+  // Values the watch already answered, so we never ask her to type what her wrist measured.
+  const [wearableFilled, setWearableFilled] = useState([])
+  // The app's own guess at today's energy, made BEFORE she logs, then graded against it.
+  const [energyPrediction, setEnergyPrediction] = useState(null)
+  const [customTag, setCustomTag] = useState('')
+  // The unlock ledger as it stood BEFORE this save, so "newly unlocked" is a real comparison.
+  const [unlocksBefore, setUnlocksBefore] = useState(null)
+  // Activation funnel. The single most important thing the analytics could not answer was
+  // "someone opened the log and did not save" — the exact moment a user is lost. A ref, not
+  // state, because the unmount cleanup must read the CURRENT value, not the one captured
+  // when the effect was created.
+  const savedRef = useRef(false)
 
   // Reload whenever the selected day changes, so the form shows that day's saved data.
   useEffect(()=>{ init() },[logDate])
+
+  // Opened / abandoned. Fires once per visit to the screen, never per date change.
+  useEffect(() => {
+    track('log_opened', {})
+    return () => { if (!savedRef.current) track('log_abandoned', {}) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   async function init() {
     const { data:{ user } } = await supabase.auth.getUser()
@@ -161,8 +218,109 @@ export default function Log() {
       }))
     }
     if (mucus?.discharge_type) setLog(prev=>({...prev,cervical_fluid:mucus.discharge_type}))
+
+    // ── everything else the screen needs, fetched TOGETHER ──────────────────
+    // These four are independent of each other, so they run in parallel. Chaining them made
+    // the most-used screen in the app wait on four sequential round trips before it could
+    // render, which is badly felt on a poor connection. Rendering early instead was worse —
+    // the adaptive question list would pop in and shift the form under her thumb — so the
+    // fix is to make the single render fast rather than to render something half-built.
+    // 90 days of history is roughly three cycles: enough for the energy predictor to have
+    // seen this point in the cycle before, without pulling her whole history every time.
+    const [
+      { data:history },
+      status,
+      wearable,
+      { data:allBefore },
+      { count:weekBefore },
+    ] = await Promise.all([
+      supabase.from('daily_logs').select('*')
+        .eq('user_id',user.id).lt('log_date',today)
+        .order('log_date',{ascending:false}).limit(90),
+      getTodayStatus(supabase, user.id).catch(()=>null),
+      isNative() ? readWearableData(14).catch(e => { console.error('wearable read failed', e); return null }) : Promise.resolve(null),
+      supabase.from('daily_logs').select('energy').eq('user_id',user.id),
+      supabase.from('daily_logs').select('*',{count:'exact',head:true}).eq('user_id',user.id)
+        .gte('log_date', new Date(Date.now()-6*86400000).toISOString().slice(0,10)),
+    ])
+    const hist = history || []
+    setPrevLog(hist[0] || null)
+
+    // ── wearable autofill: never ask her to type what her watch already measured ──
+    const filled = []
+    if (wearable) {
+      const patch = {}
+      const todayTemp = (wearable.temps || []).find(t => t.date === today)
+      if (todayTemp && !existing?.wrist_temp) { patch.wrist_temp = todayTemp.value.toFixed(1); filled.push('wrist_temp') }
+      const rhr = (wearable.restingHR || [])[0]
+      if (rhr && !existing?.resting_hr_exact) { patch.resting_hr_exact = String(Math.round(rhr)); patch.resting_hr = null; filled.push('resting_hr') }
+      if (Object.keys(patch).length) setLog(prev=>({ ...prev, ...patch }))
+    }
+    setWearableFilled(filled)
+
+    // ── the plan: what is actually worth asking for THE DAY BEING LOGGED ──
+    setBeforeState(status)
+    // Use the LEARNED cycle length (getTodayStatus is the single source of truth) rather than
+    // the onboarding value, and resolve the phase for the day she is actually logging — not
+    // for today. Backfilling a past period day must still put flow and pain in the top view,
+    // because the seek-care escalation is anchored to them.
+    const cLen = status?.cycleLen || cycleData?.cycle_length || profile?.cycle_length || 28
+    let dayPhase = status?.phase || 'observation'
+    let dayCycleDay = status?.cycleDay ?? null
+    if (!path4 && cycleData?.last_period_date) {
+      const lastP = new Date(cycleData.last_period_date + 'T00:00:00')
+      const ref = new Date(logDate + 'T00:00:00')
+      const cd = Math.floor((ref - lastP) / 86400000) + 1
+      if (cd >= 1) {
+        dayCycleDay = cd
+        dayPhase = getPhase(cd, cLen, cycleData.period_length)
+        setPhase(dayPhase); setIsMenstrual(dayPhase === 'Menstrual'); setCycleDay(cd)
+      }
+    }
+    setPlan(pickTodaysQuestions({
+      phase: dayPhase, cycleDay: dayCycleDay, cycleLen: cLen, recentLogs: hist,
+      confidence: status?.confidence ?? 0.5, isPath4: path4,
+      isMenstrual: dayPhase === 'Menstrual',
+      // "Late period" is a property of TODAY, so it only steers the plan when logging today.
+      latePeriod: isToday && !!status?.latePeriod, wearableFills: filled,
+    }))
+
+    // ── ledger snapshot BEFORE this save ──
+    // Taken now, not reconstructed afterwards. Reconstructing it by subtracting one log was
+    // wrong whenever she RE-saved a day that already existed (no new log was added), which
+    // could announce an unlock that had already happened.
+    setUnlocksBefore(buildUnlocks({
+      logs: allBefore || [], cyclesTracked: status?.cyclesTracked || 0,
+      logsThisWeek: weekBefore || 0, periodStarts: status?.periodStarts || [],
+    }))
+
+    // ── the app's own prediction, made before she answers ──
+    // Only for TODAY (the guess is today-relative) and only when her own history supports it.
+    if (isToday && dayCycleDay && cycleData?.last_period_date && !existing?.energy) {
+      setEnergyPrediction(predictEnergyForCycleDay(hist, dayCycleDay, cycleData.last_period_date, cLen))
+    }
     } catch(e) { console.error(e) }
     finally { setLoading(false) }
+  }
+
+  // ── "Same as yesterday" ─────────────────────────────────────────────────
+  // The single biggest cut to the daily cost of logging: on a day nothing much changed she
+  // copies her last entry and edits only what is different. Deliberately does NOT copy
+  // flow, pain or period fields — those are day-specific and copying them would put numbers
+  // in her record that she never actually observed.
+  const COPYABLE = ['energy','sleep_quality','stress_level','mood','symptoms','cervical_fluid',
+                    'libido','workout_feel','disruptors','resting_hr','resting_hr_exact','context_tags']
+  function copyYesterday() {
+    if (!prevLog) return
+    const patch = {}
+    for (const k of COPYABLE) {
+      const v = prevLog[k]
+      if (v == null || v === '') continue
+      patch[k] = Array.isArray(v) ? [...v] : (k === 'resting_hr_exact' ? String(v) : v)
+    }
+    setLog(prev=>({ ...prev, ...patch }))
+    setCopiedYesterday(true)
+    track('log_copied_previous', {})
   }
 
   // Log the first day of a period, writes cycle_data so the cycle starts tracking.
@@ -170,8 +328,10 @@ export default function Log() {
   // observation/Depo-recovery users whose cycle returns and who have no cycle data yet.
   async function logPeriodStart() {
     setSavingPeriod(true)
+    setSaveError(null)
+    let user
     try {
-      const { data:{ user } } = await supabase.auth.getUser()
+      user = (await supabase.auth.getUser()).data.user
       if (!user) { navigate('/login',{replace:true}); return }
       // Read the existing row first so we APPEND this period to the history instead of
       // overwriting it, logging a new period must never erase past periods (a user with
@@ -187,20 +347,33 @@ export default function Log() {
         { user_id:user.id, last_period_date:latestStart, cycle_length:cycleLen, notes },
         { onConflict:'user_id' }
       )
-      if (error) { console.error(error); setSavingPeriod(false); return }
+      if (error) throw error
       const last = new Date(latestStart+'T00:00:00')
       const now = new Date(); now.setHours(0,0,0,0)
       const cd = Math.floor((now-last)/86400000)+1
       const p = getPhase(cd, cycleLen)
       setPhase(p); setIsMenstrual(p==='Menstrual'); setPeriodSaved(true)
       setLastPeriodDate(latestStart); setCycleDay(cd); setPeriodEnded(false)
-    } catch(e) { console.error(e) }
+    } catch(e) {
+      // Never lose a period start. Queue the DATE (not the merged row) so the replay
+      // re-merges against whatever is in cycle_data by then, and tell her plainly.
+      console.error(e)
+      const queued = enqueue({ kind:'period_start', userId:user?.id, dedupeKey:periodDate, periodDate, cycleLen })
+      setSaveError({
+        scope: 'period',
+        retry: logPeriodStart,
+        text: queued
+          ? "Couldn't save that just now — we've kept it on this device and will save it automatically when you're back online."
+          : "Couldn't save that just now. Please check your connection and try again.",
+      })
+    }
     setSavingPeriod(false)
   }
 
   // Mark the period as finished today → records its length so the app can show an
   // expected end next time and learn the user's personal period length.
   async function markPeriodEnded() {
+    setSaveError(null)
     if (!lastPeriodDate || !cycleDay) return
     try {
       const { data:{ user } } = await supabase.auth.getUser()
@@ -219,12 +392,19 @@ export default function Log() {
         len = Math.floor((lastFlow - start)/86400000) + 1
       }
       len = Math.min(Math.max(len,1),14)
-      await supabase.from('cycle_data').upsert(
+      const { error } = await supabase.from('cycle_data').upsert(
         { user_id:user.id, last_period_date:lastPeriodDate, cycle_length:cycleLen, period_length:len },
         { onConflict:'user_id' }
       )
+      if (error) throw error
       setPeriodLen(len); setPeriodEnded(true)
-    } catch(e) { console.error(e) }
+    } catch(e) {
+      // period_length feeds the cycle model, so a dropped write here quietly degrades
+      // every later prediction. Tell her, and let her retry.
+      console.error(e)
+      setSaveError({ scope:'periodEnd', retry:markPeriodEnded,
+        text:"Couldn't save that just now. Please check your connection and try again." })
+    }
   }
 
   const set = (field,val) => setLog(prev=>({...prev,[field]:val}))
@@ -247,6 +427,7 @@ export default function Log() {
 
   async function save() {
     setSaving(true)
+    setSaveError(null)
     let user
     try { user = (await supabase.auth.getUser()).data.user } catch { setSaving(false); return }
     if (!user) { navigate('/login',{replace:true}); return }
@@ -269,20 +450,170 @@ export default function Log() {
       night_sweats_severity:log.night_sweats_severity, joint_pain_rating:log.joint_pain_rating,
       brain_fog_rating:log.brain_fog_rating,
     }
+    // Life-context tags, dropped automatically if the column has not been migrated yet so a
+    // missing migration can never cost her the rest of the entry.
+    if (!contextTagsColumnMissing && Array.isArray(log.context_tags) && log.context_tags.length) {
+      payload.context_tags = log.context_tags
+    }
     try {
-      const { error } = await supabase.from('daily_logs').upsert(payload,{onConflict:'user_id,log_date'})
+      let { error } = await supabase.from('daily_logs').upsert(payload,{onConflict:'user_id,log_date'})
+      // The context_tags column is the only optional field here. If the database does not have
+      // it yet, retry once WITHOUT it rather than failing the whole save.
+      if (error && payload.context_tags && /context_tags/.test(error.message || '')) {
+        contextTagsColumnMissing = true
+        delete payload.context_tags
+        ;({ error } = await supabase.from('daily_logs').upsert(payload,{onConflict:'user_id,log_date'}))
+      }
       if (error) throw error
       if (log.cervical_fluid) {
         await supabase.from('mucus_logs').upsert({user_id:user.id,log_date:today,discharge_type:log.cervical_fluid},{onConflict:'user_id,log_date'})
       }
+      savedRef.current = true
       track('log_saved', { isToday, symptoms: (log.symptoms||[]).length, hasMood: (log.mood||[]).length > 0 })
       if (isToday) {
-        try { const ns = await getTodayStatus(supabase, user.id); setSavedPct(Math.round((ns?.confidence||0)*100)) } catch { /* ignore */ }
+        // Re-read the model AFTER the save and show her exactly what her entry changed. This
+        // is the reward for logging: before, saving showed a bare percentage that barely
+        // moved, which quietly taught her that logging does nothing.
+        try {
+          const ns = await getTodayStatus(supabase, user.id)
+          setSavedPct(Math.round((ns?.confidence||0)*100))
+          const [{ data:allLogs }, { count:weekCount }] = await Promise.all([
+            supabase.from('daily_logs').select('energy').eq('user_id',user.id),
+            supabase.from('daily_logs').select('*',{count:'exact',head:true}).eq('user_id',user.id)
+              .gte('log_date', new Date(Date.now()-6*86400000).toISOString().slice(0,10)),
+          ])
+          const after = buildUnlocks({ logs: allLogs || [], cyclesTracked: ns?.cyclesTracked || 0,
+            logsThisWeek: weekCount || 0, periodStarts: ns?.periodStarts || [] })
+          setDelta(buildLogDelta(beforeState, ns, {
+            newlyUnlocked: unlocksBefore ? newlyUnlocked(unlocksBefore, after) : [],
+            energyPrediction, loggedEnergy: log.energy,
+          }))
+          // She has logged, so cancel today's nudge and re-anchor the period heads-up to the
+          // prediction her entry just produced.
+          syncNotifications(ns, { streak: 0, loggedToday: true }).catch(e => console.error(e))
+        } catch(e) { console.error(e) }
       }
       setSaved(true)
-      setTimeout(() => navigate('/dashboard'), 1900)
-    } catch(e) { console.error(e); setSaving(false) }
+      setTimeout(() => navigate('/dashboard'), 6000)
+    } catch(e) {
+      // Keep her entry. daily_logs and mucus_logs both upsert on (user_id, log_date),
+      // so replaying is idempotent — a later successful save simply overwrites it.
+      console.error(e)
+      const queued = enqueue({ kind:'daily_log', userId:user.id, dedupeKey:today, payload })
+      if (log.cervical_fluid) {
+        enqueue({ kind:'mucus_log', userId:user.id, dedupeKey:today,
+          payload:{ user_id:user.id, log_date:today, discharge_type:log.cervical_fluid } })
+      }
+      setSaveError({
+        scope: 'log',
+        retry: save,
+        text: queued
+          ? "Couldn't save just now — your entry is kept on this device and will save automatically when you're back online."
+          : "Couldn't save just now. Please check your connection and try again.",
+      })
+      setSaving(false)
+    }
   }
+
+  // ── field renderers ──────────────────────────────────────────────────────
+  // Every question the log can ask, as a self-contained block, so the SAME control can appear
+  // either in today's short list or under "add more detail" depending on what is worth asking
+  // today. This is what makes the log adaptive without ever removing a field from the app.
+  const why = (text) => text
+    ? <div style={{fontSize:11,color:'#9a9590',marginBottom:8,fontStyle:'italic'}}>{text}</div>
+    : null
+  const fromWatch = (k) => wearableFilled.includes(k)
+    ? <div style={{fontSize:11,color:'#4a7a5a',marginBottom:8,display:'flex',alignItems:'center',gap:5}}>
+        <i className="ti ti-device-watch" style={{fontSize:13}}/> Filled in from {healthStoreName()}
+      </div>
+    : null
+
+  function renderField(key, reason) {
+    switch (key) {
+      case 'energy': return <div key={key}>
+        <span style={sLabel}>Energy today</span>{why(reason)}
+        <GridRow opts={ENERGY_OPTS} selected={log.energy} onSelect={v=>set('energy',v)}/>
+      </div>
+      case 'sleep_quality': return <div key={key}>
+        <span style={sLabel}>Sleep last night</span>
+        {why(reason || 'Sleep is not passive recovery. Estrogen and progesterone are produced and regulated during sleep. (Haver et al. 2025)')}
+        <GridRow opts={SLEEP_OPTS} selected={log.sleep_quality} onSelect={v=>set('sleep_quality',v)}/>
+      </div>
+      case 'stress_level': return <div key={key}>
+        <span style={sLabel}>Stress today</span>{why(reason)}
+        <PillRow opts={STRESS_OPTS} selected={log.stress_level} single onToggle={v=>set('stress_level',v)}/>
+      </div>
+      case 'mood': return <div key={key}>
+        <span style={sLabel}>Positive mood</span>{why(reason)}
+        <PillRow opts={MOOD_POS} selected={log.mood} onToggle={v=>toggleMulti('mood',v)}/>
+        <span style={sLabel}>Challenging mood</span>
+        <PillRow opts={MOOD_NEG} selected={log.mood} onToggle={v=>toggleMulti('mood',v)}/>
+        {(log.mood.includes('Low mood') || log.mood.includes('Sad')) && <CrisisSupport />}
+      </div>
+      case 'symptoms': return <div key={key}>
+        <span style={sLabel}>Physical symptoms</span>{why(reason)}
+        <PillRow opts={SYMPTOMS} selected={log.symptoms} onToggle={v=>toggleMulti('symptoms',v)}/>
+      </div>
+      case 'cervical_fluid': return isPath4 || isMenstrual ? null : <div key={key}>
+        <span style={sLabel}>Cervical fluid</span>
+        {why(reason || 'One of the strongest day-to-day signs of where you are in your cycle. Not sure? That is fine, just tap "Not sure". (Bigelow et al. 2004)')}
+        <PillRow opts={FLUID_OPTS} selected={log.cervical_fluid} single onToggle={v=>set('cervical_fluid',v)}/>
+        {log.cervical_fluid && FLUID_HINTS[log.cervical_fluid] && (
+          <div style={{fontSize:11.5,color:'#7a7268',marginTop:-8,marginBottom:16,lineHeight:1.5}}>{log.cervical_fluid}: {FLUID_HINTS[log.cervical_fluid]}.</div>
+        )}
+      </div>
+      case 'libido': return isPath4 ? null : <div key={key}>
+        <span style={sLabel}>Sex drive</span>
+        {why(reason || 'Often rises around ovulation as estrogen and testosterone peak, and dips when estrogen is low. A small extra cycle signal.')}
+        <PillRow opts={LIBIDO_OPTS} selected={log.libido} single onToggle={v=>set('libido',v)}/>
+      </div>
+      case 'lh_result': return isPath4 ? null : <div key={key}>
+        <span style={sLabel}>LH test</span>
+        {why(reason || 'Strongest single ovulation signal: a positive test means ovulation is likely within 12 to 36 hours. These signals are for understanding your body, not a reliable method of preventing or planning pregnancy.')}
+        <PillRow opts={LH_OPTS} selected={log.lh_result} single onToggle={v=>set('lh_result',v)}/>
+      </div>
+      case 'workout_feel': return <div key={key}>
+        <span style={sLabel}>Workout today</span>{why(reason)}
+        <PillRow opts={WORKOUT_OPTS} selected={log.workout_feel} single onToggle={v=>set('workout_feel',v)}/>
+      </div>
+      case 'flow_volume': return <div key={key}>
+        <span style={sLabel}>Flow today</span>{why(reason)}
+        <PillRow opts={FLOW_OPTS} selected={log.flow_volume} single onToggle={v=>set('flow_volume',v)}/>
+      </div>
+      case 'pain_rating': return <div key={key}>
+        <span style={sLabel}>Pain level</span>{why(reason)}
+        <PillRow opts={PAIN_OPTS} selected={log.pain_rating} single onToggle={v=>set('pain_rating',v)}/>
+        <div style={{fontSize:11,color:'#9a9590',fontStyle:'italic',marginBottom:16}}>Pain that disrupts your daily life is not normal. Log it and we will track the pattern.</div>
+      </div>
+      case 'resting_hr': return <div key={key}>
+        <span style={sLabel}>Resting heart rate</span>{fromWatch('resting_hr')}{why(reason)}
+        <PillRow opts={RHR_OPTS} selected={log.resting_hr} single onToggle={v=>{set('resting_hr',v);set('resting_hr_exact','')}}/>
+        <input type="number" min="30" max="120" placeholder="Or type exact bpm" value={log.resting_hr_exact}
+          onChange={e=>{set('resting_hr_exact',e.target.value);if(e.target.value)set('resting_hr',null)}}
+          style={{width:'100%',padding:'10px 14px',borderRadius:10,border:'1px solid #ede8e0',fontSize:14,fontFamily:'inherit',marginBottom:16}}/>
+      </div>
+      case 'wrist_temp': return <div key={key}>
+        <span style={sLabel}>Wrist temperature °C (optional)</span>{fromWatch('wrist_temp')}
+        {why(reason || 'For this to work, measure first thing on waking, before you get up, at about the same time each day. A small sustained rise (0.3 to 0.5°C) is a sign ovulation has likely passed. (Zhu et al. 2021)')}
+        <input type="number" step="0.1" min="34" max="40" placeholder="e.g. 36.2" value={log.wrist_temp} onChange={e=>set('wrist_temp',e.target.value)}
+          style={{width:'100%',padding:'12px 14px',borderRadius:10,border:'1px solid #ede8e0',fontSize:15,fontFamily:'inherit',marginBottom:16}}/>
+      </div>
+      case 'disruptors': return <div key={key}>
+        <span style={sLabel}>Disruptors</span>{why(reason)}
+        <PillRow opts={DISRUPTORS} selected={log.disruptors} onToggle={v=>toggleMulti('disruptors',v)}/>
+      </div>
+      default: return null
+    }
+  }
+
+  // Everything the quick view did not ask for, in a stable order, so "add more detail" is
+  // always the complete rest of the log and nothing can ever go missing.
+  const ALL_FIELDS = ['energy','sleep_quality','stress_level','mood','symptoms','cervical_fluid',
+                      'libido','resting_hr','lh_result','wrist_temp','workout_feel','disruptors']
+  // Falls back to the same single question the quick view renders when the plan has not
+  // loaded yet, so a field can never appear in BOTH the quick view and "add more detail".
+  const askedKeys = new Set((plan?.ask || [{ key: 'energy' }]).map(f => f.key))
+  const moreKeys = ALL_FIELDS.filter(k => !askedKeys.has(k))
 
   if (loading) return <><TopBar title="Daily log" backTo="/dashboard"/><div style={{paddingTop:60}}><Spinner/></div><BottomNav/></>
 
@@ -304,39 +635,43 @@ export default function Log() {
             style={{padding:'6px 10px',borderRadius:8,border:'1px solid #ede8e0',background:'#f5f0e8',color:'#5a5248',fontSize:12,fontWeight:500,cursor:'pointer',fontFamily:'inherit'}}>Today</button>}
         </div>
 
-        {/* ── How you feel today (always visible) ───────────────────────── */}
-        <span style={{...sectionHead, marginTop:4, paddingTop:0, borderTop:'none'}}>How you feel today</span>
-        <span style={sLabel}>Energy today</span>
-        <GridRow opts={ENERGY_OPTS} selected={log.energy} onSelect={v=>set('energy',v)}/>
+        {/* ── Same as yesterday ─────────────────────────────────────────
+            The biggest single cut to the daily cost of logging: on a day nothing much
+            changed she copies her last entry and edits only the difference. Period-specific
+            fields (flow, pain) are deliberately never copied — they must be observed. */}
+        {isToday && prevLog && !copiedYesterday && (
+          <button onClick={copyYesterday}
+            style={{width:'100%',padding:'13px 16px',borderRadius:12,border:'1px solid #d8cdb8',background:'#f5f0e8',color:'#5a4a3a',fontSize:14,fontWeight:500,cursor:'pointer',fontFamily:'inherit',display:'flex',alignItems:'center',justifyContent:'center',gap:8,marginBottom:14}}>
+            <i className="ti ti-copy"/> Same as {prevLog.log_date === isoDaysAgo(1) ? 'yesterday' : 'last time'}
+          </button>
+        )}
+        {copiedYesterday && (
+          <div style={{marginBottom:14,padding:'11px 14px',borderRadius:12,background:'#eef4ee',border:'1px solid #d4e4d4',fontSize:12.5,color:'#3a5a3a',lineHeight:1.5}}>
+            Copied your last entry. Change anything that is different today — flow and pain were
+            left blank on purpose, those are worth actually checking.
+          </div>
+        )}
 
-        <span style={sLabel}>Sleep last night</span>
-        <div style={{fontSize:11,color:'#9a9590',marginBottom:8,fontStyle:'italic'}}>Sleep is not passive recovery. Estrogen and progesterone are produced and regulated during sleep. (Haver et al. 2025)</div>
-        <GridRow opts={SLEEP_OPTS} selected={log.sleep_quality} onSelect={v=>set('sleep_quality',v)}/>
+        {/* ── The app's own guess, made before she answers ───────────────
+            Turns logging into checking the app's homework rather than filling in a form.
+            Only ever appears when HER OWN past logs support a guess (predictionAccuracy.js). */}
+        {isToday && energyPrediction && !log.energy && (
+          <div style={{marginBottom:14,padding:'12px 15px',borderRadius:12,background:'#f4f0f8',border:'1px solid #e2d8ee'}}>
+            <div style={{fontSize:11,fontWeight:700,letterSpacing:'0.08em',textTransform:'uppercase',color:'#6a5a8a',marginBottom:5}}>My guess for today</div>
+            <div style={{fontSize:13.5,color:'#3a3040',lineHeight:1.55}}>
+              Going on your last {energyPrediction.n} logs around this point in your cycle, I think your
+              energy today is <strong>{energyPrediction.word}</strong>. Log it and let us see if I was right.
+            </div>
+          </div>
+        )}
 
-        <span style={sLabel}>Stress today</span>
-        <PillRow opts={STRESS_OPTS} selected={log.stress_level} single onToggle={v=>set('stress_level',v)}/>
-
-        <span style={sLabel}>Positive mood</span>
-        <PillRow opts={MOOD_POS} selected={log.mood} onToggle={v=>toggleMulti('mood',v)}/>
-        <span style={sLabel}>Challenging mood</span>
-        <PillRow opts={MOOD_NEG} selected={log.mood} onToggle={v=>toggleMulti('mood',v)}/>
-        {(log.mood.includes('Low mood') || log.mood.includes('Sad')) && <CrisisSupport />}
-
-        <span style={sLabel}>Physical symptoms</span>
-        <PillRow opts={SYMPTOMS} selected={log.symptoms} onToggle={v=>toggleMulti('symptoms',v)}/>
-
-        {/* Cervical fluid, moved into the quick view: it is the strongest day-to-day, device-free
-            signal of cycle phase, and key to inferring the cycle when no period date is known. */}
-        {/* Hidden during the period, menstrual flow masks cervical fluid, so it is not a
-            meaningful signal then (and asking for it while bleeding confused testers). */}
-        {!isPath4&&!isMenstrual&&<>
-          <span style={sLabel}>Cervical fluid</span>
-          <div id="cervicalFluidWhy" style={{fontSize:11,color:'#9a9590',marginBottom:8,fontStyle:'italic'}}>One of the strongest day-to-day signs of where you are in your cycle. Not sure? That is fine, just tap "Not sure". (Bigelow et al. 2004)</div>
-          <PillRow opts={FLUID_OPTS} selected={log.cervical_fluid} single onToggle={v=>set('cervical_fluid',v)}/>
-          {log.cervical_fluid && FLUID_HINTS[log.cervical_fluid] && (
-            <div style={{fontSize:11.5,color:'#7a7268',marginTop:6,lineHeight:1.5}}>{log.cervical_fluid}: {FLUID_HINTS[log.cervical_fluid]}.</div>
-          )}
-        </>}
+        {/* ── Today's questions (adaptive) ───────────────────────────────
+            logPriority.js picks what is genuinely worth asking today. Everything else is one
+            tap away under "add more detail" — no field is ever removed. */}
+        <span style={{...sectionHead, marginTop:4, paddingTop:0, borderTop:'none'}}>
+          {isPath4 ? 'How you feel today' : "Today's check-in"}
+        </span>
+        {(plan?.ask || [{key:'energy'}]).map(f => renderField(f.key, f.why))}
 
         {isPath4&&<>
           <span style={sectionHead}>Symptoms to track</span>
@@ -350,6 +685,50 @@ export default function Log() {
           <span style={sLabel}>Brain fog (1-5)</span>
           <PillRow opts={[1,2,3,4,5].map(n=>({v:n,label:String(n)}))} selected={log.brain_fog_rating} single onToggle={v=>set('brain_fog_rating',v)}/>
         </>}
+
+        {/* Acute red-flag escalation, for very heavy bleeding or severe pain. "Track the
+            pattern" is the wrong tempo here; surface same-day-care guidance at the moment of
+            logging. Sources: ACOG, Heavy Menstrual Bleeding (FAQ095); ACOG acute pelvic pain. */}
+        {(log.flow_volume==='Very heavy' || log.flow_volume==='Heavy' || log.pain_rating>=4) && (
+          <div style={{background:'#fdeeee', border:'1px solid #e8b0a0', borderRadius:12, padding:'13px 15px', marginBottom:16}}>
+            <div style={{fontSize:11, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'#a83a20', marginBottom:6}}>When to seek care today</div>
+            {(log.flow_volume==='Very heavy' || log.flow_volume==='Heavy') && (
+              <div style={{fontSize:13, color:'#5a2a20', lineHeight:1.6, marginBottom: log.pain_rating>=4?8:0}}>
+                Soaking through a pad or tampon every 1 to 2 hours for several hours in a row, or passing clots larger than a coin, is heavier than typical. If that is happening, or you feel dizzy, breathless, or your heart is racing, contact your doctor or urgent care today. (ACOG)
+              </div>
+            )}
+            {log.pain_rating>=4 && (
+              <div style={{fontSize:13, color:'#5a2a20', lineHeight:1.6}}>
+                Pain this severe deserves attention now, not just tracking. If it came on suddenly, is mostly on one side, or comes with fever, vomiting, fainting, or shoulder-tip pain, or there is any chance you could be pregnant, seek same-day medical care. These can be signs of something that needs urgent treatment. (ACOG)
+              </div>
+            )}
+          </div>
+        )}
+        {/* Compact period-length predictor, only while menstruating and only for today. */}
+        {isMenstrual && isToday && <div style={{fontSize:11,color:'#9a9590',marginBottom:16,lineHeight:1.5}}>
+          {periodEnded
+            ? `Period logged as ${periodLen} day${periodLen===1?'':'s'}.`
+            : <>Day {cycleDay||1}. {periodLen ? `Yours usually last about ${periodLen} days` : 'Most periods last 3 to 7 days'}{lastPeriodDate?`, likely easing by ${addDaysStr(lastPeriodDate,(periodLen||7)-1)}`:''}. <button onClick={markPeriodEnded} style={{background:'none',border:'none',padding:0,color:'#c05858',fontWeight:600,textDecoration:'underline',cursor:'pointer',fontFamily:'inherit',fontSize:11}}>It ended</button></>}
+        </div>}
+        {isMenstrual && <SaveErrorBanner error={saveError} scope="periodEnd" busy={saving||savingPeriod} />}
+
+        {/* ── What today was actually like ──────────────────────────────
+            The log covers her body; this covers her life. It is the only way the app can
+            answer whether teaching a double day lands differently in different phases. */}
+        <span style={sectionHead}>What today was like</span>
+        <div style={{fontSize:11,color:'#9a9590',marginBottom:8,fontStyle:'italic'}}>Optional. Tag the day and I can start showing you how different kinds of day land in different parts of your cycle.</div>
+        <div style={{ display:'flex', flexWrap:'wrap', gap:8, marginBottom:10 }}>
+          {[...new Set([...CONTEXT_TAGS, ...(log.context_tags||[])])].map(t => (
+            <button key={t} style={pill((log.context_tags||[]).includes(t))} onClick={()=>toggleMulti('context_tags',t)}>{t}</button>
+          ))}
+        </div>
+        <div style={{display:'flex',gap:8,marginBottom:16}}>
+          <input value={customTag} onChange={e=>setCustomTag(e.target.value)} placeholder="Add your own"
+            onKeyDown={e=>{ if(e.key==='Enter' && customTag.trim()){ toggleMulti('context_tags',customTag.trim()); setCustomTag('') } }}
+            style={{flex:1,padding:'10px 14px',borderRadius:10,border:'1px solid #ede8e0',fontSize:14,fontFamily:'inherit'}}/>
+          <button onClick={()=>{ if(customTag.trim()){ toggleMulti('context_tags',customTag.trim()); setCustomTag('') } }}
+            style={{padding:'10px 16px',borderRadius:10,border:'1px solid #ede8e0',background:'#f5f0e8',color:'#5a5248',fontSize:13,fontWeight:500,cursor:'pointer',fontFamily:'inherit'}}>Add</button>
+        </div>
 
         {/* Period start, record a period and begin cycle tracking. Shown to non-perimenopause
             users until they are menstruating; essential for observation/Depo-recovery users. */}
@@ -370,83 +749,28 @@ export default function Log() {
                   <input type="date" value={periodDate} max={localDateStr()} onChange={e=>setPeriodDate(e.target.value)}
                     style={{width:'100%',padding:'10px 14px',borderRadius:10,border:'1px solid #ede8e0',fontSize:14,fontFamily:'inherit',marginBottom:10,boxSizing:'border-box'}}/>
                   <button onClick={logPeriodStart} disabled={savingPeriod}
-                    style={{width:'100%',padding:'12px',borderRadius:10,background:'#c05858',color:'#fff',border:'none',fontSize:14,fontWeight:500,cursor:'pointer',fontFamily:'inherit'}}>
+                    style={{width:'100%',padding:'12px',borderRadius:10,background:'#c05858',color:'#fff',border:'none',fontSize:14,fontWeight:500,cursor:'pointer',fontFamily:'inherit',marginBottom:10}}>
                     {savingPeriod?'Saving...':'Log period start'}
                   </button>
+                  <SaveErrorBanner error={saveError} scope="period" busy={saving||savingPeriod} />
                 </div>
               )}
             </div>
           )
         )}
 
-        {/* Flow + pain stay in the quick view during the period, they matter most then */}
-        {isMenstrual&&<>
-          <span style={sectionHead}>Your period</span>
-          <span style={sLabel}>Flow today</span>
-          <PillRow opts={FLOW_OPTS} selected={log.flow_volume} single onToggle={v=>set('flow_volume',v)}/>
-          <span style={sLabel}>Pain level</span>
-          <PillRow opts={PAIN_OPTS} selected={log.pain_rating} single onToggle={v=>set('pain_rating',v)}/>
-          <div style={{fontSize:11,color:'#9a9590',fontStyle:'italic',marginBottom:16}}>Pain that disrupts your daily life is not normal. Log it and we will track the pattern.</div>
-          {/* Acute red-flag escalation, for very heavy bleeding or severe pain, "track the
-              pattern" is the wrong tempo; surface same-day-care guidance at the moment of logging.
-              Sources: ACOG, Heavy Menstrual Bleeding (FAQ095); ACOG acute pelvic pain / ectopic. */}
-          {(log.flow_volume==='Very heavy' || log.flow_volume==='Heavy' || log.pain_rating>=4) && (
-            <div style={{background:'#fdeeee', border:'1px solid #e8b0a0', borderRadius:12, padding:'13px 15px', marginBottom:16}}>
-              <div style={{fontSize:11, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'#a83a20', marginBottom:6}}>When to seek care today</div>
-              {(log.flow_volume==='Very heavy' || log.flow_volume==='Heavy') && (
-                <div style={{fontSize:13, color:'#5a2a20', lineHeight:1.6, marginBottom: log.pain_rating>=4?8:0}}>
-                  Soaking through a pad or tampon every 1 to 2 hours for several hours in a row, or passing clots larger than a coin, is heavier than typical. If that is happening, or you feel dizzy, breathless, or your heart is racing, contact your doctor or urgent care today. (ACOG)
-                </div>
-              )}
-              {log.pain_rating>=4 && (
-                <div style={{fontSize:13, color:'#5a2a20', lineHeight:1.6}}>
-                  Pain this severe deserves attention now, not just tracking. If it came on suddenly, is mostly on one side, or comes with fever, vomiting, fainting, or shoulder-tip pain, or there is any chance you could be pregnant, seek same-day medical care. These can be signs of something that needs urgent treatment. (ACOG)
-                </div>
-              )}
-            </div>
-          )}
-          {/* Compact period-length predictor, only ever shown while menstruating, and only for today (it is today-relative) */}
-          {isToday && <div style={{fontSize:11,color:'#9a9590',marginBottom:16,lineHeight:1.5}}>
-            {periodEnded
-              ? `Period logged as ${periodLen} day${periodLen===1?'':'s'}.`
-              : <>Day {cycleDay||1}. {periodLen ? `Yours usually last about ${periodLen} days` : 'Most periods last 3 to 7 days'}{lastPeriodDate?`, likely easing by ${addDaysStr(lastPeriodDate,(periodLen||7)-1)}`:''}. <button onClick={markPeriodEnded} style={{background:'none',border:'none',padding:0,color:'#c05858',fontWeight:600,textDecoration:'underline',cursor:'pointer',fontFamily:'inherit',fontSize:11}}>It ended</button></>}
-          </div>}
-        </>}
-
-        {/* ── Add more detail (collapsed by default) ───────────────────────── */}
+        {/* ── Add more detail (collapsed by default) ─────────────────────
+            Everything the quick view did not ask for today. Nothing is ever removed. */}
         <button onClick={()=>setShowMore(v=>!v)} style={{width:'100%',padding:'13px 16px',borderRadius:12,border:'1px solid #ede8e0',background:'#f5f0e8',color:'#5a5248',fontSize:14,fontWeight:500,cursor:'pointer',fontFamily:'inherit',display:'flex',alignItems:'center',justifyContent:'center',gap:8,marginBottom:16}}>
           <i className={`ti ti-chevron-${showMore?'up':'down'}`}/> {showMore?'Hide extra detail':'Add more detail'}
         </button>
 
         {showMore&&<>
-          {!isPath4&&<>
-            <span style={sLabel}>Sex drive</span>
-            <div style={{fontSize:11,color:'#9a9590',marginBottom:8,fontStyle:'italic'}}>Often rises around ovulation as estrogen and testosterone peak, and dips when estrogen is low. A small extra cycle signal.</div>
-            <PillRow opts={LIBIDO_OPTS} selected={log.libido} single onToggle={v=>set('libido',v)}/>
+          {moreKeys.map(k => renderField(k))}
+          {!isMenstrual && <>
+            {renderField('flow_volume')}
+            {renderField('pain_rating')}
           </>}
-
-          <span style={sLabel}>Resting heart rate</span>
-          <PillRow opts={RHR_OPTS} selected={log.resting_hr} single onToggle={v=>{set('resting_hr',v);set('resting_hr_exact','')}}/>
-          <input type="number" min="30" max="120" placeholder="Or type exact bpm" value={log.resting_hr_exact}
-            onChange={e=>{set('resting_hr_exact',e.target.value);if(e.target.value)set('resting_hr',null)}}
-            style={{width:'100%',padding:'10px 14px',borderRadius:10,border:'1px solid #ede8e0',fontSize:14,fontFamily:'inherit',marginBottom:16}}/>
-
-          {!isPath4&&<>
-            <span style={sLabel}>LH test</span>
-            <div id="lhTestWhy" style={{fontSize:11,color:'#9a9590',marginBottom:8,fontStyle:'italic'}}>Strongest single ovulation signal: a positive test means ovulation is likely within 12 to 36 hours. These signals are for understanding your body, not a reliable method of preventing or planning pregnancy.</div>
-            <PillRow opts={LH_OPTS} selected={log.lh_result} single onToggle={v=>set('lh_result',v)}/>
-          </>}
-
-          <span style={sLabel}>Wrist temperature °C (optional)</span>
-          <div style={{fontSize:11,color:'#9a9590',marginBottom:8,fontStyle:'italic'}}>For this to work, measure first thing on waking, before you get up, at about the same time each day. A small sustained rise (0.3 to 0.5°C) is a sign ovulation has likely passed. (Zhu et al. 2021)</div>
-          <input type="number" step="0.1" min="34" max="40" placeholder="e.g. 36.2" value={log.wrist_temp} onChange={e=>set('wrist_temp',e.target.value)}
-            style={{width:'100%',padding:'12px 14px',borderRadius:10,border:'1px solid #ede8e0',fontSize:15,fontFamily:'inherit',marginBottom:16}}/>
-
-          <span style={sLabel}>Workout today</span>
-          <PillRow opts={WORKOUT_OPTS} selected={log.workout_feel} single onToggle={v=>set('workout_feel',v)}/>
-
-          <span style={sLabel}>Disruptors</span>
-          <PillRow opts={DISRUPTORS} selected={log.disruptors} onToggle={v=>toggleMulti('disruptors',v)}/>
 
           <span style={sLabel}>Notes</span>
           <textarea value={log.notes} onChange={e=>set('notes',e.target.value)} placeholder="Anything else worth noting today?" rows={3}
@@ -471,10 +795,28 @@ export default function Log() {
             {showHormones && (() => {
               const h = interpretHormones(log)
               if (!h) return null
+              // Values shown against published reference ranges only. Do not add an
+              // interpretive sentence here — see the boundary note on interpretHormones().
               return (
-                <div style={{marginTop:12,padding:'10px 12px',background:'#f5f0e8',borderRadius:10,fontSize:11,color:'#5a5248',lineHeight:1.55}}>
-                  {h.notes.map((n,i)=><div key={i} style={{marginBottom:4}}>{n}</div>)}
-                  <div style={{color:'#9a9590',marginTop:4,fontStyle:'italic'}}>{h.caveat}</div>
+                <div style={{marginTop:12,padding:'12px',background:'#f5f0e8',borderRadius:10,fontSize:11,color:'#5a5248',lineHeight:1.55}}>
+                  {h.values.map(v=>(
+                    <div key={v.key} style={{marginBottom:10}}>
+                      <div style={{fontWeight:600,color:'#2c2820',fontSize:12,marginBottom:3}}>
+                        {v.label} {v.value} {v.unit}
+                      </div>
+                      <div style={{fontSize:10,color:'#9a9590',textTransform:'uppercase',letterSpacing:.5,marginBottom:2}}>
+                        Typical reference ranges
+                      </div>
+                      {v.bands.map(b=>(
+                        <div key={b.label} style={{display:'flex',justifyContent:'space-between',gap:12,fontSize:11}}>
+                          <span>{b.label}</span>
+                          <span style={{color:'#7a7268'}}>{b.range} {v.unit}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                  <div style={{color:'#9a9590',fontStyle:'italic',borderTop:'1px solid #e6ddd0',paddingTop:8}}>{h.caveat}</div>
+                  <div style={{color:'#9a9590',fontStyle:'italic',marginTop:6}}>{h.unitNote}</div>
                 </div>
               )
             })()}
@@ -485,20 +827,26 @@ export default function Log() {
           style={{width:'100%',padding:'12px',borderRadius:12,border:'1px solid #ede8e0',background:'#fff',color:'#7a7268',fontSize:13,fontWeight:500,cursor:'pointer',fontFamily:'inherit',marginBottom:10}}>
           Nothing notable today
         </button>
+        <SaveErrorBanner error={saveError} scope="log" busy={saving||savingPeriod} />
         <button className="btn-primary" onClick={save} disabled={saving}>{saving?'Saving...':'Save check-in →'}</button>
       </div>
 
       {saved && (
-        <div style={{position:'fixed',inset:0,zIndex:300,background:'rgba(44,40,32,0.55)',display:'flex',alignItems:'center',justifyContent:'center',padding:24}}>
-          <div style={{background:'#faf8f5',borderRadius:18,padding:'28px 24px',textAlign:'center',maxWidth:320,width:'100%'}}>
-            <div style={{fontSize:34,marginBottom:8}}>🌿</div>
-            <div style={{fontFamily:'Georgia,serif',fontStyle:'italic',fontSize:20,color:'#2c2820',marginBottom:8}}>{isToday ? 'Logged' : 'Saved'}</div>
-            <div style={{fontSize:14,color:'#5a5248',lineHeight:1.6,marginBottom:6}}>
-              {isToday
-                ? (savedPct!=null ? `Your algorithm is now ${savedPct}% personalised to you.` : 'Your data is helping the algorithm learn your pattern.')
-                : `Updated ${new Date(logDate+'T00:00:00').toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'})}.`}
+        <div style={{position:'fixed',inset:0,zIndex:300,background:'rgba(44,40,32,0.55)',display:'flex',alignItems:'center',justifyContent:'center',padding:20,overflowY:'auto'}}>
+          <div style={{background:'#faf8f5',borderRadius:18,padding:'26px 22px',maxWidth:360,width:'100%'}}>
+            <div style={{textAlign:'center'}}>
+              <div style={{fontSize:34,marginBottom:8}}>🌿</div>
+              <div style={{fontFamily:'Georgia,serif',fontStyle:'italic',fontSize:20,color:'#2c2820',marginBottom:10}}>{isToday ? 'Logged' : 'Saved'}</div>
             </div>
-            <div style={{fontSize:12,color:'#9a9590'}}>Heading to your dashboard...</div>
+            {isToday
+              ? <LogDeltaCard delta={delta} savedPct={savedPct}/>
+              : <div style={{fontSize:14,color:'#5a5248',lineHeight:1.6,textAlign:'center'}}>
+                  Updated {new Date(logDate+'T00:00:00').toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'})}.
+                </div>}
+            <button onClick={()=>navigate('/dashboard')}
+              style={{width:'100%',marginTop:16,padding:'12px',borderRadius:12,border:'none',background:'#2c2820',color:'#faf8f5',fontSize:14,fontWeight:500,cursor:'pointer',fontFamily:'inherit'}}>
+              Go to dashboard
+            </button>
           </div>
         </div>
       )}

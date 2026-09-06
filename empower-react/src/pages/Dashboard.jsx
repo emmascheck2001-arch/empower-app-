@@ -14,6 +14,15 @@ import HealthConnect from '../components/HealthConnect'
 import Disclaimer from '../components/Disclaimer'
 import { isNative, readWearableData } from '../lib/healthkit'
 import { wearableCycleSignals } from '../lib/wearableCycle'
+import { backtestPeriodPredictions, accuracySummary } from '../lib/predictionAccuracy'
+import { buildUnlocks, nextUnlock } from '../lib/unlocks'
+import { greeting, logPrompt, loggedLine } from '../lib/copyPool'
+import AccuracyScorecard from '../components/AccuracyScorecard'
+import ProgressLedger from '../components/ProgressLedger'
+import FriendsActivity from '../components/FriendsActivity'
+import { visiblePhaseForCard } from '../lib/friendCard'
+import NotificationSettings from '../components/NotificationSettings'
+import { syncNotifications } from '../lib/notifications'
 
 const HERO_GRADIENT = {
   Menstrual:      'linear-gradient(135deg,#3d2830,#2c1f25)',
@@ -112,6 +121,9 @@ export default function Dashboard() {
   const [coachOpen, setCoachOpen] = useState(false)
   const [lateOpen, setLateOpen] = useState(false)
   const [pendingFriends, setPendingFriends] = useState(0)
+  // Accepted friends' phase cards, so the Friends feature is visible on the home screen
+  // instead of sitting unused behind its own tab.
+  const [friendCards, setFriendCards] = useState([])
   const [wear, setWear] = useState(null)
 
   useEffect(() => { load() }, [])
@@ -160,7 +172,7 @@ export default function Dashboard() {
       if (!user) { navigate('/login', { replace: true }); return }
 
       const todayStr = localDateStr()
-      const [{ data: profile }, { data: cycleData }, { data: recentLogs }, { data: twoWeekLogs }, { data: historyLogs }, { count: todayLoggers }, { data: pendingRequests }] = await Promise.all([
+      const [{ data: profile }, { data: cycleData }, { data: recentLogs }, { data: twoWeekLogs }, { data: historyLogs }, { count: todayLoggers }, { data: pendingRequests }, { data: allEnergyLogs }, { data: acceptedFriends }, { data: streakLogs }] = await Promise.all([
         supabase.from('profiles').select('*').eq('id', user.id).maybeSingle(),
         supabase.from('cycle_data').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(1).maybeSingle(),
         supabase.from('daily_logs').select('energy,resting_hr,wrist_temp,log_date,sleep_quality,disruptors,symptoms,mood').eq('user_id', user.id).order('log_date', { ascending: false }).limit(7),
@@ -168,6 +180,16 @@ export default function Dashboard() {
         supabase.from('daily_logs').select('log_date,energy,mood,symptoms').eq('user_id', user.id).order('log_date', { ascending: false }).limit(160),
         supabase.from('daily_logs').select('*', { count: 'exact', head: true }).eq('log_date', todayStr),
         supabase.from('friendships').select('id').eq('addressee_id', user.id).eq('status', 'pending'),
+        // Every energy log ever, for the progress ledger's cumulative counts (a missed day
+        // must never reset progress, so this is a lifetime count, not a window).
+        supabase.from('daily_logs').select('energy').eq('user_id', user.id),
+        supabase.from('friendships').select('requester_id,addressee_id').eq('status', 'accepted')
+          .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`),
+        // Streak source: every field isManualLog checks, over a long enough window that a real
+        // streak can actually be counted (see the streak note below).
+        supabase.from('daily_logs')
+          .select('log_date,energy,sleep_quality,mood,symptoms,disruptors,workout_feel,flow_volume,pain_rating')
+          .eq('user_id', user.id).order('log_date', { ascending: false }).limit(400),
       ])
       setPendingFriends(pendingRequests?.length || 0)
 
@@ -219,12 +241,17 @@ export default function Dashboard() {
       } else if (cycleData?.last_period_date) {
         const lastPeriod = new Date(cycleData.last_period_date + 'T00:00:00')
         const today = new Date(); today.setHours(0,0,0,0)
-        cycleDay = Math.floor((today - lastPeriod) / 86400000) + 1
-        cycleLen = cycleData.cycle_length || 28
-        daysLeft = Math.max(0, cycleLen - cycleDay + 1)
+        cycleDay = status?.cycleDay ?? (Math.floor((today - lastPeriod) / 86400000) + 1)
+        // CONSISTENCY FIX: use the LEARNED cycle length from getTodayStatus, the same value
+        // every other screen and the prediction engine use. This screen used to recompute the
+        // phase from the onboarding cycle_length, so a woman whose real average had drifted
+        // (say she set 28 but actually runs 31) could see one phase here and a different one
+        // in the calendar and the log. The shared status is the single source of truth.
+        cycleLen = status?.cycleLen || cycleData.cycle_length || 28
+        daysLeft = status?.daysUntilPeriod ?? Math.max(0, cycleLen - cycleDay + 1)
         if (cycleDay > 0 && cycleDay <= cycleLen + 7) {
-          phase = getPhase(cycleDay, cycleLen)
-          subPhase = phase === 'Luteal' ? getLutealSubPhase(cycleDay, cycleLen) : null
+          phase = status?.phase && status.phase !== 'observation' ? status.phase : getPhase(cycleDay, cycleLen, cycleData.period_length)
+          subPhase = status?.subPhase ?? (phase === 'Luteal' ? getLutealSubPhase(cycleDay, cycleLen) : null)
           // Use the canonical confidence from getTodayStatus, it grows with the
           // user's whole logging history and never resets. Falling back to a small
           // base only if the shared status failed to load.
@@ -251,10 +278,14 @@ export default function Dashboard() {
       const isManualLog = (l) => !!(l && (l.energy || l.sleep_quality || (l.mood && l.mood.length) || (l.symptoms && l.symptoms.length) || (l.disruptors && l.disruptors.length) || l.workout_feel || l.flow_volume || l.pain_rating))
       const alreadyLogged = isManualLog(todayLog)
 
+      // Streak. NOTE: this must NOT be computed from `recentLogs` — that query is capped at 7
+      // rows, so the streak silently maxed out at 7 however long she had actually been logging
+      // (a user 40 days in was shown "7 days"). `streakLogs` pulls the fields isManualLog needs
+      // across a long enough window for a real streak, ordered newest-first.
       let streak = 0
-      if (recentLogs?.length) {
+      if (streakLogs?.length) {
         const check = new Date(); check.setHours(0,0,0,0)
-        for (const log of recentLogs.filter(isManualLog)) {
+        for (const log of streakLogs.filter(isManualLog)) {
           const diff = Math.floor((check - new Date(log.log_date + 'T00:00:00')) / 86400000)
           if (diff === streak) { streak++; check.setDate(check.getDate() - 1) } else break
         }
@@ -273,9 +304,9 @@ export default function Dashboard() {
       if (twoWeekLogs) {
         const thisWeekCount = twoWeekLogs.filter(l => Math.floor((new Date() - new Date(l.log_date + 'T00:00:00')) / 86400000) < 7).length
         if (thisWeekCount >= 1) {
-          const summary = buildWeeklySummary(twoWeekLogs, phase, subPhase, confidence, daysLeft, cycleDay, cycleData?.cycle_length || 28)
+          const summary = buildWeeklySummary(twoWeekLogs, phase, subPhase, confidence, daysLeft, cycleDay, cycleLen)
           // Looking ahead, predicted from her own past cycles (needs a couple of cycles first).
-          const lookingAhead = buildPhaseOutlook({ logs: historyLogs || [], lastPeriodDate: cycleData?.last_period_date, cycleLen: cycleData?.cycle_length || 28, cycleDay })
+          const lookingAhead = buildPhaseOutlook({ logs: historyLogs || [], lastPeriodDate: cycleData?.last_period_date, cycleLen, cycleDay })
           setWeeklySummary({ ...summary, lookingAhead })
           // Weekly review = a once-a-week moment, shown on the FIRST app-open of the week
           // (not every day). Guards, in order: (1) shouldShowWeeklySummary — not already shown
@@ -296,7 +327,53 @@ export default function Dashboard() {
       // Daily Coach, pure synthesis of the status we already have (no new data). First name only.
       const firstName = (profile?.name || '').trim().split(/\s+/)[0] || null
       const coach = buildDailyCoach(status, new Date().getHours(), firstName)
-      setD({ profile, phase, subPhase, cycleDay, cycleLen, daysLeft, confidence, bw, proteinG: status?.nutritionTargets?.proteinG || null, bcBleedDay, bcInBleedWindow, alreadyLogged, todayLog, streak, recentLogs, twoWeekLogs, anomalyItems, isPath4, estimated, latePeriod: status?.latePeriod || false, daysLate: status?.daysLate || 0, latePeriodInsights: status?.latePeriodInsights || [], nextPeriod: status?.nextPeriodPrediction || null, userEmail: user.email, todayLoggers: todayLoggers || 0, coach })
+
+      // ── the prediction scorecard ────────────────────────────────────────
+      // Backtested against her own logged period history: each past period predicted using
+      // ONLY the cycles before it. Honest from day one, no waiting for months of forward
+      // predictions to accumulate, and it reports the misses as well as the hits.
+      const periodStarts = status?.periodStarts || []
+      const backtest = backtestPeriodPredictions(periodStarts, profile?.cycle_length || 28)
+      const accuracy = accuracySummary(backtest)
+
+      // ── the progress ledger ─────────────────────────────────────────────
+      const logsThisWeek = (twoWeekLogs || []).filter(l =>
+        Math.floor((new Date() - new Date(l.log_date + 'T00:00:00')) / 86400000) < 7).length
+      const unlocks = buildUnlocks({
+        logs: allEnergyLogs || [], cyclesTracked: status?.cyclesTracked || 0,
+        logsThisWeek, periodStarts,
+      })
+
+      // ── friends, loaded through the guarded RPC only ────────────────────
+      // get_friend_card enforces the accepted-friendship check server-side; we never read
+      // another user's rows directly. Capped at 4 so the home screen stays a home screen.
+      try {
+        const ids = (acceptedFriends || [])
+          .map(f => (f.requester_id === user.id ? f.addressee_id : f.requester_id))
+          .filter(Boolean).slice(0, 4)
+        if (ids.length) {
+          const cards = await Promise.all(ids.map(id =>
+            supabase.rpc('get_friend_card', { target_user_id: id }).then(r => {
+              const c = Array.isArray(r.data) ? r.data[0] : r.data
+              if (!c) return null
+              // get_friend_card returns a cycle ANCHOR, never a phase — the phase is computed
+              // here, and only when she has chosen to share it (visiblePhaseForCard enforces
+              // the show_phase flag). Reading c.phase directly returns undefined.
+              const phase = visiblePhaseForCard(c)
+              return phase ? { name: c.name, phase } : null
+            }).catch(() => null)))
+          setFriendCards(cards.filter(Boolean))
+        }
+      } catch(e) { console.error('friend cards failed', e) }
+      setD({ profile, phase, subPhase, cycleDay, cycleLen, daysLeft, confidence, bw, proteinG: status?.nutritionTargets?.proteinG || null, bcBleedDay, bcInBleedWindow, alreadyLogged, todayLog, streak, recentLogs, twoWeekLogs, anomalyItems, isPath4, estimated, latePeriod: status?.latePeriod || false, daysLate: status?.daysLate || 0, latePeriodInsights: status?.latePeriodInsights || [], nextPeriod: status?.nextPeriodPrediction || null, userEmail: user.email, todayLoggers: todayLoggers || 0, coach, backtest, accuracy, unlocks, nextUnlock: nextUnlock(unlocks), periodStarts,
+        // The raw status, so turning reminders on can schedule the period heads-up straight
+        // away instead of waiting for the next dashboard load.
+        status })
+
+      // Re-engagement. Recomputed from her own data on every open, so the evening nudge
+      // disappears as soon as she has logged and the period heads-up tracks the latest
+      // prediction. No-ops on web and whenever she has not opted in.
+      syncNotifications(status, { streak, loggedToday: alreadyLogged }).catch(e => console.error(e))
     } catch(e) { console.error(e) }
     finally { setLoading(false) }
   }
@@ -399,10 +476,17 @@ export default function Dashboard() {
 
       <div style={{ padding:'16px 16px 100px' }}>
 
-        {/* Greeting */}
+        {/* Greeting. The wording rotates by day (copyPool.js) — identical copy every morning
+            is its own kind of boring and makes a slow-moving phase read as an app that is not
+            paying attention. The MEANING never varies, only the words. */}
         {d.coach && (
           <div style={{ marginBottom:14 }}>
-            <div style={{ fontSize:25, fontWeight:700, color:'#2c2820' }}>{d.coach.greeting} {new Date().getHours() < 18 ? '☀️' : '🌙'}</div>
+            <div style={{ fontSize:25, fontWeight:700, color:'#2c2820' }}>
+              {greeting((d.profile?.name || '').trim().split(/\s+/)[0] || null, new Date().getHours(), localDateStr())} {new Date().getHours() < 18 ? '☀️' : '🌙'}
+            </div>
+            <div style={{ fontSize:13, color:'#7a7268', marginTop:5, lineHeight:1.5 }}>
+              {alreadyLogged ? loggedLine(localDateStr()) : logPrompt(localDateStr())}
+            </div>
           </div>
         )}
 
@@ -599,6 +683,35 @@ export default function Dashboard() {
 
         {/* "Your cycle phases" grid moved to Learn, the home screen stays focused on today.
             The interactive grid + detail sheet now live on the Learn tab. */}
+
+        {/* ── Prediction scorecard (feature: the app grades its own homework) ──
+            Turns logging into checking my work rather than feeding a black box. */}
+        <AccuracyScorecard backtest={d.backtest} summary={d.accuracy} onOpen={() => navigate('/cycle-review')} />
+
+        {/* ── Progress ledger, replacing a bare streak number ──
+            Shows the distance to each real payoff, using the engines' own thresholds. */}
+        <ProgressLedger unlocks={d.unlocks} next={d.nextUnlock} streak={d.streak} />
+
+        {/* ── Cycle in review ──
+            The end of a cycle deserves a moment. monthlyStory.js already wrote the content;
+            it was just buried. */}
+        <div onClick={() => navigate('/cycle-review')} style={{ cursor:'pointer', marginBottom:12, border:'1px solid #e6ddd0', background:'#faf6ef', borderRadius:16, padding:16 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8 }}>
+            <i className="ti ti-sparkles" style={{ fontSize:16, color:'#a08858' }} />
+            <span style={{ fontSize:11, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:'#a08858' }}>Your cycle in review</span>
+          </div>
+          <div style={{ fontSize:14.5, color:'#3a352c', lineHeight:1.55 }}>
+            Everything this cycle taught me about your body, in one page.
+          </div>
+        </div>
+
+        {/* ── Reminders opt-in (native only) ──
+            The app previously never spoke first — @capacitor/push-notifications was installed
+            with zero code using it. This is the opt-in for the local-notification triggers. */}
+        <NotificationSettings status={d.status} streak={d.streak} loggedToday={d.alreadyLogged} />
+
+        {/* ── Friends, surfaced from their own tab onto the home screen ── */}
+        <FriendsActivity friends={friendCards} pending={pendingFriends} onOpen={() => navigate('/friends')} />
 
         {/* Ask Em~power, with quick-question chips */}
         <div onClick={() => navigate('/ask')} style={{ cursor:'pointer', marginTop:4, marginBottom:12, border:'1px solid #ddd8ea', background:'#fbfaff', borderRadius:16, padding:16 }}>
