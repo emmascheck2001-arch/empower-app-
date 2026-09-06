@@ -27,7 +27,7 @@ export function personalisationProgress(meaningfulLogs = 0, cyclesTracked = 0) {
   const cycles = cyclesTracked || 0
   const fromLogs = Math.min(0.35, logs * 0.012)
   const fromLongitudinalDepth = Math.min(0.15, Math.max(0, logs - 14) * 0.003)
-  const fromCycles = Math.min(0.40, cycles * 0.15)
+  const fromCycles = Math.min(0.35, cycles * 0.10)
   const pct = Math.round(Math.min(0.85, fromLogs + fromLongitudinalDepth + fromCycles) * 100)
   const label = pct >= 70 ? 'Strong personal data coverage'
     : pct >= 45 ? 'Your personal pattern is developing'
