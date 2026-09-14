@@ -12,7 +12,7 @@ import { WeeklySummaryModal, markWeeklySummaryDismissed, markWeeklySummaryShown,
 import Confetti from '../components/Confetti'
 import HealthConnect from '../components/HealthConnect'
 import Disclaimer from '../components/Disclaimer'
-import { isNative, readWearableData } from '../lib/healthkit'
+import { isNative, readWearableData, valueOn, lastWornDaysAgo } from '../lib/healthkit'
 import { wearableCycleSignals } from '../lib/wearableCycle'
 import { backtestPeriodPredictions, accuracySummary } from '../lib/predictionAccuracy'
 import { buildUnlocks, nextUnlock } from '../lib/unlocks'
@@ -138,10 +138,24 @@ export default function Dashboard() {
     readWearableData().then(async data => {
       if (!data) return
       try { localStorage.setItem('wearableSignals', JSON.stringify(wearableCycleSignals(data))) } catch { /* ignore */ }
-      const rhr = data.restingHR?.[0] != null ? Math.round(data.restingHR[0]) : null
-      const tempC = data.temps?.length ? Math.round(data.temps[data.temps.length - 1].value * 10) / 10 : null
-      const sleepH = data.sleepHours != null ? Math.round(data.sleepHours * 10) / 10 : null
-      setWear({ rhr, hrv: data.hrv?.[0] != null ? Math.round(data.hrv[0]) : null, tempC, sleepHours: sleepH, tempDays: data.temps?.length || 0, hasAny: data.hasAnyData })
+      // Today's tiles show only readings actually measured TODAY. The streams only contain the
+      // days the watch was worn, so the newest sample can be days old — surfacing it as a live
+      // number tells her she has a resting heart rate of 74 on a day the watch sat in a drawer.
+      const dateStr = localDateStr()
+      const round1 = (v) => (v != null ? Math.round(v * 10) / 10 : null)
+      const rhr = valueOn(data.latest?.rhr, dateStr) != null ? Math.round(valueOn(data.latest.rhr, dateStr)) : null
+      const hrvNow = valueOn(data.latest?.hrv, dateStr) != null ? Math.round(valueOn(data.latest.hrv, dateStr)) : null
+      const tempC = round1(valueOn(data.latest?.temp, dateStr))
+      const sleepH = round1(valueOn(data.latest?.sleep, dateStr))
+      const staleDays = lastWornDaysAgo(data, dateStr)
+      setWear({
+        rhr, hrv: hrvNow, tempC, sleepHours: sleepH,
+        tempDays: data.temps?.length || 0,
+        hasAny: data.hasAnyData,
+        // No reading for today from any stream → say when it last synced instead of going blank
+        // with no explanation.
+        staleDays: (rhr == null && tempC == null && sleepH == null) ? staleDays : null,
+      })
 
       // Auto-sync today's wearable readings into the daily log, so the algorithm uses them and she
       // never re-enters what the wearable already knows. Only writes fields that actually have
@@ -150,7 +164,9 @@ export default function Dashboard() {
       try {
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) return
-        const dateStr = localDateStr()
+        // Nothing measured today → nothing to write. Never backfill today's log with an older
+        // day's readings: the algorithm would read them as a real measurement.
+        if (rhr == null && tempC == null && sleepH == null) return
         // Only FILL fields that are currently empty for today. This makes the wearable the default
         // source, while any manual value you type in the Log wins and is never overwritten on a
         // later app open (a set value is left alone).
@@ -559,7 +575,12 @@ export default function Dashboard() {
               </div>
               {wear?.hasAny && (
                 <div style={{ fontSize:10.5, fontWeight:600, letterSpacing:'0.04em', textTransform:'uppercase', color:'#b0a488', marginTop:10, textAlign:'center' }}>
-                  <i className="ti ti-heartbeat" style={{ fontSize:12, marginRight:4, verticalAlign:'-1px' }} />Live from Apple Health
+                  <i className="ti ti-heartbeat" style={{ fontSize:12, marginRight:4, verticalAlign:'-1px' }} />
+                  {/* Only claim "live" when something was actually measured today; otherwise say
+                      how old the last reading is, so blank tiles read as "not worn", not "broken". */}
+                  {wear.staleDays == null ? 'Live from Apple Health'
+                    : wear.staleDays <= 0 ? 'Live from Apple Health'
+                    : `No readings today — last synced ${wear.staleDays === 1 ? 'yesterday' : `${wear.staleDays} days ago`}`}
                 </div>
               )}
               {!alreadyLogged && <button onClick={() => navigate('/log')} style={{ width:'100%', marginTop:14, padding:'11px', borderRadius:12, background:'#2c2820', color:'#f5f0e8', border:'none', fontSize:14, fontWeight:500, cursor:'pointer', fontFamily:'inherit' }}>Log today</button>}

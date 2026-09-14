@@ -11,7 +11,7 @@ import { buildLogDelta } from '../lib/logDelta'
 import { buildUnlocks, newlyUnlocked } from '../lib/unlocks'
 import { predictEnergyForCycleDay } from '../lib/predictionAccuracy'
 import { SUGGESTED_TAGS } from '../lib/contextInsights'
-import { isNative, healthStoreName, readWearableData } from '../lib/healthkit'
+import { isNative, healthStoreName, readWearableData, valueForDate } from '../lib/healthkit'
 import { syncNotifications } from '../lib/notifications'
 import LogDeltaCard from '../components/LogDeltaCard'
 import TopBar from '../components/TopBar'
@@ -252,7 +252,10 @@ export default function Log() {
       const patch = {}
       const todayTemp = (wearable.temps || []).find(t => t.date === today)
       if (todayTemp && !existing?.wrist_temp) { patch.wrist_temp = todayTemp.value.toFixed(1); filled.push('wrist_temp') }
-      const rhr = (wearable.restingHR || [])[0]
+      // Same-day only, exactly like the temperature above: restingHR is a series of the days the
+      // watch was worn, so its newest value can predate the day being logged. Prefilling that
+      // would put a measurement she never took into her log.
+      const rhr = valueForDate(wearable.restingHRDaily, today)
       if (rhr && !existing?.resting_hr_exact) { patch.resting_hr_exact = String(Math.round(rhr)); patch.resting_hr = null; filled.push('resting_hr') }
       if (Object.keys(patch).length) setLog(prev=>({ ...prev, ...patch }))
     }

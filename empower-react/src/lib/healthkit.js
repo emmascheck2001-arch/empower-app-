@@ -102,7 +102,9 @@ export async function readRecentWorkouts(days = 21) {
 // Total ASLEEP hours for the most recent night from sleep samples. Counts only true sleep
 // states (asleep/rem/deep/light) so overlapping "in bed" segments never double-count; samples
 // with no state (some Android sources) are counted as a best effort. Groups by the night the
-// sleep ended on and returns the latest night's hours, or null if there is no usable data.
+// sleep ended on and returns { date, value } for the latest night, or null if there is no usable
+// data. The DATE matters: the most recent night in the window can be days old if the watch was
+// off the wrist, and a stale night must never be shown or logged as last night's sleep.
 function sleepHoursLastNight(samples) {
   const ASLEEP = new Set(['asleep', 'rem', 'deep', 'light'])
   const byNight = {}
@@ -118,11 +120,16 @@ function sleepHoursLastNight(samples) {
   }
   const nights = Object.keys(byNight).sort()
   if (!nights.length) return null
-  return byNight[nights[nights.length - 1]] / 60
+  const night = nights[nights.length - 1]
+  return { date: night, value: byNight[night] / 60 }
 }
 
 // Read the last `days` of wearable data, shaped for wearableCycleSignals():
 // { temps: [{date,value}] ascending, restingHR: [numbers] newest-first, hrv: [numbers] newest-first }
+// plus `latest`: the newest reading of each stream WITH the day it was measured on
+// ({ date, value } | null). Callers that display or log "today's" numbers must read `latest` and
+// check the date — the bare arrays are baseline series for the cycle maths and their first
+// element is simply the last day the device was worn, which may be well before today.
 export async function readWearableData(days = 45) {
   if (!isNative()) return null
   const end = new Date()
@@ -140,13 +147,62 @@ export async function readWearableData(days = 45) {
     const tempDaily = tempCandidates.reduce((best, cur) => (cur.length > best.length ? cur : best), [])
     const rhrDaily = toDailySeries(rhr)
     const hrvDaily = toDailySeries(hrv)
-    const sleepHours = sleepHoursLastNight(sleep)
+    const lastNight = sleepHoursLastNight(sleep)
+    const newest = (daily) => (daily.length ? daily[daily.length - 1] : null)   // {date,value}
     return {
       temps: tempDaily,                                              // ascending {date,value}
       restingHR: rhrDaily.map(x => x.value).reverse(),               // newest-first
       hrv: hrvDaily.map(x => x.value).reverse(),                     // newest-first
-      sleepHours,                                                    // hours asleep last night, or null
-      hasAnyData: tempDaily.length + rhrDaily.length + hrvDaily.length > 0 || sleepHours != null,
+      // Dated equivalents (ascending), so a specific day can be looked up — needed when
+      // backfilling a past date, where "newest" is the wrong reading.
+      restingHRDaily: rhrDaily,
+      hrvDaily,
+      sleepHours: lastNight ? lastNight.value : null,                // hours asleep, WHENEVER that night was
+      // Dated newest readings — the only safe source for "today's" numbers.
+      latest: {
+        temp: newest(tempDaily),
+        rhr: newest(rhrDaily),
+        hrv: newest(hrvDaily),
+        sleep: lastNight,
+      },
+      hasAnyData: tempDaily.length + rhrDaily.length + hrvDaily.length > 0 || lastNight != null,
     }
   } catch (e) { console.error('readWearableData failed', e); return null }
+}
+
+// ── freshness ────────────────────────────────────────────────────────────────
+// A wearable stream only reports the days the device was actually worn, so the newest reading in
+// the window can be days old. These turn a dated reading into "is this from the day I'm asking
+// about?" so a stale number is never shown as today's, nor written into today's log.
+const pad2 = (n) => String(n).padStart(2, '0')
+export function todayLocal(d = new Date()) {
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
+}
+
+// The value measured on `dateStr` in an ascending dated series, or null if that day has none.
+export function valueForDate(daily, dateStr = todayLocal()) {
+  const hit = (daily || []).find(d => d?.date === dateStr)
+  return hit && typeof hit.value === 'number' ? hit.value : null
+}
+
+// The value of a dated reading, but only if it was measured on `dateStr` (default: today).
+// Returns null for a missing or stale reading — callers then show a blank tile, which is the
+// honest answer for a day the watch was off the wrist.
+export function valueOn(entry, dateStr = todayLocal()) {
+  return entry && entry.date === dateStr && typeof entry.value === 'number' ? entry.value : null
+}
+
+// Whole days between a dated reading and today (0 = today, 1 = yesterday). Null if undated.
+export function daysStale(entry, dateStr = todayLocal()) {
+  if (!entry?.date) return null
+  const a = new Date(entry.date + 'T00:00:00'), b = new Date(dateStr + 'T00:00:00')
+  if (isNaN(a) || isNaN(b)) return null
+  return Math.round((b - a) / 86400000)
+}
+
+// How long ago the device was last worn, across every stream — for "Last synced N days ago".
+export function lastWornDaysAgo(data, dateStr = todayLocal()) {
+  const ages = [data?.latest?.temp, data?.latest?.rhr, data?.latest?.hrv, data?.latest?.sleep]
+    .map(e => daysStale(e, dateStr)).filter(n => n != null)
+  return ages.length ? Math.min(...ages) : null
 }
