@@ -296,6 +296,10 @@ Core finisher toggle (`#coreFinisherRow`): "Add core finisher" / "3 core exercis
 
 Fitness level selector (3 buttons, default Intermediate): Beginner / Intermediate / Advanced
 
+Gym presets retain two familiar main movements and rotate two others plus accessories; the overview offers “Show another workout” before a session has logged sets, and remembers the last preview separately for each user and focus.
+
+Workout programming uses a phase-neutral weekly strength/cardio/recovery template and controlled, experience-appropriate exercise choices. First-time loads are chosen by the user; progression considers consistently completed, logged sets and never assigns a fixed jump. The player shows exercise-specific cues rather than generic animations that may depict a different movement. Class logs use `workout_class_sessions` (migration `0010`), with owner-only access; they are separate from daily workout-feel and wearable-import fields. References: ACSM 2026 resistance training guidance and McNulty et al. 2020 menstrual-cycle exercise review.
+
 Generate button disabled until selection made. Updates in real time.
 
 **Plan picker (screenPlan):** 3 options — Just today / Rest of this week / Full cycle plan. Plus fitness level selector.

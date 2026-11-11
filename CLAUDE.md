@@ -17,14 +17,13 @@ Anon key: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6I
 - Dashboard.jsx — route `/dashboard` — main home screen showing phase, nutrition card, log streak
 - Log.jsx — route `/log` — daily symptom and biometric log
 - Workout.jsx — route `/workout` — activity picker, muscle group selector, guided workout player with timers
-- Checkin.jsx — route `/checkin` — 5-question morning check-in
 - Feedback.jsx — route `/feedback` — trial user feedback screen, stores to user_feedback table
 - Nutrition.jsx — route `/nutrition` — phase-aware nutrition screen with symptom relief accordion
 - Calendar.jsx — route `/calendar` — colour-coded cycle calendar with future day planning
 
 **PERMANENT — Daily Coach & Weekly Insights rules (added 2026-06-29):**
 - **Daily Coach** (dashboard, top, above the hero): `lib/dailyCoach.js` `buildDailyCoach(status, hour, name)` is a PURE synthesis of existing getTodayStatus output — invents nothing (no wearable/recovery score we don't have, no fabricated numbers). The dashboard card renders ONLY "Today's Focus" (greeting + focus label/sub + a recovery note that appears ONLY when the user's OWN logs support it — poor sleep / very low energy / heavy disruptors, hedged "may be lower"). `buildDailyCoach` still computes training/nutrition/sleep/mindset (unit-tested, kept for future use) but the card does NOT render them. Pregnancy NEVER gets an auto-prescribed workout.
-- **Weekly Insights** (`components/WeeklySummary.jsx`): surfaces ONLY on Sundays (`new Date().getDay() === 0`) and only with ≥3 logs that week. It must contain ONLY the user's own logged data — NO generic "many women notice" phase predictions, NO prescribed "experiments", no fabrication. The `weeklyHighlights.js` recap lines ("you trained N days", "energy was highest on <day>", "slept ~X min more than last week") are all factual statements about logged data, comparisons gated on data existing in both weeks, and a peak day is named ONLY when there is a single unique maximum. Never reintroduce population predictions into Weekly Insights.
+- **Weekly Insights** (`components/WeeklySummary.jsx`): surfaces on the FIRST APP OPEN once 7+ days have passed since it last appeared, and only with at least `WEEKLY_MIN_LOGS` (4) meaningful logs that week plus real content. Below that threshold the user gets `WeeklyNudgeCard` instead — never a hollow review. It must contain ONLY the user's own logged data — NO generic "many women notice" phase predictions, NO prescribed "experiments", no fabrication. The `weeklyHighlights.js` recap lines ("you trained N days", "energy was highest on <day>", "slept ~X min more than last week") are all factual statements about logged data, comparisons gated on data existing in both weeks, and a peak day is named ONLY when there is a single unique maximum. Never reintroduce population predictions into Weekly Insights.
 - Learn.jsx — route `/learn` — science articles and perimenopause education
 - Privacy.jsx — route `/privacy` — privacy policy + self-serve account deletion
 - Terms.jsx — route `/terms` — Terms of Use (added 2026-06-29; public route). Not-medical-advice/not-a-device, assumption of risk, "as is" pilot, limitation of liability, Saskatchewan/Canada governing law. Linked from the signup form, Setup consent, and Privacy page. Login.jsx now has a real self-serve signup ('signup' mode via supabase.auth.signUp); Setup consent references BOTH Terms and Privacy. Pilot-readiness work for handing the app to strangers.
@@ -74,24 +73,6 @@ Two Postgres functions power the Friends feature. Both are `SECURITY DEFINER` (t
 **Security state (audited 2026-06-26):** All 10 public tables have RLS enabled with policies scoped to `auth.uid()` — no user can read another's data. The client ships only the anon key (RLS-protected); the service-role key is never in the bundle. Friends is ACTIVE again (re-enabled 2026-06-26), so `EXECUTE` on `find_user_by_email` AND `get_friend_card` is GRANTed to `authenticated` (still REVOKEd from `anon`/`public`). Both functions keep their internal guards (get_friend_card requires an `accepted` friendship between `auth.uid()` and the target; find_user_by_email requires a logged-in caller). Do NOT grant to anon. The dashboard Friends card shows when the user has any accepted friend or pending request, loaded via `get_friend_card`. `get_all_feedback` stays callable by `authenticated` but self-checks Emma's uid (the one remaining advisor WARN is expected/safe).
 
 **`delete_my_account()` (added 2026-06-26):** SECURITY DEFINER, `search_path=public`, EXECUTE granted only to `authenticated`. Deletes the caller's rows from every table (daily_logs, mucus_logs, cycle_data, cycle_summaries, user_baselines[id=uid], user_feedback, friendships, friend_visibility, analytics_events, exercise_history, profiles) then their `auth.users` row, all gated to `auth.uid()` so a user can only ever delete THEIR OWN account. Surfaced as the self-serve "Delete my account and all my data" button on the Privacy page (/privacy), linked from the dashboard footer. If a NEW user-data table is ever added, add its delete to this function so erasure stays complete.
-
----
-
-## Dashboard phase card rules — permanent, never revert
-
-The phase detail cards in dashboard.html (openPhaseSheet function, PHASE_HORMONE_INFO data structure) have strict content rules that must never be changed:
-
-**Rule 1 — No hormone numbers in the default visible view.**
-The `direction` and `patterns` fields in PHASE_HORMONE_INFO must never contain pmol/L, nmol/L, or IU/L values. Plain English only. Examples of FORBIDDEN direction text: "Low, below 3 nmol/L", "Rising from 77 to 330 pmol/L", "Above 8 IU/L". Examples of CORRECT direction text: "Low — no temperature or RHR elevation", "Rising steadily toward ovulation", "Surging — this triggers egg release".
-
-**Rule 2 — Numbers live only in the ranges field, behind a toggle.**
-All reference range numbers (pmol/L, nmol/L, IU/L values) belong exclusively in the `ranges` field of each hormone entry. The `ranges` field is rendered inside a `display:none` div and revealed only when the user taps "View reference ranges". This toggle (toggleRanges function) must always remain in place. Never move numbers from ranges into direction or patterns.
-
-**Rule 3 — 4-bullet "What is happening" lists only, no long paragraphs.**
-Each phase must show a 4-item `bullets` array under "What is happening". No opening paragraph. Bullets are plain English descriptions of what is happening hormonally. No numbers in bullets.
-
-**Rule 4 — These rules apply to every future edit of dashboard.html.**
-If a future task involves editing dashboard.html for any reason, read these rules first and verify no hormone numbers have been introduced into direction, patterns, or bullets fields. Run a final check before finishing: `grep -n "pmol\|nmol\|IU/L" dashboard.html` and confirm every match is inside a `ranges:` string, not a `direction:`, `patterns:`, or `bullets:` entry.
 
 ---
 
@@ -174,194 +155,65 @@ Dashboard and Calendar use a 6-item nav adding Calendar (`ti ti-calendar`, `/cal
 
 ---
 
-### Checkin.jsx — route /checkin — Morning check-in
+### Log.jsx — routes /log and /checkin — the daily log
 
-**Path 4 science note adaptation (permanent):** After getTodayStatus loads, if `todayStatus.profile?.user_path === '4'`, two science notes are updated via JS: (1) mucus question note changes from "80% sensitivity for detecting your fertile window" to estrogen-level framing — cervical fluid still tracked but context is estrogen signals not ovulation. (2) Sleep question note changes to perimenopause-specific. These updates happen in the `try` block after getTodayStatus resolves. Never remove this adaptation.
+One merged screen: quick questions first, then a collapsed "Optional details". `/checkin` routes
+here too — there is no separate check-in screen.
 
-**Title in browser:** "Em~power — Morning Check-in"
+**Quick view (in order):** cervical fluid (non-menstrual) · temperature ONLY when the wearable
+pre-filled it · resting heart rate · symptoms · mood · energy · sleep · stress. Flow and pain appear
+during the period, when they matter most.
 
-**Top bar:** Phase name (large, centered) + day label + phase tag pill (e.g. "Day 14")
+**Optional details (collapsed):** workout feel · disruptors · notes · manual temperature (when the
+wearable did not fill it) · LH ovulation strip · hormone lab results (estradiol, progesterone, LH,
+cortisol) with `interpretHormones` output.
 
-**Card header:** "Morning check-in" / "5 questions, under 30 seconds"
+**Why LH and manual temperature are NOT in the quick view:** zero uptake across all 184 real logs.
+See the retention rules above — do not move them back.
 
-**6 questions in order (despite header saying 5):**
+**Acute red-flag safety net:** very heavy/heavy flow OR pain >= 4 shows the "When to seek care
+today" card. Never gate this behind a toggle or remove it.
 
-1. **How is your energy today?** (4-button grid) — Very low / Low / Good / High. Note: "Good" not "Normal".
-2. **Mucus this morning?** (pill buttons) — Nothing / Creamy / Watery / Egg white / Spotting. Science note: "80% sensitivity for detecting your fertile window (Bigelow et al. 2004)."
-3. **Sleep last night?** (4-button grid) — Poor / Fair / Good / Great. Note: "Great" not "Excellent".
-4. **Resting heart rate this morning?** (pill buttons) — Under 55 / 55 to 65 / 65 to 75 / Over 75. Science note: "RHR rises ~1.7 bpm in mid-luteal phase (De Martin Topranin et al. 2023)." No "No data" option (unlike log.html).
-5. **How are you feeling mentally?** (multi-select pills) — Energised / Happy / Calm / Focused / Tired / Anxious / Irritable / Low. Science note: "Mood patterns are a genuine phase signal... (Backstrom et al. 2008.)"
-6. **Any physical symptoms?** (multi-select, optional) — Cramps / Bloating / Headache / Fatigue / Breast tenderness.
-
-**Save button:** `id="saveBtn"`. Text: "Save check-in". Black. Disabled during save.
-
-**After save:** Bottom-sheet overlay (`feedback-overlay`) shows:
-- Title: "Check-in saved"
-- Body: confidence gain message (e.g. "Confidence up 20%. Mucus signal added.")
-- Confidence text: "Algorithm confidence now [X]%"
-- Mood context block (shown if mood selected): headline + body from `getMoodContextFeedback()` in algorithm_v3.js. Source: Backstrom et al. 2008.
-- "Tap anywhere to go to dashboard" text
-- Auto-redirect to dashboard after 2500ms
-
-**Saves to:** `daily_logs` (energy, sleep_quality, resting_hr, symptoms, mood) + `mucus_logs` (discharge_type) if mucus answered. Uses upsert with `onConflict: 'user_id,log_date'`.
-
-**Imports:** `getTodayStatus` from `./hormoneSync.js` and `getMoodContextFeedback` from `./algorithm_v3.js`.
-
----
-
-### Log.jsx — route /log — Full daily log
-
-**Path 4 science note adaptation (permanent):** When `userPath === '4'` is confirmed in `loadPhase()`, two science note elements are updated via JS: (1) `#cervicalFluidWhy` changes from "One of the strongest ovulation indicators" to estrogen-level framing. (2) `#lhTestWhy` changes from "strongest single ovulation signal" to "Ovulation becomes unpredictable in perimenopause. A positive LH test may still occur. Log it if you test." The `id` attributes on these elements must never be removed.
-
-**Title:** Standard top bar with back button.
-
-**Default mode:** Full log (NOT the 5-question check-in; checkin.html is the separate 5-question version).
-
-**Field order in the card (exact, permanent):**
-
-1. **Cervical fluid** (single-select pills) — None or dry / Sticky or crumbly / Creamy or lotion-like / Watery / Egg white / Spotting. Science note element `id="cervicalFluidWhy"`.
-2. **LH test** (single-select pills) — No test / Negative / Positive. Science note element `id="lhTestWhy"`.
-3. **Energy** (4-button grid) — Very low / Low / Normal / High. Note: "Normal" not "Good" (different from checkin.html).
-4. **Mood positive** (`#moodRow`, multi-select pills) — Energetic / Motivated / Confident / Social / Calm / Focused
-5. **Mood challenging** (`#moodRowB`, multi-select pills) — Tired / Irritable / Anxious / Sad / Brain fog / Low mood
-6. **Wrist temperature** (number input, 34-40°C range, step 0.1)
-7. **Resting heart rate** (RHR ranges: Under 55 / 55 to 65 / 65 to 75 / Over 75 / No data) + exact input `id="rhrExactInput"` (range 30-120). Mutual deselection: range selection clears exact input; typing exact clears range buttons.
-8. **Symptoms** (multi-select pills) — Bloating / Cramping / Breast tenderness / Headache / Back pain / Fatigue / Cravings / Mood swings / Acne / None. "None" deselects all others.
-9. **Sleep** (single-select 4-button grid) — Poor / Fair / Good / Excellent. Note: "Excellent" not "Great" (different from checkin.html).
-10. **Workout** (single-select pills) — Rest day / Weaker than usual / Average / Stronger than usual / Skipped
-11. **Disruptors** (multi-select pills) — Alcohol / Illness / Travel / Very poor sleep / High stress / None of these. "None of these" clears all; selecting others deselects "None of these".
-12. **Flow** (menstrual phase only, hidden otherwise) — Spotting only / Light / Moderate / Heavy / Very heavy. Saved to `flow_volume`.
-13. **Pain** (menstrual phase only, hidden otherwise) — 1 None / 2 Mild barely noticeable / 3 Moderate distracting / 4 Severe affects daily activities / 5 Debilitating cannot function. Saved to `pain_rating`.
-14. **Hormones section** (outside main card, collapsed by default) — Estradiol pmol/L / Progesterone nmol/L / LH IU/L / Cortisol nmol/L. Has LifeLabs/EORLA reference ranges shown inline.
-
-**Save button:** `.next-btn` class (no id="saveBtn"). Dark background. Full width.
-
-**Save payload includes:** user_id, log_date, energy, sleep_quality, resting_hr, resting_hr_exact, wrist_temp, lh_result, symptoms[], mood[], disruptors[], workout_feel, flow_volume (menstrual), pain_rating (menstrual), hormone_estradiol, hormone_progesterone, hormone_lh, hormone_cortisol.
-
-**After save:** navigates to dashboard.html.
-
----
-
+**CrisisSupport** renders on any low-mood/sad log. Keep it reachable.
 ### Dashboard.jsx — route /dashboard — Main home screen
 
-**Screen order (permanent, do not reorder):**
-1. Hero card: phase name (italic serif), cycle day, description, confidence dot + text, "Plan my workout" button, science disclaimer
-2. Anomaly container (`#anomalyContainer`) — hidden unless anomaly detected
-3. Hormone card — hidden by default, shown only when user logged hormone results today
-4. Already logged banner — hidden by default
-5. "Log today's data" button
-6. Nutrition card (tap navigates to nutrition.html) — icon `ti ti-salad`, title, subtitle, chevron
-7. Stats row (Cycle day / Days left / Day streak) — hidden until cycle data exists
-8. Personal baseline card — hidden, shown after 2+ cycles
-9. Community pulse card — hidden
-10. Allostatic load card — hidden
-11. Wearable readiness warning card — hidden
-12. Pattern flag container — hidden
-13. "Your cycle phases" section label (`id="cyclePhasesSectionLabel"`) + phase cards. For Path 4 users the label changes to "Your hormonal phases" via JS, a Perimenopause card appears at the top (`id="cardPerimenopause"`, hidden by default, shown via Path 4 JS block), and a context note (`id="periCycleNote"`) appears below the 4 standard cards: "If you are still cycling, the phase cards above still apply to your irregular cycles."
-14. Share feedback link: `<a href="feedback.html">` — `font-size:12px; color:#9a9590`
-15. Bottom nav (6 items: Home / Workout / Calendar / Log / Nutrition / Learn)
+Hero card (phase, cycle day, personalisation, next-period prediction) followed by cards that each
+self-gate on whether the user has the data to justify them. Cards render only when they have
+something real to say — never show a hollow card.
 
-**Phase card data (`PHASE_HORMONE_INFO`) — permanent rules:**
-- `bullets[]`: 4 plain-English items, NO hormone numbers (pmol/L, nmol/L, IU/L)
-- `hormones.estrogen/progesterone/lh.direction`: plain English only, NO numbers
-- `hormones.estrogen/progesterone/lh.patterns[]`: plain English only, NO numbers
-- `hormones.estrogen/progesterone/lh.ranges`: numbers HERE ONLY, hidden behind "View reference ranges" toggle
-- The `toggleRanges()` function reveals the ranges div. This toggle must always exist.
-- Run `grep -n "pmol\|nmol\|IU/L" dashboard.html` after every edit and confirm every match is inside a `ranges:` string.
-- The Perimenopause card uses `fsh` as the hormone key (not `lh`) — `hormoneNames` in `openPhaseSheet` maps `fsh: 'FSH'`. Do not remove this mapping.
+**Phase sheet content rules — permanent.** The phase copy lives in `lib/phaseInfo.js`
+(`PHASE_SHEET_INFO`), which carries these rules in its own header comment: NO hormone numbers
+(pmol/L, nmol/L, IU/L) in `bullets`, `direction`, or `patterns` — plain English only; `bullets` is a
+4-item "what is happening" list; any numbers added later belong behind a reference-range disclosure.
+Keep the hedged wording ("generally", "often", "may") — it was deliberately softened away from
+absolute claims.
 
-**Path 4 (perimenopause/menopause) dashboard rules — permanent:**
-- PCOS pattern flag must always have `profile.user_path !== '4'` guard. Irregular cycles in perimenopause are expected — showing PCOS flag would be actively misleading.
-- Endometriosis pain flag must always have `profile.user_path !== '4'` guard. Path 4 logs use `joint_pain_rating` not `pain_rating`.
-- Community pulse (`renderCommunityPulse`) skips Path 4 — returns early if `phase === 'Perimenopause'`. Community pulse compares energy by cycle phase which does not apply.
-- Wearable warning card only shows for `phase === 'Luteal'` — correctly excluded from Path 4.
+**Path 4 (perimenopause) rules — permanent:**
+- The PCOS pattern flag and the endometriosis pain flag must BOTH stay guarded by
+  `user_path !== '4'`. Irregular cycles and joint pain are expected in perimenopause, so these flags
+  would be actively misleading there.
+- The hero uses `subPhase` for Path 4, so a "Menopause 12+ months" user reads "Postmenopause".
 
-**Phase bullet lists (exact current values):**
-- Menstrual: 'Estrogen and progesterone are at their lowest' / 'Serotonin is at its lowest point of the cycle' / 'Prostaglandins are elevated' / 'Iron is being lost through bleeding'
-- Follicular: 'Estrogen is rising' / 'Progesterone remains low' / 'Energy and recovery often improve' / 'Body temperature stays near baseline'
-- Ovulatory: 'Estrogen peaks before egg release' / 'LH surges triggering ovulation' / 'Brief testosterone rise alongside estrogen' / 'Your most fertile window'
-- Early luteal: 'Progesterone rising with calming GABA effect' / 'Energy often still good' / 'Core temperature begins to rise slightly' / 'Good phase for focused steady work'
-- Mid luteal: 'Progesterone at its peak' / 'Core temperature and RHR measurably elevated' / 'Serotonin becoming less stable' / 'Recovery slower than follicular'
-- Late luteal: 'Both hormones dropping sharply' / 'Serotonin at its lowest since menstruation' / 'PMS symptoms most likely here' / 'Resolves when menstruation begins'
-- Luteal (generic): 'Progesterone is elevated and core temperature rises slightly' / 'Resting heart rate measurably higher than in follicular' / 'Serotonin stability decreases through this phase' / 'The same workout genuinely feels harder — this is real physiology'
-
----
-
+**Late-period pathway:** `buildCycleStatus` exposes `latePeriod`/`daysLate`; the dashboard shows the
+late-period + pregnancy-test card at 2+ days late. Never let a late user keep seeing "period in 0 days".
 ### Workout.jsx — route /workout — Activity picker and workout player
 
-**Screen flow:** screenActivity → screenGymFocus (gym only) → screenSummary → screenWarmup → screenPlayer → screenCooldown → screenComplete
+Activity picker (walk / run / cycle / swim / gym / yoga / pilates / HIIT / rest day), a gym focus
+picker, then a guided player with timers. Yoga uses `ti ti-leaf` — `ti-yoga` does not exist in the
+Tabler webfont.
 
-**Activity picker grid (3x3, exact order):** Walk / Run / Cycle / Swim / Gym / Yoga / Pilates / HIIT / Rest day
-Icons: ti ti-walk / ti ti-run / ti ti-bike / ti ti-swimming / ti ti-barbell / ti ti-leaf / ti ti-accessible / ti ti-flame / ti ti-zzz
-Note: Yoga uses ti ti-leaf — ti-yoga does not exist in the Tabler Icons webfont.
-"Build me a plan" button below grid (`.plan-btn`).
+**Gym focus options — permanent:** Full body / Upper body / Lower body as three full-width cards,
+plus a visually secondary Custom card that expands a 10-checkbox muscle grid (chest, back,
+shoulders, biceps, triceps, quads, hamstrings, glutes, calves, core). The core-finisher toggle shows
+for the three preset splits only; when Custom is selected, Core is a checkbox instead.
 
-**Gym muscle group picker (screenGymFocus) — PERMANENT LAYOUT, NEVER CHANGE:**
+**Warnings that must survive:** the ovulatory ACL/warm-up card (Herzberg 2017), the luteal HIIT
+stress-response card (Hackney 2006), and the observation-mode baseline card.
 
-"Choose workout type" section label above THREE full-width single-column radio cards (`.s1-cards` flex column):
-- Full body — "Every major muscle group in one session"
-- Upper body — "Chest, shoulders, triceps, back, biceps, rear delts"
-- Lower body — "Quads, hamstrings, glutes, and calves"
+**Pregnancy NEVER gets an auto-prescribed workout** — see the pregnancy rules above.
 
-Below those three, a FOURTH card in its own wrapper div with dashed border style — visually secondary:
-- Custom — "Build your own session"
-
-Tapping Full body, Upper body, or Lower body: selects that card, deselects Custom, collapses `#customMusclePanel`, shows `#coreFinisherRow`.
-
-Tapping Custom: selects the Custom card AND expands `#customMusclePanel` below it — a 2-column checkbox grid (multi-select) with 10 options:
-Chest / Back / Shoulders / Biceps / Triceps / Quads / Hamstrings / Glutes / Calves / Core
-
-When Custom is selected `#coreFinisherRow` is hidden (Core is a checkbox instead).
-
-Custom muscle mapping (individual → exercise group key):
-chest/shoulders/triceps → chest_shoulders_triceps; back/biceps → back_biceps; quads/calves → legs; hamstrings → hamstrings_glutes; glutes → glutes_only; core → sets state.coreFinisher = true.
-
-Core finisher toggle (`#coreFinisherRow`): "Add core finisher" / "3 core exercises at the end of your session". Toggle on = dark. Visible only for Full body / Upper body / Lower body.
-
-Fitness level selector (3 buttons, default Intermediate): Beginner / Intermediate / Advanced
-
-Generate button disabled until selection made. Updates in real time.
-
-**Plan picker (screenPlan):** 3 options — Just today / Rest of this week / Full cycle plan. Plus fitness level selector.
-
-**Warning cards (shown in screenSummary):**
-- ACL warning (ovulatory + gym/HIIT): amber card `background:#fff8e6; border:1px solid #f0c040`. Title: "Your warmup matters more today". Text references peak estrogen and ligament laxity.
-- HIIT warning (mid/late luteal): `background:#fdf3f0; border:1px solid #e8a080`. Title: "HIIT is more stressful in this phase". References Hackney 2006. Has "Switch to tempo cardio" button.
-- Observation mode card: `background:#f0f0f8; border:1px solid #c0c0e0`. Title: "Building your baseline".
-
-**Warmup screen (screenWarmup):** Phase note + movement list. "Ready — begin workout" button.
-
-**Cooldown screen (screenCooldown):** Phase note + stretch list. Post-workout nutrition card. "Done" button (calls finishWorkoutFromCooldown).
-
-**Player v2 (screenPlayer):**
-- Progress bar at top (`#playerProgress`)
-- Minimap dots row: inactive = 28x28px white, done = `#c8b89a`, active = 32x32px `#2c2820` white text
-- Header: phase tag pill + volume counter (kg)
-- Exercise name: italic Georgia serif 20px
-- PR badge (`#prBadge`): green `#e8f5e8`, hidden by default, `.visible` class to show
-- Phase note compact: collapsed by default, expands on tap. Label "PHASE GUIDANCE".
-- Weight suggestion box: "Starting weight guide" label + text + science citation
-- Set table: 4 columns — Set (28px) / Weight kg (flex) / Reps (52px) / Check (36px)
-- Set row: weight stepper (- and + buttons) + input + previous hint below input
-- Check button: circle 36px, done = dark background `#2c2820`
-- Rest strip (fixed bottom): REST label + countdown (italic Georgia serif 28px) + duration buttons (30s/60s default/90s/2m) + Skip
-
-**Complete screen (screenComplete):**
-Icon: 🌿. Title: "Workout complete." Subtitle from JS.
-3 stat cards: exercises completed / post-workout priority / tomorrow.
-Workout feel buttons: Rest day / Felt strong / Felt average / Felt hard / Skipped
-Non-gym activities also show: duration (minutes input) + notes (textarea).
-"Save & back to dashboard" button.
-
-**Timer screen (screenTimer):** 3 modes:
-- Cardio (walk/run/cycle/swim): segmented phases with ring countdown. Time-based view OR lap-based view. "Skip to next segment" button.
-- HIIT: WORK/REST badge, large time display, exercise name, "Round X of Y", Pause + Skip buttons, "End session" link.
-- Checklist (yoga/pilates): progress bar + item list with checkboxes. "Done" button at bottom.
-
-**Weight database (`weightsByLevel`):** 3 levels (beginner/intermediate/advanced). Each exercise has `range` string and `science` citation. Based on Arvo 2026 / ExRx / Strengthlevel.com.
-
----
-
+**Progression:** `exercise_history` powers the player's "last time" hint and the progressive-overload
+nudge. Keep persisting the top working weight on gym finish.
 ### Nutrition.jsx — route /nutrition — Phase-aware nutrition screen
 
 **Top bar:** Back arrow (`ti ti-arrow-left`, navigates to `/dashboard`) + "NUTRITION" wordmark + phase chip (uppercase, amber background `#f5e6c8`, text `#6a4a10`).
@@ -419,7 +271,7 @@ Phase gradients: Menstrual `135deg, #3d2830, #2c1f25` / Follicular `135deg, #2c3
 - "Your cycle is a vital sign" (warm background `#f5f0e8`)
 - "Built on research about women" (white background)
 
-**5 path options — display order and database IDs do NOT match. Never change the IDs:**
+**Path options — display order and database IDs do NOT match. Never change the IDs.** Paths 1 to 5 are below; path 6 (pregnancy) is documented in the pregnancy rules above.
 
 | Display order | `user_path` in DB | Label | Icon |
 |---|---|---|---|
@@ -487,104 +339,24 @@ Icons: ti ti-home / ti ti-pencil / ti ti-barbell / ti ti-sun / ti ti-apps
 
 ### Calendar.jsx — route /calendar — Cycle calendar
 
-**Title:** "Em~power Cycle Calendar". Subtitle in top bar: "Day X of Y" (cycle users) / "Symptom burden calendar" (Path 4) / "Building baseline" (no data).
+Month grid with phase-tinted cells, a period banner, a phase legend, and bottom sheets for past and
+future days. Path 4 (`profile.user_path === '4'`) colours cells by symptom burden instead of phase.
 
-**Top bar:** Back arrow (`ti ti-chevron-left`, links to dashboard.html) + centered title div (title + sub label) + 28px spacer div for balance.
+**Phase colour constants (`PC` in Calendar.jsx) — exact values, never change:**
+- Menstrual: dot `#e09898` · Follicular: dot `#88c088` · Ovulatory: dot `#88c0e0`
+- Early luteal `#f2df85` (lightest) -> Mid luteal `#e6c447` -> Late luteal `#cf9e18` (deepest gold)
+- **(Emma, 2026-08-06):** luteal is a light-to-dark YELLOW gradient. NO salmon/brown. The old salmon
+  late-luteal read as menstrual red and made pre-period days look like the period had started. Only
+  real menstrual days are pink/red. Never reintroduce a reddish luteal shade.
 
-**Structure (top to bottom):**
-1. Top bar
-2. Period banner (hidden by default, shown when period is within 14 days)
-3. Month navigation: left chevron / "Month YYYY" title / right chevron
-4. Weekday labels row: Sun Mon Tue Wed Thu Fri Sat
-5. Calendar grid
-6. Phase legend
-7. Bottom nav (6 items)
-
-**Imports:** `getPhase`, `getLutealSubPhase`, `predictNextPeriod` from `./hormoneSync.js` and `PHASE_PREDICTIONS`, `BRAIN_STATE_STYLES` from `./algorithm_v3.js`.
-
-**Month navigation:** `background:#f5f0e8; border:1px solid #ede8e0; padding:7px 9px; border-radius:10px` buttons. Title: 18px, `letter-spacing:-0.01em`. Arrows: `ti ti-chevron-left` / `ti ti-chevron-right`.
-
-**Weekday labels:** 9px, `color:#b0a89a`, 7 columns.
-
-**Calendar grid:** White card, `border-radius:16px; box-shadow:0 2px 12px rgba(44,40,32,0.06); border:1px solid #ede8e0`. Cells transparent with phase tint applied as inline background rgba. `min-height:54px; padding:7px 2px 10px`.
-
-**Cell day number:** 28x28px circle. Today: `background:#2c2820; color:#f5f0e8; font-weight:700`.
-
-**Cell phase bar:** `position:absolute; bottom:5px; left:8px; right:8px; height:3px; border-radius:2px`. Future days: `.future` class = `opacity:0.4`.
-
-**Mood dot:** 5x5px circle, `position:absolute; top:7px; right:5px`. Logged days with mood: coloured from MC constant. Logged days with no mood: `background:#dcd8d0; border:1px solid #c8c0b8`.
-
-**CRITICAL — pi scope rule:** `pi` (phase info object) MUST be computed at the TOP of `if (cell.inMonth)`, BEFORE the `if (isPath4)` / `else` branch. Never move it inside the else block — the click handler closure is outside both branches and needs `pi` in scope:
-```javascript
-if (cell.inMonth) {
-    const pi = isPath4 ? null : phaseForDate(cell.date)  // always here
-    if (isPath4) { ... } else { ... }
-    el.addEventListener('click', () => { ... pi ... })  // pi is in scope
-}
-```
-
-**Phase colour constants (PC object) — exact values, never change:**
-- Menstrual: dot `#e09898`, bg `#f0d8d8`, text `#5a2a28`
-- Follicular: dot `#88c088`, bg `#d8f0d8`, text `#1a4a1a`
-- Ovulatory: dot `#88c0e0`, bg `#d0e8f8`, text `#1a3a5a`
-- Early luteal: dot `#f2df85` (lightest yellow), bg `rgba(242,223,133,0.20)`, text `#5a4a10`
-- Mid luteal: dot `#e6c447` (medium gold), bg `rgba(230,196,71,0.22)`, text `#5a3f08`
-- Late luteal: dot `#cf9e18` (deep gold), bg `rgba(207,158,24,0.24)`, text `#4a3200`
-- Luteal (generic): dot `#e6c447`, bg `rgba(230,196,71,0.22)`, text `#5a3f08`
-- **(Updated 2026-08-06 at Emma's request):** luteal is a light→dark YELLOW gradient (early lightest, late deepest gold) — NO salmon/brown. The old salmon late-luteal `#c88878` read as menstrual red and made pre-period days look like the period had started. Only real menstrual days are pink/red now. Legend "Luteal" swatch = `#e6c447`. Never reintroduce a reddish luteal shade.
-- Early follicular: dot `#88c088`, bg `#d8f0d8`, text `#1a4a1a`
-- Late follicular: dot `#68b068`, bg `#c8e8c8`, text `#1a4a1a`
-- observation: dot null, bg `#e8e5e0`, text `#4a4540`
-
-**Phase tints on cells:** Exact period = `rgba(200,88,88,0.13)`; Period window = `rgba(200,100,90,0.08)`; Pre-period = `rgba(220,160,150,0.06)`. Phase tint from PC dot hex with `0.06` opacity future / `0.10` opacity past.
-
-**Other month cells:** `opacity:0.28; pointer-events:none`.
-
-**Period banner:** Gradient `linear-gradient(135deg, #fce8e0, #fad8d0); border:1px solid #f0c0b0`. Shown when period is within 14 days. Icon `ti ti-droplet-filled` (color `#c05858`) + `.period-banner-body` div with text + italic confidence note. Hidden for Path 4.
-
-**Phase legend (below grid, 5 items):** 8px dots + label. Menstrual `#e09898` / Follicular `#88c088` / Ovulatory `#88c0e0` / Luteal `#d0a040` / Period window `#c85858`. Path 4 replaces legend with: Low burden `#b8e0b8` / Moderate `#e0c060` / High burden `#e09090` / Not logged `#d8d0c8`.
-
-**Path 4 mode (perimenopause):** `isPath4 = profileData?.user_path === '4'`. Cells coloured by symptom burden score instead of phase. Burden levels: none (score 0-3), moderate (4-6), high (7+). Score derived from: hot_flash_count, night_sweats_severity, joint_pain_rating, brain_fog_rating, energy, sleep_quality fields.
-
-**Bottom sheets:** Two overlays — `#pastSheet` (past/today cell tap) and `#futureSheet` (future cell tap). `#sheetOverlay` background with `onclick="closeSheet()"`. Both sheets have drag handle + scrollable content area.
-
-**Past day sheet sections (in order):**
-1. Date header: formatted date + phase pill (coloured from PC) + optional logged data
-2. Energy bar (if logged): colored fill bar + label
-3. Mood chips (if logged): coloured from MC constant
-4. Physical symptoms chips (if logged): grey pills
-5. Disruptors chips (if logged): amber pills
-6. Flow and pain (if logged): icon rows
-7. Biometrics: sleep, RHR, wrist temp, workout feel
-8. Mucus (if logged): discharge type
-9. LH test result (if logged): positive = amber tag, negative = grey tag
-10. Hormone values (if logged): 2-column grid with bar charts
-11. Phase guidance: collapsible `phase-why` text from PHASE_PREDICTIONS
-12. Log/edit button: links to `log.html`
-
-**Future day sheet sections (in order):**
-1. Date header + phase pill + days away note
-2. Period prediction card (if within prediction window): rose-tinted card with exact date, window, prep advice
-3. What to expect: `pred.why` text from PHASE_PREDICTIONS + quick chips (energy level / phase / intensity %)
-4. Your brain this day: brain state pill + sentence from BRAIN_SENTENCES
-5. Plan ahead: 3 suggestion rows with icons (from SUGGESTIONS object)
-6. Personal prediction: pattern note (updates after 2 cycles)
-7. Prediction confidence: progress bar + label
-8. Reminder button: downloads `.ics` calendar file via Blob
-
-**SUGGESTIONS object:** Per subPhase/phase — 3 items, each with `icon` (ti class) and `text`. Covers all phases including observation.
-
-**BRAIN_SENTENCES object:** Maps brain state strings to one explanatory sentence. States: Low serotonin / Rising serotonin / Peak dopamine / Neurochemical peak / GABA calm / Serotonin dropping / Serotonin crash / Low estrogen.
-
-**MC (mood colours) object:** Energised / Happy / Calm / Focused / Tired / Anxious / Irritable / Low. Each has bg / text / border hex values.
-
-**Bottom nav (6 items, Calendar active):** Home (`ti ti-home`, dashboard.html) / Workout (`ti ti-barbell`, workout.html) / Calendar (`ti ti-calendar`, calendar.html, active) / Log (`ti ti-pencil`, log.html) / Nutrition (`ti ti-salad`, nutrition.html) / Learn (`ti ti-book-2`, learn.html).
+**Fertile-window card** lives in the future-day sheet, gated on `hasPhaseData` (so hormonal-BC and
+Path 4 users never see it) and always carries the awareness-only disclaimer. See the FDA rule below.
 
 ---
 
 ### GENERAL CODE RULES — permanent
 
-**No dashes in HTML text:** Remove em dashes and en dashes from static HTML text content. Use "to" for ranges, commas for parenthetical breaks. Exception: dashes inside JavaScript strings in `<script>` blocks are fine.
+**No dashes in user-facing text:** Remove em dashes and en dashes from any copy a user reads (JSX text, labels, card content). Use "to" for ranges, commas for parenthetical breaks. Code comments and citation strings are exempt.
 
 **Clinical language is permanently banned from user-facing text — never revert these decisions:**
 
@@ -654,6 +426,65 @@ Always pass `--site 11d125ac-cd81-4060-8dc1-2b6b580265ed` explicitly. Production
 **Podcast sources:** Never reference any podcast (including Diary of a CEO) in user-visible text. All science claims must cite peer-reviewed sources by name.
 
 **Fertility window is AWARENESS-ONLY — never contraceptive guidance (PERMANENT, FDA line, added 2026-08-05):** The app may show fertility *information* (estimated fertile window, ovulation estimate, "days you are most likely to conceive") but must NEVER give contraceptive *instructions*. Absolutely no "safe/unsafe to have unprotected sex", no green/red "safe day" framing, no language a user could act on to prevent pregnancy. Telling a user it is safe to skip protection is a contraceptive claim that makes the app a Class II medical device requiring FDA 510(k) clearance (the bar Natural Cycles had to clear) — doing it without clearance is both a regulatory violation and a real unplanned-pregnancy harm risk (predictions are wrong; sperm survive ~5 days; irregular cycles). EVERY place the fertile window appears must carry the "this is an estimate for awareness, not birth control … use a proven contraceptive method and talk to your doctor" disclaimer. The fertile-window card lives in `Calendar.jsx` (future-day sheet), is gated on `hasPhaseData` (so hormonal-BC and Path 4 users never see it), and computes the window as ovulation (cycleLen−14) minus 5 days through +1. Never soften the disclaimer or add safe-day language, even if asked to make it "more useful".
+
+---
+
+## Retention system — PERMANENT RULES (added 2026-08-20)
+
+Ten weeks of real pilot data showed the app had no way to bring anyone back: 11 of 21 real users
+never logged a single day, only one user ever sustained use, and every dormant user who returned
+did so because Emma personally messaged them. These changes are the product-side answer. Do not
+quietly remove them.
+
+**`lib/notifications.js` — local notifications, the only return trigger the app has.**
+- LOCAL only (`@capacitor/local-notifications`). There is no push server and no device token, so
+  no cycle data ever leaves the phone in order to schedule a reminder. Never replace this with a
+  remote push service without a privacy review — cycle data is the most sensitive thing here.
+- Native only; every function no-ops on web so the PWA build is unaffected.
+- Fixed notification ids (`DAILY_REMINDER_ID`, `PHASE_IDS`) so re-scheduling REPLACES rather than
+  stacks. Phase alerts are cancelled and rebuilt on every dashboard load because `daysUntilPeriod`
+  moves as she logs. Never schedule phase alerts once at opt-in and leave them.
+- `buildPhaseNotifications` is pure and unit-tested (`lib/notifications.test.js`). Cycle-timed
+  alerts are gated on `cycleDay`/`cycleLen`/`daysUntilPeriod` all being non-null, which is exactly
+  how hormonal-BC, Path 4, and pregnancy users are excluded — they get no cycle notifications.
+- **The fertile-window notification is awareness-only and must stay that way.** It carries "this is
+  an estimate for awareness, not birth control" in the body text, and a test asserts no
+  safe-day/unprotected-sex wording appears in ANY notification. This is the same permanent FDA line
+  as the fertile-window card; a notification is if anything MORE actionable, so never soften it.
+
+**`components/ReminderSettings.jsx` — the opt-in surface.** Renders on native only. Appears both on
+the dashboard and as the final onboarding step. Once the OS permission is `denied` it stops asking;
+"Not now" on the dashboard card is remembered. Never make reminders default-on without an explicit
+permission grant.
+
+**Onboarding now ends with the two passive-value asks (`Setup.jsx`).** After the profile saves, a
+native user gets a final step offering the wearable connection (`HealthConnect`) and reminders
+before reaching the dashboard. Rationale: both were previously only reachable from the dashboard,
+so only already-engaged users ever found them, and the wearable is what keeps the app learning on
+days she does not open it. The web flow is unchanged and goes straight to the dashboard.
+
+**Never lead with a low personalisation percentage.** `nextPersonalisationMilestone` in
+`hormoneSync.js` is the required framing everywhere the personalisation number used to headline
+(Log save overlay, Checkin). Emma's own pilot feedback, frustration 4/5: "I been stuck in
+observation mode for the past week and my algorithm says it's only at 5%." A low number tells a new
+user the app does not understand her, on the exact screen meant to convince her to stay. Show the
+next unlock and what it costs instead; the percentage may remain as secondary text. Every milestone
+must map to a REAL gate in the code (3 meaningful logs -> symptom-based phase estimate; 1 cycle ->
+period prediction; 2 cycles -> personal baseline). Never invent a milestone the code does not honour.
+
+**Weekly review stays gated at `WEEKLY_MIN_LOGS` (4) — do not lower it.** Emma's rule, and correct:
+a hollow insight built from one log is worse than silence. Low-log users instead get
+`WeeklyNudgeCard`, which states only facts about their own data ("you logged 2 days this week, 2
+more and your weekly review unlocks"). That keeps the no-fabrication rule intact while still giving
+a disengaged user a reason to return. Never turn the nudge into a fabricated mini-review.
+
+**Manual clinical entry has zero uptake — do not put it back in the quick log.** Across all 184
+real logs: `lh_result` 0, `hormone_lh`/`hormone_progesterone`/`hormone_estradiol` 0, `wrist_temp` 0.
+The only non-null LH values were 19 "No test" opt-outs, i.e. pure friction with no data yield. LH
+strips and the hormone labs now live under "Optional details"; manual temperature shows inline ONLY
+when the wearable pre-filled it (then the job is correcting a value, not entering one). The columns
+and `interpretHormones` are untouched, so nothing became dead capture. The lesson generalises:
+passive wearable capture, not manual clinical entry, is how these signals get collected.
 
 ---
 
@@ -1158,16 +989,23 @@ hormoneSync.js exports inferPhaseFromSymptoms(recentLogs, mucusLogs).
 - Always use "may be" or "looks like" language for inferred phases, never "You are in"
 - Sources: Janse de Jonge 2003 Sports Medicine; Bigelow et al. 2004 Human Reproduction; De Martin Topranin 2023 IJSPP; Zhu et al. 2021 JMIR
 
-## Confidence labels — based on personal learning not population comparison
-- Under 30%: "Learning your baseline — using population averages for now"
-- 30 to 55%: "Your personal pattern is emerging — population averages fading out"
-- 55 to 75%: "Mostly your data now — your personal normal is becoming clear"
-- 75 to 90%: "Your personal baseline established — almost entirely based on you"
-- Above 90%: "Fully personalised — your recommendations are based on your cycle, not anyone else's"
+## Personalisation labels — single source of truth
+`personalisationProgress` in `hormoneSync.js` owns the label text ("Strong personal data coverage",
+"Your personal pattern is developing", "Early personal pattern", "Starting to learn your baseline",
+"Using research-informed general guidance"). Never hand-write a different set of labels in a screen.
+Never lead with the percentage — see the retention rules above and `nextPersonalisationMilestone`.
 
 ---
 
-## Content requirements — implement all of these
+## Content requirements — a BACKLOG, not a record of what is built
+
+**Read this header before treating anything below as a bug.** This is a wish list of content Emma
+wants, not documentation of the current app. Verified 2026-08-20: several items below have NEVER
+been built — the allostatic load indicator, the community pulse card, the Depo doctor-referral
+trigger at 12/18 months, and the dashboard research-gap banner do not exist anywhere in the code
+(the 1993 / research-gap content lives in Learn.jsx instead). Do not "restore" them thinking they
+regressed, and do not delete them thinking they are dead — they are unbuilt ideas awaiting a decision.
+
 
 ### ONBOARDING — Setup.jsx (/setup)
 
@@ -1239,8 +1077,10 @@ Source: Haver MC. Diary of a CEO October 2025. Verify funding statistic against 
 - Training implication
 - Nutrition implication
 - Mental health and brain health dimension:
-  - Menstrual: "Estrogen and progesterone are at their lowest. Mood, motivation, and brain clarity may all be affected. This is hormonal — not a reflection of your character."
-  - Follicular: "Rising estrogen supports mood, cognitive clarity, and motivation."
+  - Menstrual: "Estrogen and progesterone are generally low. Mood, motivation, and clarity may be affected. This is hormonal, not a reflection of your character."
+  - Follicular: "Rising estrogen may support mood, cognitive clarity, and motivation."
+  - NOTE: keep the hedged wording ("generally", "may"). The phase copy in `lib/phaseInfo.js` was
+    deliberately softened away from absolute claims; never reintroduce "is at its lowest" phrasing.
   - Ovulatory: "Peak estrogen and testosterone. Confidence, social drive, and cognitive performance all elevated. Biological, not coincidental."
   - Luteal: "Progesterone affects mood, sleep, and cognition. These are real hormonal effects — not weakness."
   - All: "These are population average hormone levels. Your personal levels may be higher or lower and still be completely normal for you."

@@ -4,6 +4,18 @@ Changes made autonomously from user feedback. Most recent first.
 
 ---
 
+## 2026-08-20 — Retention system: notifications, onboarding asks, honest milestones
+**Emma said:** "i want you to fix all of it but the log right now only takes me 10 seconds i think we should remove lh testing though for now because many people do not even know what that is so them doing it is very low what do you think"
+**What was done:**
+- **Local notifications built from scratch** (`lib/notifications.js`, `@capacitor/local-notifications`). The app previously had NO way to ask anyone to come back. Adds a daily check-in nudge at a time she picks, a heads-up two days before the estimated period, a prompt on the predicted day, and an awareness-only fertile-window alert. All local to the device, no push server, no cycle data transmitted. Phase alerts rebuild on every dashboard load so they track the newest prediction. Tapping one opens the screen that answers it.
+- **`ReminderSettings` opt-in card** on the dashboard, and **onboarding now ends with a final step** offering the wearable connection and reminders — both were previously buried where only already-engaged users found them.
+- **Stopped leading with the low personalisation percentage.** `nextPersonalisationMilestone` replaces "your data coverage is 5%" with the next real unlock ("3 more check-ins and Em~power can estimate your phase from your own symptoms"). Every milestone maps to an actual gate in the code.
+- **Weekly nudge for low-log users.** The full weekly review stays gated at 4 logs (no hollow insights); users below it now get a factual "you logged 2 days this week, 2 more unlocks your review" card instead of silence.
+- **LH removed from the quick log.** Data check across all 184 real logs: LH used 0 times, hormone labs 0, manual wrist temp 0 — the only LH values were 19 "No test" opt-outs. LH and the labs moved under "Optional details" (kept, not deleted, so `interpretHormones` still works); manual temperature now shows inline only when the wearable filled it.
+**Files changed:** lib/notifications.js (new), lib/notifications.test.js (new), components/ReminderSettings.jsx (new), components/WeeklySummary.jsx, lib/hormoneSync.js, pages/Log.jsx, pages/Dashboard.jsx, pages/Setup.jsx, pages/Checkin.jsx, App.jsx, package.json, CLAUDE.md
+
+---
+
 ## 2026-08-06 — Weekly review: first-open-of-week trigger + real data gate
 **Emma said:** trigger on first open of the week (not Sunday), make sure it's truly once-a-week (not daily), and only show it when there's enough logged data to be meaningful — skip it otherwise.
 **What was done:**
