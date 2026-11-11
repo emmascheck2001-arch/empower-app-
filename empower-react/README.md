@@ -9,8 +9,10 @@ A women's hormonal health app for period and symptom tracking, cautious cycle an
 | Layer | Technology |
 |---|---|
 | Frontend | React 19 + Vite (routes lazy-loaded, wrapped in an app-wide ErrorBoundary) |
+| Native shell | Capacitor 8 (iOS + Android) |
 | Backend / DB | Supabase (Postgres + Auth) |
 | Hosting | Netlify |
+| Device integrations | Apple Health / Health Connect, local notifications, Apple Watch companion sync |
 | Styling | Inline styles (no CSS framework) |
 | Icons | Tabler Icons webfont |
 
@@ -23,6 +25,7 @@ cd empower-react
 npm install
 npm run dev          # local dev server at localhost:5173
 npm run build        # production build to dist/
+npm run build:native # rebuild web bundle and sync Capacitor iOS/Android shells
 netlify deploy --dir dist --site 11d125ac-cd81-4060-8dc1-2b6b580265ed --prod
 ```
 
@@ -49,7 +52,7 @@ empower-react/
 └── index.html
 ```
 
-The root directory of the repo contains legacy HTML files and `www/` — these are not deployed and can be ignored entirely. Continuous integration (lint + tests + build + production `npm audit`) runs via `.github/workflows/ci.yml` at the repo root.
+The root directory of the repo contains legacy HTML files and `www/` — these are not deployed and can be ignored entirely. Continuous integration for this app lives at [`.github/workflows/ci.yml`](/Users/emmascheck/Developer/hormone%20app/empower-react/.github/workflows/ci.yml) and currently runs lint, tests, and the web build on push / PR.
 
 ---
 

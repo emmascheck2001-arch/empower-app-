@@ -18,6 +18,10 @@ export const FLAG_THRESHOLDS = {
   pattern_observation:       { minDaysLogged: 7, minConfidence: 0.20 },
   cycle_return_signal:       { minDaysLogged: 14, minSignalCount: 2 },
   health_pattern_flag:       { minCycles: 2, minConfidence: 0.55, minConsecutiveDaysMatching: 3 },
+  // Reserved thresholds: these gates are intentionally defined here but MUST NOT be wired to a
+  // live condition flag without an explicit product + regulatory decision first. Keeping the
+  // thresholds visible avoids "mystery numbers", while this comment makes it clear they are not
+  // clearance to ship condition classification by accident.
   pcos_pattern_flag:         { minCycles: 2, minConsecutiveLongCycles: 2, minConfidence: 0.60 },
   endometriosis_pain_flag:   { minCycles: 2, minHighPainDaysPerCycle: 2, minConfidence: 0.60 },
   pmdd_pattern_flag:         { minCycles: 3, minConfidence: 0.65, minConsecutiveDaysMatching: 3, requiresCyclicalContrast: true },
@@ -84,7 +88,7 @@ export const MOOD_PHASE_SIGNALS = {
     energy: ['High'],
     phaseSignal: 'Ovulatory',
     confidenceBonus: 0.09,
-    note: 'Peak estrogen and a brief testosterone rise together tend to drive the highest energy, confidence, and social drive of the cycle.'
+    note: 'Some people notice changes in energy, confidence, or sociability around this time, but these patterns vary widely and should be confirmed from personal logs.'
   },
   menstrual: {
     moods: ['Low', 'Tired', 'Anxious', 'Sad'],
@@ -140,23 +144,23 @@ export const PHASE_PREDICTIONS = {
     intensity: 0.95,
     why: 'Estrogen is beginning to rise and serotonin is rising with it. Dopamine, your motivation and reward neurotransmitter, is also starting to increase. The brain is coming back online after the hormonal low of menstruation. You may notice a gradual lift in mood and energy over the next several days. Source: Lokuge et al. 2011. Backstrom et al. 2008.',
     training: 'Energy returning. Good time to ease back into structured training. Strength work will feel more manageable over the coming days.',
-    nutrition: 'Rising estrogen improves carbohydrate utilisation. Fuel your returning energy with quality whole foods and adequate protein.'
+    nutrition: 'Use regular meals with carbohydrates and protein to support your planned activity, appetite, and recovery.'
   },
   'Late follicular': {
     label: 'Late follicular',
     brain_state: 'Peak dopamine',
     intensity: 1.05,
     why: 'Estrogen is near its peak and so are serotonin and dopamine. Dopamine drives motivation, focus, creativity, and reward-seeking. Norepinephrine, your alertness neurotransmitter, is also elevated. This is why late follicular feels mentally sharp, creative, and socially energised. The brain during this phase is measurably different to the brain during late luteal, same person, different neurochemistry. Source: Backstrom et al. 2008. Osborn et al. 2025.',
-    training: 'Peak training window. Your neuromuscular coordination, motivation, and pain tolerance are all elevated. Aim for your hardest sessions this week.',
-    nutrition: 'Your body is efficient at using carbohydrates now. Fuel hard sessions well and support muscle protein synthesis with adequate protein at every meal.'
+    training: 'Keep the session you planned if your warm-up and recovery feel good. Adjust load or volume when they do not.',
+    nutrition: 'Fuel harder sessions with enough carbohydrate and protein; the amount depends on training, appetite, and recovery rather than phase alone.'
   },
   Ovulatory: {
     label: 'Ovulatory',
     brain_state: 'Neurochemical peak',
     intensity: 1.05,
-    why: 'Peak estrogen means peak serotonin, dopamine, and norepinephrine all together. The brief testosterone surge adds to this. Every mood, motivation, and clarity brain chemical is at or near its highest point simultaneously. This is why ovulation often feels like the best version of yourself, in measurable brain chemistry terms, it genuinely is. Source: Backstrom et al. 2008. Lokuge et al. 2011.',
-    training: 'Your highest performance window. Warm up thoroughly, peak estrogen increases ligament laxity slightly. Attempt load increases on key lifts.',
-    nutrition: 'Peak energy demand. Fuel generously with whole foods, quality protein, and complex carbohydrates. Your body is primed to use nutrients effectively right now.'
+    why: 'Hormone levels change around ovulation, but mood, focus, and performance responses vary considerably. Treat any pattern as personal only after it repeats in your own logs.',
+    training: 'Use your warm-up, technique, and recent recovery to decide whether to maintain, progress, or reduce training today.',
+    nutrition: 'Choose regular meals with carbohydrate and protein that match your session, appetite, and recovery.'
   },
   'Early luteal': {
     label: 'Early luteal',
@@ -164,7 +168,7 @@ export const PHASE_PREDICTIONS = {
     intensity: 0.92,
     why: 'Progesterone is rising and converts in the brain into a calming compound that works on the same receptors as anti-anxiety medication. This is why early luteal often feels more settled and peaceful than the week before. It is progesterone directly affecting your brain chemistry. Source: Backstrom et al. Psychoneuroendocrinology 2014.',
     training: 'Slightly reduced intensity but still strong. Your body temperature is rising slightly, take a little longer to warm up and stay well hydrated.',
-    nutrition: 'Protein needs are rising as progesterone causes your body to break down muscle protein faster. Aim for the higher end of your protein range. Progesterone drives real hunger, fuel it with whole foods.'
+    nutrition: 'Keep protein and meals consistent. If hunger or training load is higher, adjust portions within the range shown in your profile.'
   },
   'Mid luteal': {
     label: 'Mid luteal',
@@ -172,7 +176,7 @@ export const PHASE_PREDICTIONS = {
     intensity: 0.82,
     why: 'Estrogen is declining and serotonin stability is reducing with it. Progesterone is at its peak which continues the GABA-calming effect, but dropping estrogen means less serotonin support. This creates a mixed neurochemical environment, some calming from progesterone, less mood stability from falling serotonin. The mildly unpredictable mood that characterises mid-luteal has this specific chemical cause. Source: Backstrom et al. 2008. Osborn et al. 2025.',
     training: 'Perceived effort may feel higher at the same load. This is physiological, resting heart rate rises about 1.7 bpm in this phase (De Martin Topranin 2023). Adjust expectations, not effort.',
-    nutrition: 'Energy intake naturally increases by 200 to 300 kcal in this phase (ISSN 2023). This is biological, not a failure of willpower. Honour it with nutrient-dense food.'
+    nutrition: 'Appetite can shift for many reasons. Plan satisfying meals and snacks, then respond to your hunger, training load, and symptoms without assuming a required calorie change.'
   },
   'Late luteal': {
     label: 'Late luteal',
@@ -188,7 +192,7 @@ export const PHASE_PREDICTIONS = {
     intensity: 0.82,
     why: 'Progesterone is rising and estrogen is beginning to decline. Progesterone has a calming effect while falling estrogen means less serotonin support. This creates the mixed feeling of the luteal phase, some calm, some mood unpredictability. Source: Backstrom et al. 2008.',
     training: 'Moderate intensity. Perceived effort may feel higher at the same load as resting heart rate rises slightly in this phase.',
-    nutrition: 'Protein needs are higher in the luteal phase because progesterone causes your body to break down muscle protein faster (ISSN 2023). Eat at the higher end of your protein range and add 200 to 300 extra calories from whole foods.'
+    nutrition: 'Use consistent meals and the protein range shown in your profile. Adjust portions for hunger, training, and recovery rather than adding a preset number of calories.'
   },
   Follicular: {
     label: 'Follicular',
@@ -196,7 +200,7 @@ export const PHASE_PREDICTIONS = {
     intensity: 1.00,
     why: 'Estrogen is rising and taking serotonin and dopamine with it. The brain is shifting into its high-performance window. Mood, motivation, and mental clarity all improve measurably as estrogen climbs. Source: Lokuge et al. 2011. Backstrom et al. 2008.',
     training: 'Good to strong training window. Energy returning. Build intensity gradually toward ovulation.',
-    nutrition: 'Rising estrogen improves carbohydrate metabolism and insulin sensitivity. Fuel well with quality carbohydrates and adequate protein.'
+    nutrition: 'Fuel planned activity with carbohydrate and protein, then adjust based on appetite, recovery, and personal response.'
   },
   observation: {
     label: 'Observation mode',
@@ -212,7 +216,7 @@ export const PHASE_PREDICTIONS = {
     intensity: 0.90,
     why: 'Combined hormonal contraception (pill, patch, or ring) delivers synthetic estrogen and progestin at steady levels throughout the month. Your natural cycle is suppressed, there is no LH surge, no ovulation, no natural progesterone rise. The result is a more consistent hormonal environment with no PMS, no luteal phase fatigue, and no cycle-driven dips. Research suggests training adaptation may be slightly different on OCs. Natural testosterone is reduced, which can affect strength progress, and the muscle-building boost from peak natural estrogen in the follicular phase is absent. This does not mean you cannot build strength, you can, and consistently. It just means the dramatic week-to-week variability that naturally cycling women experience does not apply to you in the same way. Source: Elliott-Sale KJ et al. Sports Medicine 2020. Wikstrom-Frisen L et al. JSCR 2017.',
     training: 'Your energy and recovery are more consistent than naturally cycling women. You can train at good intensity year-round without phase-based adjustments. Focus on progressive overload across weeks rather than cycle-based periodisation. Strength training remains the most important thing you can do for long-term hormonal health.',
-    nutrition: 'Consistent protein intake is the priority. No luteal phase protein increase is needed because there is no natural progesterone surge causing your body to break down muscle protein faster. A standard 1.6g per kg of body weight supports muscle maintenance and performance. Eating enough total calories matters more than timing.'
+    nutrition: 'Consistent protein and enough total food to support training and recovery are useful priorities. Use the range in your profile rather than a fixed target based on contraceptive type.'
   },
   'bc-progestin': {
     label: 'On progestin-only contraception',
@@ -220,7 +224,7 @@ export const PHASE_PREDICTIONS = {
     intensity: 0.85,
     why: 'Progestin-only methods (mini pill, implant, Depo-Provera, hormonal IUD) have minimal systemic estrogen. Natural estrogen and testosterone are suppressed to varying degrees. Some women on progestin-only methods still ovulate, particularly those on the hormonal IUD, and may notice residual cyclical patterns. If you do, trust those signals. Progestin without the counterbalancing effect of natural estrogen can affect mood in some women. This is well documented and not psychological. If you notice consistent low mood, fatigue, or reduced libido, it is worth discussing with your doctor. You deserve to feel well. Source: Skovlund CW et al. JAMA Psychiatry 2016.',
     training: 'Train at moderate to good intensity. Your energy may be somewhat flatter than a naturally cycling woman in her follicular phase. Pay attention to how you feel day to day and adjust accordingly. Resistance training is especially valuable for maintaining muscle mass and bone density when estrogen is low.',
-    nutrition: 'Protein 1.6 to 1.8g per kg bodyweight supports muscle and bone maintenance. Calcium and vitamin D are particularly important when estrogen is low, as estrogen plays a direct role in bone protection. Adequate iron intake matters if you are still having periods.'
+    nutrition: 'Use the protein range in your profile, include calcium and vitamin D sources, and consider iron-rich foods if you menstruate. Needs depend on your diet, activity, and health.'
   },
   Perimenopause: {
     label: 'Perimenopause',
@@ -228,7 +232,7 @@ export const PHASE_PREDICTIONS = {
     intensity: 0.82,
     why: 'Estrogen is no longer cycling predictably. Estrogen directly drives serotonin production and receptor sensitivity, when estrogen fluctuates unpredictably, so does the neurochemistry that depends on it. Hot flashes, sleep disruption, brain fog, and mood changes are neurological effects of estrogen variability, not just hormonal inconvenience. The days that feel harder have a measurable chemical cause. Source: Osborn et al. Frontiers in Pharmacology 2025. Backstrom et al. Archives of Women\'s Mental Health 2008.',
     training: 'Train to how you feel. Strength training 2 to 3 times per week is the single most protective thing you can do for bone density, muscle mass, and insulin sensitivity through this transition. Every resistance session stimulates bone formation. (Kohrt et al. MSSE 2004)',
-    nutrition: 'Protein 1.8g per kg per day supports muscle maintenance as anabolic signalling declines. Calcium and vitamin D every day for bone protection. Limit alcohol, it worsens hot flashes and disrupts sleep independently. Source: ISSN 2023; Kohrt et al. 2004.'
+    nutrition: 'Use the protein range in your profile, include calcium and vitamin D sources, and notice whether alcohol affects hot flashes or sleep. Needs vary with diet, activity, and health.'
   }
 }
 

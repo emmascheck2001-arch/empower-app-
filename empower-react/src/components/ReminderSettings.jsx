@@ -117,8 +117,8 @@ export default function ReminderSettings({ userId, status, variant = 'card' }) {
           </div>
           <div style={{ fontSize:13, color:'#7a7268', lineHeight:1.55 }}>
             {on
-              ? 'A daily check-in nudge, plus a heads-up when your period is estimated to be close.'
-              : 'One quiet daily nudge, and a heads-up two days before your period is estimated to start. You can turn this off any time.'}
+              ? 'One quiet daily check-in reminder at the time you chose.'
+              : 'One quiet daily check-in reminder. You can turn this off any time.'}
           </div>
 
           {on && (

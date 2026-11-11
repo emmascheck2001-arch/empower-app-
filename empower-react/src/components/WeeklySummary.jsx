@@ -1,133 +1,25 @@
 // Weekly summary modal + dashboard card, a review of ONLY what she logged in the past week.
 // Permanent rule: every line here must be derived from the user's own logged data, no
 // generic "many women notice" predictions, no prescribed experiments, nothing invented.
+import { weeklyLogProgress } from '../lib/weeklySummary'
 
-import { buildWeeklyHighlights } from '../lib/weeklyHighlights'
-import { buildWeeklyObservation } from '../lib/weeklyObservation'
-import { getPhase, isMeaningfulHealthLog } from '../lib/hormoneSync'
-import { getUserLocal, setUserLocal } from '../lib/userLocalState'
-import { diffCalendarDays, toDateStr } from '../lib/dateUtils.js'
-
-// Rolling weekly cadence, keyed to the last time the review actually appeared (not the calendar
-// week). Stored as YYYY-MM-DD so we can measure a true 7-day gap.
-const LAST_SHOWN_KEY = 'weekly-last-shown'
-const DISMISSED_KEY = 'weekly-last-dismissed'
-
-function scoreEnergy(e) {
-  return { 'Very low':1, 'Low':2, 'Normal':3, 'Good':3, 'High':4 }[e] ?? null
-}
-function scoreSleep(s) {
-  return { 'Poor':1, 'Fair':2, 'Good':3, 'Great':4, 'Excellent':4 }[s] ?? null
-}
-
-// Enough logged days in the past week to build a meaningful review. Below this, we skip the
-// weekly insight entirely rather than show a hollow one.
-export const WEEKLY_MIN_LOGS = 4
-
-// Show the weekly review on the FIRST APP OPEN once at least 7 days have passed since it last
-// appeared (or it has never appeared), and there is enough logged in the past week to make a real
-// recap. Triggered by opening the app (the dashboard loads on every open), NEVER by a login event,
-// which almost never fires once the app is installed on a phone.
-export function shouldShowWeeklySummary(logs, userId) {
-  const last = getUserLocal(userId, LAST_SHOWN_KEY)
-  if (last && diffCalendarDays(new Date(), last + 'T00:00:00') < 7) return false
-  const thisWeek = (logs || []).filter(l => {
-    const diff = diffCalendarDays(new Date(), l.log_date + 'T00:00:00')
-    return diff >= 0 && diff < 7 && isMeaningfulHealthLog(l)
-  })
-  return thisWeek.length >= WEEKLY_MIN_LOGS
-}
-
-export function markWeeklySummaryShown(userId) {
-  setUserLocal(userId, LAST_SHOWN_KEY, toDateStr())   // today; next review is 7+ days out
-}
-
-export function markWeeklySummaryDismissed(userId) {
-  // Dismissing also counts as shown, so it will not reappear until the next 7-day window.
-  setUserLocal(userId, DISMISSED_KEY, toDateStr())
-  setUserLocal(userId, LAST_SHOWN_KEY, toDateStr())
-}
-
-export function wasDismissedToday(userId) {
-  const d = getUserLocal(userId, DISMISSED_KEY)
-  return !!d && diffCalendarDays(new Date(), d + 'T00:00:00') === 0
-}
-
-export function buildWeeklySummary(logs, phase, subPhase, confidence, daysUntilPeriod, cycleDay, cycleLen) {
-  const now = new Date()
-  const thisWeek = logs.filter(l => {
-    const diff = diffCalendarDays(now, new Date(l.log_date + 'T00:00:00'))
-    return diff >= 0 && diff < 7 && isMeaningfulHealthLog(l)
-  })
-  const lastWeek = logs.filter(l => {
-    const diff = diffCalendarDays(now, new Date(l.log_date + 'T00:00:00'))
-    return diff >= 7 && diff < 14
-  })
-  // Factual recap lines built only from logged data (and last-week comparisons when data exists).
-  const highlights = buildWeeklyHighlights(thisWeek, lastWeek)
-
-  const daysLogged = thisWeek.length
-  const workouts = thisWeek.filter(l => l.workout_feel && l.workout_feel !== 'Rest day' && l.workout_feel !== 'Skipped').length
-
-  // Percentage stats
-  const energyDays = thisWeek.filter(l => scoreEnergy(l.energy) !== null)
-  const goodEnergyPct = energyDays.length
-    ? Math.round(energyDays.filter(l => scoreEnergy(l.energy) >= 3).length / energyDays.length * 100)
-    : null
-
-  const sleepDays = thisWeek.filter(l => scoreSleep(l.sleep_quality) !== null)
-  const goodSleepPct = sleepDays.length
-    ? Math.round(sleepDays.filter(l => scoreSleep(l.sleep_quality) >= 3).length / sleepDays.length * 100)
-    : null
-
-  const workoutRate = daysLogged > 0 ? Math.round(workouts / daysLogged * 100) : null
-
-  // Mood tally, count each mood across the week, return sorted top entries
-  const moodTally = {}
-  thisWeek.forEach(l => {
-    if (l.mood?.length) {
-      l.mood.forEach(m => { moodTally[m] = (moodTally[m] || 0) + 1 })
-    }
-  })
-  const topMoods = Object.entries(moodTally).sort((a,b) => b[1]-a[1]).slice(0,5)
-
-  // Sleep-energy correlation
-  const paired = thisWeek.filter(l => scoreSleep(l.sleep_quality) !== null && scoreEnergy(l.energy) !== null)
-  const goodSleepDays = paired.filter(l => scoreSleep(l.sleep_quality) >= 3)
-  const avgEnergyOnGoodSleep = goodSleepDays.length
-    ? goodSleepDays.reduce((a,l) => a + scoreEnergy(l.energy), 0) / goodSleepDays.length
-    : null
-  const sleepEnergyCorrelation = avgEnergyOnGoodSleep !== null && avgEnergyOnGoodSleep >= 3
-
-  const currentPhase = subPhase || phase || 'Observation'
-  const confPct = Math.round((confidence || 0) * 100)
-  const isLowerEnergyPhase = ['Menstrual','Late luteal','Mid luteal'].includes(currentPhase)
-
-  // ── Weekly Review extras ──────────────────────────────────────────────
-  const consistencyPct = Math.round(daysLogged / 7 * 100)
-  const dominant = (field) => {
-    const t = {}; thisWeek.forEach(l => { if (l[field]) t[l[field]] = (t[l[field]] || 0) + 1 })
-    return Object.entries(t).sort((a,b) => b[1]-a[1])[0]?.[0] || null
-  }
-  const sleepWord = dominant('sleep_quality')
-  const energyWord = dominant('energy')
-  const moodWord = topMoods[0]?.[0] || null
-  // The personalised "one observation", the star of the review.
-  const observation = buildWeeklyObservation({ thisWeek, lastWeek, cycleDayToday: cycleDay, cycleLen: cycleLen || 28, phaseAt: getPhase })
-  // Looking ahead: the phase she is moving into over the next few days (her own cycle, not a guess).
-  let nextPhaseLabel = null
-  if (cycleDay && cycleLen && !['Perimenopause','observation','bc'].includes(phase)) {
-    const futureCd = ((cycleDay + 5 - 1) % cycleLen) + 1
-    const np = getPhase(futureCd, cycleLen)
-    if (np && np !== phase) nextPhaseLabel = np
-  }
-
-  return {
-    daysLogged, workouts, currentPhase, confPct, daysUntilPeriod,
-    goodEnergyPct, goodSleepPct, workoutRate, topMoods, highlights,
-    isLowerEnergyPhase, sleepEnergyCorrelation, paired,
-    consistencyPct, sleepWord, energyWord, moodWord, observation, nextPhaseLabel,
-  }
+export function WeeklyNudgeCard({ logs, onLog }) {
+  const { count, needed } = weeklyLogProgress(logs)
+  return (
+    <div style={{ background:'#fff', border:'1px solid #ede8e0', borderRadius:14, padding:16, marginBottom:12 }}>
+      <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590', marginBottom:8 }}>This week</div>
+      <div style={{ fontSize:15, color:'#2c2820', lineHeight:1.55, marginBottom:6 }}>
+        You logged {count} day{count === 1 ? '' : 's'} this week.
+      </div>
+      <div style={{ fontSize:13, color:'#7a7268', lineHeight:1.55, marginBottom:12 }}>
+        {needed} more and your weekly review unlocks, built only from what you logged.
+      </div>
+      <button type="button" onClick={onLog}
+        style={{ width:'100%', padding:'12px', borderRadius:12, border:'none', background:'#2c2820', color:'#f5f0e8', fontSize:14, fontWeight:500, cursor:'pointer', fontFamily:'inherit' }}>
+        Log today
+      </button>
+    </div>
+  )
 }
 
 export function WeeklySummaryModal({ summary, onDismiss, name }) {
@@ -192,7 +84,8 @@ export function WeeklySummaryModal({ summary, onDismiss, name }) {
 
         {/* One observation, the star */}
         <div style={{ marginBottom:18 }}>
-          <div style={HDR}><span style={{ fontSize:15 }}>🔍</span>One observation</div>
+          <div style={HDR}><span style={{ fontSize:15 }}>🔍</span>This week's observation</div>
+          <div style={{ fontSize:12, color:'#7a7268', lineHeight:1.5, marginTop:-6, marginBottom:8 }}>This is a seven-day snapshot. Repeated patterns from your full history appear on Home.</div>
           <div style={{ background:'#f3ede1', border:'1px solid #e4d8c2', borderRadius:14, padding:'16px 18px' }}>
             <div style={{ fontSize:15, color:'#3a3020', lineHeight:1.6 }}>{observation}</div>
           </div>
@@ -202,7 +95,7 @@ export function WeeklySummaryModal({ summary, onDismiss, name }) {
         <div style={{ marginBottom:18 }}>
           <div style={HDR}><span style={{ fontSize:15 }}>🧠</span>Your data</div>
           <div style={{ fontSize:14, color:'#5a5048', lineHeight:1.6 }}>
-            {confPct >= 55 ? 'You now have enough data for detailed, personalised insights.' : 'Every check-in sharpens how personalised your recommendations become.'} Personalisation is at {confPct}%.
+            {confPct >= 65 ? 'Your daily observations are giving Em~power a strong base for personalised guidance.' : 'Every meaningful check-in makes your guidance more individual.'} Guidance personalisation is at {confPct}%. Cycle-date estimates use separate timing evidence from recorded period starts.
           </div>
         </div>
 

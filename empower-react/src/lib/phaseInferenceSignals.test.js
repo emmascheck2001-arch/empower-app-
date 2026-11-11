@@ -44,4 +44,20 @@ describe('phase inference supporting signals', () => {
     const result = inferPhaseFromSymptoms(logs, mucus)
     expect(result?.inferredPhase).toBeNull()
   })
+
+  it('uses learned follicular baselines when recent comparison days are sparse', () => {
+    const logs = [
+      { log_date:'2026-08-09', wrist_temp:36.8, resting_hr_exact:64 },
+      { log_date:'2026-08-08', wrist_temp:36.7, resting_hr_exact:63 },
+    ]
+    const mucus = [
+      { log_date:'2026-08-09', discharge_type:'None or dry' },
+    ]
+    const result = inferPhaseFromSymptoms(logs, mucus, {
+      tempFollicularBaseline: 36.4,
+      rhrFollicularBaseline: 59,
+    })
+    expect(result?.inferredPhase).toBe('Luteal')
+    expect(result?.signals).toContain('sustained temperature rise')
+  })
 })

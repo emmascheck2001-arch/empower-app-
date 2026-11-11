@@ -6,6 +6,8 @@ import { supabase } from './lib/supabase'
 import { track } from './lib/analytics'
 import { sessionFlags } from './lib/session'
 import { getTodayStatus } from './lib/hormoneSync'
+import { replayPendingWrites } from './lib/pendingWrites'
+import { loadProfileSettings } from './lib/userSettings'
 import { syncPlanToWatch } from './lib/watchBridge'
 import Spinner from './components/Spinner'
 import ErrorBoundary from './components/ErrorBoundary'
@@ -135,7 +137,9 @@ function NativeAuthLinkHandler() {
   return null
 }
 
-// Notification taps land directly on the useful screen, and their return rate is measurable.
+// Opens the right screen when a scheduled reminder is tapped. Each notification carries its own
+// destination in `extra.route` — the period-prediction alerts open the calendar, the daily nudge
+// opens the log — so the tap lands somewhere useful instead of a generic home screen.
 function NotificationTapHandler() {
   const navigate = useNavigate()
   useEffect(() => {
@@ -144,7 +148,7 @@ function NotificationTapHandler() {
       const route = notification?.extra?.route
       track('notification_opened', { route: route || 'unknown' })
       if (route) navigate(route)
-    }).then(h => { handle = h }).catch(() => { /* native-only plugin */ })
+    }).then(h => { handle = h }).catch(() => { /* web build has no plugin */ })
     return () => { handle?.remove?.() }
   }, [navigate])
   return null
@@ -178,6 +182,35 @@ function WatchResumeSync() {
   return null
 }
 
+function BackgroundDataSync() {
+  useEffect(() => {
+    let cancelled = false
+    async function syncOnce() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user || cancelled) return
+        await Promise.allSettled([
+          replayPendingWrites(supabase, user.id),
+          loadProfileSettings(supabase, user.id),
+        ])
+      } catch {
+        /* offline/auth transitions are non-fatal */
+      }
+    }
+    syncOnce()
+    const handleOnline = () => { syncOnce() }
+    window.addEventListener('online', handleOnline)
+    let appHandle
+    CapApp.addListener('appStateChange', ({ isActive }) => { if (isActive) syncOnce() }).then(h => { appHandle = h }).catch(() => {})
+    return () => {
+      cancelled = true
+      window.removeEventListener('online', handleOnline)
+      appHandle?.remove?.()
+    }
+  }, [])
+  return null
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -185,6 +218,7 @@ export default function App() {
       <NativeAuthLinkHandler />
       <NotificationTapHandler />
       <WatchResumeSync />
+      <BackgroundDataSync />
       <ErrorBoundary>
       <Suspense fallback={<div style={{ paddingTop: 60 }}><Spinner /></div>}>
       <Routes>

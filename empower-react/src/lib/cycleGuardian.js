@@ -11,7 +11,7 @@
 //  - It is pure and native-only in practice: with no wearable data it returns the status
 //    untouched, so the web app and non-connected users are completely unaffected.
 import { getOvulationDay, getLutealSubPhase } from './hormoneSync'
-import { getUserLocal } from './userLocalState'
+import { getUserSetting } from './userSettings'
 import { diffCalendarDays } from './dateUtils.js'
 
 const NATURAL_PHASES = ['Menstrual', 'Follicular', 'Ovulatory', 'Luteal', 'observation', null, undefined]
@@ -87,8 +87,8 @@ export function applyWearableOvulation(status, signals, lastPeriodDate) {
 // wearable) there is no stored signal, so this returns the status completely untouched.
 export function applyWearableOvulationFromStorage(status, lastPeriodDate, userId) {
   try {
-    const raw = getUserLocal(userId, 'wearableSignals')
-    if (!raw) return status
-    return applyWearableOvulation(status, JSON.parse(raw), lastPeriodDate)
+    const signals = getUserSetting(userId, 'wearableSignals')
+    if (!signals) return status
+    return applyWearableOvulation(status, signals, lastPeriodDate)
   } catch { return status }
 }

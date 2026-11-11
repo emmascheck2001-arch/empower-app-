@@ -1,5 +1,5 @@
 // route /dashboard, main home screen: phase hero card, anomaly alerts, streak, phase info sheet
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useEffectEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getTodayStatus, getPregnancyWeek, getTrimester, HealthDataError, parsePeriodStarts, getHormonalContext } from '../lib/hormoneSync'
@@ -9,19 +9,20 @@ import { syncPlanToWatch } from '../lib/watchBridge'
 import BottomNav from '../components/BottomNav'
 import Spinner from '../components/Spinner'
 import InstallPrompt from '../components/InstallPrompt'
-import { WeeklySummaryModal, markWeeklySummaryDismissed, markWeeklySummaryShown, shouldShowWeeklySummary, buildWeeklySummary } from '../components/WeeklySummary'
+import { WeeklySummaryModal, WeeklyNudgeCard } from '../components/WeeklySummary'
 import Confetti from '../components/Confetti'
 import HealthConnect from '../components/HealthConnect'
 import ReminderSettings from '../components/ReminderSettings'
-import Disclaimer from '../components/Disclaimer'
 import { refreshNotifications } from '../lib/notifications'
-import { isNative, readWearableData, connectHealth, healthStoreName } from '../lib/healthkit'
+import Disclaimer from '../components/Disclaimer'
+import { isNative, readWearableData, connectHealth, healthStoreName, getFreshWearableSnapshot } from '../lib/healthkit'
 import { wearableCycleSignals } from '../lib/wearableCycle'
 import { getUserLocal, removeUserLocal, setUserLocal } from '../lib/userLocalState'
-import { cacheProfileSettings } from '../lib/userSettings'
+import { getUserSetting, saveUserSettings } from '../lib/userSettings'
 import { signOutAndClear } from '../lib/accountSession'
 import { diffCalendarDays } from '../lib/dateUtils'
 import { notificationPrefs } from '../lib/reminderSettings'
+import { buildWeeklySummary, markWeeklyNudgeShown, markWeeklySummaryDismissed, markWeeklySummaryShown, shouldShowWeeklyNudge, shouldShowWeeklySummary } from '../lib/weeklySummary'
 import { track } from '../lib/analytics'
 
 const HERO_GRADIENT = {
@@ -74,9 +75,10 @@ const PHASE_DESC_BASE = {
   bc:             'Hormonal contraception changes natural-cycle tracking, and the effect depends on the method. Empower tracks your method, bleeding and symptoms without assigning a natural-cycle phase unless that is appropriate.',
 }
 
-function getPersonalisedPhaseDesc(phase, subPhase, recentLogs) {
+function getPersonalisedPhaseDesc(phase, subPhase, recentLogs, featuredPattern = null) {
   const key = subPhase || phase
   const base = PHASE_DESC_BASE[key] || PHASE_DESC_BASE[phase] || PHASE_DESC_BASE.observation
+  const withPattern = (text) => featuredPattern?.appliesNow ? `${text} ${featuredPattern.short}` : text
   if (!recentLogs?.length) return base
   const today = recentLogs[0]
   const recent = recentLogs.slice(0, 5)
@@ -91,18 +93,18 @@ function getPersonalisedPhaseDesc(phase, subPhase, recentLogs) {
   const hasNegMood = allMoods.some(m => ['Anxious','Irritable','Low','Sad'].includes(m))
 
   if (today?.energy === 'Very low')
-    return `${base} You logged very low energy today. Let today’s symptoms and recovery guide your choices, and keep logging if it continues.`
+    return withPattern(`${base} You logged very low energy today. Let today’s symptoms and recovery guide your choices, and keep logging if it continues.`)
   if (hasCramps && phase === 'Menstrual')
-    return `${base} You logged cramps. Heat, gentle movement if comfortable, and your usual pain-relief plan may help. Seek care for severe or disruptive pain.`
+    return withPattern(`${base} You logged cramps. Heat, gentle movement if comfortable, and your usual pain-relief plan may help. Seek care for severe or disruptive pain.`)
   if (poorSleepCount >= 3)
-    return `${base} You have logged poor sleep ${poorSleepCount} times recently. Try a steady wind-down and a comfortably cool, dark room; persistent sleep problems deserve attention regardless of cycle timing.`
+    return withPattern(`${base} You have logged poor sleep ${poorSleepCount} times recently. Try a steady wind-down and a comfortably cool, dark room; persistent sleep problems deserve attention regardless of cycle timing.`)
   if (lowEnergyCount >= 3)
-    return `${base} Your recent logs show consistently low energy. Keep tracking the timing, but consider sleep, stress, illness, medicines, nutrition and other causes too.`
+    return withPattern(`${base} Your recent logs show consistently low energy. Keep tracking the timing, but consider sleep, stress, illness, medicines, nutrition and other causes too.`)
   if (hasHighEnergy && ['Follicular','Ovulatory'].includes(phase))
-    return `${base} You logged high energy. If your warm-up agrees, you can continue with the session you planned.`
+    return withPattern(`${base} You logged high energy. If your warm-up agrees, you can continue with the session you planned.`)
   if (hasNegMood && ['Late luteal','Mid luteal','Luteal'].includes(key))
-    return `${base} You logged anxious or low mood. Cycle timing may be one contributor, alongside sleep, stress, health and life events. Keep logging the timing; seek support if it is severe or persistent.`
-  return base
+    return withPattern(`${base} You logged anxious or low mood. Cycle timing may be one contributor, alongside sleep, stress, health and life events. Keep logging the timing; seek support if it is severe or persistent.`)
+  return withPattern(base)
 }
 
 function localDateStr() {
@@ -110,8 +112,18 @@ function localDateStr() {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
 }
 
+function fmtHealthDate(dateStr) {
+  if (!dateStr) return ''
+  return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' })
+}
+
 export default function Dashboard() {
   const navigate = useNavigate()
+  const [todayAnchor] = useState(() => {
+    const today = new Date()
+    today.setHours(0,0,0,0)
+    return today
+  })
   const [loading, setLoading] = useState(true)
   const [d, setD] = useState(null)
   const [weeklyModal, setWeeklyModal] = useState(false)
@@ -121,16 +133,13 @@ export default function Dashboard() {
   const [lateOpen, setLateOpen] = useState(false)
   const [pendingFriends, setPendingFriends] = useState(0)
   const [wear, setWear] = useState(null)
+  const [showWeeklyNudge, setShowWeeklyNudge] = useState(false)
   const [healthConnected, setHealthConnected] = useState(false)
   const [resyncing, setResyncing] = useState(false)
   const [hideHealthMissingHint, setHideHealthMissingHint] = useState(false)
+  const [reloadKey, setReloadKey] = useState(0)
 
-  useEffect(() => { load() }, [])
-  useEffect(() => {
-    if (!d?.userId) return
-    setHideHealthMissingHint(getUserLocal(d.userId, 'hideHealthMissingHint') === '1')
-  }, [d?.userId])
-
+  // Keep the optional daily logging reminder alive. No-ops on web and when reminders are off.
   useEffect(() => {
     if (!d?.userId) return
     refreshNotifications(notificationPrefs(d.userId), d.status)
@@ -146,7 +155,10 @@ export default function Dashboard() {
     if (ok) {
       const data = await readWearableData()
       if (data?.hasAnyData) {
-        setUserLocal(d.userId, 'healthConnected', '1')
+        await saveUserSettings(supabase, d.userId, {
+          healthConnected: true,
+          wearableSignals: wearableCycleSignals(data),
+        })
         window.location.reload()
         return
       }
@@ -156,8 +168,7 @@ export default function Dashboard() {
 
   function disconnectHealth() {
     if (!d?.userId) return
-    removeUserLocal(d.userId, 'healthConnected')
-    removeUserLocal(d.userId, 'wearableSignals')
+    saveUserSettings(supabase, d.userId, { healthConnected: false, wearableSignals: null })
     removeUserLocal(d.userId, 'hideHealthMissingHint')
     setHealthConnected(false)
     setHideHealthMissingHint(false)
@@ -175,15 +186,19 @@ export default function Dashboard() {
     if (!isNative()) return
     let cancelled = false
     supabase.auth.getUser().then(async ({ data: { user } }) => {
-      if (!user || !getUserLocal(user.id, 'healthConnected') || cancelled) return
+      if (!user || !getUserSetting(user.id, 'healthConnected') || cancelled) return
       setHealthConnected(true)
       const data = await readWearableData()
       if (!data) return
-      setUserLocal(user.id, 'wearableSignals', JSON.stringify(wearableCycleSignals(data)))
-      const rhr = data.restingHR?.[0] != null ? Math.round(data.restingHR[0]) : null
-      const tempC = data.temps?.length ? Math.round(data.temps[data.temps.length - 1].value * 10) / 10 : null
-      const sleepH = data.sleepHours != null ? Math.round(data.sleepHours * 10) / 10 : null
-      setWear({ rhr, hrv: data.hrv?.[0] != null ? Math.round(data.hrv[0]) : null, tempC, sleepHours: sleepH, tempDays: data.temps?.length || 0, hasAny: data.hasAnyData })
+      await saveUserSettings(supabase, user.id, { wearableSignals: wearableCycleSignals(data) })
+      const snapshot = getFreshWearableSnapshot(data)
+      const { rhr, tempC, sleepHours } = snapshot
+      setWear({
+        ...snapshot,
+        hrv: data.hrv?.[0] != null ? Math.round(data.hrv[0]) : null,
+        tempDays: data.temps?.length || 0,
+        hasAny: data.hasAnyData,
+      })
 
       // Auto-sync today's wearable readings into the daily log, so the algorithm uses them and she
       // never re-enters what the wearable already knows. Only writes fields that actually have
@@ -204,7 +219,7 @@ export default function Dashboard() {
           payload.wrist_temp = tempC
           payload.temperature_source = 'wearable-wrist'
         }
-        if (existing?.sleep_hours == null && sleepH != null && sleepH >= 0 && sleepH <= 24) payload.sleep_hours = sleepH
+        if (existing?.sleep_hours == null && sleepHours != null && sleepHours >= 0 && sleepHours <= 24) payload.sleep_hours = sleepHours
         if (Object.keys(payload).length > 3) {
           await supabase.from('daily_logs').upsert(payload, { onConflict: 'user_id,log_date' })
         }
@@ -213,10 +228,12 @@ export default function Dashboard() {
     return () => { cancelled = true }
   }, [])
 
-  async function load() {
+  const load = useEffectEvent(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { navigate('/login', { replace: true }); return }
+      setHideHealthMissingHint(getUserLocal(user.id, 'hideHealthMissingHint') === '1')
+      setShowWeeklyNudge(false)
 
       const cutoffDate = (daysAgo) => {
         const date = new Date(); date.setHours(0,0,0,0); date.setDate(date.getDate() - daysAgo)
@@ -237,7 +254,6 @@ export default function Dashboard() {
       // broken dashboard.
       if (!profile || !profile.onboarding_complete) { navigate('/setup', { replace: true }); return }
 
-      cacheProfileSettings(user.id, profile)
       const bw = profile?.body_weight_kg || null
       const isPath4 = profile?.user_path === '4'
       // Hormonal BC (path 5, excluding the non-hormonal copper IUD) suppresses the
@@ -353,6 +369,10 @@ export default function Dashboard() {
             setTimeout(() => { setShowConfetti(true); setWeeklyModal(true) }, 400)
           }
         }
+        if (shouldShowWeeklyNudge(twoWeekLogs, user.id)) {
+          setShowWeeklyNudge(true)
+          markWeeklyNudgeShown(user.id)
+        }
       }
 
       // Daily Coach, pure synthesis of the status we already have (no new data). First name only.
@@ -361,14 +381,19 @@ export default function Dashboard() {
       setD({ userId:user.id, profile, phase, subPhase, cycleDay, cycleLen, daysLeft, confidence, bw, proteinRangeG: status?.nutritionTargets?.proteinRangeG || null, bcBleedDay, bcInBleedWindow, alreadyLogged, todayLog, streak, recentLogs, twoWeekLogs, anomalyItems, isPath4, estimated, latePeriod: status?.latePeriod || false, daysLate: status?.daysLate || 0, latePeriodInsights: status?.latePeriodInsights || [], nextPeriod: status?.nextPeriodPrediction || null, userEmail: user.email, coach, status })
     } catch(e) { console.error(e) }
     finally { setLoading(false) }
-  }
+  })
+
+  useEffect(() => {
+    const timerId = window.setTimeout(() => { load() }, 0)
+    return () => window.clearTimeout(timerId)
+  }, [reloadKey])
 
   if (loading) return <><div style={{ paddingTop: 60 }}><Spinner /></div><BottomNav /></>
   if (!d) return (
     <>
       <div style={{ padding:'80px 24px', textAlign:'center', color:'#7a7268' }}>
         <div style={{ fontSize:14, marginBottom:16, lineHeight:1.6 }}>We could not load your dashboard. Check your connection and try again.</div>
-        <button onClick={() => { setLoading(true); load() }} style={{ background:'#2c2820', color:'#f5f0e8', border:'none', borderRadius:12, padding:'12px 24px', fontSize:14, fontWeight:500, cursor:'pointer', fontFamily:'inherit' }}>Try again</button>
+        <button onClick={() => { setLoading(true); setReloadKey(k => k + 1) }} style={{ background:'#2c2820', color:'#f5f0e8', border:'none', borderRadius:12, padding:'12px 24px', fontSize:14, fontWeight:500, cursor:'pointer', fontFamily:'inherit' }}>Try again</button>
       </div>
       <BottomNav />
     </>
@@ -486,8 +511,10 @@ export default function Dashboard() {
         {/* Apple Health / wearable connect — native iOS only, renders nothing on web. */}
         <HealthConnect userId={d.userId} />
 
-        {/* The reactivation loop: one optional daily nudge, entirely local to the person's phone. */}
-        <ReminderSettings userId={d.userId} status={d.status} />
+        {showWeeklyNudge && <WeeklyNudgeCard logs={d.twoWeekLogs} onLog={() => navigate('/log')} />}
+
+        {/* Once a reminder is set, it belongs in settings—not as a permanent Home card. */}
+        {!notificationPrefs(d.userId).enabled && <ReminderSettings userId={d.userId} status={d.status} />}
 
         {/* Retention: prompt install (home-screen apps return far better than browser tabs). */}
         <InstallPrompt />
@@ -500,7 +527,7 @@ export default function Dashboard() {
             <i className="ti ti-seeding" style={{ fontSize:24, color:'#bfe3b0', flexShrink:0 }} />
             <div style={{ flex:1 }}>
               <div style={{ fontSize:15, fontWeight:700, marginBottom:2 }}>Start with a 30-second check-in</div>
-              <div style={{ fontSize:12.5, color:'rgba(238,245,234,0.85)', lineHeight:1.5 }}>Your personalised insights begin the moment you log your first day. It only takes a minute.</div>
+              <div style={{ fontSize:12.5, color:'rgba(238,245,234,0.85)', lineHeight:1.5 }}>{d.status?.nextMilestone?.text || 'Your personalised insights begin the moment you log your first day. It only takes a minute.'}</div>
             </div>
             <i className="ti ti-chevron-right" style={{ fontSize:18, color:'rgba(238,245,234,0.8)', flexShrink:0 }} />
           </div>
@@ -514,22 +541,73 @@ export default function Dashboard() {
           const move = MOVE_PLAN[eff] || MOVE_PLAN[phase] || { t:'Move to feel', s:'Listen in' }
           const mind = MINDSET_PLAN[eff] || MINDSET_PLAN[phase] || { t:'Tune in', s:'Notice and log' }
           const tl = d.todayLog || {}
+          const staleHealthData = healthConnected && wear?.latestDate && !wear?.hasFreshData
+          const missingHealthSignals = [
+            wear?.tempC == null && 'temperature',
+            wear?.sleepHours == null && 'sleep',
+            wear?.rhr == null && 'heart rate',
+          ].filter(Boolean)
+          const showHealthHint = healthConnected && !hideHealthMissingHint && (staleHealthData || missingHealthSignals.length > 0)
+          const healthFooter = !healthConnected
+            ? null
+            : wear?.hasFreshData
+              ? `Updated ${fmtHealthDate(wear.freshestDate)} from ${healthStoreName()}`
+              : wear?.latestDate
+                ? `No new ${healthStoreName()} data since ${fmtHealthDate(wear.latestDate)}`
+                : `Connected to ${healthStoreName()}`
           const cycleText = phase === 'bc'
             ? (bcBleedDay ? (bcInBleedWindow ? `Day ${bcBleedDay} of your pill cycle · bleed likely now` : `Day ${bcBleedDay} · next bleed in about ${daysLeft} days`) : 'Steady hormones, tracking symptoms')
             : cycleDay ? `Day ${cycleDay} of ${cycleLen}` : estimated ? 'Estimated from your symptoms' : 'Tracking your patterns'
           const np = d.nextPeriod
           const showNextPeriod = np && phase !== 'bc' && !latePeriod && phase !== 'Menstrual'
           const stripT = dt => { const x = new Date(dt); x.setHours(0,0,0,0); return x }
-          const daysToNext = np ? Math.max(0, diffCalendarDays(stripT(np.predictedDate), stripT(new Date()))) : daysLeft
+          const daysToNext = np ? Math.max(0, diffCalendarDays(stripT(np.predictedDate), todayAnchor)) : daysLeft
           const currentPeriodLength = d.status?.periodLength || null
           const periodDaysRemaining = phase === 'Menstrual' && cycleDay && currentPeriodLength
             ? Math.max(0, currentPeriodLength - cycleDay)
             : null
           const currentPeriodEnd = periodDaysRemaining != null
-            ? new Date(Date.now() + periodDaysRemaining * 86400000)
+            ? new Date(todayAnchor.getTime() + periodDaysRemaining * 86400000)
             : null
           const fmtLong = dt => new Date(dt).toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' })
           const fmtShort = dt => new Date(dt).toLocaleDateString('en-US', { month:'short', day:'numeric' })
+          const patternRank = pattern => pattern.kind === 'cyclical' ? 0 : pattern.kind === 'emerging' ? 1 : 2
+          const patternInsights = [
+            ...(d.status?.personalPatterns?.insights || []).map(pattern => ({
+              id:pattern.id,
+              icon:'ti-sparkles',
+              label:'Your pattern',
+              title:pattern.headline,
+              body:pattern.body,
+            })),
+            ...[...(d.status?.symptomPatterns?.patterns || [])].sort((a, b) => patternRank(a) - patternRank(b) || b.occurrences - a.occurrences).map(pattern => ({
+              id:`symptom-${pattern.symptom}`,
+              icon:'ti-activity-heartbeat',
+              label:'Symptom',
+              title:pattern.kind === 'cyclical'
+                ? `${pattern.symptom} tends to show up ${pattern.windowPhrase}`
+                : pattern.kind === 'emerging'
+                  ? `${pattern.symptom} shows an early trend ${pattern.windowPhrase}`
+                  : `${pattern.symptom} timing is mixed`,
+              body:pattern.kind === 'unrelated'
+                ? `Logged ${pattern.occurrences} times across ${pattern.cyclesSpanned} cycles, without one dominant cycle window.`
+                : `Logged ${pattern.occurrences} times across ${pattern.cyclesSpanned} cycles; ${pattern.dominantPct}% fell ${pattern.windowPhrase}. ${pattern.kind === 'cyclical' ? 'This is a pattern in your own data, not a diagnosis.' : 'An early trend, not a diagnosis.'}`,
+            })),
+            ...[...(d.status?.moodPatterns?.patterns || [])].sort((a, b) => patternRank(a) - patternRank(b) || b.occurrences - a.occurrences).map(pattern => ({
+              id:`mood-${pattern.mood}`,
+              icon:'ti-mood-heart',
+              label:'Mood',
+              title:pattern.kind === 'cyclical'
+                ? `${pattern.mood} tends to show up ${pattern.windowPhrase}`
+                : pattern.kind === 'emerging'
+                  ? `${pattern.mood} shows an early trend ${pattern.windowPhrase}`
+                  : `${pattern.mood} timing is mixed`,
+              body:pattern.kind === 'unrelated'
+                ? `Logged ${pattern.occurrences} times across ${pattern.cyclesSpanned} cycles, without one dominant cycle window.`
+                : `Logged ${pattern.occurrences} times across ${pattern.cyclesSpanned} cycles; ${pattern.dominantPct}% fell ${pattern.windowPhrase}. ${pattern.kind === 'cyclical' ? 'This is a pattern in your own data, not a diagnosis.' : 'An early trend, not a diagnosis.'}`,
+            })),
+          ].slice(0, 4)
+          const featuredPattern = patternInsights[0] || null
           return (
           <>
             {/* Today's Focus */}
@@ -549,10 +627,10 @@ export default function Dashboard() {
                   { icon:'ti-heartbeat', label:'Heart rate', val: wear?.rhr != null ? `${wear.rhr} bpm` : '—' },
                   { icon:'ti-calendar-heart', label:'Cycle', val: cycleDay ? `Day ${cycleDay}` : '—' },
                 ] : [
-                  { icon:'ti-bolt', label:'Energy', val: tl.energy || ', ' },
-                  { icon:'ti-zzz', label:'Sleep', val: tl.sleep_quality || ', ' },
-                  { icon:'ti-mood-smile', label:'Mood', val: (tl.mood && tl.mood[0]) || ', ' },
-                  { icon:'ti-calendar-heart', label:'Cycle', val: cycleDay ? `Day ${cycleDay}` : ', ' },
+                  { icon:'ti-bolt', label:'Energy', val: tl.energy || '—' },
+                  { icon:'ti-zzz', label:'Sleep', val: tl.sleep_quality || '—' },
+                  { icon:'ti-mood-smile', label:'Mood', val: (tl.mood && tl.mood[0]) || '—' },
+                  { icon:'ti-calendar-heart', label:'Cycle', val: cycleDay ? `Day ${cycleDay}` : '—' },
                 ]).map((m,i) => (
                   <div key={i} style={{ textAlign:'center' }}>
                     <i className={`ti ${m.icon}`} style={{ fontSize:19, color:'#a89878' }} />
@@ -563,16 +641,23 @@ export default function Dashboard() {
               </div>
               {healthConnected && (
                 <div style={{ fontSize:10.5, fontWeight:600, letterSpacing:'0.04em', textTransform:'uppercase', color:'#b0a488', marginTop:10, textAlign:'center' }}>
-                  <i className="ti ti-heartbeat" style={{ fontSize:12, marginRight:4, verticalAlign:'-1px' }} />Live from {healthStoreName()}
+                  <i className="ti ti-heartbeat" style={{ fontSize:12, marginRight:4, verticalAlign:'-1px' }} />{healthFooter}
                 </div>
               )}
-              {healthConnected && !hideHealthMissingHint && (wear?.tempC == null || wear?.sleepHours == null) && (() => {
-                const missing = [wear?.tempC == null && 'temperature', wear?.sleepHours == null && 'sleep'].filter(Boolean).join(' and ')
+              {showHealthHint && (() => {
+                if (staleHealthData) {
+                  return (
+                    <div style={{ fontSize:12, color:'#8a6a3a', background:'#fbf3e6', border:'1px solid #ece0c8', borderRadius:10, padding:'9px 12px', lineHeight:1.5, marginTop:10 }}>
+                      Your last {healthStoreName()} update was {fmtHealthDate(wear.latestDate)}. These tiles only show recent readings, so wear your watch again and reopen the app when fresh data is available.
+                    </div>
+                  )
+                }
+                const missing = missingHealthSignals.join(' and ')
                 return (
                   <div style={{ fontSize:12, color:'#8a6a3a', background:'#fbf3e6', border:'1px solid #ece0c8', borderRadius:10, padding:'9px 12px', lineHeight:1.5, marginTop:10, position:'relative' }}>
                     <button onClick={dismissHealthMissingHint} aria-label="Dismiss health reminder" style={{ position:'absolute', top:8, right:8, width:24, height:24, border:'none', background:'transparent', color:'#9a8a6a', cursor:'pointer', fontSize:18, lineHeight:1, fontFamily:'inherit' }}>×</button>
                     <div style={{ paddingRight:24 }}>
-                      No {missing} from {healthStoreName()} yet. Open {healthStoreName()} → Sharing → Apps → Em~power and switch on {missing}, and wear your watch to bed so it can record overnight {missing}.
+                      No recent {missing} from {healthStoreName()} yet. Open {healthStoreName()} → Sharing → Apps → Em~power and switch on {missing}, then wear your watch again and reopen the app once it has recorded new data.
                     </div>
                     <button onClick={resyncHealth} disabled={resyncing} style={{ display:'block', width:'100%', marginTop:8, padding:'8px', borderRadius:9, background:'#2c2820', color:'#f5f0e8', border:'none', fontSize:12.5, fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>
                       {resyncing ? 'Syncing…' : `Re-sync ${healthStoreName()} permissions`}
@@ -595,7 +680,7 @@ export default function Dashboard() {
                   <div style={{ fontSize:11, fontWeight:700, letterSpacing:'0.12em', textTransform:'uppercase', color:'rgba(232,224,212,0.6)', marginBottom:6 }}>{estimated ? 'Estimated cycle' : phase === 'bc' ? 'Your pill cycle' : 'Your cycle'}</div>
                   <div style={{ fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:23, marginBottom:4 }}>{estimated ? `Looks like ${phaseLabel}` : phaseLabel}</div>
                   <div style={{ fontSize:13, color:'rgba(232,224,212,0.72)', marginBottom:10 }}>{cycleText}</div>
-                  <div style={{ fontSize:13, color:'rgba(232,224,212,0.82)', lineHeight:1.6 }}>{getPersonalisedPhaseDesc(phase, subPhase, recentLogs)}</div>
+                  <div style={{ fontSize:13, color:'rgba(232,224,212,0.82)', lineHeight:1.6 }}>{getPersonalisedPhaseDesc(phase, subPhase, recentLogs, d.status?.personalPatterns?.featured)}</div>
                 </div>
                 {showNextPeriod && cycleDay && (
                   <div style={{ width:110, height:110, borderRadius:'50%', border:'2px dashed rgba(232,224,212,0.4)', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
@@ -633,16 +718,18 @@ export default function Dashboard() {
             {/* Today's Plan */}
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
               <span style={{ fontSize:11, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590' }}>Today's plan</span>
-              {d.coach && <button onClick={() => setCoachOpen(o => !o)} style={{ background:'none', border:'none', fontSize:12, color:'#9a8a6a', cursor:'pointer', fontFamily:'inherit', fontWeight:500 }}>{coachOpen ? 'Hide plan' : 'View full plan ›'}</button>}
+              {d.coach && <button onClick={() => setCoachOpen(o => !o)} style={{ background:'none', border:'none', fontSize:12, color:'#9a8a6a', cursor:'pointer', fontFamily:'inherit', fontWeight:500 }}>{coachOpen ? 'Hide details' : featuredPattern ? 'View your patterns ›' : 'View full plan ›'}</button>}
             </div>
             <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:10, marginBottom:12 }}>
               {[
                 { icon:'ti-barbell', c:'#5f7a4f', bg:'#e8eede', label:'Move', t:move.t, s:move.s, to:'/workout' },
                 { icon:'ti-salad', c:'#9a7838', bg:'#f2e9d4', label:'Nourish', t:'Protein', s: d.proteinRangeG ? `${d.proteinRangeG[0]}–${d.proteinRangeG[1]}g range` : 'Add weight for a range', to:'/nutrition' },
                 { icon:'ti-moon', c:'#7a6f5c', bg:'#ece5d7', label:'Restore', t:'Sleep', s:'7 to 9 hrs', to:'/sleep' },
-                { icon:'ti-mood-heart', c:'#9a6656', bg:'#f0e2da', label:'Mindset', t:mind.t, s:mind.s, to:null },
+                featuredPattern
+                  ? { icon:'ti-chart-line', c:'#6a6a9a', bg:'#eeecf8', label:'Patterns', t:featuredPattern.label, s:featuredPattern.title, onClick:()=>setCoachOpen(o=>!o) }
+                  : { icon:'ti-mood-heart', c:'#9a6656', bg:'#f0e2da', label:'Mindset', t:mind.t, s:mind.s, to:null },
               ].map((p,i) => (
-                <div key={i} onClick={() => p.to && navigate(p.to)} style={{ background:'#fff', border:'1px solid #ede8e0', borderRadius:14, padding:'14px 10px 15px', minHeight:132, display:'flex', flexDirection:'column', cursor: p.to ? 'pointer' : 'default' }}>
+                <div key={i} onClick={() => p.to ? navigate(p.to) : p.onClick?.()} style={{ background:'#fff', border:'1px solid #ede8e0', borderRadius:14, padding:'14px 10px 15px', minHeight:132, display:'flex', flexDirection:'column', cursor: p.to || p.onClick ? 'pointer' : 'default' }}>
                   <div style={{ width:34, height:34, borderRadius:10, background:p.bg, display:'flex', alignItems:'center', justifyContent:'center', marginBottom:12 }}><i className={`ti ${p.icon}`} style={{ fontSize:17, color:p.c }} /></div>
                   <div style={{ fontSize:9, fontWeight:700, letterSpacing:'0.07em', textTransform:'uppercase', color:p.c, marginBottom:5 }}>{p.label}</div>
                   <div style={{ fontSize:12.5, fontWeight:600, color:'#2c2820', lineHeight:1.25 }}>{p.t}</div>
@@ -652,10 +739,14 @@ export default function Dashboard() {
             </div>
             {coachOpen && d.coach && (
               <div style={{ background:'#fff', border:'1px solid #ede8e0', borderRadius:14, padding:16, marginBottom:12, display:'flex', flexDirection:'column', gap:14 }}>
-                <CoachRow icon="ti-barbell" label="Training" body={d.coach.training} onClick={() => navigate('/workout')} />
-                <CoachRow icon="ti-salad" label="Nutrition" body={d.coach.nutrition.join(' ')} onClick={() => navigate('/nutrition')} />
-                <CoachRow icon="ti-moon" label="Sleep" body={d.coach.sleep} onClick={() => navigate('/sleep')} />
-                <CoachRow icon="ti-mood-heart" label="Mindset" body={d.coach.mindset} />
+                {patternInsights.length ? patternInsights.map(pattern => (
+                  <CoachRow key={pattern.id} icon={pattern.icon} label={pattern.label} body={`${pattern.title}. ${pattern.body}`} />
+                )) : <>
+                  <CoachRow icon="ti-barbell" label="Training" body={d.coach.training} onClick={() => navigate('/workout')} />
+                  <CoachRow icon="ti-salad" label="Nutrition" body={d.coach.nutrition.join(' ')} onClick={() => navigate('/nutrition')} />
+                  <CoachRow icon="ti-moon" label="Sleep" body={d.coach.sleep} onClick={() => navigate('/sleep')} />
+                  <CoachRow icon="ti-mood-heart" label="Mindset" body={d.coach.mindset} />
+                </>}
               </div>
             )}
           </>

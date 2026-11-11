@@ -9,18 +9,19 @@
 // A cardio/yoga "exercise" is just a guided step (sets:1, reps carries the duration).
 
 import { EXERCISES } from './exerciseData'   // shared with the phone workout screen
+import { exerciseLoadGuide, exerciseReps } from './workoutPresentation'
+import { buildPresetWorkout } from './workoutVariety'
 
 const step = (name, guide, reps, sets = 1) => ({ name, guide, reps, sets })
 
 // Convert a phone strength exercise { name, sets, reps, weight } into the watch's guided-step
 // shape. Holds like planks store reps as seconds, everything else as a rep count.
 function toWatchExercise(e) {
-  const isHold = /plank/i.test(e.name)
-  return { name: e.name, guide: e.weight || 'bodyweight', reps: isHold ? `${e.reps} sec` : `${e.reps} reps`, sets: e.sets || 1 }
+  return { name: e.name, guide: exerciseLoadGuide(e.weight) || 'Bodyweight', reps: exerciseReps(e), sets: e.sets || 1 }
 }
-function strength(split, level) {
+function strength(split, level, seed) {
   const list = EXERCISES[split]?.[level] || EXERCISES.full.intermediate
-  return list.map(toWatchExercise)
+  return buildPresetWorkout(list, split, level, seed, [], false).map(toWatchExercise)
 }
 
 // Restorative / mobility flow — the same poses the watch can animate (StickFigure).
@@ -34,8 +35,7 @@ const YOGA_FLOW = [
 // HIIT interval block — the player steps through each.
 const HIIT_ROUNDS = [
   step('Warm up', 'easy pace', '3 min'),
-  step('Work interval', 'hard effort', '40 sec', 6),
-  step('Recover', 'walk it out', '80 sec', 6),
+  ...Array.from({ length: 6 }, () => [step('Work interval', 'challenging, controlled effort', '40 sec'), step('Recover', 'walk it out', '80 sec')]).flat(),
   step('Cool down', 'easy pace', '3 min'),
 ]
 
@@ -78,18 +78,20 @@ export function buildWatchWorkouts(status, dateISO) {
   }
 
   const level = levelOf(status.profile)
+  const day = Date.parse(`${dateISO || new Date().toISOString().slice(0, 10)}T00:00:00Z`)
+  const seed = Number.isFinite(day) ? Math.floor(day / 86400000) : 0
   const strengthNote = 'use recent performance and your warm-up'
 
   // Every option offered today. Gym is split into Full / Upper / Lower so she can choose, exactly
   // like the phone. Cardio/yoga/HIIT round out the list.
   const options = [
-    { id: 'gym-full',  activity: 'Gym',  title: 'Full body', detail: `Strength · ${strengthNote}`, exercises: strength('full', level) },
-    { id: 'gym-upper', activity: 'Gym',  title: 'Upper body', detail: `Strength · ${strengthNote}`, exercises: strength('upper', level) },
-    { id: 'gym-lower', activity: 'Gym',  title: 'Lower body', detail: `Strength · ${strengthNote}`, exercises: strength('lower', level) },
+    { id: 'gym-full',  activity: 'Gym',  title: 'Full body', detail: `Strength · ${strengthNote}`, exercises: strength('full', level, seed) },
+    { id: 'gym-upper', activity: 'Gym',  title: 'Upper body', detail: `Strength · ${strengthNote}`, exercises: strength('upper', level, seed) },
+    { id: 'gym-lower', activity: 'Gym',  title: 'Lower body', detail: `Strength · ${strengthNote}`, exercises: strength('lower', level, seed) },
     { id: 'walk', activity: 'Walk', title: 'Zone 2 walk', detail: '35 min · conversational pace',
       exercises: [step('Steady walk', 'conversational, nose-breathing', '35 min')] },
     { id: 'yoga', activity: 'Yoga', title: 'Restorative flow', detail: '12 min · calm', exercises: YOGA_FLOW },
-    { id: 'hiit', activity: 'HIIT', title: 'HIIT intervals', detail: '~15 min · hard/easy', exercises: HIIT_ROUNDS },
+    { id: 'hiit', activity: 'HIIT', title: 'HIIT intervals', detail: '~18 min · work/recovery', exercises: HIIT_ROUNDS },
     { id: 'run',  activity: 'Run',  title: 'Easy run', detail: '30 min · easy pace',
       exercises: [step('Steady run', 'easy, can hold a conversation', '30 min')] },
     { id: 'cycle', activity: 'Cycle', title: 'Zone 2 ride', detail: '40 min · steady',

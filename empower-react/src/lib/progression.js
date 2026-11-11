@@ -1,49 +1,36 @@
-// progression.js, personalised strength progression. Decides, from a woman's OWN last
-// lift and where she is in her cycle, whether to add weight, hold, or ease off, so the
-// workout actively gets HER stronger instead of repeating a generic level-based range.
-//
-// The cycle-aware part matters: blindly adding load every session causes failed lifts and
-// frustration; adding it in the phases where she recovers and adapts best (follicular /
-// ovulatory) and holding through the high-temperature, high-RHR luteal phase is both safer
-// and more effective. Pure computation only (no supabase) so it is unit-tested.
-//
-// Sources: progressive overload for strength (Schoenfeld et al. JSCR 2017; ACSM); phase
-// training load. Kissow 2022 (follicular adaptation), De Martin Topranin 2023 (luteal RHR),
-// Hackney 2006 (luteal stress response), Colenso-Semple 2023 (use "may", individual variation).
-
-// Lower-body compounds tolerate bigger jumps than small upper-body / isolation moves.
-const LOWER_BODY = /squat|deadlift|lunge|leg press|hip thrust|leg curl|leg extension|calf|glute|romanian|\brdl\b|step.?up/i
-
-export function progressionIncrement(exerciseName) {
-  return LOWER_BODY.test(exerciseName || '') ? 5 : 2.5
-}
-
-function round(kg) { return Math.round(kg * 2) / 2 } // nearest 0.5kg
-
-// getProgressionTarget, returns a performance-led suggestion for an exercise, or null when
-// there is no history for it (first time → caller falls back to the level-based range).
-//   { weight, delta, action: 'progress' | 'hold' | 'hold-hard', reason }
-export function getProgressionTarget({ lastWeight, exerciseName, successfulSessions = 0, lastSessionFeel = null } = {}) {
-  const w = Number(lastWeight)
-  if (lastWeight == null || Number.isNaN(w) || w <= 0 || w > 500) return null
-  const inc = progressionIncrement(exerciseName)
-
-  // Progress only after two completed, tolerable sessions. Phase never substitutes for
-  // evidence that the user actually handled the exercise safely.
+// Suggestions are based on recorded training, never an estimated cycle phase.
+export function getProgressionTarget({ lastWeight, successfulSessions = 0, lastSessionFeel = null } = {}) {
+  const weight = Number(lastWeight)
+  if (lastWeight == null || !Number.isFinite(weight) || weight <= 0 || weight > 500) return null
   if (successfulSessions >= 2 && ['Felt strong', 'Felt average'].includes(lastSessionFeel)) {
     return {
-      weight: round(w + inc), delta: inc, action: 'progress',
-      reason: `Your last ${successfulSessions} sessions were completed at ${w}kg without being marked hard. Try ${round(w + inc)}kg only if your warm-up is comfortable and your form stays solid; otherwise repeat ${w}kg.`,
+      weight, delta: 0, action: 'progress',
+      reason: `You logged two completed sessions at ${weight}kg. If every rep felt controlled and you had a few reps left, consider the smallest available increase; otherwise repeat this load.`,
     }
   }
   if (lastSessionFeel === 'Felt hard') {
-    return {
-      weight: round(w), delta: 0, action: 'hold-hard',
-      reason: `Last time felt hard at ${w}kg. Repeat it only if your warm-up feels comfortable, or choose a lighter load. Progression can wait until the movement feels controlled.`,
-    }
+    return { weight, delta: 0, action: 'hold-hard', reason: `Last time felt hard at ${weight}kg. Repeat it only if your warm-up feels comfortable, or choose a lighter load.` }
   }
-  return {
-    weight: round(w), delta: 0, action: 'hold',
-    reason: `Your last recorded load was ${w}kg. Repeat it while you build two comfortable completed sessions, then Empower can suggest a small progression.`,
-  }
+  return { weight, delta: 0, action: 'hold', reason: `Your last recorded load was ${weight}kg. Repeat or adjust it to keep your reps controlled.` }
+}
+
+// Only count a successful session when every prescribed set was checked and logged at
+// the same load. Partial or mixed-load records cannot prove readiness to progress.
+export function exerciseHistoryEntry(exercise, weights, done, previous, feel) {
+  if (!exercise || ['Skipped', 'Rest day'].includes(feel)) return null
+  const count = Number(exercise.sets || 1)
+  const checked = Array.from({ length: count }, (_, i) => Boolean(done?.[i]))
+  const logged = Array.from({ length: count }, (_, i) => {
+    const n = Number(weights?.[i])
+    return checked[i] && Number.isFinite(n) && n > 0 && n <= 500 ? n : null
+  })
+  const valid = logged.filter(n => n !== null)
+  if (!valid.length) return null
+  const load = Math.max(...valid)
+  const completed = checked.every(Boolean) && logged.every(n => n !== null)
+  const uniform = completed && logged.every(n => n === load)
+  const sameTarget = Number(previous?.last_weight) === load && String(previous?.last_reps) === String(exercise.reps)
+  const previousSuccesses = sameTarget ? Number(previous?.successful_sessions || 0) : 0
+  const successfulSessions = uniform && ['Felt strong', 'Felt average'].includes(feel) ? previousSuccesses + 1 : 0
+  return { last_weight: load, last_reps: String(exercise.reps), last_completed: completed, last_session_feel: feel, successful_sessions: successfulSessions }
 }

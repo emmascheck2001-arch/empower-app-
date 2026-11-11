@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { isNative, readRecentWorkouts, healthStoreName } from '../lib/healthkit'
-import { getUserLocal } from '../lib/userLocalState'
+import { visibleWearableWorkouts } from '../lib/healthPresentation'
+import { getUserSetting } from '../lib/userSettings'
 import { diffCalendarDays } from '../lib/dateUtils.js'
 
 // Shows the user's recent Apple Watch / wearable workouts (pulled from Apple Health / Health
@@ -14,10 +15,11 @@ const ICONS = {
 function icon(a) { return ICONS[a] || 'ti-activity' }
 
 function label(w) {
-  const bits = [`${w.minutes || 0} min`]
+  const bits = []
+  if (w.minutes) bits.push(`${w.minutes} min`)
   if (w.calories) bits.push(`${w.calories} cal`)
   if (w.km) bits.push(`${w.km} km`)
-  return bits.join(' · ')
+  return bits.join(' · ') || 'Imported workout'
 }
 function dayLabel(dateStr) {
   const d = new Date(dateStr + 'T00:00:00'); const t = new Date(); t.setHours(0, 0, 0, 0)
@@ -35,10 +37,10 @@ export default function WearableWorkouts({ contextKey = 'natural-cycle' }) {
   useEffect(() => {
     if (!isNative()) return
     supabase.auth.getUser().then(async ({ data: { user } }) => {
-      if (!user || !getUserLocal(user.id, 'healthConnected')) return
-      const ws = await readRecentWorkouts(14)
-      if (!ws?.length) return
-      setWorkouts(ws.slice(0, 8))
+      if (!user || !getUserSetting(user.id, 'healthConnected')) return
+      const ws = visibleWearableWorkouts(await readRecentWorkouts(14))
+      if (!ws.length) return
+      setWorkouts(ws)
       // Which of those days already have a workout logged (so we show "Logged" not "Log").
       try {
         const dates = [...new Set(ws.map(w => w.date))]
@@ -76,7 +78,7 @@ export default function WearableWorkouts({ contextKey = 'natural-cycle' }) {
     <div style={{ background:'#fff', border:'1px solid #ede8e0', borderRadius:14, padding:16, marginBottom:12 }}>
       <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:12 }}>
         <i className="ti ti-heartbeat" style={{ fontSize:18, color:'#3a8a6a' }} />
-        <span style={{ fontSize:11, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'#9a9590' }}>From {healthStoreName()}</span>
+        <span style={{ fontSize:11, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'#9a9590' }}>This week from {healthStoreName()}</span>
       </div>
       <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
         {workouts.map(w => {

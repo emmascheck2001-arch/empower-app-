@@ -3,6 +3,7 @@
 // ios/App/Empower Watch Watch App). See WATCH_APP_SPEC.md. Pure and unit-tested; safe to call
 // anywhere getTodayStatus output is available.
 import { getMovementToday } from './movementToday'
+import { exerciseLoadGuide, exerciseReps } from './workoutPresentation'
 
 // Pick the watch activity bucket that best matches the day's movement guidance. We only read
 // the (already phase-adapted) title/detail text — no new prescription is created here.
@@ -72,8 +73,8 @@ export function buildWorkoutPayload(status, { title, activity, exercises } = {},
   if (!status) return null
   const mapped = (exercises || []).map(e => ({
     name: e.name,
-    guide: e.weight || '',
-    reps: (e.reps != null && e.reps !== '') ? `${e.reps} reps` : '',
+    guide: exerciseLoadGuide(e.weight),
+    reps: (e.reps != null && e.reps !== '') ? exerciseReps(e) : '',
     sets: e.sets || 1,   // the watch steps through this many sets with a rest timer between
   }))
   return {

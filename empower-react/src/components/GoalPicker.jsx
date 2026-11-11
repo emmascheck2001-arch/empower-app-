@@ -1,29 +1,19 @@
 import { useState } from 'react'
-import { getUserLocal, setUserLocal } from '../lib/userLocalState'
+import { supabase } from '../lib/supabase'
+import { saveUserSettings } from '../lib/userSettings'
+import { FITNESS_GOALS, getFitnessGoal } from '../lib/workoutGoals'
 
 // One-time goal picker shown the first time a user opens the Workout tab. Wellness-framed
 // (supportive, never diet-culture shame) because this is a women's wellness app. The choice
 // is stored locally and later shapes the cycle-aware plans. Persisted in localStorage for now
 // (no DB migration needed to validate the feature); can move to a profiles column later.
-export const FITNESS_GOALS = [
-  { val:'feel_better', icon:'ti-mood-heart',    title:'Feel better day to day',  sub:'More energy, steadier mood' },
-  { val:'strength',    icon:'ti-barbell',       title:'Build strength & muscle', sub:'Get stronger, feel capable' },
-  { val:'consistency', icon:'ti-calendar-check', title:'Move more consistently',  sub:'Build the habit, any movement counts' },
-  { val:'cycle_health', icon:'ti-heart',         title:'Support my cycle & hormones', sub:'Work with your body, not against it' },
-  { val:'weight',      icon:'ti-flame',         title:'Manage my weight healthily', sub:'Sustainable, no crash diets' },
-  { val:'destress',    icon:'ti-yoga',          title:'Reduce stress & feel calmer', sub:'Movement for your mind too' },
-]
-
-export function getFitnessGoal(userId) {
-  return getUserLocal(userId, 'fitnessGoal')
-}
 
 export default function GoalPicker({ userId, onDone, forceOpen = false }) {
   const [show, setShow] = useState(() => !getFitnessGoal(userId))
   if (!show && !forceOpen) return null
 
   const pick = (v) => {
-    setUserLocal(userId, 'fitnessGoal', v)
+    saveUserSettings(supabase, userId, { fitnessGoal: v })
     setShow(false)
     if (onDone) onDone(v)
   }

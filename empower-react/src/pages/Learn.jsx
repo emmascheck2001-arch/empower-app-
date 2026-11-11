@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { PHASE_GRID, PHASE_SHEET_INFO } from '../lib/phaseInfo'
 import BottomNav from '../components/BottomNav'
+import Disclaimer from '../components/Disclaimer'
 
 const SECTIONS = [
   {
@@ -605,14 +606,8 @@ export default function Learn() {
   const [searchParams] = useSearchParams()
   const [userPath, setUserPath] = useState(null)
   const [ethnicity, setEthnicity] = useState([])
-  const [openArticle, setOpenArticle] = useState(null)
+  const [openArticle, setOpenArticle] = useState(() => searchParams.get('article'))
   const [phaseSheet, setPhaseSheet] = useState(null) // the tapped phase in the cycle-phases grid
-
-  // Deep link: /learn?article=hormones opens that article directly (used by Ask Em~power "Read more").
-  useEffect(() => {
-    const a = searchParams.get('article')
-    if (a) setOpenArticle(a)
-  }, [searchParams])
 
   useEffect(() => {
     async function init() {
@@ -797,6 +792,7 @@ export default function Learn() {
         </div>
       </div>
 
+      <Disclaimer>Learn articles provide reviewed wellness education only. They do not diagnose, prescribe, replace your clinician, or make Em~power a contraceptive or medical device.</Disclaimer>
       <BottomNav />
 
       {/* Article bottom sheet */}

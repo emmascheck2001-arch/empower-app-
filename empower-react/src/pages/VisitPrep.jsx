@@ -10,6 +10,7 @@ import { track } from '../lib/analytics'
 import TopBar from '../components/TopBar'
 import BottomNav from '../components/BottomNav'
 import Spinner from '../components/Spinner'
+import Disclaimer from '../components/Disclaimer'
 
 function localDateStr() {
   const d = new Date()
@@ -171,9 +172,7 @@ export default function VisitPrep() {
             <button onClick={copyAll} className="btn-primary" style={{ marginTop: 4 }}>{copied ? 'Copied to clipboard ✓' : 'Copy summary'}</button>
             <button onClick={() => window.print()} style={{ width: '100%', marginTop: 10, padding: '14px', borderRadius: 12, border: '1px solid #ede8e0', background: '#fff', color: '#5a5248', fontSize: 14, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}>Print or save as PDF</button>
 
-            <div style={{ fontSize: 11, color: '#9a9590', lineHeight: 1.6, marginTop: 16, textAlign: 'center' }}>
-              Em~power is a wellness app, not a medical device. This summary supports your conversation with a qualified professional, it does not replace it.
-            </div>
+            <Disclaimer>This visit summary organizes your own logs for a healthcare conversation. It is not a diagnosis, not a medical device, and not a substitute for a qualified clinician&apos;s assessment or treatment plan.</Disclaimer>
           </>
         )}
       </div>

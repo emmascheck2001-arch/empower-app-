@@ -2,8 +2,8 @@
 // it is unit-testable). The user asks, this returns an answer drawn ONLY from their own data
 // (passed in via ctx) and from the hand-written, cited topic bank below. Nothing is generated:
 // every answer is traceable. Red flags route to seek-care; unmatched questions return kind:'unknown'.
-import { parsePeriodStarts } from './hormoneSync.js'
-import { cycleInfoForDate } from './cycleHistory.js'
+import { analyzeLogPattern, analyzeSymptomPatterns } from './symptomPatterns.js'
+import { analyzePersonalPatterns } from './personalPatterns.js'
 
 export function pad(n) { return String(n).padStart(2, '0') }
 export function localDateStr(d = new Date()) { return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}` }
@@ -31,16 +31,33 @@ function summariseLog(l) {
   return bits.length ? bits.join('; ') : null
 }
 
+function normalizeQuestion(raw) {
+  return ` ${String(raw || '')
+    .toLowerCase()
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/[^a-z0-9'\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()} `
+}
+
 function redFlag(q) {
   const heavy = ['heavy bleed', 'heavy bleeding', 'bleeding a lot', 'bleeding so much', 'bleeding through', 'soaking', 'soaked', 'clots', 'flooding', "won't stop bleeding", 'wont stop bleeding', 'gushing']
   const pain = ['severe pain', 'unbearable', 'worst pain', 'debilitating', 'pain and fever', 'passing out', 'about to faint', 'fainting', "can't stand the pain", 'excruciating', 'one sided pain', 'one-sided pain', 'shoulder tip']
   const preg = ['could i be pregnant', 'am i pregnant', 'think i am pregnant', 'might be pregnant', 'chance i am pregnant']
-  const crisis = ['suicid', 'kill myself', 'want to die', 'end my life', 'end it all', 'self harm', 'self-harm', 'hurt myself', "don't want to be here", 'better off dead']
+  const crisis = [
+    'suicid', 'kill myself', 'want to die', 'end my life', 'end it all', 'self harm', 'self-harm', 'hurt myself',
+    "don't want to be here", 'dont want to be here', 'better off dead', 'i want to disappear', 'want to disappear',
+    "can't go on", 'cant go on', "cannot go on", "there's no point", 'theres no point', 'no point anymore',
+    "i'm done", 'im done', 'i am done', 'done with everything', 'wish i would not wake up', 'wish i wouldnt wake up',
+    'wish i could go to sleep and not wake up', 'i do not want to wake up', "i don't want to wake up",
+    'everyone would be better without me', 'people would be better off without me', 'i want it to stop',
+    'i cannot do this anymore', "i can't do this anymore", 'i am not safe', 'not safe with myself',
+  ]
   const affirmed = (term) => {
     const index = q.indexOf(term)
     if (index < 0) return false
     const before = q.slice(Math.max(0, index - 28), index)
-    return !/\b(no|not|never|without|dont|don't|do not|isnt|isn't)\b/.test(before)
+    return !/\b(no|not|never|without|dont|don't|do not|isnt|isn't|cannot|can't|cant)\b/.test(before)
   }
   if (crisis.some(affirmed)) return 'crisis'
   if (heavy.some(affirmed)) return 'heavy'
@@ -66,32 +83,152 @@ export function TRAIN_BY_PHASE(p) {
   return 'Train to how you feel today. Consistent strength work plus movement you enjoy is the foundation, whatever phase you are in.'
 }
 
-function countByPhase(c, symptom) {
-  const byPhase = {}; let total = 0
-  const starts = parsePeriodStarts(c.cycle)
-  c.logs.forEach(l => {
-    if ((l.symptoms||[]).includes(symptom)) {
-      const info = cycleInfoForDate(l.log_date, starts, c.cycle?.cycle_length || 28)
-      const ph = info?.phase || 'unknown'
-      byPhase[ph] = (byPhase[ph]||0)+1; total++
-    }
-  })
-  return { total, byPhase }
+function loggedSymptomCount(logs, symptom) {
+  const aliases = symptom === 'Cramping' ? ['Cramping', 'Cramps'] : [symptom]
+  return logs.filter(log => (log.symptoms || []).some(item => aliases.includes(item))).length
 }
-function topPhase(byPhase) {
-  const e = Object.entries(byPhase).filter(([k])=>k!=='unknown').sort((a,b)=>b[1]-a[1])
-  return e.length ? e[0][0] : null
-}
+
 function patternAnswer(c, symptom, label) {
-  if (c.logs.length < 7 || parsePeriodStarts(c.cycle).length < 3) return { text: `I need at least two completed cycles and several logs to look for a ${label} pattern. Keep logging and ask me again.` }
-  const { total, byPhase } = countByPhase(c, symptom)
-  if (total === 0) return { text: `You have not logged ${label} recently, so there is no pattern to show yet.` }
-  const ph = topPhase(byPhase)
-  const peakCount = ph ? byPhase[ph] : 0
-  const hasPattern = total >= 3 && peakCount >= 2 && peakCount >= Math.ceil(total * 0.6)
-  return { text: hasPattern
-    ? `You logged ${label} ${total} times across completed-cycle dates, most often in the ${ph.toLowerCase()} window. This is an observation to keep testing, not proof that phase caused it.`
-    : `You logged ${label} ${total} time${total===1?'':'s'}, but there is not yet a clear phase pattern.`, link: { label:'See your calendar', to:'/calendar' } }
+  const analysis = analyzeSymptomPatterns({ logs: c.logs, cycleData: c.cycle })
+  if (analysis.status === 'no_cycle') {
+    return { text: `I need a logged period start date to line up your ${label} history with cycle timing.`, link: { label:'Log your period', to:'/log' } }
+  }
+  if (analysis.status === 'insufficient') {
+    return { text: `I need at least two completed cycles and enough daily logs to look for a ${label} pattern reliably. Keep logging and ask me again.`, link: { label:'Open your calendar', to:'/calendar' } }
+  }
+
+  const occurrences = loggedSymptomCount(c.logs, symptom)
+  if (occurrences === 0) {
+    return { text: `You have not logged ${label} in the history I can compare with your cycle, so there is no phase pattern to show yet.`, link: { label:'Log a symptom', to:'/log' } }
+  }
+
+  const pattern = analysis.patterns.find(item => item.symptom === symptom)
+  if (!pattern) {
+    return { text: `You have logged ${label} ${occurrences} time${occurrences === 1 ? '' : 's'}, but I need at least four entries across two cycles before I can identify a phase pattern.`, link: { label:'See your calendar', to:'/calendar' } }
+  }
+  if (pattern.kind === 'cyclical') {
+    return { text: `Looking at your logged history, ${label} showed up most often ${pattern.windowPhrase}: ${pattern.dominantPct}% of ${pattern.occurrences} logged time${pattern.occurrences === 1 ? '' : 's'} across ${pattern.cyclesSpanned} cycles. This is a pattern in your data, not proof that cycle phase caused it.`, link: { label:'See your calendar', to:'/calendar' } }
+  }
+  if (pattern.kind === 'emerging') {
+    return { text: `Looking at your logged history, ${label} is showing an early timing trend ${pattern.windowPhrase}: ${pattern.dominantPct}% of ${pattern.occurrences} logged time${pattern.occurrences === 1 ? '' : 's'} across ${pattern.cyclesSpanned} cycles. Keep tracking to see whether it repeats.`, link: { label:'See your calendar', to:'/calendar' } }
+  }
+  return { text: `Looking at your logged history, ${label} appeared ${pattern.occurrences} times across ${pattern.cyclesSpanned} cycles but did not cluster in one phase. If it keeps happening, it is worth mentioning to your provider.`, link: { label:'See your calendar', to:'/calendar' } }
+}
+
+function asksForHistory(question) {
+  return /\b(history|pattern|patterns|phase|when|most|usually|often|trend|trends|over time|before|after|around|during)\b/i.test(question)
+}
+
+function hasSymptom(log, symptom) {
+  const aliases = symptom === 'Cramping' ? ['Cramping', 'Cramps'] : [symptom]
+  return (log.symptoms || []).some(item => aliases.includes(item))
+}
+
+const NEGATIVE_MOODS = ['Tired', 'Irritable', 'Anxious', 'Sad', 'Brain fog', 'Low mood']
+const HISTORY_SIGNALS = [
+  { terms:['ovulation pain'], label:'ovulation pain', occurrences:'ovulation-pain logs', matches: log => hasSymptom(log, 'Ovulation pain') },
+  { terms:['headache', 'head hurts'], label:'headaches', occurrences:'headache logs', matches: log => hasSymptom(log, 'Headache') },
+  { terms:['migraine'], label:'migraines', occurrences:'migraine logs', matches: log => hasSymptom(log, 'Migraine') },
+  { terms:['cramp', 'period pain'], label:'cramps', occurrences:'cramp logs', matches: log => hasSymptom(log, 'Cramping') },
+  { terms:['bloat'], label:'bloating', occurrences:'bloating logs', matches: log => hasSymptom(log, 'Bloating') },
+  { terms:['breast tenderness', 'sore breast', 'sore boobs'], label:'breast tenderness', occurrences:'breast-tenderness logs', matches: log => hasSymptom(log, 'Breast tenderness') },
+  { terms:['back pain'], label:'back pain', occurrences:'back-pain logs', matches: log => hasSymptom(log, 'Back pain') },
+  { terms:['nausea', 'nauseous'], label:'nausea', occurrences:'nausea logs', matches: log => hasSymptom(log, 'Nausea') },
+  { terms:['diarrhea', 'diarrhoea'], label:'diarrhea', occurrences:'diarrhea logs', matches: log => hasSymptom(log, 'Diarrhea') },
+  { terms:['constipation', 'constipated'], label:'constipation', occurrences:'constipation logs', matches: log => hasSymptom(log, 'Constipation') },
+  { terms:['craving'], label:'cravings', occurrences:'craving logs', matches: log => hasSymptom(log, 'Cravings') },
+  { terms:['mood swing'], label:'mood swings', occurrences:'mood-swing logs', matches: log => hasSymptom(log, 'Mood swings') },
+  { terms:['acne', 'breakout'], label:'acne', occurrences:'acne logs', matches: log => hasSymptom(log, 'Acne') },
+  { terms:['brain fog', 'brainfog'], label:'brain fog', occurrences:'brain-fog reports', matches: log => (log.mood || []).includes('Brain fog') || Number(log.brain_fog_rating) >= 3 },
+  { terms:['fatigue', 'exhausted', 'no energy', 'low energy', 'tired'], label:'low-energy or fatigue days', occurrences:'low-energy or fatigue logs', matches: log => hasSymptom(log, 'Fatigue') || ['Very low', 'Low'].includes(log.energy) },
+  { terms:['energy', 'energetic'], label:'high-energy days', occurrences:'high-energy logs', matches: log => log.energy === 'High' },
+  { terms:['sleep', 'insomnia', 'waking up'], label:'poor-sleep days', occurrences:'poor-sleep logs', matches: log => ['Poor', 'Fair'].includes(log.sleep_quality) },
+  { terms:['mood', 'anxious', 'anxiety', 'irritable', 'sad', 'emotional'], label:'difficult mood days', occurrences:'difficult-mood logs', matches: log => (log.mood || []).some(mood => NEGATIVE_MOODS.includes(mood)) },
+  { terms:['stress', 'overwhelmed'], label:'high-stress days', occurrences:'high-stress logs', matches: log => Number(log.stress_level) >= 4 },
+  { terms:['sex drive', 'libido'], label:'low sex-drive days', occurrences:'low-libido logs', matches: log => log.libido === 'Low' },
+  { terms:['heavy flow', 'heavy bleeding', 'heavy period', 'bleeding', 'flow'], label:'heavy-flow days', occurrences:'heavy-flow logs', matches: log => ['Heavy', 'Very heavy'].includes(log.flow_volume) },
+  { terms:['joint pain'], label:'higher joint-pain days', occurrences:'higher-joint-pain logs', matches: log => Number(log.joint_pain_rating) >= 3 },
+  { terms:['pain'], label:'higher-pain days', occurrences:'higher-pain logs', matches: log => Number(log.pain_rating) >= 4 },
+  { terms:['workout', 'training', 'exercise', 'recovery'], label:'hard-workout or recovery days', occurrences:'hard-workout or low-recovery logs', matches: log => log.workout_feel === 'Felt hard' || ['Very low', 'Low'].includes(log.energy) },
+  { terms:['hot flash', 'hot flashes'], label:'hot-flash days', occurrences:'hot-flash logs', matches: log => Number(log.hot_flash_count) > 0 },
+  { terms:['night sweat', 'night sweats'], label:'night-sweat days', occurrences:'night-sweat logs', matches: log => Number(log.night_sweats_severity) > 0 },
+]
+
+const HIGH_ENERGY_SIGNAL = { label:'high-energy days', occurrences:'high-energy logs', matches: log => log.energy === 'High' }
+const GOOD_SLEEP_SIGNAL = { label:'good-sleep days', occurrences:'good-sleep logs', matches: log => ['Good', 'Excellent'].includes(log.sleep_quality) }
+const POSITIVE_MOOD_SIGNAL = { label:'positive mood days', occurrences:'positive-mood logs', matches: log => (log.mood || []).some(mood => ['Energetic', 'Motivated', 'Confident', 'Social', 'Calm', 'Focused'].includes(mood)) }
+const HIGH_LIBIDO_SIGNAL = { label:'high sex-drive days', occurrences:'high-libido logs', matches: log => log.libido === 'High' }
+const STRONG_WORKOUT_SIGNAL = { label:'strong-workout days', occurrences:'strong-workout logs', matches: log => log.workout_feel === 'Felt strong' }
+
+function hasAny(q, terms) {
+  return terms.some(term => q.includes(term))
+}
+
+function historySignalFor(question) {
+  const q = String(question || '').toLowerCase()
+  const positive = hasAny(q, ['best', 'better', 'good', 'high', 'highest', 'strong', 'stronger', 'peak', 'well'])
+  const negative = hasAny(q, ['low', 'lowest', 'worst', 'worse', 'poor', 'bad', 'hard', 'tired', 'fatigue', 'insomnia'])
+  if (hasAny(q, ['sex drive', 'libido']) && positive && !negative) return HIGH_LIBIDO_SIGNAL
+  if (hasAny(q, ['sleep', 'insomnia', 'waking up']) && positive && !negative) return GOOD_SLEEP_SIGNAL
+  if (hasAny(q, ['mood', 'anxious', 'anxiety', 'irritable', 'sad', 'emotional']) && positive && !negative) return POSITIVE_MOOD_SIGNAL
+  if (hasAny(q, ['workout', 'training', 'exercise', 'recovery']) && positive && !negative) return STRONG_WORKOUT_SIGNAL
+  if (hasAny(q, ['energy', 'energetic']) && negative) return HISTORY_SIGNALS.find(signal => signal.label === 'low-energy or fatigue days')
+  if (hasAny(q, ['energy', 'energetic']) && positive && !negative) return HIGH_ENERGY_SIGNAL
+  return HISTORY_SIGNALS.find(signal => signal.terms.some(term => q.includes(term))) || null
+}
+
+function historyCalendarLink(signal) {
+  return {
+    label:'See your calendar',
+    to:`/calendar?focus=${encodeURIComponent(signal.label)}`,
+  }
+}
+
+function historyPatternAnswer(c, signal) {
+  const pattern = analyzeLogPattern({ logs: c.logs, cycleData: c.cycle, predicate: signal.matches })
+  if (pattern.status === 'no_cycle') {
+    return { text: `I need a logged period start date to line up your ${signal.label} history with cycle timing.`, link: { label:'Log your period', to:'/log' } }
+  }
+  if (pattern.status === 'insufficient_history') {
+    return { text: `I need at least two completed cycles and enough daily logs to look for a ${signal.label} pattern reliably. Keep logging and ask me again.`, link: { label:'Open your calendar', to:'/calendar' } }
+  }
+  if (pattern.status === 'no_matches') {
+    return { text: `You have not logged ${signal.label} in the history I can compare with your cycle, so there is no phase pattern to show yet.`, link: { label:'Log a symptom', to:'/log' } }
+  }
+  if (pattern.status === 'insufficient_occurrences') {
+    return { text: `You have logged ${pattern.occurrences} ${signal.occurrences}, but I need at least four entries across two cycles before I can identify a phase pattern.`, link: historyCalendarLink(signal) }
+  }
+  if (pattern.status === 'cyclical') {
+    return { text: `Looking at your logged history, ${signal.label} showed up most often ${pattern.windowPhrase}: ${pattern.dominantPct}% of ${pattern.occurrences} ${signal.occurrences} across ${pattern.cyclesSpanned} cycles. This is a pattern in your data, not proof that cycle phase caused it.`, link: historyCalendarLink(signal) }
+  }
+  return { text: `Looking at your logged history, ${signal.label} appeared ${pattern.occurrences} times across ${pattern.cyclesSpanned} cycles but did not cluster in one phase. If it keeps happening, it is worth mentioning to your provider.`, link: historyCalendarLink(signal) }
+}
+
+function historyOverviewAnswer(c) {
+  const symptomAnalysis = analyzeSymptomPatterns({ logs: c.logs, cycleData: c.cycle })
+  const personalAnalysis = analyzePersonalPatterns({ logs: c.logs, cycleData: c.cycle, phase: c.status?.phase, subPhase: c.status?.subPhase })
+  if (symptomAnalysis.status === 'no_cycle' && personalAnalysis.status === 'no_cycle') {
+    return { text: 'Log a period start date first so I can line up your history with cycle timing.', link: { label:'Log your period', to:'/log' } }
+  }
+
+  const symptomInsights = symptomAnalysis.patterns
+    .filter(pattern => pattern.kind === 'cyclical')
+    .sort((a, b) => b.occurrences - a.occurrences)
+    .slice(0, 2)
+    .map(pattern => `${pattern.symptom} was most often logged ${pattern.windowPhrase} (${pattern.dominantPct}% across ${pattern.cyclesSpanned} cycles).`)
+  const personalInsights = personalAnalysis.insights.slice(0, 2).map(insight => insight.short)
+  const insights = [...symptomInsights, ...personalInsights].slice(0, 3)
+  if (insights.length) {
+    return { text: `Here is what your logged history shows: ${insights.join(' ')} These are patterns in your data, not a diagnosis.`, link: { label:'See your calendar', to:'/calendar' } }
+  }
+  if (symptomAnalysis.status === 'insufficient' || personalAnalysis.status === 'insufficient') {
+    return { text: 'I need at least two completed cycles and enough daily logs to spot personal patterns reliably. Keep logging and ask me again.', link: { label:'Open your calendar', to:'/calendar' } }
+  }
+  return { text: 'I could not find a repeated pattern in your logged history yet. That is useful too: it means the entries do not currently point to one phase.', link: { label:'See your calendar', to:'/calendar' } }
+}
+
+function asksForHistoryOverview(question) {
+  return /\b(history|pattern|patterns|trend|trends|over time|usually)\b/i.test(question)
 }
 
 // Content + data topics. Each: kw (trigger phrases) + fn(ctx) -> { text, link }.
@@ -132,13 +269,7 @@ export function buildTopics() {
       return { text: c.streak > 0 ? `You are on a ${c.streak}-day logging streak. Every day you log makes your guidance more personal.` : 'You do not have an active streak right now. Logging even once today restarts it, and consistent logging is what personalises everything.', link: L('Log today', '/log') }
     }},
     { id:'pattern_cramps', kw:['my cramp pattern','when do i get cramps','do i get cramps','my cramps','when are my cramps'], fn:(c)=> patternAnswer(c, 'Cramping', 'cramps') },
-    { id:'pattern_general', kw:['my pattern','my symptom pattern','my symptoms over time','my trends','what do i usually'], fn:(c)=>{
-      if (c.logs.length < 5) return { text: 'I need a bit more history to spot your patterns reliably. Keep logging for a week or two and ask me again, and I will show you what tends to happen and when.' }
-      const top = ['Cramping','Bloating','Fatigue','Headache','Mood swings'].map(s => ({ s, ...countByPhase(c, s) })).filter(x => x.total >= 2).sort((a,b)=>b.total-a.total)[0]
-      if (!top) return { text: 'You have not logged enough of any one symptom yet for a clear pattern. The more you log, the sharper this gets.' }
-      const ph = topPhase(top.byPhase)
-      return { text: `So far you have logged ${top.s.toLowerCase()} ${top.total} times${ph ? `, most often in your ${ph.toLowerCase()} phase` : ''}. Keep logging and I will keep refining this.`, link: L('See your calendar', '/calendar') }
-    }},
+    { id:'pattern_general', kw:['my pattern','my symptom pattern','my symptoms over time','my trends','what do i usually','my history','my logged history'], fn:(c)=> historyOverviewAnswer(c) },
 
     { id:'workout_today', kw:['workout today','what should i do today','train today','exercise today','what workout','should i work out today','what training today'], fn:(c)=>{
       const p = (c.status?.subPhase || c.status?.phase || 'observation')
@@ -169,7 +300,12 @@ export function buildTopics() {
     }},
     { id:'bloating', kw:['bloating','bloated','water retention'], fn:()=>({ text: 'For bloating: cooked vegetables are gentler than raw, probiotic foods (yogurt, kefir, kimchi) help digestion, fennel can ease gut spasm, and staying well hydrated tends to reduce fluid retention. Easing off high-sodium foods, carbonated drinks, and alcohol helps too.', link: L('Symptom relief', '/nutrition') })},
     { id:'cramps', kw:['cramp','period pain','menstrual pain','painful period','help with cramps'], fn:()=>({ text: 'For cramps: magnesium-rich foods (pumpkin seeds, dark chocolate, leafy greens), omega-3 (salmon, sardines, walnuts), ginger, heat, and gentle movement all have evidence, used alongside, not instead of, your usual pain relief. If pain regularly stops you living your day, that is not just "normal" and is worth raising with a doctor.', link: L('Symptom relief', '/nutrition') })},
-    { id:'headache', kw:['headache','migraine','head hurts'], fn:()=>({ text: 'Some people notice headaches or migraine around menstruation, but dehydration, missed meals, sleep, stress, medicines and other causes matter too. Track timing and known triggers. Frequent, new, severe or neurological symptoms need clinical advice.', link: L('Symptom relief', '/nutrition') })},
+    { id:'headache', kw:['headache','head hurts'], fn:(c, question)=> asksForHistory(question)
+      ? patternAnswer(c, 'Headache', 'headaches')
+      : ({ text: 'Some people notice headaches around menstruation, but dehydration, missed meals, sleep, stress, medicines and other causes matter too. Frequent, new, severe or neurological symptoms need clinical advice.', link: L('Symptom relief', '/nutrition') })},
+    { id:'migraine', kw:['migraine'], fn:(c, question)=> asksForHistory(question)
+      ? patternAnswer(c, 'Migraine', 'migraines')
+      : ({ text: 'Migraine timing can vary, and dehydration, missed meals, sleep, stress, medicines and other causes matter too. Frequent, new, severe or neurological symptoms need clinical advice.', link: L('Symptom relief', '/nutrition') })},
     { id:'pms', kw:['pms','mood swings','irritable before my period','low mood before my period','emotional before period'], fn:()=>({ text: 'Premenstrual mood symptoms are real and not a character flaw. A pattern that repeats before a period and improves afterward is useful to show a clinician, but sleep, stress, health and life events can contribute too. Severe symptoms or thoughts of self-harm need prompt support.', link: L('Your brain and your cycle', '/learn?article=brain') })},
     { id:'fatigue', kw:['tired','fatigue','no energy','exhausted','low energy','always tired'], fn:()=>({ text: 'Cyclical tiredness is common, especially during and after your period. Iron-rich foods with vitamin C, B12 sources, and protecting sleep all help. Many active women are low in stored iron (ferritin) even with a normal blood count, so if you are persistently exhausted, ask your doctor for a full iron panel including ferritin, and do not start iron supplements without testing first.', link: L('Nutrition', '/nutrition') })},
     { id:'brainfog', kw:['brain fog','can\'t focus','cant focus','foggy','concentrate'], fn:()=>({ text: 'Brain fog can have many contributors, including sleep, stress, medicines, nutrition, illness and hormonal transition. Track timing, but do not assume one cause. New or persistent focus problems are worth discussing with a clinician.', link: L('Learn', '/learn') })},
@@ -200,7 +336,7 @@ export function buildTopics() {
 
 // Core matcher → { kind:'redflag'|'answer'|'unknown', text?, link?, tone?, question? }
 export function answerQuestion(raw, ctx, topics) {
-  const q = ' ' + raw.toLowerCase().replace(/[^a-z0-9'\s]/g,' ').replace(/\s+/g,' ') + ' '
+  const q = normalizeQuestion(raw)
 
   const rf = redFlag(q)
   if (rf) return { kind:'redflag', ...RED_FLAG_ANSWERS[rf] }
@@ -219,6 +355,20 @@ export function answerQuestion(raw, ctx, topics) {
     return { kind:'answer', text:'I need a logged period start date to line up your cycle days. Once you log one, I can pull up any day for you.', link:{ label:'Log your period', to:'/log' } }
   }
 
+  // A personal history question must not be swallowed by broader prompts such
+  // as "what phase" or "what cycle day". Answer from the member's logs first.
+  if (asksForHistory(raw)) {
+    const signal = historySignalFor(raw)
+    if (signal) {
+      const a = historyPatternAnswer(ctx, signal)
+      return { kind:'answer', text: a.text, link: a.link }
+    }
+    if (asksForHistoryOverview(raw)) {
+      const a = historyOverviewAnswer(ctx)
+      return { kind:'answer', text: a.text, link: a.link }
+    }
+  }
+
   let best = null, bestScore = 0
   for (const t of topics) {
     let s = 0
@@ -226,7 +376,7 @@ export function answerQuestion(raw, ctx, topics) {
     if (s > bestScore) { bestScore = s; best = t }
   }
   if (best && bestScore > 0) {
-    const a = best.fn(ctx)
+    const a = best.fn(ctx, raw)
     return { kind:'answer', text: a.text, link: a.link }
   }
   return { kind:'unknown', question: raw }

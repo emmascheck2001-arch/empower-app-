@@ -1,10 +1,11 @@
 // route /calendar, colour-coded cycle calendar with past logs and future day planning bottom sheets
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { getTodayStatus, getPhase, getLutealSubPhase, parsePeriodStarts, getOvulationDay, derivePeriodLengthsFromFlow } from '../lib/hormoneSync'
+import { getTodayStatus, getPhase, getLutealSubPhase, parsePeriodStarts, derivePeriodLengthsFromFlow } from '../lib/hormoneSync'
 import { diffCalendarDays } from '../lib/dateUtils.js'
-import { getMovementToday } from '../lib/movementToday'
+import { calendarFocusFor } from '../lib/calendarFocus.js'
+import { estimatedOvulationDayForPhase, isEstimatedFertilePhaseDay } from '../lib/calendarCycle.js'
 import BottomNav from '../components/BottomNav'
 import Spinner from '../components/Spinner'
 
@@ -45,7 +46,7 @@ function localDateStr(d) {
 // Anchor each date to the most recent RECORDED period start on or before it, so every
 // past period the user logged shows on the calendar and irregular cycles are drawn from
 // their real dates, not extrapolated backward from a single date (which blanked months).
-export function getPhaseForDate(date, periodStarts, cycleLen, periodLength, allowProjection = true, today = new Date()) {
+export function getPhaseForDate(date, periodStarts, cycleLen, periodLength, allowProjection = true, today = new Date(), learnedLutealLength, currentCycleSignal = null) {
   if (!periodStarts || !periodStarts.length) return null
   // Find the cycle this date belongs to: the most recent recorded start on or before it
   // (anchor), and the next recorded start after it (nextStart), if any.
@@ -61,6 +62,8 @@ export function getPhaseForDate(date, periodStarts, cycleLen, periodLength, allo
 
   const diff = diffCalendarDays(date, anchor)
   let cycleDay, effLen
+  let usesCurrentCycleSignal = false
+  let projectedCycle = false
   if (nextStart) {
     // This date sits BETWEEN two logged periods, so the real cycle length is the actual gap.
     // Use it and do NOT wrap with modulo — otherwise a rigid 28-day projection paints a
@@ -69,13 +72,37 @@ export function getPhaseForDate(date, periodStarts, cycleLen, periodLength, allo
     effLen = Math.max(1, diffCalendarDays(nextStart, anchor))
     cycleDay = Math.min(diff + 1, effLen)
   } else {
+    // A recent LH or cervical-fluid signal belongs only to the active cycle. Previously its
+    // ovulation day was reused after modulo wrapping, which painted the same fertile window in
+    // every later month. Carry it through this cycle, then resume the learned cycle forecast.
+    const signalledCycleLength = Number(currentCycleSignal?.cycleLength)
+    const isSignalledCurrentCycle = currentCycleSignal?.cycleStart === localDateStr(anchor) &&
+      Number.isInteger(signalledCycleLength) && signalledCycleLength > 0
+    if (isSignalledCurrentCycle) {
+      if (diff < signalledCycleLength) {
+        effLen = signalledCycleLength
+        cycleDay = diff + 1
+        usesCurrentCycleSignal = true
+      } else {
+        const forecastCycleLength = Number(currentCycleSignal?.forecastCycleLength) || cycleLen
+        const projectedDiff = diff - signalledCycleLength
+        const isFuture = diffCalendarDays(date, today) > 0
+        if (!isFuture || !allowProjection || projectedDiff >= forecastCycleLength * 3) return null
+        const projectedStarts = Math.floor(projectedDiff / forecastCycleLength)
+        anchor = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate() + signalledCycleLength + projectedStarts * forecastCycleLength)
+        effLen = forecastCycleLength
+        cycleDay = (projectedDiff % forecastCycleLength) + 1
+        projectedCycle = true
+      }
+    } else {
     // Without a later recorded period, past/today dates never wrap into a fabricated new cycle.
     // Future cycles may still be forecast while the current period is not late, clearly marked
     // as predictions so period and ovulation planning remain useful.
-    const isFuture = diffCalendarDays(date, today) > 0
-    if (diff >= cycleLen && (!isFuture || !allowProjection || diff >= cycleLen * 3)) return null
-    effLen = cycleLen
-    cycleDay = (((diff % cycleLen) + cycleLen) % cycleLen) + 1
+      const isFuture = diffCalendarDays(date, today) > 0
+      if (diff >= cycleLen && (!isFuture || !allowProjection || diff >= cycleLen * 3)) return null
+      effLen = cycleLen
+      cycleDay = (((diff % cycleLen) + cycleLen) % cycleLen) + 1
+    }
   }
   // periodLength may be a plain number (one length, legacy callers) or a map of period-start
   // -> length. The map form is required for history: applying one length to every date made a
@@ -83,9 +110,10 @@ export function getPhaseForDate(date, periodStarts, cycleLen, periodLength, allo
   const effPeriodLength = (periodLength && typeof periodLength === 'object')
     ? periodLength[localDateStr(anchor)]
     : periodLength
-  const phase = getPhase(cycleDay, effLen, effPeriodLength)
-  const sub = phase === 'Luteal' ? getLutealSubPhase(cycleDay, effLen) : phase
-  return { phase, sub, cycleDay, estimated: !nextStart, projectedCycle: !nextStart && diff >= cycleLen }
+  const signalOvulationDay = usesCurrentCycleSignal ? currentCycleSignal?.ovulationDay : null
+  const phase = getPhase(cycleDay, effLen, effPeriodLength, learnedLutealLength, signalOvulationDay)
+  const sub = phase === 'Luteal' ? getLutealSubPhase(cycleDay, effLen, learnedLutealLength, signalOvulationDay) : phase
+  return { phase, sub, cycleDay, cycleLength: effLen, cycleStart: localDateStr(anchor), estimated: !nextStart, projectedCycle: !nextStart && (projectedCycle || (!usesCurrentCycleSignal && diff >= cycleLen)) }
 }
 
 // Directive, phase-aware nutrition prompts for planning ahead: what to prioritise, hedged where the science is.
@@ -135,50 +163,53 @@ void BRAIN_DETAIL
 
 export default function Calendar() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const calendarFocus = calendarFocusFor(searchParams.get('focus'))
   const [loading, setLoading] = useState(true)
   const [status, setStatus] = useState(null)
   const [logs, setLogs] = useState([])
   const [periodStarts, setPeriodStarts] = useState([])  // every recorded period-start date
   const [now] = useState(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d }) // midnight, so day-diff math is clean integers
-  const [month, setMonth] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1))
+  const [monthOffset, setMonthOffset] = useState(0)
   const [sheet, setSheet] = useState(null) // { dateStr, isFuture }
   const [brainExpanded, setBrainExpanded] = useState(false)
   const [futureExpanded, setFutureExpanded] = useState(false)
 
-  useEffect(() => { setBrainExpanded(false); setFutureExpanded(false) }, [sheet])
-
-  useEffect(() => { init() }, [])
-
-  async function init() {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { navigate('/login', { replace: true }); return }
-    try {
-      const [s, { data: logData }, { data: cycleData }] = await Promise.all([
-        getTodayStatus(supabase, user.id),
-        supabase.from('daily_logs')
-          .select('log_date,energy,mood,symptoms,sleep_quality,workout_feel,resting_hr,libido,hormonal_context,flow_volume')
-          .eq('user_id', user.id)
-          .gte('log_date', localDateStr(new Date(now.getFullYear(), now.getMonth() - 2, 1))),
-        supabase.from('cycle_data')
-          .select('notes,last_period_date')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false }).limit(1).maybeSingle(),
-      ])
-      setPeriodStarts(parsePeriodStarts(cycleData))
-      // Derive lastPeriodDate from getTodayStatus cycleDay, avoids maybeSingle() failing
-      // when user has multiple cycle_data rows (getTodayStatus already picks the most recent)
-      if (s?.cycleDay > 0 && s.cycleLen) {
-        const todayDate = new Date(); todayDate.setHours(0, 0, 0, 0)
-        const lastP = new Date(todayDate)
-        lastP.setDate(lastP.getDate() - (s.cycleDay - 1))
-        s.lastPeriodDate = localDateStr(lastP)
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { navigate('/login', { replace: true }); return }
+      try {
+        const [s, { data: logData }, { data: cycleData }] = await Promise.all([
+          getTodayStatus(supabase, user.id),
+          supabase.from('daily_logs')
+            .select('log_date,energy,mood,symptoms,sleep_quality,stress_level,workout_feel,libido,hormonal_context,flow_volume,pain_rating,hot_flash_count,night_sweats_severity,joint_pain_rating,brain_fog_rating')
+            .eq('user_id', user.id)
+            .gte('log_date', localDateStr(new Date(now.getFullYear(), now.getMonth() - 4, 1))),
+          supabase.from('cycle_data')
+            .select('notes,last_period_date')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false }).limit(1).maybeSingle(),
+        ])
+        if (cancelled) return
+        setPeriodStarts(parsePeriodStarts(cycleData))
+        if (s?.cycleDay > 0 && s.cycleLen) {
+          const todayDate = new Date(); todayDate.setHours(0, 0, 0, 0)
+          const lastP = new Date(todayDate)
+          lastP.setDate(lastP.getDate() - (s.cycleDay - 1))
+          s.lastPeriodDate = localDateStr(lastP)
+        }
+        setStatus(s)
+        const contextKey = s?.contextKey || 'natural-cycle'
+        setLogs((logData || []).filter(log => log.hormonal_context ? log.hormonal_context === contextKey : true))
+      } catch(e) {
+        console.error('Calendar init error:', e)
       }
-      setStatus(s)
-      const contextKey = s?.contextKey || 'natural-cycle'
-      setLogs((logData || []).filter(log => log.hormonal_context ? log.hormonal_context === contextKey : true))
-    } catch(e) { console.error('Calendar init error:', e) }
-    setLoading(false)
-  }
+      if (!cancelled) setLoading(false)
+    })()
+    return () => { cancelled = true }
+  }, [navigate, now])
 
   if (loading) return <div style={{ paddingTop:60 }}><Spinner /></div>
 
@@ -208,15 +239,45 @@ export default function Calendar() {
     return map
   })()
   const allowProjection = !status?.latePeriod
+  const currentCycleSignal = (() => {
+    const ovulationDay = Number(status?.phaseCorrection?.estimatedOvulationDay)
+    // A current body signal may refine today's phase, but when the status layer has an
+    // established period-start history it is deliberately not allowed to stretch the calendar's
+    // next-period forecast into a longer cycle.
+    if (!lastPeriod || !status?.phaseCorrection?.corrected || status?.phaseCorrection?.timingOverride === false || !Number.isInteger(ovulationDay)) return null
+    const lutealLength = status?.learnedLutealLength || 14
+    return {
+      cycleStart: lastPeriod,
+      ovulationDay,
+      cycleLength: Math.max(cycleLen, ovulationDay + lutealLength),
+      forecastCycleLength: status?.avgCycleLength || cycleLen,
+    }
+  })()
+  const fertilityEstimateBasis = (() => {
+    const correction = status?.phaseCorrection
+    if (correction?.corrected) {
+      if (correction.source === 'positive_lh_test') return 'Adjusted using your recent positive LH test; this predicts, but does not confirm, ovulation.'
+      if (correction.source === 'cervical_fluid_peak' || correction.source === 'fertile_cervical_fluid') return 'Adjusted using your recent cervical-fluid logs; this is an estimate, not confirmation of ovulation.'
+      if (correction.source === 'post_peak_temp_shift') return 'Adjusted using your recorded cervical-fluid and temperature pattern after the fertile window.'
+    }
+    const learned = status?.learnedBaselines || {}
+    if ((learned.confirmedOvulationCycles || 0) >= 2) return 'Uses your recorded period starts and repeated temperature patterns from your logs to personalise timing.'
+    if ((learned.mucusInferredOvulationCycles || 0) >= 2) return 'Uses your recorded period starts and recurring cervical-fluid patterns from your logs.'
+    if ((status?.cyclesTracked || 0) >= 2) return 'Uses your recorded period starts and personal cycle history.'
+    return 'Uses your recorded period start and cycle length. Log cervical fluid, LH tests, and waking temperature to add personal context.'
+  })()
 
+  const logMap = {}
+  logs.forEach(l => { logMap[l.log_date] = l })
+  const focusedLogs = calendarFocus ? logs.filter(calendarFocus.matches) : []
+  const latestFocusedLog = focusedLogs.sort((a, b) => b.log_date.localeCompare(a.log_date))[0]
+  const monthBase = latestFocusedLog ? new Date(`${latestFocusedLog.log_date}T00:00:00`) : now
+  const month = new Date(monthBase.getFullYear(), monthBase.getMonth() + monthOffset, 1)
   const year = month.getFullYear()
   const mon = month.getMonth()
   const firstDay = new Date(year, mon, 1).getDay()
   const daysInMonth = new Date(year, mon + 1, 0).getDate()
   const todayStr = localDateStr(now)
-
-  const logMap = {}
-  logs.forEach(l => { logMap[l.log_date] = l })
 
   const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
   const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
@@ -226,21 +287,52 @@ export default function Calendar() {
   for (let d = 1; d <= daysInMonth; d++) cells.push(d)
   while (cells.length % 7 !== 0) cells.push(null)
 
+  // This is an awareness estimate only. It marks the days around the calendar's ovulation
+  // estimate where pregnancy is more likely; it must never be read as confirming ovulation.
+  function currentCycleSignalOvulationDay(phaseInfo) {
+    if (phaseInfo?.cycleStart !== lastPeriod || phaseInfo?.projectedCycle || !currentCycleSignal) return null
+    return currentCycleSignal.ovulationDay
+  }
+
+  function ovulationDayForPhase(phaseInfo) {
+    return estimatedOvulationDayForPhase(
+      phaseInfo,
+      status?.learnedLutealLength,
+      currentCycleSignalOvulationDay(phaseInfo)
+    )
+  }
+
+  function isEstimatedFertileDay(phaseInfo) {
+    return hasPhaseData && isEstimatedFertilePhaseDay(
+      phaseInfo,
+      status?.learnedLutealLength,
+      currentCycleSignalOvulationDay(phaseInfo)
+    )
+  }
+
   function getCellInfo(day) {
     if (!day) return null
     const date = new Date(year, mon, day)
     const dateStr = localDateStr(date)
     const isToday = dateStr === todayStr
     const isFuture = date > now
-    const phaseInfo = hasPhaseData ? getPhaseForDate(date, phaseAnchors, cycleLen, periodLength, allowProjection, now) : null
+    const phaseInfo = hasPhaseData ? getPhaseForDate(date, phaseAnchors, cycleLen, periodLength, allowProjection, now, status?.learnedLutealLength, currentCycleSignal) : null
     const log = logMap[dateStr]
     const sub = phaseInfo?.sub || phaseInfo?.phase || null
     const pc = sub ? (PC[sub] || PC.Luteal) : PC.observation
-    return { day, dateStr, isToday, isFuture, phaseInfo, log, pc, sub }
+    return { day, dateStr, isToday, isFuture, phaseInfo, log, pc, sub, fertile:isEstimatedFertileDay(phaseInfo) }
   }
 
   function openSheet(info) {
+    setBrainExpanded(false)
+    setFutureExpanded(false)
     setSheet({ dateStr: info.dateStr, isFuture: info.isFuture })
+  }
+
+  function closeSheet() {
+    setBrainExpanded(false)
+    setFutureExpanded(false)
+    setSheet(null)
   }
 
   const sheetInfo = (() => {
@@ -252,11 +344,11 @@ export default function Calendar() {
     const date = new Date(sy, sm, sd)
     const isToday = sheet.dateStr === todayStr
     const isFuture = date > now
-    const phaseInfo = hasPhaseData ? getPhaseForDate(date, phaseAnchors, cycleLen, periodLength, allowProjection, now) : null
+    const phaseInfo = hasPhaseData ? getPhaseForDate(date, phaseAnchors, cycleLen, periodLength, allowProjection, now, status?.learnedLutealLength, currentCycleSignal) : null
     const log = logMap[sheet.dateStr]
     const sub = phaseInfo?.sub || phaseInfo?.phase || null
     const pc = sub ? (PC[sub] || PC.Luteal) : PC.observation
-    return { day: sd, dateStr: sheet.dateStr, isToday, isFuture, phaseInfo, log, pc, sub }
+    return { day: sd, dateStr: sheet.dateStr, isToday, isFuture, phaseInfo, log, pc, sub, fertile:isEstimatedFertileDay(phaseInfo) }
   })()
   const sheetLog = sheet ? logMap[sheet.dateStr] : null
   const sheetDate = sheet ? new Date(sheet.dateStr + 'T00:00:00') : null
@@ -283,14 +375,34 @@ export default function Calendar() {
         </div>
       )}
 
+      {hasPhaseData && status?.latePeriod && (
+        <div style={{ margin:'12px 16px 0', padding:'12px 14px', background:'#fff6ef', border:'1px solid #ecc8b5', borderRadius:12, fontSize:13, color:'#6a3828', lineHeight:1.55, display:'flex', alignItems:'center', gap:12 }}>
+          <div style={{ flex:1 }}>
+            <strong>Future estimates are paused</strong>
+            <div style={{ marginTop:2 }}>Your period is outside its last estimate window, so Empower will not guess the next cycle. Record the actual start to resume calendar estimates.</div>
+          </div>
+          <button type="button" onClick={() => navigate('/log')} style={{ flexShrink:0, background:'#fff', border:'1px solid #d9a990', borderRadius:8, color:'#7a3a28', cursor:'pointer', fontFamily:'inherit', fontSize:12, fontWeight:600, padding:'7px 9px' }}>Log period</button>
+        </div>
+      )}
+
+      {calendarFocus && (
+        <div style={{ margin:'12px 16px 0', padding:'12px 14px', background:'#f5f0e8', border:'1px solid #d8c8a8', borderRadius:12, fontSize:13, color:'#4a4030', lineHeight:1.5, display:'flex', alignItems:'center', gap:10 }}>
+          <div style={{ flex:1 }}>
+            <strong>Showing {calendarFocus.title}</strong>
+            <div style={{ marginTop:2, color:'#7a7268' }}>{focusedLogs.length ? `${focusedLogs.length} highlighted in your recent log history.` : 'No matching logs in the recent history shown here.'}</div>
+          </div>
+          <button type="button" onClick={() => navigate('/calendar', { replace:true })} style={{ background:'none', border:'none', color:'#7a6a4a', cursor:'pointer', fontFamily:'inherit', fontSize:12, fontWeight:600, padding:4 }}>Clear</button>
+        </div>
+      )}
+
       <div style={{ padding:'16px 16px 0' }}>
         {/* Month nav */}
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
-          <button type="button" aria-label="Previous month" onClick={() => setMonth(new Date(year, mon - 1, 1))} style={{ background:'#f5f0e8', border:'1px solid #ede8e0', borderRadius:10, padding:'7px 10px', cursor:'pointer' }}>
+          <button type="button" aria-label="Previous month" onClick={() => setMonthOffset(offset => offset - 1)} style={{ background:'#f5f0e8', border:'1px solid #ede8e0', borderRadius:10, padding:'7px 10px', cursor:'pointer' }}>
             <i className="ti ti-chevron-left" aria-hidden="true" style={{ fontSize:16, color:'#2c2820' }} />
           </button>
           <div style={{ fontSize:18, fontWeight:600, letterSpacing:'-0.01em' }}>{MONTHS[mon]} {year}</div>
-          <button type="button" aria-label="Next month" onClick={() => setMonth(new Date(year, mon + 1, 1))} style={{ background:'#f5f0e8', border:'1px solid #ede8e0', borderRadius:10, padding:'7px 10px', cursor:'pointer' }}>
+          <button type="button" aria-label="Next month" onClick={() => setMonthOffset(offset => offset + 1)} style={{ background:'#f5f0e8', border:'1px solid #ede8e0', borderRadius:10, padding:'7px 10px', cursor:'pointer' }}>
             <i className="ti ti-chevron-right" aria-hidden="true" style={{ fontSize:16, color:'#2c2820' }} />
           </button>
         </div>
@@ -308,6 +420,7 @@ export default function Calendar() {
               if (!day) return <div key={i} style={{ minHeight:54 }} />
 
               const hasLog = !!info.log
+              const isFocusMatch = Boolean(calendarFocus && info.log && calendarFocus.matches(info.log))
               const cellBg = info.isToday
                 ? (info.sub ? info.pc.bg : 'rgba(44,40,32,0.06)')
                 : hasLog && !info.sub
@@ -318,12 +431,13 @@ export default function Calendar() {
 
               return (
                 <button type="button" key={i} onClick={() => openSheet(info)}
-                  aria-label={`${info.dateStr}${info.sub ? `, ${info.sub} phase` : ''}${hasLog ? ', logged' : ''}`}
+                  aria-label={`${info.dateStr}${info.sub ? `, ${info.sub} phase` : ''}${info.fertile ? ', potentially fertile: higher chance of pregnancy' : ''}${hasLog ? ', logged' : ''}`}
                   style={{
                     minHeight:54, padding:'7px 2px 10px', textAlign:'center',
                     cursor:'pointer', position:'relative', border:'none', font:'inherit',
                     background: cellBg,
                     opacity: info.isFuture ? 0.75 : 1,
+                    boxShadow: isFocusMatch ? 'inset 0 0 0 2px #2c2820' : 'none',
                   }}>
                   {/* Day number circle */}
                   <div style={{
@@ -332,6 +446,7 @@ export default function Calendar() {
                     background: info.isToday ? '#2c2820' : 'transparent',
                     color: info.isToday ? '#f5f0e8' : '#2c2820',
                     fontSize:12, fontWeight: info.isToday ? 700 : 400,
+                    boxShadow: isFocusMatch ? '0 0 0 2px #2c2820' : info.fertile ? '0 0 0 2px #3a8a6a' : 'none',
                   }}>{day}</div>
 
                   {/* Phase bar */}
@@ -348,6 +463,9 @@ export default function Calendar() {
                       position:'absolute', top:5, right:4, width:5, height:5, borderRadius:'50%',
                       background: info.log.mood?.length > 0 ? '#88c088' : '#c8b89a',
                     }} />
+                  )}
+                  {isFocusMatch && (
+                    <div style={{ position:'absolute', bottom:11, left:4, width:6, height:6, borderRadius:'50%', background:'#2c2820' }} />
                   )}
                 </button>
               )
@@ -372,7 +490,19 @@ export default function Calendar() {
               </div>
             ))
           )}
+          {hasPhaseData && (
+            <div style={{ display:'flex', alignItems:'center', gap:5 }}>
+              <div style={{ width:8, height:8, borderRadius:'50%', border:'2px solid #3a8a6a', boxSizing:'border-box' }} />
+              <span style={{ fontSize:10, color:'#7a7268' }}>Potentially fertile (estimate)</span>
+            </div>
+          )}
         </div>
+        {hasPhaseData && (
+          <div style={{ background:'#eef6f1', border:'1px solid #c6ded1', borderRadius:12, padding:'10px 12px', margin:'-4px 0 16px', fontSize:12, color:'#285443', lineHeight:1.55 }}>
+            Teal circles mark days with a higher chance of pregnancy: roughly the five days before through one day after estimated ovulation. If you&apos;re avoiding pregnancy, treat every teal day as potentially fertile and use reliable contraception. Calendar dates cannot confirm ovulation or make other days “safe.”
+            <div style={{ marginTop:6, fontSize:11, color:'#497362' }}>{fertilityEstimateBasis}</div>
+          </div>
+        )}
       </div>
 
       <BottomNav />
@@ -380,12 +510,12 @@ export default function Calendar() {
       {/* Bottom sheet overlay */}
       {sheet && (
         <>
-          <button type="button" aria-label="Close" onClick={() => setSheet(null)} style={{ position:'fixed', inset:0, background:'rgba(44,40,32,0.4)', zIndex:100, border:'none', padding:0, cursor:'pointer' }} />
+          <button type="button" aria-label="Close" onClick={closeSheet} style={{ position:'fixed', inset:0, background:'rgba(44,40,32,0.4)', zIndex:100, border:'none', padding:0, cursor:'pointer' }} />
           <div role="dialog" aria-modal="true" aria-label={`Details for ${sheetDate?.toLocaleDateString('en-CA', { weekday:'long', month:'long', day:'numeric' })}`} style={{ position:'fixed', bottom:0, left:'50%', transform:'translateX(-50%)', width:'100%', maxWidth:420, background:'#faf8f5', borderRadius:'20px 20px 0 0', zIndex:101, padding:'16px 20px 48px', maxHeight:'80vh', overflowY:'auto' }}>
             {/* Handle */}
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
               <div style={{ width:36, height:4, background:'#c8b89a', borderRadius:2, margin:'6px auto 6px' }} />
-              <button type="button" aria-label="Close" onClick={() => setSheet(null)} style={{ position:'absolute', right:16, top:12, background:'none', border:'none', cursor:'pointer', color:'#9a9590', fontSize:20, padding:4, lineHeight:1 }}>
+              <button type="button" aria-label="Close" onClick={closeSheet} style={{ position:'absolute', right:16, top:12, background:'none', border:'none', cursor:'pointer', color:'#9a9590', fontSize:20, padding:4, lineHeight:1 }}>
                 <i className="ti ti-x" aria-hidden="true" />
               </button>
             </div>
@@ -434,7 +564,7 @@ export default function Calendar() {
                             No special food or training change is required. Use the symptoms you actually experience and your usual care plan.
                           </div>
                           <div style={{ fontSize:11, color:'#9a6060', fontStyle:'italic' }}>
-                            {pred.confidence === 'moderate' ? 'Moderate-confidence estimate from repeated cycle history.' : pred.confidence === 'low' ? 'Low-confidence estimate from limited or variable history.' : 'Population fallback from the cycle length you entered; not yet personalised.'}
+                            {pred.confidence === 'moderate' ? 'Timing estimate from repeated cycle history.' : pred.confidence === 'low' ? 'Timing estimate from limited or variable cycle history.' : 'Population fallback from the cycle length you entered; a personal timing history is still developing.'}
                           </div>
                         </div>
                       )
@@ -451,20 +581,22 @@ export default function Calendar() {
                   let fertileCard = null
                   const cd = sheetInfo?.phaseInfo?.cycleDay
                   if (hasPhaseData && cd) {
-                    const ovDay = getOvulationDay(cycleLen, status?.learnedLutealLength)
-                    if (cd >= ovDay - 5 && cd <= ovDay + 1) {
+                    const ovDay = ovulationDayForPhase(sheetInfo?.phaseInfo)
+                    if (sheetInfo?.fertile) {
                       const isOvulation = cd >= ovDay - 1 && cd <= ovDay + 1
                       fertileCard = (
-                        <div style={{ background:'linear-gradient(135deg,#e6f0ec,#dcebf0)', border:'1px solid #bcd8cc', borderRadius:12, padding:16, marginBottom:12 }}>
-                          <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
+                        <div style={{ background:'linear-gradient(135deg,#e6f0ec,#dcebf0)', border:'1px solid #bcd8cc', borderRadius:12, padding:14, marginBottom:12 }}>
+                          <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:7 }}>
                             <i className="ti ti-flower" style={{ color:'#3a8a6a', fontSize:18 }}/>
-                            <div style={{ fontSize:14, fontWeight:600, color:'#1f4a3a' }}>{isOvulation ? 'Ovulation estimated around this day' : 'Estimated fertile window'}</div>
+                            <div style={{ fontSize:14, fontWeight:600, color:'#1f4a3a' }}>{isOvulation ? 'Estimated ovulation may be near' : 'Potentially fertile day'}</div>
                           </div>
-                          <div style={{ fontSize:13, color:'#2a4a40', lineHeight:1.7, marginBottom:8 }}>
-                            Based on your recorded cycle timing, this date falls inside an estimated fertile window. Wetter or egg-white cervical fluid and a positive home LH test can add context; a later sustained temperature shift can provide a retrospective estimate.
+                          <div style={{ fontSize:13, color:'#2a4a40', lineHeight:1.55, marginBottom:7 }}>
+                            {isOvulation
+                              ? 'Pregnancy can be most likely in the days before and on ovulation. This is an estimate, not a confirmation.'
+                              : 'Pregnancy may be more likely from sex on this day because it is within the estimated fertile window.'}
                           </div>
-                          <div style={{ fontSize:12, fontWeight:600, color:'#b0402a', lineHeight:1.55, marginTop:4 }}>
-                            Not birth control, an estimate only. If you&apos;re avoiding pregnancy, use protection and talk to your doctor; predictions can be wrong.
+                          <div style={{ fontSize:12, fontWeight:600, color:'#8a3b2a', lineHeight:1.5 }}>
+                            If you&apos;re avoiding pregnancy, use reliable protection every time. The app cannot tell you when it is safe to skip it.
                           </div>
                         </div>
                       )
@@ -483,15 +615,23 @@ export default function Calendar() {
                     Luteal:             { state:'Symptom window', bg:'#f5e0c0', text:'#5a3800', sentence:'Serotonin becomes less stable as estrogen declines, so many women notice changes in sleep, appetite, mood, or effort. Prioritise steady meals and recovery.' },
                   }
 
-                  // Sex drive is deliberately not predicted from phase; it varies within and
-                  // between people and can be influenced by many non-cycle factors.
-                  const LIBIDO_LABEL = Object.fromEntries(
-                    ['Menstrual','Early follicular','Follicular','Late follicular','Ovulatory','Early luteal','Mid luteal','Late luteal','Luteal']
-                      .map(label => [label, 'Sex drive varies'])
-                  )
-
                   const brainData = BRAIN_STATE[sub] || null
                   const brainDetail = null
+
+                  // Desire can change across a cycle, but it is personal rather than a
+                  // prediction. These labels describe the broad pattern in research without
+                  // implying that a particular person will feel it on a particular day.
+                  const LIBIDO_LABEL = {
+                    Menstrual: 'Sex drive may be lower',
+                    'Early follicular': 'Sex drive may rise',
+                    Follicular: 'Sex drive may rise',
+                    'Late follicular': 'Sex drive may rise',
+                    Ovulatory: 'Sex drive may be higher',
+                    'Early luteal': 'Sex drive may shift',
+                    'Mid luteal': 'Sex drive may ease',
+                    'Late luteal': 'Sex drive may be lower',
+                    Luteal: 'Sex drive may ease',
+                  }
                   const libidoLabel = LIBIDO_LABEL[sub] || null
 
                   const energyLabels = {
@@ -520,9 +660,6 @@ export default function Calendar() {
                           <i className="ti ti-bolt" style={{ fontSize:11, marginRight:4 }} />{energyLabel}
                         </span>}
                         <span style={{ padding:'5px 12px', borderRadius:20, fontSize:12, fontWeight:500, background:'#f5f0e8', border:'1px solid #ede8e0', color:'#5a4a3a' }}>{sub}</span>
-                        <span style={{ padding:'5px 12px', borderRadius:20, fontSize:12, fontWeight:500, background:'#f5f0e8', border:'1px solid #ede8e0', color:'#5a4a3a' }}>
-                          <i className="ti ti-barbell" style={{ fontSize:11, marginRight:4 }} />{getMovementToday(sub).title}
-                        </span>
                         {libidoLabel && <span style={{ padding:'5px 12px', borderRadius:20, fontSize:12, fontWeight:500, background:'#f5f0e8', border:'1px solid #ede8e0', color:'#5a4a3a' }}>
                           <i className="ti ti-heart" style={{ fontSize:11, marginRight:4 }} />{libidoLabel}
                         </span>}
@@ -602,7 +739,7 @@ export default function Calendar() {
                       </div>
                     )}
 
-                    <button onClick={() => { setSheet(null); navigate('/log') }} style={{ width:'100%', padding:'12px', borderRadius:10, background:'#f5f0e8', border:'1px solid #ede8e0', fontSize:13, cursor:'pointer', fontFamily:'inherit' }}>
+                    <button onClick={() => { closeSheet(); navigate('/log') }} style={{ width:'100%', padding:'12px', borderRadius:10, background:'#f5f0e8', border:'1px solid #ede8e0', fontSize:13, cursor:'pointer', fontFamily:'inherit' }}>
                       Log today
                     </button>
                   </>
@@ -667,7 +804,7 @@ export default function Calendar() {
                   )}
                 </div>
 
-                <button onClick={() => { setSheet(null); navigate('/log?date=' + sheet.dateStr) }} style={{ width:'100%', padding:'12px', borderRadius:10, background:'#f5f0e8', border:'1px solid #ede8e0', fontSize:13, cursor:'pointer', fontFamily:'inherit' }}>
+                <button onClick={() => { closeSheet(); navigate('/log?date=' + sheet.dateStr) }} style={{ width:'100%', padding:'12px', borderRadius:10, background:'#f5f0e8', border:'1px solid #ede8e0', fontSize:13, cursor:'pointer', fontFamily:'inherit' }}>
                   Edit this log
                 </button>
               </div>
@@ -675,7 +812,7 @@ export default function Calendar() {
               /* Past day, no data */
               <div>
                 <div style={{ fontSize:13, color:'#9a9590', marginBottom:16, lineHeight:1.6 }}>No data logged for this day.</div>
-                <button onClick={() => { setSheet(null); navigate('/log?date=' + sheet.dateStr) }} style={{ width:'100%', padding:'12px', borderRadius:10, background:'#f5f0e8', border:'1px solid #ede8e0', fontSize:13, cursor:'pointer', fontFamily:'inherit' }}>
+                <button onClick={() => { closeSheet(); navigate('/log?date=' + sheet.dateStr) }} style={{ width:'100%', padding:'12px', borderRadius:10, background:'#f5f0e8', border:'1px solid #ede8e0', fontSize:13, cursor:'pointer', fontFamily:'inherit' }}>
                   Log this day
                 </button>
               </div>

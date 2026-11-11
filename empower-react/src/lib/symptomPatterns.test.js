@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { analyzeSymptomPatterns } from './symptomPatterns.js'
+import { analyzeLogPattern, analyzeMoodPatterns, analyzeSymptomPatterns } from './symptomPatterns.js'
 
 const LP = '2026-01-01'
 // analyzeSymptomPatterns now anchors each log to the user's recorded period-start HISTORY
@@ -106,6 +106,18 @@ describe('analyzeSymptomPatterns — real patterns', () => {
     expect(p.windowPhrase).toMatch(/during your period/i)
   })
 
+  it('labels a repeated but not yet conclusive symptom trend as emerging', () => {
+    const logs = [
+      at(0, 8, ['Headache']), at(1, 9, ['Headache']), at(2, 10, ['Headache']), at(3, 11, ['Headache']),
+      at(0, 19, ['Headache']), at(1, 20, ['Headache']), at(2, 21, ['Headache']), at(3, 22, ['Headache']),
+      ...filler(14),
+    ]
+    const r = analyzeSymptomPatterns({ logs, cycleData })
+    const p = r.patterns.find(x => x.symptom === 'Headache')
+    expect(p.kind).toBe('emerging')
+    expect(p.dominantPct).toBe(50)
+  })
+
   it('returns no_pattern when there is enough data but nothing qualifies', () => {
     const r = analyzeSymptomPatterns({ logs: filler(16), cycleData })
     expect(r.status).toBe('no_pattern')
@@ -115,5 +127,46 @@ describe('analyzeSymptomPatterns — real patterns', () => {
   it('ignores "None" and does not throw on messy logs', () => {
     const logs = [{ log_date: '2026-01-05', symptoms: ['None'] }, { log_date: '2026-01-06', symptoms: null }, {}, ...filler(14)]
     expect(() => analyzeSymptomPatterns({ logs, cycleData })).not.toThrow()
+  })
+})
+
+describe('analyzeMoodPatterns', () => {
+  it('finds a repeated mood pattern using the same conservative evidence gates', () => {
+    const logs = [
+      at(0, 26, []), at(1, 27, []), at(2, 26, []), at(3, 27, []),
+      at(0, 10, []), at(1, 10, []), at(2, 10, []), at(3, 10, []),
+      ...filler(14),
+    ]
+    logs.slice(0, 4).forEach(log => { log.mood = ['Irritable'] })
+    logs.slice(4, 8).forEach(log => { log.mood = ['Calm'] })
+    const r = analyzeMoodPatterns({ logs, cycleData })
+    const irritable = r.patterns.find(x => x.mood === 'Irritable')
+    expect(irritable.kind).toBe('cyclical')
+    expect(irritable.windowPhrase).toMatch(/before your period/i)
+  })
+})
+
+describe('analyzeLogPattern', () => {
+  it('finds a repeated low-energy pattern using the same evidence rules as symptoms', () => {
+    const logs = [
+      at(0, 26, ['None']), at(1, 27, ['None']), at(2, 26, ['None']), at(2, 27, ['None']),
+      ...filler(12),
+    ].map((log, index) => index < 4 ? { ...log, energy: 'Low' } : { ...log, energy: 'Normal' })
+
+    const result = analyzeLogPattern({ logs, cycleData, predicate: log => log.energy === 'Low' })
+    expect(result.status).toBe('cyclical')
+    expect(result.windowPhrase).toMatch(/before your period/i)
+    expect(result.occurrences).toBe(4)
+  })
+
+  it('reports a scattered result rather than inventing a phase', () => {
+    const logs = [
+      at(0, 3, ['None']), at(0, 10, ['None']), at(1, 15, ['None']), at(1, 20, ['None']),
+      at(2, 8, ['None']), at(2, 24, ['None']), ...filler(12),
+    ].map((log, index) => index < 6 ? { ...log, sleep_quality: 'Poor' } : { ...log, sleep_quality: 'Good' })
+
+    const result = analyzeLogPattern({ logs, cycleData, predicate: log => log.sleep_quality === 'Poor' })
+    expect(result.status).toBe('scattered')
+    expect(result.windowPhrase).toBeUndefined()
   })
 })

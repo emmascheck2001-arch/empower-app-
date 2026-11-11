@@ -83,35 +83,40 @@ export default function Sleep() {
   const [name, setName] = useState('')
   const [recentSleep, setRecentSleep] = useState([])
   const [contextKey, setContextKey] = useState('natural-cycle')
+  const [reloadKey, setReloadKey] = useState(0)
 
-  async function init() {
-    setLoadError(null)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { navigate('/login', { replace: true }); return }
-    setUserId(user.id)
-    try {
-      const s = await getTodayStatus(supabase, user.id)
-      setPhase(s.phase || 'observation')
-      setSubPhase(s.subPhase || null)
-      setName(s?.profile?.name || '')
-      setContextKey(s?.contextKey || 'natural-cycle')
-      // Pre-fill if already logged today
-      const { data: existing } = await supabase.from('daily_logs')
-        .select('sleep_quality,sleep_hours,hormonal_context').eq('user_id', user.id).eq('log_date', localDateStr()).maybeSingle()
-      const existingInContext = existing && (existing.hormonal_context ? existing.hormonal_context === (s?.contextKey || 'natural-cycle') : true)
-      if (existingInContext && existing?.sleep_quality) setQuality(existing.sleep_quality)
-      if (existingInContext && existing?.sleep_hours != null) setHours(String(existing.sleep_hours))
-      // Her recent sleep, to make tonight's guidance personal
-      const { data: recent } = await supabase.from('daily_logs')
-        .select('sleep_quality,log_date,hormonal_context').eq('user_id', user.id)
-        .not('sleep_quality', 'is', null).order('log_date', { ascending: false }).limit(5)
-      const context = s?.contextKey || 'natural-cycle'
-      setRecentSleep((recent || []).filter(log => log.hormonal_context ? log.hormonal_context === context : true))
-    } catch(e) { console.error(e); setLoadError('We could not load your health data, so personalised sleep guidance has been paused.') }
-    setLoading(false)
-  }
-
-  useEffect(() => { init() }, [navigate])
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      setLoadError(null)
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { navigate('/login', { replace: true }); return }
+      if (!cancelled) setUserId(user.id)
+      try {
+        const s = await getTodayStatus(supabase, user.id)
+        if (cancelled) return
+        setPhase(s.phase || 'observation')
+        setSubPhase(s.subPhase || null)
+        setName(s?.profile?.name || '')
+        setContextKey(s?.contextKey || 'natural-cycle')
+        const { data: existing } = await supabase.from('daily_logs')
+          .select('sleep_quality,sleep_hours,hormonal_context').eq('user_id', user.id).eq('log_date', localDateStr()).maybeSingle()
+        const existingInContext = existing && (existing.hormonal_context ? existing.hormonal_context === (s?.contextKey || 'natural-cycle') : true)
+        if (existingInContext && existing?.sleep_quality) setQuality(existing.sleep_quality)
+        if (existingInContext && existing?.sleep_hours != null) setHours(String(existing.sleep_hours))
+        const { data: recent } = await supabase.from('daily_logs')
+          .select('sleep_quality,log_date,hormonal_context').eq('user_id', user.id)
+          .not('sleep_quality', 'is', null).order('log_date', { ascending: false }).limit(5)
+        const context = s?.contextKey || 'natural-cycle'
+        setRecentSleep((recent || []).filter(log => log.hormonal_context ? log.hormonal_context === context : true))
+      } catch(e) {
+        console.error(e)
+        if (!cancelled) setLoadError('We could not load your health data, so personalised sleep guidance has been paused.')
+      }
+      if (!cancelled) setLoading(false)
+    })()
+    return () => { cancelled = true }
+  }, [navigate, reloadKey])
 
   async function saveSleep() {
     if (!quality) return
@@ -126,7 +131,7 @@ export default function Sleep() {
   }
 
   if (loading) return <div style={{ paddingTop:60 }}><Spinner /></div>
-  if (loadError) return <div style={{ padding:'80px 24px', textAlign:'center' }}><div style={{ fontSize:14, color:'#7a7268', lineHeight:1.6, marginBottom:16 }}>{loadError}</div><button className="btn-primary" onClick={() => { setLoading(true); init() }}>Try again</button><BottomNav /></div>
+  if (loadError) return <div style={{ padding:'80px 24px', textAlign:'center' }}><div style={{ fontSize:14, color:'#7a7268', lineHeight:1.6, marginBottom:16 }}>{loadError}</div><button className="btn-primary" onClick={() => { setLoading(true); setReloadKey(k => k + 1) }}>Try again</button><BottomNav /></div>
 
   const key = subPhase || phase
   const baseGuide = SLEEP_GUIDE[key] || SLEEP_GUIDE.observation

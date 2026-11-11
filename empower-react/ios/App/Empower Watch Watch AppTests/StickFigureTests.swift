@@ -23,8 +23,8 @@ final class StickFigureTests: XCTestCase {
         "Bench press": "push", "Bicep curl": "curl", "Bulgarian split squat": "splitsquat",
         "Cable face pull": "facepull", "Cable row": "row", "Calf raise": "calf", "Deadlift": "hinge",
         "Dumbbell lateral raise": "lateralraise", "Dumbbell row": "row", "Dumbbell shoulder press": "press",
-        "Face pull": "facepull", "Glute bridge": "thrust", "Goblet squat": "squat", "Hip thrust": "thrust",
-        "Incline dumbbell press": "push", "Leg curl": "legcurl", "Leg press": "legpress",
+        "Face pull": "facepull", "Glute bridge": "bridge", "Goblet squat": "squat", "Hip thrust": "thrust",
+        "Incline dumbbell press": "push", "Leg curl": "legcurl", "Leg press": "legpress", "Lying leg raise": "supinelegraise",
         "Nordic hamstring curl": "legcurl", "Overhead press": "press", "Plank": "plank", "Pull-up": "pullup",
         "Push-up": "push", "Romanian deadlift": "hinge", "Tricep dip": "dip", "Tricep pushdown": "pushdown",
         "Walking lunge": "lunge", "Weighted pull-up": "pullup",
@@ -33,9 +33,13 @@ final class StickFigureTests: XCTestCase {
         "Child's pose": "childpose", "Cat-cow": "catcow", "Supine twist": "twistpose", "Savasana": "savasana",
         "Warm up": "march", "Work interval": "jumpingjack", "Recover": "march", "Cool down": "march",
         "The hundred": "hundred", "Roll-up": "rollup", "Single-leg stretch": "singleleg",
-        "Side plank": "plank", "Spine stretch": "spinestretch",
+        "Side plank": "sideplank", "Spine stretch": "spinestretch",
+        "Russian twist": "russiantwist", "Mountain climbers": "mountainclimber",
+        "Plank shoulder taps": "plankshouldertap", "Plank jack": "plankjack",
+        "Plank to pike": "plankpike", "Plank push-up": "plankpushup",
+        "Standing core twist": "standingtwist",
         // Historical false-positives that must NOT regress
-        "Trunk rotation": "stand", "Bicycle crunch": "plank", "Single-leg deadlift": "hinge",
+        "Trunk rotation": "stand", "Bicycle crunch": "bicycle", "Dead bug": "deadbug", "Single-leg deadlift": "hinge",
         "Overhead tricep extension": "pushdown", "Standing calf raise": "calf",
     ]
 

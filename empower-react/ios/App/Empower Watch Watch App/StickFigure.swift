@@ -50,6 +50,7 @@ func svgType(for name: String) -> String {
     if phrase("work interval") || anyWord("burpee", "burpees", "jumping") || phrase("high knee") || phrase("high knees") || (word("interval") && !word("recover")) { return "jumpingjack" }
     // "walk" here catches the cardio Walk step and HIIT recovery, but NOT "walking lunge" (below).
     if phrase("warm up") || word("warmup") || phrase("cool down") || word("cooldown") || anyWord("recover", "recovery", "march", "marching") || (anyWord("walk", "walking") && !word("lunge")) { return "march" }
+    if phrase("glute bridge") { return "bridge" }
     if word("bulgarian") || phrase("split squat") { return "splitsquat" }
     if anyWord("squat", "squats", "goblet") { return "squat" }
     if phrase("leg press") { return "legpress" }
@@ -61,14 +62,27 @@ func svgType(for name: String) -> String {
     if anyWord("row", "rows") && !word("pull") { return "row" }
     if phrase("overhead press") || phrase("shoulder press") { return "press" }
     if anyWord("lunge", "lunges") { return "lunge" }
-    if phrase("hip thrust") || phrase("glute bridge") { return "thrust" }
+    if phrase("hip thrust") { return "thrust" }
     if word("pullup") || (word("pull") && word("up")) || anyWord("chin", "chinup") { return "pullup" }
     if phrase("leg curl") || word("nordic") || phrase("hamstring curl") { return "legcurl" }
     if word("pushdown") || phrase("push down") || phrase("tricep extension") || phrase("triceps extension") { return "pushdown" }
     if anyWord("dip", "dips") { return "dip" }
     if anyWord("curl", "curls") && !anyWord("calf", "calves") { return "curl" }
+    if phrase("lying leg raise") { return "supinelegraise" }
+    if phrase("dead bug") { return "deadbug" }
+    if word("bicycle") { return "bicycle" }
     if phrase("leg raise") || word("hanging") { return "legraise" }
-    if anyWord("plank", "crunch", "crunches", "twist", "bicycle") || phrase("dead bug") || phrase("mountain climber") { return "plank" }
+    // These all used to fall through to the generic plank demo. Keep each distinct
+    // core movement visually distinct so the on-watch cue matches the exercise name.
+    if phrase("russian twist") { return "russiantwist" }
+    if phrase("mountain climber") { return "mountainclimber" }
+    if phrase("plank shoulder tap") { return "plankshouldertap" }
+    if phrase("plank jack") { return "plankjack" }
+    if phrase("plank to pike") { return "plankpike" }
+    if phrase("plank push up") { return "plankpushup" }
+    if phrase("side plank") { return "sideplank" }
+    if phrase("standing core twist") || phrase("standing twist") { return "standingtwist" }
+    if word("plank") { return "plank" }
     if anyWord("calf", "calves") { return "calf" }
     return "stand"
 }
@@ -117,6 +131,9 @@ let FIGURES: [String: ExerciseFigure] = [
     "thrust": ExerciseFigure(floor: true, bench: (34,96,66), period: 2200,
         top: Pose(j: ["head":pt(58,92),"neck":pt(78,98),"hip":pt(152,100),"k1":pt(166,126),"f1":pt(162,160),"k2":pt(178,126),"f2":pt(182,160),"e1":pt(70,104),"h1":pt(60,118),"e2":pt(86,104),"h2":pt(78,120)], bar: (pt(122,98),pt(182,100))),
         bottom: Pose(j: ["head":pt(58,92),"neck":pt(78,98),"hip":pt(150,140),"k1":pt(166,128),"f1":pt(162,160),"k2":pt(178,128),"f2":pt(182,160),"e1":pt(70,108),"h1":pt(60,124),"e2":pt(86,108),"h2":pt(78,128)], bar: (pt(120,138),pt(180,140)))),
+    "bridge": ExerciseFigure(floor: true, period: 2200,
+        top: Pose(j: ["head":pt(58,132),"neck":pt(80,136),"hip":pt(148,138),"k1":pt(170,126),"f1":pt(164,160),"k2":pt(182,126),"f2":pt(186,160),"e1":pt(90,140),"h1":pt(70,144),"e2":pt(102,140),"h2":pt(82,144)]),
+        bottom: Pose(j: ["head":pt(58,132),"neck":pt(80,136),"hip":pt(148,156),"k1":pt(170,142),"f1":pt(164,160),"k2":pt(182,142),"f2":pt(186,160),"e1":pt(90,142),"h1":pt(70,146),"e2":pt(102,142),"h2":pt(82,146)])),
     "pullup": ExerciseFigure(period: 2400,
         top: Pose(j: ["head":pt(120,58),"neck":pt(120,74),"hip":pt(120,122),"k1":pt(112,148),"f1":pt(110,170),"k2":pt(128,148),"f2":pt(130,170),"e1":pt(112,42),"h1":pt(100,24),"e2":pt(128,42),"h2":pt(140,24)], bar: (pt(55,22),pt(185,22))),
         bottom: Pose(j: ["head":pt(120,40),"neck":pt(120,52),"hip":pt(120,98),"k1":pt(114,124),"f1":pt(112,150),"k2":pt(127,124),"f2":pt(129,150),"e1":pt(103,40),"h1":pt(100,24),"e2":pt(137,40),"h2":pt(140,24)], bar: (pt(55,22),pt(185,22)))),
@@ -126,6 +143,38 @@ let FIGURES: [String: ExerciseFigure] = [
     "plank": ExerciseFigure(floor: true, period: 4200,
         top: Pose(j: ["head":pt(52,98),"neck":pt(70,102),"hip":pt(148,116),"k1":pt(176,128),"f1":pt(190,150),"k2":pt(182,130),"f2":pt(196,150),"e1":pt(68,118),"h1":pt(58,150),"e2":pt(74,118),"h2":pt(64,150)]),
         bottom: Pose(j: ["head":pt(52,100),"neck":pt(70,104),"hip":pt(148,120),"k1":pt(176,130),"f1":pt(190,150),"k2":pt(182,132),"f2":pt(196,150),"e1":pt(68,118),"h1":pt(58,150),"e2":pt(74,118),"h2":pt(64,150)])),
+    // Russian twist — seated with heels lifted, rotating the torso and hands side to side.
+    "russiantwist": ExerciseFigure(floor: true, period: 1800,
+        top: Pose(j: ["head":pt(104,104),"neck":pt(114,118),"hip":pt(132,146),"k1":pt(158,140),"f1":pt(182,150),"k2":pt(162,146),"f2":pt(186,156),"e1":pt(120,126),"h1":pt(92,132),"e2":pt(124,132),"h2":pt(96,140)]),
+        bottom: Pose(j: ["head":pt(116,104),"neck":pt(126,118),"hip":pt(132,146),"k1":pt(158,140),"f1":pt(182,150),"k2":pt(162,146),"f2":pt(186,156),"e1":pt(130,126),"h1":pt(158,132),"e2":pt(134,132),"h2":pt(162,140)])),
+    // Mountain climber — plank base with one knee driving toward the chest at a time.
+    "mountainclimber": ExerciseFigure(floor: true, period: 900,
+        top: Pose(j: ["head":pt(52,98),"neck":pt(70,102),"hip":pt(148,116),"k1":pt(120,132),"f1":pt(98,148),"k2":pt(182,130),"f2":pt(196,150),"e1":pt(68,118),"h1":pt(58,150),"e2":pt(74,118),"h2":pt(64,150)]),
+        bottom: Pose(j: ["head":pt(52,98),"neck":pt(70,102),"hip":pt(148,116),"k1":pt(176,128),"f1":pt(190,150),"k2":pt(120,134),"f2":pt(98,150),"e1":pt(68,118),"h1":pt(58,150),"e2":pt(74,118),"h2":pt(64,150)])),
+    // Side plank — a lateral, single-arm support rather than the front-plank position.
+    "sideplank": ExerciseFigure(floor: true, period: 4200,
+        top: Pose(j: ["head":pt(82,96),"neck":pt(96,108),"hip":pt(142,128),"k1":pt(174,140),"f1":pt(198,154),"k2":pt(178,146),"f2":pt(202,160),"e1":pt(106,118),"h1":pt(92,152),"e2":pt(104,112),"h2":pt(96,78)]),
+        bottom: Pose(j: ["head":pt(82,98),"neck":pt(96,110),"hip":pt(142,132),"k1":pt(174,142),"f1":pt(198,154),"k2":pt(178,148),"f2":pt(202,160),"e1":pt(106,120),"h1":pt(92,152),"e2":pt(104,114),"h2":pt(96,80)])),
+    // Plank shoulder taps — stable plank while one hand alternates to the opposite shoulder.
+    "plankshouldertap": ExerciseFigure(floor: true, period: 1200,
+        top: Pose(j: ["head":pt(52,98),"neck":pt(70,102),"hip":pt(148,116),"k1":pt(176,128),"f1":pt(190,150),"k2":pt(182,130),"f2":pt(196,150),"e1":pt(68,118),"h1":pt(58,150),"e2":pt(74,118),"h2":pt(68,104)]),
+        bottom: Pose(j: ["head":pt(52,98),"neck":pt(70,102),"hip":pt(148,116),"k1":pt(176,128),"f1":pt(190,150),"k2":pt(182,130),"f2":pt(196,150),"e1":pt(68,118),"h1":pt(74,104),"e2":pt(74,118),"h2":pt(64,150)])),
+    // Plank jack — feet jump apart and back together while the upper body stays braced.
+    "plankjack": ExerciseFigure(floor: true, period: 900,
+        top: Pose(j: ["head":pt(52,98),"neck":pt(70,102),"hip":pt(148,116),"k1":pt(176,128),"f1":pt(190,150),"k2":pt(182,130),"f2":pt(196,150),"e1":pt(68,118),"h1":pt(58,150),"e2":pt(74,118),"h2":pt(64,150)]),
+        bottom: Pose(j: ["head":pt(52,98),"neck":pt(70,102),"hip":pt(148,116),"k1":pt(180,128),"f1":pt(210,150),"k2":pt(174,130),"f2":pt(170,150),"e1":pt(68,118),"h1":pt(58,150),"e2":pt(74,118),"h2":pt(64,150)])),
+    // Plank to pike — hips lift high, then return to a long plank.
+    "plankpike": ExerciseFigure(floor: true, period: 1800,
+        top: Pose(j: ["head":pt(52,98),"neck":pt(70,102),"hip":pt(148,116),"k1":pt(176,128),"f1":pt(190,150),"k2":pt(182,130),"f2":pt(196,150),"e1":pt(68,118),"h1":pt(58,150),"e2":pt(74,118),"h2":pt(64,150)]),
+        bottom: Pose(j: ["head":pt(70,118),"neck":pt(84,124),"hip":pt(132,72),"k1":pt(158,116),"f1":pt(178,150),"k2":pt(164,116),"f2":pt(184,150),"e1":pt(82,130),"h1":pt(58,150),"e2":pt(88,130),"h2":pt(64,150)])),
+    // Plank push-up — alternates between a forearm plank and a high-plank press-up.
+    "plankpushup": ExerciseFigure(floor: true, period: 1600,
+        top: Pose(j: ["head":pt(52,104),"neck":pt(70,108),"hip":pt(148,120),"k1":pt(176,130),"f1":pt(190,150),"k2":pt(182,132),"f2":pt(196,150),"e1":pt(70,122),"h1":pt(60,150),"e2":pt(76,122),"h2":pt(66,150)]),
+        bottom: Pose(j: ["head":pt(52,98),"neck":pt(70,102),"hip":pt(148,116),"k1":pt(176,128),"f1":pt(190,150),"k2":pt(182,130),"f2":pt(196,150),"e1":pt(68,118),"h1":pt(58,150),"e2":pt(74,118),"h2":pt(64,150)])),
+    // Standing core twist — torso and hands rotate from side to side with the hips stable.
+    "standingtwist": ExerciseFigure(floor: true, period: 1600,
+        top: Pose(j: ["head":pt(112,40),"neck":pt(112,58),"hip":pt(120,112),"k1":pt(112,136),"f1":pt(110,160),"k2":pt(128,136),"f2":pt(130,160),"e1":pt(104,76),"h1":pt(78,88),"e2":pt(120,76),"h2":pt(94,88)]),
+        bottom: Pose(j: ["head":pt(128,40),"neck":pt(128,58),"hip":pt(120,112),"k1":pt(112,136),"f1":pt(110,160),"k2":pt(128,136),"f2":pt(130,160),"e1":pt(120,76),"h1":pt(146,88),"e2":pt(136,76),"h2":pt(162,88)])),
     "calf": ExerciseFigure(floor: true, period: 1700,
         top: Pose(j: ["head":pt(120,32),"neck":pt(120,48),"hip":pt(120,102),"k1":pt(112,140),"f1":pt(106,158),"k2":pt(128,140),"f2":pt(134,158),"e1":pt(112,68),"h1":pt(108,104),"e2":pt(128,68),"h2":pt(132,104)]),
         bottom: Pose(j: ["head":pt(120,40),"neck":pt(120,56),"hip":pt(120,110),"k1":pt(112,146),"f1":pt(100,162),"k2":pt(128,146),"f2":pt(140,162),"e1":pt(112,76),"h1":pt(108,112),"e2":pt(128,76),"h2":pt(132,112)])),
@@ -147,6 +196,15 @@ let FIGURES: [String: ExerciseFigure] = [
     "legraise": ExerciseFigure(period: 2400,
         top: Pose(j: ["head":pt(120,42),"neck":pt(120,58),"hip":pt(120,116),"k1":pt(116,142),"f1":pt(114,168),"k2":pt(126,142),"f2":pt(128,168),"e1":pt(112,52),"h1":pt(100,24),"e2":pt(128,52),"h2":pt(140,24)], bar: (pt(55,22),pt(185,22))),
         bottom: Pose(j: ["head":pt(120,42),"neck":pt(120,58),"hip":pt(120,116),"k1":pt(138,118),"f1":pt(164,114),"k2":pt(138,124),"f2":pt(164,120),"e1":pt(112,52),"h1":pt(100,24),"e2":pt(128,52),"h2":pt(140,24)], bar: (pt(55,22),pt(185,22)))),
+    "supinelegraise": ExerciseFigure(floor: true, period: 2400,
+        top: Pose(j: ["head":pt(58,150),"neck":pt(82,150),"hip":pt(126,150),"k1":pt(126,122),"f1":pt(126,92),"k2":pt(132,122),"f2":pt(132,92),"e1":pt(90,150),"h1":pt(72,148),"e2":pt(100,150),"h2":pt(82,148)]),
+        bottom: Pose(j: ["head":pt(58,150),"neck":pt(82,150),"hip":pt(126,150),"k1":pt(150,146),"f1":pt(176,144),"k2":pt(150,152),"f2":pt(176,150),"e1":pt(90,150),"h1":pt(72,148),"e2":pt(100,150),"h2":pt(82,148)])),
+    "deadbug": ExerciseFigure(floor: true, period: 2600,
+        top: Pose(j: ["head":pt(74,136),"neck":pt(94,142),"hip":pt(150,150),"k1":pt(150,124),"f1":pt(150,98),"k2":pt(176,144),"f2":pt(200,140),"e1":pt(110,122),"h1":pt(124,98),"e2":pt(118,144),"h2":pt(100,152)]),
+        bottom: Pose(j: ["head":pt(74,136),"neck":pt(94,142),"hip":pt(150,150),"k1":pt(176,144),"f1":pt(200,140),"k2":pt(150,124),"f2":pt(150,98),"e1":pt(118,144),"h1":pt(100,152),"e2":pt(110,122),"h2":pt(124,98)])),
+    "bicycle": ExerciseFigure(floor: true, period: 1900,
+        top: Pose(j: ["head":pt(80,134),"neck":pt(98,142),"hip":pt(150,150),"k1":pt(146,122),"f1":pt(124,116),"k2":pt(178,144),"f2":pt(204,136),"e1":pt(104,126),"h1":pt(86,118),"e2":pt(114,146),"h2":pt(132,132)]),
+        bottom: Pose(j: ["head":pt(80,134),"neck":pt(98,142),"hip":pt(150,150),"k1":pt(178,144),"f1":pt(204,136),"k2":pt(146,122),"f2":pt(124,116),"e1":pt(114,146),"h1":pt(132,132),"e2":pt(104,126),"h2":pt(86,118)])),
     "stand": ExerciseFigure(floor: true, period: 4000,
         top: Pose(j: ["head":pt(120,40),"neck":pt(120,58),"hip":pt(120,112),"k1":pt(112,136),"f1":pt(110,160),"k2":pt(128,136),"f2":pt(130,160),"e1":pt(112,70),"h1":pt(106,108),"e2":pt(128,70),"h2":pt(134,108)]),
         bottom: Pose(j: ["head":pt(120,43),"neck":pt(120,61),"hip":pt(120,113),"k1":pt(112,137),"f1":pt(110,160),"k2":pt(128,137),"f2":pt(130,160),"e1":pt(112,72),"h1":pt(107,110),"e2":pt(128,72),"h2":pt(133,110)])),

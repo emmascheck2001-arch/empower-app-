@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase'
 import { getTodayStatus } from '../lib/hormoneSync'
 import { runSave } from '../lib/dbSave'
 import { sanitize } from '../lib/validate'
+import { buildTodayFoodPlan } from '../lib/nutritionPlan'
 import BottomNav from '../components/BottomNav'
 import TopBar from '../components/TopBar'
 import Spinner from '../components/Spinner'
@@ -24,80 +25,80 @@ const PHASE_GRADIENT = {
 const PHASE_DATA = {
   Menstrual: {
     desc: 'Iron and anti-inflammatory focus',
-    science: 'Iron lost through bleeding affects performance and energy. Vitamin C consumed with iron-rich meals improves absorption by up to 67%.',
+    science: 'Iron lost through bleeding can affect energy and performance. Pairing plant-based iron with vitamin C can help absorption.',
     sectionLabel: 'Foods to prioritise this week',
     foods: [
       { icon:'🥩', name:'Red meat, beans, or lentils', why:'Red meat has the most absorbable iron; beans and lentils are an excellent, affordable plant-based source. Pair plant iron with a squeeze of citrus to boost absorption. Either way, you are replacing iron lost during bleeding.' },
-      { icon:'🥬', name:'Leafy greens with citrus', why:'Spinach and kale provide plant-based iron and folate. Pairing with vitamin C from citrus or bell pepper can triple how much iron your body absorbs.' },
+      { icon:'🥬', name:'Leafy greens with citrus', why:'Spinach and kale provide plant-based iron and folate. Pair them with vitamin C from citrus or bell pepper to help your body absorb plant-based iron.' },
       { icon:'🐟', name:'Salmon or sardines', why:'Omega-3 fatty acids lower prostaglandins, the pain-causing hormones that drive cramping, and may modestly reduce period pain when eaten consistently (Rahbar et al. 2012). Best used alongside your usual pain relief, not as a replacement.' },
       { icon:'🟤', name:'Dark chocolate (70%+)', why:'A rich source of magnesium, which relaxes smooth muscle including the uterus and may reduce cramping severity.' },
-      { icon:'🎃', name:'Pumpkin seeds', why:'High in magnesium and zinc, both of which are depleted during menstruation and support muscle function.' },
-      { icon:'🫚', name:'Ginger', why:'Gingerols and shogaols are natural anti-inflammatories. One randomized trial found ginger eased period pain about as well as ibuprofen on day one (Ozgoli 2009); evidence is still limited, so use it alongside your usual pain relief, not instead.' },
+      { icon:'🎃', name:'Pumpkin seeds', why:'A source of magnesium and zinc that can support a varied diet and normal muscle function.' },
+      { icon:'🫚', name:'Ginger', why:'Some studies suggest ginger may help period pain for some people. Use it as a food or tea if you enjoy it, alongside—not instead of—your usual care.' },
     ],
     avoid: [
       'Black tea and coffee within one hour of iron-rich meals, which reduce absorption significantly',
-      'Trans fats, which increase prostaglandins, the pain-causing hormones behind cramps',
-      'High-sodium foods, which worsen bloating and water retention',
-      'Excess alcohol, which disrupts sleep quality and amplifies inflammation',
+      'Foods or drinks that you have noticed worsen your symptoms or sleep',
+      'Large amounts of sodium if you personally notice more thirst or bloating',
+      'Alcohol if it affects sleep, recovery, mood, or medication safety',
     ],
     carbCravings: true,
   },
   Follicular: {
     desc: 'Lean protein and complex carbohydrates',
-    science: 'Rising estrogen directly improves how well your body uses carbohydrates and builds muscle. This is the most efficient phase of your cycle for both energy and strength gains.',
+    science: 'Some people notice steadier energy as their cycle changes, while others do not. Use your appetite, training load, recovery, and symptoms to decide how to fuel each day.',
     sectionLabel: 'Foods to build on this week',
     foods: [
       { icon:'🥚', name:'Eggs', why:'Complete protein containing all essential amino acids. Choline in yolks also supports neurotransmitter production as estrogen rises.' },
       { icon:'🐔', name:'Chicken or turkey', why:'Lean complete protein to support muscle protein synthesis alongside rising estrogen.' },
-      { icon:'🫐', name:'Blueberries and mixed berries', why:'Antioxidants reduce oxidative stress from increasing training load and support gut health for hormone clearance.' },
+      { icon:'🫐', name:'Blueberries and mixed berries', why:'A colourful fruit choice that adds fibre and can fit well before or after activity.' },
       { icon:'🥑', name:'Avocado', why:'Healthy monounsaturated fats support estrogen production and absorption of fat-soluble vitamins.' },
-      { icon:'🌾', name:'Oats and sweet potato', why:'Complex carbohydrates maintain stable energy. Enhanced carbohydrate utilisation in this phase due to estrogen\'s effect on insulin sensitivity.' },
-      { icon:'🥦', name:'Broccoli and cauliflower', why:'Cruciferous vegetables contain a compound that research suggests may support healthy estrogen metabolism and clearance.' },
+      { icon:'🌾', name:'Oats and sweet potato', why:'Complex carbohydrates can provide steady energy for training and daily life. Adjust portions to your hunger and activity.' },
+      { icon:'🥦', name:'Broccoli and cauliflower', why:'Fibre-rich vegetables that add variety, vitamins, and texture to meals.' },
     ],
     avoid: [
-      'Ultra-processed foods, which blunt the rising insulin sensitivity this phase provides',
-      'Excess alcohol, which disrupts estrogen metabolism and liver clearance',
+      'Foods that leave you feeling less steady or satisfied, if you notice a personal pattern',
+      'Alcohol if it worsens your sleep, recovery, mood, or other symptoms',
     ],
   },
   Ovulatory: {
     desc: 'Light and energising foods',
-    science: 'Peak estrogen and a brief testosterone rise create the highest energy and performance window of the cycle. Digestive load has a measurable effect on peak output, so lighter meals before training pay off.',
+    science: 'Some people feel energetic around ovulation, but there is no required performance window. Before training, choose a meal that feels comfortable to digest and matches the session ahead.',
     sectionLabel: 'Foods that match your energy',
     foods: [
       { icon:'🐟', name:'Salmon', why:'Omega-3 fatty acids and complete protein to support peak training performance and recovery.' },
       { icon:'🍓', name:'Berries', why:'Antioxidants protect against oxidative stress at higher training intensity.' },
       { icon:'🥗', name:'Quinoa', why:'A complete plant protein with complex carbohydrates, light enough to eat before peak training without digestive drag.' },
-      { icon:'🥜', name:'Walnuts', why:'Plant-based omega-3 and healthy fats that support your hormonal environment at peak estrogen.' },
+      { icon:'🥜', name:'Walnuts', why:'A source of unsaturated fats and plant omega-3s for snacks or meals.' },
       { icon:'🥝', name:'Kiwi', why:'Vitamin C and potassium for electrolyte balance at high training intensity.' },
       { icon:'🥒', name:'Cucumber and hydrating vegetables', why:'Micronutrients and hydration without adding digestive load before peak sessions.' },
     ],
     avoid: [
-      'Very heavy meals before peak training, which reduce performance output',
-      'Excess caffeine, which may amplify cortisol that is naturally higher at peak intensity',
+      'Meals that feel uncomfortably heavy before activity',
+      'Caffeine if it worsens anxiety, sleep, reflux, or your workout',
     ],
   },
   Luteal: {
     desc: 'Protein-forward with complex carbohydrates',
-    science: 'Progesterone causes your body to break down muscle protein faster than in other phases. This means protein requirements are at their highest point in the luteal phase.',
+    science: 'Appetite, cravings, sleep, and perceived effort can change in this phase for some people. Keep regular meals and protein consistent, then adjust portions to your hunger, recovery, and activity.',
     sectionLabel: 'Foods to prioritise this phase',
     foods: [
-      { icon:'🥩', name:'Red meat or tofu', why:'Protein requirements are highest in the luteal phase. Progesterone causes your body to break down muscle protein faster, so consistent intake throughout the day is a priority.' },
-      { icon:'🍠', name:'Sweet potato', why:'Complex carbohydrates help stabilise serotonin, which drops progressively through the luteal phase and drives mood changes.' },
-      { icon:'🥬', name:'Leafy greens with eggs', why:'Calcium and vitamin B6 are both cofactors for serotonin and dopamine synthesis, which become less stable as progesterone rises.' },
-      { icon:'🍫', name:'Dark chocolate', why:'Magnesium supports mood, muscle relaxation, and sleep. Carbohydrate cravings in this phase are driven by serotonin demand, and dark chocolate partially addresses both.' },
+      { icon:'🥩', name:'Red meat or tofu', why:'A protein source at meals can support recovery and fullness. Use the range in your profile as a guide, not a phase-specific rule.' },
+      { icon:'🍠', name:'Sweet potato', why:'A satisfying complex carbohydrate that can support regular meals and training fuel.' },
+      { icon:'🥬', name:'Leafy greens with eggs', why:'A meal combination with protein, folate, and a variety of micronutrients.' },
+      { icon:'🍫', name:'Dark chocolate', why:'An enjoyable source of magnesium for people who like it. Include it as part of satisfying meals and snacks without treating cravings as a failure.' },
       { icon:'🐟', name:'Salmon or sardines', why:'Reduces inflammation and supports mood in the second half of your cycle. The omega-3 DHA specifically supports brain function and neurotransmitter balance.' },
       { icon:'🫘', name:'Lentils', why:'Plant protein, iron, and soluble fibre for stable blood sugar and sustained energy when energy fluctuates most.' },
     ],
     avoid: [
-      'Alcohol, which amplifies mood instability and significantly disrupts sleep architecture in the luteal phase',
-      'Refined sugar, which worsens blood sugar swings and inflammation when both are already elevated',
-      'High-sodium foods, which worsen luteal-phase bloating',
+      'Alcohol if it worsens your sleep, mood, recovery, or medication safety',
+      'Foods that leave you less satisfied or less steady, if you notice a personal pattern',
+      'Large amounts of sodium if you personally notice more bloating or thirst',
       'Excess caffeine when it worsens your anxiety, sleep, reflux or perceived effort',
     ],
   },
   Perimenopause: {
     desc: 'Protein and bone-protective nutrition',
-    science: 'As estrogen declines, the body tends to store more fat around the abdomen and becomes less responsive to insulin. Protein needs are higher during this transition to support muscle maintenance.',
+    science: 'Body composition, appetite, sleep, and energy can change through this transition. Regular protein, fibre-rich foods, calcium sources, and strength training support health without requiring a rigid diet.',
     sectionLabel: 'Foods that support your transition',
     foods: [
       { icon:'🦴', name:'Calcium-rich foods', why:'Calcium and vitamin D matter more as estrogen falls and bone turnover accelerates. Good sources include dairy, fortified plant milks, calcium-set tofu, tinned sardines with bones, and leafy greens like kale and bok choy, so this works whether or not you eat dairy.' },
@@ -108,10 +109,10 @@ const PHASE_DATA = {
       { icon:'🟤', name:'Dark chocolate', why:'Magnesium for sleep quality and mood regulation when hormonal fluctuation most affects both.' },
     ],
     avoid: [
-      'Alcohol, which worsens hot flashes and disrupts sleep architecture',
-      'Excess caffeine, which triggers hot flashes in many women',
-      'High sodium, which worsens cardiovascular risk that rises with declining estrogen',
-      'Ultra-processed foods, which drive insulin resistance already worsened by estrogen loss',
+      'Alcohol if it affects your sleep, symptoms, or medication safety',
+      'Caffeine if it worsens your sleep, anxiety, reflux, or hot flashes',
+      'Large amounts of sodium if you have been advised to limit it or notice symptoms',
+      'Foods that crowd out the meals and nutrients you want more of',
     ],
   },
   observation: {
@@ -120,15 +121,15 @@ const PHASE_DATA = {
     sectionLabel: 'Foods to prioritise while building your baseline',
     foods: [
       { icon:'🥚', name:'Eggs', why:'Complete protein with all essential amino acids and choline for neurotransmitter production at any phase.' },
-      { icon:'🥦', name:'Broccoli', why:'Contains a compound that supports healthy estrogen metabolism at any cycle stage.' },
+      { icon:'🥦', name:'Broccoli', why:'A fibre-rich vegetable that adds variety, vitamins, and texture to meals.' },
       { icon:'🐟', name:'Salmon or sardines', why:'Omega-3 supports mood, focus, and keeps inflammation in check at any phase of your cycle.' },
       { icon:'🫘', name:'Lentils', why:'Plant protein, iron, and fibre for stable energy and blood sugar throughout the day.' },
       { icon:'🥑', name:'Avocado', why:'Healthy fats support hormone production and fat-soluble vitamin absorption at any phase.' },
       { icon:'🌾', name:'Oats', why:'Complex carbohydrates for stable blood sugar and consistent energy while your pattern is being established.' },
     ],
     avoid: [
-      'Ultra-processed foods, which blunt hormonal signal quality and worsen insulin sensitivity',
-      'Excess alcohol, which disrupts estrogen metabolism and sleep',
+      'Foods that consistently worsen your energy, digestion, sleep, or symptoms',
+      'Alcohol if it worsens your sleep, recovery, mood, or other symptoms',
     ],
   },
 }
@@ -145,6 +146,38 @@ const DIET_OPTIONS = [
 
 const DIET_PRIORITY = ['vegan','vegetarian','pescatarian','anti_inflammatory','gluten_free','dairy_free']
 
+// Describe foods without promising a phase-specific effect: cycle timing alone cannot establish
+// a food need, symptom cause, or training response.
+function foodCardDescription(name) {
+  const n = String(name || '').toLowerCase()
+  if (/red meat|lentil|bean|spinach/.test(n)) return 'A flexible source of protein, iron, fibre, or a combination of these. Vitamin-C-rich foods can help with absorption of plant iron.'
+  if (/salmon|sardine|walnut|flax/.test(n)) return 'A practical source of protein and/or unsaturated fats that can fit into regular meals and snacks.'
+  if (/egg/.test(n)) return 'A convenient protein option for meals or snacks.'
+  if (/tofu|tempeh|edamame|soy/.test(n)) return 'A versatile plant-protein option. Choose calcium-fortified or calcium-set options when that suits your needs.'
+  if (/yogurt|milk|calcium/.test(n)) return 'A protein or calcium-containing option; check the label for fortification when using plant-based alternatives.'
+  if (/oat|quinoa|sweet potato|potato|grain|rice|pasta/.test(n)) return 'A carbohydrate and fibre option for meals and activity fuel. Portion it to your appetite and planned activity.'
+  if (/chocolate/.test(n)) return 'An enjoyable food that can be part of satisfying meals or snacks if you like it.'
+  if (/berry|kiwi|fruit|cucumber/.test(n)) return 'A colourful produce option that adds flavour, fibre, and variety.'
+  if (/avocado/.test(n)) return 'A source of unsaturated fat that can make meals and snacks more satisfying.'
+  if (/broccoli|cauliflower|leafy|vegetable/.test(n)) return 'A fibre-rich vegetable choice that adds variety, texture, and micronutrients.'
+  if (/ginger|turmeric/.test(n)) return 'Use it as a food or flavouring if you enjoy it; it is not a replacement for medical or pain care.'
+  return 'A practical food option to mix into meals that suit your preferences, budget, digestion, and activity.'
+}
+
+function symptomFoodCopy(symptomId, name) {
+  const label = String(name || '').replace(/\s*\([^)]*\)/g, '')
+  const shared = 'Food changes are optional and results vary; they complement, not replace, appropriate medical care.'
+  if (symptomId === 'cramping') return `${label} can be part of a nourishing meal or snack. ${shared}`
+  if (symptomId === 'headache') return `${label} may support regular eating and hydration habits; track your own triggers and seek care for new, severe, or unusual headaches.`
+  if (symptomId === 'bloating') return `${label} is a gentle option to try if it agrees with your digestion. Adjust based on your own symptoms.`
+  if (symptomId === 'breast') return `${label} is a practical food strategy to try if you notice a personal pattern; it is not a treatment for persistent or new breast pain.`
+  if (symptomId === 'brainfog') return `${label} can support regular meals. Ongoing fatigue or concentration changes deserve clinical assessment rather than self-treatment with food alone.`
+  if (symptomId === 'pms' || symptomId === 'cravings') return `${label} can be part of a satisfying routine. Appetite and mood have many contributors, so use your own response rather than a phase rule.`
+  if (symptomId === 'skin') return `${label} is one balanced-food option; skin changes have many causes and persistent concerns are worth discussing with a clinician.`
+  if (symptomId === 'fatigue') return `${label} can contribute useful nutrients. Ask a clinician about testing if fatigue is persistent, severe, or affecting daily life.`
+  return shared
+}
+
 function parseDiets(val) {
   if (!val) return []
   try { const p = JSON.parse(val); return Array.isArray(p) ? p : [p] }
@@ -156,29 +189,29 @@ const DIET_FOODS = {
     Menstrual: [
       { icon:'🥚', name:'Eggs', why:'Complete protein with all essential amino acids, plus iron and zinc that are lost during menstruation.' },
       { icon:'🫘', name:'Lentils with spinach', why:'Plant-based iron and folate. Pair with vitamin C from citrus or bell pepper to significantly boost absorption.' },
-      { icon:'🎃', name:'Pumpkin seeds', why:'Magnesium and zinc, both depleted during bleeding. Magnesium relaxes smooth muscle and may reduce cramping severity.' },
+      { icon:'🎃', name:'Pumpkin seeds', why:'A source of magnesium and zinc. Include them if you enjoy them as part of a varied diet.' },
       { icon:'🧀', name:'Greek yogurt', why:'Calcium and complete protein. Calcium intake is associated with reduced menstrual cramp severity in clinical trials.' },
-      { icon:'🟤', name:'Dark chocolate (70%+)', why:'Rich source of magnesium. Carbohydrate cravings are driven by serotonin demand at the lowest estrogen point of the cycle.' },
-      { icon:'🫚', name:'Ginger', why:'Gingerols and shogaols lower prostaglandins, the pain-causing hormones that drive cramps. One randomized trial found ginger eased pain about as well as ibuprofen on day one (Ozgoli 2009); evidence is still limited, so use it alongside your usual pain relief, not instead.' },
+      { icon:'🟤', name:'Dark chocolate (70%+)', why:'An enjoyable source of magnesium for people who like it. Include it as part of satisfying meals and snacks.' },
+      { icon:'🫚', name:'Ginger', why:'Some studies suggest ginger may help period pain for some people. Use it as a food or tea if you enjoy it, alongside—not instead of—your usual care.' },
     ],
     Follicular: [
-      { icon:'🥚', name:'Eggs', why:'Complete protein supporting muscle protein synthesis as estrogen rises and anabolic conditions improve.' },
+      { icon:'🥚', name:'Eggs', why:'A convenient complete-protein option for meals or snacks, especially around training.' },
       { icon:'🧀', name:'Greek yogurt', why:'Protein, calcium, and probiotics. Rising estrogen supports healthy gut microbiome signalling.' },
-      { icon:'🌾', name:'Quinoa', why:'One of the few complete plant proteins. Complex carbohydrates are efficiently used as estrogen improves insulin sensitivity.' },
+      { icon:'🌾', name:'Quinoa', why:'A plant-based protein and carbohydrate option that can work well in meals before or after activity.' },
       { icon:'🥑', name:'Avocado', why:'Monounsaturated fats support estrogen production and absorption of fat-soluble vitamins.' },
-      { icon:'🫐', name:'Berries', why:'Antioxidants reduce oxidative stress from increasing training load and support gut health for hormone clearance.' },
-      { icon:'🥦', name:'Broccoli', why:'Contains a compound that supports healthy estrogen metabolism and clearance.' },
+      { icon:'🫐', name:'Berries', why:'A colourful fruit choice that adds fibre and variety to meals and snacks.' },
+      { icon:'🥦', name:'Broccoli', why:'A fibre-rich vegetable that adds variety, vitamins, and texture to meals.' },
     ],
     Ovulatory: [
       { icon:'🥚', name:'Eggs', why:'Complete protein. Lighter than red meat before peak training sessions.' },
       { icon:'🍓', name:'Berries', why:'Antioxidants protect against oxidative stress at higher training intensity.' },
       { icon:'🌾', name:'Quinoa', why:'Complete plant protein with complex carbohydrates, light enough before peak sessions.' },
-      { icon:'🥜', name:'Walnuts', why:'Plant-based omega-3 and healthy fats that support your hormonal environment.' },
+      { icon:'🥜', name:'Walnuts', why:'A source of unsaturated fats and plant omega-3s for snacks or meals.' },
       { icon:'🥝', name:'Kiwi', why:'Vitamin C and potassium for electrolyte balance at high training intensity.' },
       { icon:'🥒', name:'Cucumber', why:'Micronutrients and hydration without adding digestive load.' },
     ],
     Luteal: [
-      { icon:'🥚', name:'Eggs', why:'Highest-quality complete protein. Progesterone causes your body to break down muscle protein faster, so consistent intake throughout the day is a priority.' },
+      { icon:'🥚', name:'Eggs', why:'A complete-protein option for regular meals and snacks. Use the range in your profile as a flexible guide.' },
       { icon:'🧀', name:'Greek yogurt', why:'Protein and calcium. Calcium and B6 are cofactors for serotonin synthesis, which becomes less stable in the luteal phase.' },
       { icon:'🍠', name:'Sweet potato', why:'Complex carbohydrates stabilise serotonin, which drops progressively through the luteal phase and drives mood changes.' },
       { icon:'🥬', name:'Leafy greens', why:'Calcium and B6 support serotonin and dopamine synthesis. Magnesium aids sleep and muscle relaxation.' },
@@ -187,7 +220,7 @@ const DIET_FOODS = {
     ],
     Perimenopause: [
       { icon:'🧀', name:'Greek yogurt', why:'Calcium is a priority as estrogen falls and bone turnover accelerates. Protein supports muscle maintenance.' },
-      { icon:'🥚', name:'Eggs', why:'Complete protein at every meal. 1.8g per kg daily supports muscle mass through the transition.' },
+      { icon:'🥚', name:'Eggs', why:'A complete-protein option for regular meals. Use the range in your profile as a guide for your activity and goals.' },
       { icon:'🫘', name:'Tofu', why:'Phytoestrogens may modestly support symptom management. Also a complete protein for vegetarian diets.' },
       { icon:'🥬', name:'Leafy greens', why:'Magnesium and folate support mood and sleep, both commonly disrupted during the perimenopause transition.' },
       { icon:'🟤', name:'Dark chocolate', why:'Magnesium for sleep quality and mood regulation when hormonal fluctuation affects both.' },
@@ -195,8 +228,8 @@ const DIET_FOODS = {
     ],
     observation: [
       { icon:'🥚', name:'Eggs', why:'Complete protein with all essential amino acids and choline for neurotransmitter production at any phase.' },
-      { icon:'🧀', name:'Greek yogurt', why:'Protein and probiotics for gut health and hormone clearance.' },
-      { icon:'🥦', name:'Broccoli', why:'Supports healthy estrogen metabolism at any cycle stage.' },
+      { icon:'🧀', name:'Greek yogurt', why:'Protein, calcium, and live cultures in a convenient meal or snack option.' },
+      { icon:'🥦', name:'Broccoli', why:'A fibre-rich vegetable that adds variety, vitamins, and texture to meals.' },
       { icon:'🫘', name:'Lentils', why:'Plant protein, iron, and fibre for stable energy and blood sugar.' },
       { icon:'🥑', name:'Avocado', why:'Healthy fats support hormone production and fat-soluble vitamin absorption.' },
       { icon:'🌾', name:'Oats', why:'Complex carbohydrates for stable blood sugar while your pattern is established.' },
@@ -204,32 +237,32 @@ const DIET_FOODS = {
   },
   vegan: {
     Menstrual: [
-      { icon:'🫘', name:'Lentils with spinach', why:'Plant-based iron and folate. Pair with vitamin C from citrus or bell pepper to triple how much iron your body absorbs.' },
+      { icon:'🫘', name:'Lentils with spinach', why:'Plant-based iron and folate. Pair with vitamin C from citrus or bell pepper to help support absorption.' },
       { icon:'🥢', name:'Tofu (iron-set)', why:'Iron and complete protein when combined with variety. Calcium-set tofu also provides calcium.' },
-      { icon:'🎃', name:'Pumpkin seeds', why:'Magnesium and zinc, both depleted during bleeding. Magnesium relaxes smooth muscle and may reduce cramping.' },
+      { icon:'🎃', name:'Pumpkin seeds', why:'A source of magnesium and zinc that can fit into meals or snacks.' },
       { icon:'🟤', name:'Dark chocolate (70%+)', why:'Rich source of magnesium for smooth muscle relaxation. Addresses serotonin-driven carbohydrate cravings.' },
       { icon:'🥛', name:'Fortified plant milk', why:'Calcium, B12, and vitamin D. All three are important for plant-based diets and are depleted by bleeding and low estrogen.' },
-      { icon:'🫚', name:'Ginger', why:'Gingerols and shogaols lower prostaglandins, the pain-causing hormones that drive cramps. One randomized trial found ginger eased pain about as well as ibuprofen on day one (Ozgoli 2009); evidence is still limited, so use it alongside your usual pain relief, not instead.' },
+      { icon:'🫚', name:'Ginger', why:'Some studies suggest ginger may help period pain for some people. Use it as a food or tea if you enjoy it, alongside—not instead of—your usual care.' },
     ],
     Follicular: [
       { icon:'🥢', name:'Tempeh', why:'Fermented soy with the highest plant protein content. Fermentation increases nutrient bioavailability and adds probiotics.' },
       { icon:'🌾', name:'Quinoa', why:'Complete plant protein with all essential amino acids. Complex carbohydrates used efficiently as estrogen improves insulin sensitivity.' },
-      { icon:'🥢', name:'Edamame', why:'Complete protein and phytoestrogens. Supports anabolic conditions during the highest-energy phase of the cycle.' },
+      { icon:'🥢', name:'Edamame', why:'A convenient plant protein and fibre source for meals and snacks.' },
       { icon:'🥑', name:'Avocado', why:'Monounsaturated fats support estrogen production and fat-soluble vitamin absorption.' },
-      { icon:'🫐', name:'Berries', why:'Antioxidants reduce oxidative stress from increasing training load and support gut health for hormone clearance.' },
-      { icon:'🥦', name:'Broccoli', why:'Supports estrogen metabolism and has anti-inflammatory properties.' },
+      { icon:'🫐', name:'Berries', why:'A colourful fruit choice that adds fibre and variety to meals and snacks.' },
+      { icon:'🥦', name:'Broccoli', why:'A fibre-rich vegetable that adds variety, vitamins, and texture to meals.' },
     ],
     Ovulatory: [
       { icon:'🥢', name:'Edamame', why:'Complete plant protein with all essential amino acids. Light enough before peak training sessions.' },
       { icon:'🍓', name:'Berries', why:'Antioxidants protect against oxidative stress at peak training intensity.' },
       { icon:'🌾', name:'Quinoa', why:'Complete plant protein and complex carbohydrates without digestive drag before peak sessions.' },
-      { icon:'🥜', name:'Walnuts', why:'Plant-based omega-3 and healthy fats that support your hormonal environment at peak estrogen.' },
+      { icon:'🥜', name:'Walnuts', why:'A source of unsaturated fats and plant omega-3s for snacks or meals.' },
       { icon:'🥝', name:'Kiwi', why:'Vitamin C and potassium for electrolyte balance at high training intensity.' },
       { icon:'🥒', name:'Cucumber', why:'Hydration and micronutrients without adding digestive load before peak sessions.' },
     ],
     Luteal: [
-      { icon:'🥢', name:'Tempeh', why:'Highest plant protein content. Progesterone causes your body to break down muscle protein faster, so vegan diets need to be especially consistent with protein intake.' },
-      { icon:'🥢', name:'Tofu', why:'Complete protein when diet is varied. Eaten across multiple meals achieves the elevated luteal protein target.' },
+      { icon:'🥢', name:'Tempeh', why:'A protein-rich plant food. Spread protein-containing foods through the day in a way that fits your appetite and training.' },
+      { icon:'🥢', name:'Tofu', why:'A versatile protein option. Spread protein-containing foods across meals in a way that fits your appetite and activity.' },
       { icon:'🍠', name:'Sweet potato', why:'Complex carbohydrates stabilise serotonin, which drops progressively through the luteal phase.' },
       { icon:'🥬', name:'Leafy greens', why:'Calcium and B6 support serotonin and dopamine synthesis when both become less stable.' },
       { icon:'🍫', name:'Dark chocolate', why:'Magnesium for mood, muscle relaxation, and sleep. Partially addresses serotonin-driven cravings.' },
@@ -237,7 +270,7 @@ const DIET_FOODS = {
     ],
     Perimenopause: [
       { icon:'🥛', name:'Fortified soy or oat milk', why:'Calcium, vitamin D, and B12 all require active attention on a vegan diet as estrogen falls and bone turnover increases.' },
-      { icon:'🥢', name:'Tofu', why:'Phytoestrogens may modestly support symptom management. Complete protein for meeting the 1.8g/kg target.' },
+      { icon:'🥢', name:'Tofu', why:'A protein option that can also provide calcium when it is calcium-set. Use the range in your profile as a guide.' },
       { icon:'🥢', name:'Tempeh', why:'Highest plant protein content. Fermentation improves nutrient bioavailability.' },
       { icon:'🥬', name:'Leafy greens', why:'Calcium, magnesium, and folate support mood and sleep disrupted by hormonal fluctuation.' },
       { icon:'🟤', name:'Dark chocolate', why:'Magnesium for sleep quality and mood regulation.' },
@@ -246,7 +279,7 @@ const DIET_FOODS = {
     observation: [
       { icon:'🥢', name:'Tofu', why:'Complete protein when diet is varied. Eaten across meals supports daily protein targets.' },
       { icon:'🌾', name:'Quinoa', why:'Complete plant protein with all essential amino acids for baseline nutrition.' },
-      { icon:'🥦', name:'Broccoli', why:'Supports healthy estrogen metabolism at any cycle stage.' },
+      { icon:'🥦', name:'Broccoli', why:'A fibre-rich vegetable that adds variety, vitamins, and texture to meals.' },
       { icon:'🫘', name:'Lentils', why:'Plant protein, iron, and fibre for stable energy and blood sugar throughout the day.' },
       { icon:'🥑', name:'Avocado', why:'Healthy fats support hormone production and fat-soluble vitamin absorption.' },
       { icon:'🌾', name:'Oats', why:'Complex carbohydrates for stable blood sugar while your pattern is established.' },
@@ -255,31 +288,31 @@ const DIET_FOODS = {
   pescatarian: {
     Menstrual: [
       { icon:'🐟', name:'Sardines', why:'Iron and omega-3 in one food. Omega-3 helps reduce prostaglandins, the pain-causing hormones that drive cramping, alongside iron replenishment from bleeding.' },
-      { icon:'🥬', name:'Leafy greens with citrus', why:'Plant-based iron and folate paired with vitamin C, which can triple how much iron your body absorbs.' },
+      { icon:'🥬', name:'Leafy greens with citrus', why:'Plant-based iron and folate paired with vitamin C to support absorption.' },
       { icon:'🥚', name:'Eggs', why:'Complete protein with iron and zinc, both lost during bleeding.' },
       { icon:'🟤', name:'Dark chocolate', why:'Magnesium for smooth muscle relaxation and carbohydrate cravings driven by low serotonin.' },
       { icon:'🎃', name:'Pumpkin seeds', why:'Magnesium and zinc. Zinc supports immune function and tissue repair during menstruation.' },
-      { icon:'🫚', name:'Ginger', why:'Lowers prostaglandins, the pain-causing hormones that drive cramps. One randomized trial found ginger eased pain about as well as ibuprofen on day one (Ozgoli 2009); evidence is still limited, so use it alongside your usual pain relief, not instead.' },
+      { icon:'🫚', name:'Ginger', why:'Some studies suggest ginger may help period pain for some people. Use it as a food or tea if you enjoy it, alongside—not instead of—your usual care.' },
     ],
     Follicular: [
       { icon:'🐟', name:'Salmon', why:'Complete protein and omega-3 fatty acids supporting muscle building as estrogen creates anabolic conditions.' },
       { icon:'🥚', name:'Eggs', why:'Complete protein with choline supporting neurotransmitter production as estrogen and serotonin rise.' },
-      { icon:'🧀', name:'Greek yogurt', why:'Protein, calcium, and probiotics supporting gut health for hormone clearance.' },
+      { icon:'🧀', name:'Greek yogurt', why:'Protein, calcium, and live cultures in a convenient meal or snack option.' },
       { icon:'🫐', name:'Berries', why:'Antioxidants reduce oxidative stress from increasing training load.' },
       { icon:'🥑', name:'Avocado', why:'Monounsaturated fats support estrogen production and fat-soluble vitamin absorption.' },
-      { icon:'🥦', name:'Broccoli', why:'Supports estrogen metabolism and clearance through this phase.' },
+      { icon:'🥦', name:'Broccoli', why:'A fibre-rich vegetable that adds variety, vitamins, and texture to meals.' },
     ],
     Ovulatory: [
       { icon:'🐟', name:'Salmon', why:'Omega-3 fatty acids and complete protein supporting peak training performance and recovery.' },
       { icon:'🍓', name:'Berries', why:'Antioxidants protect against oxidative stress at peak intensity.' },
       { icon:'🌾', name:'Quinoa', why:'Complete protein and complex carbohydrates, light enough before peak sessions.' },
-      { icon:'🥜', name:'Walnuts', why:'Plant-based omega-3 supporting your hormonal environment at peak estrogen.' },
+      { icon:'🥜', name:'Walnuts', why:'A source of unsaturated fats and plant omega-3s for snacks or meals.' },
       { icon:'🥝', name:'Kiwi', why:'Vitamin C and potassium for electrolyte balance at high intensity.' },
       { icon:'🥒', name:'Cucumber', why:'Hydration and micronutrients without digestive load.' },
     ],
     Luteal: [
       { icon:'🐟', name:'Salmon', why:'Omega-3 fatty acids reduce luteal-phase inflammation and support mood via DHA neural pathways. Also highest protein priority.' },
-      { icon:'🥚', name:'Eggs', why:'Complete protein. Progesterone causes your body to break down muscle protein faster, so consistent intake across the day is the priority.' },
+      { icon:'🥚', name:'Eggs', why:'A complete-protein choice for regular meals and snacks. Consistency can support recovery and fullness.' },
       { icon:'🍠', name:'Sweet potato', why:'Complex carbohydrates stabilise serotonin as progesterone rises and mood becomes less stable.' },
       { icon:'🥬', name:'Leafy greens', why:'Calcium and B6 support serotonin and dopamine synthesis when both become less stable.' },
       { icon:'🍫', name:'Dark chocolate', why:'Magnesium for mood, muscle relaxation, and sleep quality.' },
@@ -296,8 +329,8 @@ const DIET_FOODS = {
     observation: [
       { icon:'🥚', name:'Eggs', why:'Complete protein with all essential amino acids and choline for neurotransmitter production.' },
       { icon:'🐟', name:'Salmon', why:'Omega-3 fatty acids support mood, cognition, and inflammation regulation.' },
-      { icon:'🧀', name:'Greek yogurt', why:'Protein and probiotics for gut health and hormone clearance.' },
-      { icon:'🥦', name:'Broccoli', why:'Supports healthy estrogen metabolism at any cycle stage.' },
+      { icon:'🧀', name:'Greek yogurt', why:'Protein, calcium, and live cultures in a convenient meal or snack option.' },
+      { icon:'🥦', name:'Broccoli', why:'A fibre-rich vegetable that adds variety, vitamins, and texture to meals.' },
       { icon:'🫘', name:'Lentils', why:'Plant protein, iron, and fibre for stable energy and blood sugar.' },
       { icon:'🥑', name:'Avocado', why:'Healthy fats support hormone production and fat-soluble vitamin absorption.' },
     ],
@@ -305,17 +338,17 @@ const DIET_FOODS = {
   anti_inflammatory: {
     Menstrual: [
       { icon:'🐟', name:'Salmon and sardines', why:'Omega-3 lowers prostaglandins, the pain-causing hormones, and may modestly reduce period pain when eaten consistently (Rahbar et al. 2012). Best used alongside your usual pain relief, not as a replacement.' },
-      { icon:'🫚', name:'Turmeric with black pepper', why:'Curcumin reduces the production of prostaglandins, the pain-causing hormones. Black pepper increases how much curcumin your body absorbs by up to 2000%.' },
+      { icon:'🫚', name:'Turmeric with black pepper', why:'Turmeric can add flavour to an anti-inflammatory eating pattern. It is not a treatment for cramps or other symptoms.' },
       { icon:'🫚', name:'Ginger', why:"Ginger's active compounds are natural anti-inflammatories with well-documented effects on period pain." },
       { icon:'🥜', name:'Walnuts', why:'Plant-based omega-3 supports an anti-inflammatory diet alongside the omega-3 from fish.' },
       { icon:'🥬', name:'Leafy greens with citrus', why:'Iron, magnesium, and vitamin C. Anti-inflammatory micronutrients support recovery from bleeding.' },
       { icon:'🟤', name:'Dark chocolate (70%+)', why:'Polyphenols and magnesium. High-quality dark chocolate has measurable anti-inflammatory properties.' },
     ],
     Follicular: [
-      { icon:'🐟', name:'Salmon', why:'Omega-3 and complete protein supporting muscle building during the highest anabolic window.' },
-      { icon:'🫒', name:'Extra virgin olive oil', why:'Naturally anti-inflammatory and supportive of estrogen metabolism. A staple of the Mediterranean diet pattern, the most-studied dietary approach for women\'s long-term health.' },
+      { icon:'🐟', name:'Salmon', why:'A protein and omega-3 option that can support meals around training and recovery.' },
+      { icon:'🫒', name:'Extra virgin olive oil', why:'An unsaturated fat that fits well in a Mediterranean-style eating pattern with vegetables, grains, legumes, fish, and other protein foods.' },
       { icon:'🫐', name:'Berries', why:'Polyphenols and anthocyanins reduce inflammatory markers and oxidative stress from increasing training.' },
-      { icon:'🥦', name:'Broccoli', why:'Contains compounds that support estrogen metabolism and have anti-inflammatory properties.' },
+      { icon:'🥦', name:'Broccoli', why:'A fibre-rich vegetable that adds variety, vitamins, and texture to meals.' },
       { icon:'🥜', name:'Walnuts', why:'Plant-based omega-3 alongside fish for a stronger combined anti-inflammatory effect.' },
       { icon:'🥚', name:'Eggs', why:'Complete protein with choline, anti-inflammatory when balanced with omega-3 intake.' },
     ],
@@ -349,16 +382,16 @@ const DIET_FOODS = {
       { icon:'🫒', name:'Extra virgin olive oil', why:'Natural anti-inflammatory properties that build with consistent daily use.' },
       { icon:'🥦', name:'Broccoli', why:'Contains compounds that support both anti-inflammatory health and hormone metabolism.' },
       { icon:'🥜', name:'Walnuts', why:'Plant-based omega-3 for a consistent anti-inflammatory diet.' },
-      { icon:'🫚', name:'Turmeric with black pepper', why:'Curcumin anti-inflammatory effect builds with consistent daily use.' },
+      { icon:'🫚', name:'Turmeric with black pepper', why:'A flavourful option to include if you enjoy it; it is not a replacement for medical treatment.' },
     ],
   },
   gluten_free: {
     Menstrual: [
       { icon:'🥩', name:'Red meat', why:'Iron from red meat is the most absorbable form available, making it the most effective food source for replacing what is lost during bleeding.' },
-      { icon:'🥬', name:'Leafy greens with citrus', why:'Plant-based iron and folate. Vitamin C can triple how much iron your body absorbs.' },
+      { icon:'🥬', name:'Leafy greens with citrus', why:'Plant-based iron and folate. Add vitamin C-rich fruit or vegetables to help with absorption.' },
       { icon:'🐟', name:'Salmon or sardines', why:'Omega-3 helps reduce the hormones that cause cramping. Naturally gluten-free.' },
       { icon:'🟤', name:'Dark chocolate (70%+, GF label)', why:'Magnesium for smooth muscle relaxation. Check the gluten-free label, as cross-contamination is possible in some brands.' },
-      { icon:'🎃', name:'Pumpkin seeds', why:'Magnesium and zinc, both depleted during menstruation. Naturally gluten-free.' },
+      { icon:'🎃', name:'Pumpkin seeds', why:'A naturally gluten-free source of magnesium and zinc.' },
       { icon:'🍚', name:'White or brown rice', why:'Easily digestible complex carbohydrates. Naturally gluten-free alternative to wheat-based grains.' },
     ],
     Follicular: [
@@ -373,12 +406,12 @@ const DIET_FOODS = {
       { icon:'🐟', name:'Salmon', why:'Omega-3 and complete protein naturally gluten-free for peak performance.' },
       { icon:'🍓', name:'Berries', why:'Antioxidants protect against oxidative stress at peak intensity.' },
       { icon:'🌾', name:'Quinoa', why:'Complete plant protein, light and gluten-free before peak sessions.' },
-      { icon:'🥜', name:'Walnuts', why:'Plant-based omega-3 supporting your hormonal environment at peak estrogen.' },
+      { icon:'🥜', name:'Walnuts', why:'A source of unsaturated fats and plant omega-3s for snacks or meals.' },
       { icon:'🥝', name:'Kiwi', why:'Vitamin C and potassium for electrolyte balance.' },
       { icon:'🥒', name:'Cucumber', why:'Hydration without digestive load before peak sessions.' },
     ],
     Luteal: [
-      { icon:'🥩', name:'Red meat or tofu', why:'Protein requirements are highest in the luteal phase. Both are naturally gluten-free.' },
+      { icon:'🥩', name:'Red meat or tofu', why:'Protein-rich, naturally gluten-free options for regular meals. Use your profile range as a guide.' },
       { icon:'🍠', name:'Sweet potato', why:'Complex carbohydrates stabilise serotonin. Naturally gluten-free.' },
       { icon:'🥬', name:'Leafy greens with eggs', why:'Calcium and B6 for serotonin and dopamine synthesis.' },
       { icon:'🍫', name:'Dark chocolate (GF label)', why:'Magnesium for mood, muscle relaxation, and sleep.' },
@@ -387,7 +420,7 @@ const DIET_FOODS = {
     ],
     Perimenopause: [
       { icon:'🧀', name:'Greek yogurt', why:'Calcium and protein. Naturally gluten-free. Calcium matters more as bone turnover accelerates.' },
-      { icon:'🥩', name:'Lean protein at every meal', why:'1.8g per kg daily. All whole protein sources are naturally gluten-free.' },
+      { icon:'🥩', name:'Lean protein at every meal', why:'Use the protein range in your profile as a guide. Whole protein foods are naturally gluten-free.' },
       { icon:'🐟', name:'Salmon or sardines', why:'Omega-3 for heart health and brain function. Naturally gluten-free.' },
       { icon:'🫘', name:'Soy foods (GF tamari)', why:'Phytoestrogens may modestly support symptom management. Use gluten-free tamari instead of soy sauce.' },
       { icon:'🥬', name:'Leafy greens', why:'Magnesium and calcium for bone, mood, and sleep.' },
@@ -395,7 +428,7 @@ const DIET_FOODS = {
     ],
     observation: [
       { icon:'🥚', name:'Eggs', why:'Complete protein naturally gluten-free for baseline nutrition.' },
-      { icon:'🥦', name:'Broccoli', why:'Supports healthy estrogen metabolism at any cycle stage.' },
+      { icon:'🥦', name:'Broccoli', why:'A fibre-rich vegetable that adds variety, vitamins, and texture to meals.' },
       { icon:'🐟', name:'Salmon or sardines', why:'Omega-3 for mood, focus, and keeping inflammation low.' },
       { icon:'🫘', name:'Lentils', why:'Plant protein, iron, and fibre. Naturally gluten-free.' },
       { icon:'🥑', name:'Avocado', why:'Healthy fats support hormone production and vitamin absorption.' },
@@ -408,7 +441,7 @@ const DIET_FOODS = {
       { icon:'🥛', name:'Fortified oat or soy milk', why:'Calcium and B12, especially important without dairy. Prioritise fortified sources and leafy greens.' },
       { icon:'🥬', name:'Leafy greens with citrus', why:'Calcium, iron, and vitamin C. Kale and bok choy have the highest calcium bioavailability of any plant source.' },
       { icon:'🐟', name:'Salmon or sardines', why:'Omega-3 helps reduce the hormones that cause cramping and keeps inflammation lower during bleeding.' },
-      { icon:'🎃', name:'Pumpkin seeds', why:'Magnesium and zinc, both depleted during menstruation. Dairy-free source.' },
+      { icon:'🎃', name:'Pumpkin seeds', why:'A dairy-free source of magnesium and zinc.' },
       { icon:'🟤', name:'Dark chocolate (dairy-free)', why:'Magnesium for smooth muscle relaxation. Check the dairy-free label, as many dark chocolates contain milk.' },
     ],
     Follicular: [
@@ -417,18 +450,18 @@ const DIET_FOODS = {
       { icon:'🥛', name:'Fortified plant milk', why:'Calcium and vitamin D without dairy. Adequate calcium supports bone health especially during the building phase.' },
       { icon:'🫐', name:'Berries', why:'Antioxidants reduce oxidative stress from increasing training load.' },
       { icon:'🥑', name:'Avocado', why:'Monounsaturated fats support estrogen production and vitamin absorption.' },
-      { icon:'🥦', name:'Broccoli', why:'A good plant-based calcium source plus compounds that support estrogen metabolism. Naturally dairy-free.' },
+      { icon:'🥦', name:'Broccoli', why:'A naturally dairy-free vegetable that adds fibre and variety; include fortified foods or other calcium sources as needed.' },
     ],
     Ovulatory: [
       { icon:'🐟', name:'Salmon', why:'Omega-3 and complete protein for peak performance. Naturally dairy-free.' },
       { icon:'🍓', name:'Berries', why:'Antioxidants protect against oxidative stress at peak intensity.' },
       { icon:'🌾', name:'Quinoa', why:'Complete plant protein and complex carbohydrates. Light before peak sessions.' },
-      { icon:'🥜', name:'Walnuts', why:'Plant-based omega-3 supporting your hormonal environment at peak estrogen.' },
+      { icon:'🥜', name:'Walnuts', why:'A source of unsaturated fats and plant omega-3s for snacks or meals.' },
       { icon:'🥝', name:'Kiwi', why:'Vitamin C and potassium for electrolyte balance at peak intensity.' },
       { icon:'🥒', name:'Cucumber', why:'Hydration without digestive load before peak sessions.' },
     ],
     Luteal: [
-      { icon:'🥩', name:'Red meat or tofu', why:'Protein requirements highest in the luteal phase. Both are naturally dairy-free.' },
+      { icon:'🥩', name:'Red meat or tofu', why:'Protein-rich, naturally dairy-free options for regular meals. Use your profile range as a guide.' },
       { icon:'🍠', name:'Sweet potato', why:'Complex carbohydrates stabilise serotonin as progesterone rises.' },
       { icon:'🥬', name:'Leafy greens with eggs', why:'Calcium from greens (no dairy needed), B6 for serotonin and dopamine synthesis.' },
       { icon:'🍫', name:'Dark chocolate (dairy-free)', why:'Magnesium for mood, muscle relaxation, and sleep.' },
@@ -437,7 +470,7 @@ const DIET_FOODS = {
     ],
     Perimenopause: [
       { icon:'🥛', name:'Fortified soy or oat milk', why:'Calcium, vitamin D, and B12 need active planning without dairy. Prioritise fortified foods, leafy greens, and fish bones.' },
-      { icon:'🥩', name:'Lean protein at every meal', why:'1.8g per kg daily. Muscle mass is one of the strongest protective factors through the transition.' },
+      { icon:'🥩', name:'Lean protein at every meal', why:'Use the protein range in your profile as a guide; regular protein can support muscle maintenance alongside strength training.' },
       { icon:'🐟', name:'Salmon or sardines', why:'Omega-3 for heart health and brain function. Sardines with bones are also one of the best non-dairy calcium sources.' },
       { icon:'🥢', name:'Tofu (if soy OK)', why:'Phytoestrogens and protein. Calcium-set tofu is a significant non-dairy calcium source.' },
       { icon:'🥬', name:'Leafy greens', why:'Calcium from kale and bok choy plus magnesium for sleep and mood. Especially important without dairy.' },
@@ -446,7 +479,7 @@ const DIET_FOODS = {
     observation: [
       { icon:'🥚', name:'Eggs', why:'Complete protein naturally dairy-free for baseline nutrition.' },
       { icon:'🥛', name:'Fortified plant milk', why:'Calcium and B12 to replace what dairy provides. Check for fortification on label.' },
-      { icon:'🥦', name:'Broccoli', why:'Supports estrogen metabolism and is a good plant-based calcium source.' },
+      { icon:'🥦', name:'Broccoli', why:'A fibre-rich vegetable that adds variety; include fortified foods or other calcium sources as needed.' },
       { icon:'🐟', name:'Salmon or sardines', why:'Omega-3 for mood, focus, and inflammation at any phase.' },
       { icon:'🥑', name:'Avocado', why:'Healthy fats support hormone production and fat-soluble vitamin absorption.' },
       { icon:'🌾', name:'Quinoa', why:'Complete plant protein and complex carbohydrates for stable energy.' },
@@ -458,25 +491,25 @@ const SYMPTOMS = [
   { id:'cramping', emoji:'🩸', title:'Cramping', sub:'Period cramps and pelvic pain', remedies:[
     { name:'Salmon and sardines', why:'Omega-3 fatty acids lower prostaglandins, the pain-causing hormones behind cramps, and may modestly reduce period pain when eaten consistently (Rahbar et al. 2012). Best used alongside your usual pain relief, not as a replacement.' },
     { name:'Pumpkin seeds and dark chocolate', why:'Both are high in magnesium, which relaxes smooth muscle including the uterus. Several trials have shown magnesium reduces period pain severity versus placebo.' },
-    { name:'Fresh ginger', why:'Ginger lowers prostaglandins, the pain-causing hormones that drive cramps. One randomized trial found it eased pain about as well as ibuprofen on day one (Ozgoli 2009); evidence is still limited, so use it alongside your usual pain relief, not instead.' },
+    { name:'Fresh ginger', why:'Some studies suggest ginger may help period pain for some people. Use it alongside—not instead of—your usual care.' },
     { name:'Walnuts and flaxseed', why:'Plant-based omega-3. While less potent than omega-3 from fish, eating them regularly supports an overall anti-inflammatory diet.' },
   ], avoid:['Trans fats', 'Excess alcohol', 'Tea and coffee with iron-rich meals', 'High-sodium foods'] },
 
-  { id:'headache', emoji:'🤕', title:'Headaches and migraines', sub:'Often triggered as estrogen drops', remedies:[
+  { id:'headache', emoji:'🤕', title:'Headaches and migraines', sub:'Triggers and patterns vary by person', remedies:[
     { name:'Magnesium-rich foods', why:'Pumpkin seeds, dark chocolate, and leafy greens. Magnesium is one of the most evidence-supported nutrients for reducing the frequency of hormonal and menstrual migraines.' },
     { name:'Steady hydration', why:'Even mild dehydration is a common headache trigger. Sipping water consistently through the day matters more than drinking a lot at once.' },
     { name:'Regular balanced meals', why:'Blood sugar dips are a major trigger. Eating protein, fat, and complex carbohydrates at regular intervals keeps levels stable.' },
     { name:'Riboflavin (vitamin B2) foods', why:'Eggs, dairy, almonds, and lean meat. Riboflavin has trial evidence for reducing migraine frequency over time.' },
   ], avoid:['Skipping meals', 'Dehydration', 'Excess caffeine', 'Red wine and aged cheeses if you notice they trigger you'] },
 
-  { id:'bloating', emoji:'🫧', title:'Bloating', sub:'Luteal-phase digestive changes', remedies:[
+  { id:'bloating', emoji:'🫧', title:'Bloating', sub:'Digestive discomfort and fullness', remedies:[
     { name:'Probiotic foods', why:'Yogurt, kefir, and kimchi support the gut microbiome. Progesterone slows digestion, and a healthy microbiome reduces fermentation and gas production.' },
     { name:'Cooked vegetables', why:'Easier to digest than raw. Cooking breaks down fibres that ferment in the gut, reducing gas and bloating without losing nutritional value.' },
     { name:'Fennel', why:'Contains natural calming compounds that reduce intestinal spasm and gas. Used traditionally with some clinical support for easing cramping in the gut.' },
     { name:'Increased water intake', why:'Many women find staying well hydrated eases bloating. When you are adequately hydrated, the body tends to hold on to less fluid.' },
   ], avoid:['High-sodium foods', 'Carbonated drinks', 'Alcohol', 'Raw brassicas in large amounts', 'Sugar alcohols (sorbitol, xylitol)'] },
 
-  { id:'breast', emoji:'🤍', title:'Breast tenderness', sub:'Cyclical, usually late luteal', remedies:[
+  { id:'breast', emoji:'🤍', title:'Breast tenderness', sub:'Notice changes in your own pattern', remedies:[
     { name:'Lower caffeine', why:'Many women find cyclical breast tenderness eases when they cut back on coffee, tea, and energy drinks in the second half of the cycle.' },
     { name:'Omega-3 foods', why:'Salmon, sardines, walnuts, and flaxseed. Their anti-inflammatory effect may reduce the soreness that comes with the late-luteal hormonal shift.' },
     { name:'Vitamin E foods', why:'Almonds, sunflower seeds, and avocado. Some small trials suggest vitamin E may modestly reduce cyclical breast pain.' },
@@ -490,30 +523,30 @@ const SYMPTOMS = [
     { name:'Eggs and leafy greens', why:'Choline from eggs and B vitamins from greens support the brain chemical most important for focus and learning.' },
   ], avoid:['Ultra-processed foods', 'Excess alcohol', 'Skipping meals, since blood sugar dips worsen focus quickly'] },
 
-  { id:'pms', emoji:'💙', title:'PMS and mood', sub:'Late luteal phase support', remedies:[
+  { id:'pms', emoji:'💙', title:'PMS and mood', sub:'Mood and premenstrual symptoms', remedies:[
     { name:'Calcium and vitamin D', why:'Low calcium intake is linked to more severe PMS across multiple large trials. One multicentre RCT of 466 women found calcium significantly reduced PMS symptoms by the third cycle of supplementation.' },
     { name:'Magnesium-rich foods', why:'Magnesium supports the same calming pathways that are disrupted as progesterone falls in the late luteal phase. Several small studies found magnesium lower in women with PMS than in symptom-free women.' },
     { name:'Vitamin B6', why:'A building block for serotonin and dopamine. A systematic review of nine RCTs found B6 may be about twice as effective as placebo for the mood symptoms of PMS.' },
     { name:'Complex carbohydrates', why:'Carbohydrate cravings in the late luteal phase are driven by a need for serotonin. Complex carbs meet that need without the blood sugar spike of refined ones.' },
   ], avoid:['Alcohol', 'Refined sugar', 'High-sodium foods', 'Excess caffeine'] },
 
-  { id:'skin', emoji:'🧴', title:'Skin breakouts', sub:'Often in the days before your period', remedies:[
+  { id:'skin', emoji:'🧴', title:'Skin breakouts', sub:'Skin changes can have many causes', remedies:[
     { name:'Low-glycemic foods', why:'Whole grains, legumes, and vegetables keep blood sugar and insulin steady, which research links to fewer breakouts than a high-sugar diet.' },
     { name:'Zinc-rich foods', why:'Pumpkin seeds, lentils, and lean meat. Zinc has trial evidence for reducing inflammatory breakouts.' },
     { name:'Omega-3 foods', why:'Salmon, sardines, and walnuts help calm the inflammation behind premenstrual breakouts.' },
     { name:'Plenty of water and colourful vegetables', why:'Hydration and the antioxidants in bright vegetables support skin repair as hormones shift.' },
   ], avoid:['High-sugar foods', 'Large amounts of skim dairy', 'Ultra-processed foods'] },
 
-  { id:'cravings', emoji:'🍫', title:'Cravings', sub:'Strongest in the late luteal phase', remedies:[
+  { id:'cravings', emoji:'🍫', title:'Cravings', sub:'Appetite and cravings can change', remedies:[
     { name:'Protein at every meal', why:'Protein is the most filling nutrient and blunts the blood sugar swings that drive cravings. It is the single most effective place to start.' },
     { name:'Complex carbohydrates', why:'Oats, sweet potato, and whole grains meet the late-luteal need for serotonin steadily, instead of the quick spike and crash of refined sugar.' },
     { name:'Magnesium-rich foods', why:'Chocolate cravings often track with magnesium needs in this phase. Pumpkin seeds, dark chocolate, and leafy greens help meet them.' },
     { name:'Regular meal timing', why:'Long gaps between meals make cravings stronger. Eating consistently through the day keeps them manageable.' },
   ], avoid:['Refined sugar', 'Skipping meals', 'Long gaps between meals'] },
 
-  { id:'fatigue', emoji:'🔋', title:'Fatigue and low energy', sub:'Especially during and after your period', remedies:[
+  { id:'fatigue', emoji:'🔋', title:'Fatigue and low energy', sub:'Persistent fatigue deserves attention', remedies:[
     { name:'Red meat or lentils', why:'Iron from red meat is absorbed at 15 to 35%, significantly higher than iron from plant sources. Women lose 30 to 80ml of blood each cycle on average, making iron replenishment a real priority.' },
-    { name:'Lentils and spinach with vitamin C', why:'Plant-based iron paired with vitamin C. Vitamin C helps your body absorb plant-based iron by up to 67% more effectively.' },
+    { name:'Lentils and spinach with vitamin C', why:'Plant-based iron paired with vitamin C. Citrus, peppers, tomatoes, berries, and broccoli can help your body absorb plant-based iron.' },
     { name:'B12 sources (eggs, fish, dairy)', why:'Low B12 causes fatigue, brain fog, and low mood. It is common in younger women and those avoiding animal products.' },
   ], avoid:['Black tea or coffee within one hour of iron-rich meals, since tannins block absorption', 'Large dairy servings with iron meals, since calcium competes with iron for absorption'] },
 ]
@@ -552,10 +585,10 @@ const APA_REFS = [
 // Directive, phase-aware framing of the protein number so it lands as a target to aim for.
 const PROTEIN_NOTE = {
   Menstrual:     'Aim for this range daily to replace what bleeding costs you and steady your energy.',
-  Follicular:    'Aim for the top of this range on training days, this phase builds muscle most efficiently.',
-  Ovulatory:     'Aim for this range to fuel your strongest sessions and support recovery.',
-  Luteal:        'Aim toward the higher end of this range now, your body breaks down protein a little faster this phase.',
-  Perimenopause: 'Aim for the higher end daily to protect muscle and bone as estrogen declines.',
+  Follicular:    'Use this range as a guide; training volume, recovery, hunger, and your goals determine where you fit today.',
+  Ovulatory:     'Use this range to support your planned training and recovery, adjusting based on hunger and how the session feels.',
+  Luteal:        'Use this range as a guide. Regular meals and enough protein can support recovery and fullness when appetite or symptoms shift.',
+  Perimenopause: 'Use this range as a planning guide; activity, appetite, health, and goals help determine what fits you.',
   observation:   'Aim for this range daily to support muscle, recovery, and steady energy.',
 }
 
@@ -563,24 +596,31 @@ const PROTEIN_NOTE = {
 const PHASE_BANNER = {
   Menstrual: {
     desc: 'Nutrition for your period',
-    science: 'Iron drops with bleeding and carb cravings are common as serotonin dips, so prioritise iron-rich foods (red meat, lentils, spinach with vitamin C) and anti-inflammatory salmon and ginger to ease cramps. Aim for the protein range below; your activity and how you feel fine-tune it.',
+    science: 'Bleeding can contribute to iron loss. Choose iron-containing foods you enjoy, pair plant sources with vitamin-C-rich foods if helpful, and use your symptoms and activity to guide the rest of your meals.',
     sectionLabel: 'Foods to prioritise this week',
   },
   Follicular: {
-    desc: 'Fuel the building phase',
-    science: 'Rising estrogen improves how well you use carbohydrates and build muscle, so many women notice steady energy and easier recovery. Prioritise lean protein, complex carbohydrates, and colourful produce to make the most of it.',
-    sectionLabel: 'Foods to build on this week',
+    desc: 'Balanced fuel, no special food rules',
+    science: 'There is not good evidence for special foods in this phase. Use familiar protein, carbohydrates, colourful produce, and fats; let hunger, training, recovery, and symptoms guide meal size.',
+    sectionLabel: 'Balanced foods to build meals around',
   },
   Ovulatory: {
-    desc: 'Fuel your peak',
-    science: 'Peak estrogen and a brief testosterone rise often bring your highest energy and strongest sessions. Prioritise light, protein-rich meals and hydrating foods so nothing weighs you down before you train.',
-    sectionLabel: 'Foods that match your energy',
+    desc: 'Balanced fuel, no special food rules',
+    science: 'There is not good evidence for special foods in this phase. Before activity, choose a familiar protein-and-carbohydrate meal that feels comfortable to digest, plus fluids for the session and conditions.',
+    sectionLabel: 'Balanced foods to build meals around',
   },
   Luteal: {
     desc: 'Steady energy and mood support',
-    science: 'Progesterone rises and serotonin dips, so many women notice more cravings, appetite, and slower recovery. Prioritise protein at every meal and complex carbohydrates to steady mood and blood sugar.',
+    science: 'Research often finds higher average energy intake in the luteal phase, but not for everyone. Keep regular meals and use hunger, recovery, activity, and symptoms—not a preset calorie rule—to guide portions.',
     sectionLabel: 'Foods to prioritise this phase',
   },
+}
+
+const MEAL_PRESENTATION = {
+  Breakfast: { icon:'ti ti-sun', bg:'#fbf6ee', border:'#eee1ce', accent:'#a8783f' },
+  Lunch:     { icon:'ti ti-salad', bg:'#f3f8f1', border:'#dcebd9', accent:'#5d8960' },
+  Dinner:    { icon:'ti ti-moon', bg:'#f5f4fa', border:'#e2dfed', accent:'#766b9b' },
+  Snack:     { icon:'ti ti-apple', bg:'#fff8ed', border:'#f1e3c9', accent:'#a8783f' },
 }
 
 export default function Nutrition() {
@@ -595,6 +635,8 @@ export default function Nutrition() {
   const [showRefs, setShowRefs] = useState(false)
   const [showFasting, setShowFasting] = useState(false)
   const [showCravings, setShowCravings] = useState(false)
+  const [mealSwaps, setMealSwaps] = useState({})
+  const [foodPlanSeed] = useState(() => Math.floor(Date.now() / 86400000))
   const [personalisedFocus, setPersonalisedFocus] = useState(null)
   const [showUpdateSheet, setShowUpdateSheet] = useState(false)
   const [editWeight, setEditWeight] = useState('')
@@ -602,28 +644,34 @@ export default function Nutrition() {
   const [editDiets, setEditDiets] = useState([])
   const [savingStats, setSavingStats] = useState(false)
   const [saveError, setSaveError] = useState(null)
+  const [reloadKey, setReloadKey] = useState(0)
 
-  useEffect(() => { init() }, [])
-
-  async function init() {
-    setLoadError(null)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { navigate('/login', { replace: true }); return }
-    try {
-      const status = await getTodayStatus(supabase, user.id)
-      const prof = status?.profile || null
-      setProfile(prof)
-      setEditDiets(parseDiets(prof?.diet_preference))
-      const p = status?.subPhase || status?.phase || 'observation'
-      setPhase(p)
-      setTargets(status?.nutritionTargets || null)
-      if (status?.personalisedFocus) {
-        setPersonalisedFocus(status.personalisedFocus)
-        setOpenSymptom(status.personalisedFocus.focus)
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      setLoadError(null)
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { navigate('/login', { replace: true }); return }
+      try {
+        const status = await getTodayStatus(supabase, user.id)
+        if (cancelled) return
+        const prof = status?.profile || null
+        setProfile(prof)
+        setEditDiets(parseDiets(prof?.diet_preference))
+        setPhase(status?.subPhase || status?.phase || 'observation')
+        setTargets(status?.nutritionTargets || null)
+        if (status?.personalisedFocus) {
+          setPersonalisedFocus(status.personalisedFocus)
+          setOpenSymptom(status.personalisedFocus.focus)
+        }
+      } catch(e) {
+        console.error(e)
+        if (!cancelled) setLoadError('We could not load your health data, so nutrition guidance has been paused.')
       }
-    } catch(e) { console.error(e); setLoadError('We could not load your health data, so nutrition guidance has been paused.') }
-    setLoading(false)
-  }
+      if (!cancelled) setLoading(false)
+    })()
+    return () => { cancelled = true }
+  }, [navigate, reloadKey])
 
   async function saveStats() {
     setSavingStats(true); setSaveError(null)
@@ -644,11 +692,12 @@ export default function Nutrition() {
     setShowUpdateSheet(false)
     // Re-run init so the protein target (and vegan multiplier) reflect the new weight
     // and diet immediately, getTodayStatus recomputes nutritionTargets from the DB.
-    await init()
+    setLoading(true)
+    setReloadKey(k => k + 1)
   }
 
   if (loading) return <div style={{ paddingTop:60 }}><Spinner /></div>
-  if (loadError || !targets) return <div style={{ padding:'80px 24px', textAlign:'center' }}><div style={{ fontSize:14, color:'#7a7268', lineHeight:1.6, marginBottom:16 }}>{loadError || 'We could not load your nutrition guidance.'}</div><button className="btn-primary" onClick={() => { setLoading(true); init() }}>Try again</button><BottomNav /></div>
+  if (loadError || !targets) return <div style={{ padding:'80px 24px', textAlign:'center' }}><div style={{ fontSize:14, color:'#7a7268', lineHeight:1.6, marginBottom:16 }}>{loadError || 'We could not load your nutrition guidance.'}</div><button className="btn-primary" onClick={() => { setLoading(true); setReloadKey(k => k + 1) }}>Try again</button><BottomNav /></div>
 
   // Pregnancy mode, prenatal nutrition (Health Canada / ACOG), not cycle-phase foods.
   if (profile?.user_path === '6') {
@@ -676,7 +725,7 @@ export default function Nutrition() {
           </div>
           <div style={{ background:'#fdf5f0', border:'1px solid #f0d8cc', borderRadius:14, padding:16, marginBottom:12 }}>
             <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a6a50', marginBottom:8 }}>Avoid or limit</div>
-            <div style={{ fontSize:13, color:'#7a4a30', lineHeight:1.8 }}><strong>Alcohol, none</strong> (no known safe amount) · high-mercury fish (shark, swordfish, marlin, king mackerel, tilefish, fresh tuna) · unpasteurised milk and soft cheeses (brie, feta, blue) · deli meats and hot dogs unless heated steaming hot · raw or undercooked meat, eggs, fish, and sushi · raw sprouts · unwashed produce · <strong>caffeine over about 200 mg a day</strong> (roughly one coffee).</div>
+            <div style={{ fontSize:13, color:'#7a4a30', lineHeight:1.8 }}><strong>Alcohol, none</strong> (no known safe amount) · high-mercury fish (shark, swordfish, marlin, king mackerel, tilefish, fresh tuna) · unpasteurised milk or cheese (including unpasteurised brie, feta, or blue cheese) · deli meats and hot dogs unless heated steaming hot · raw or undercooked meat, eggs, fish, and sushi · raw sprouts · unwashed produce · <strong>caffeine over about 200 mg a day</strong> (roughly one coffee).</div>
             <div style={{ fontSize:11, color:'#b08a6a', marginTop:8, fontStyle:'italic' }}>Health Canada; ACOG.</div>
           </div>
           <div style={cardS}>
@@ -713,6 +762,7 @@ export default function Nutrition() {
   const isVegan = activeDiets.includes('vegan')
   const displayProtein = targets?.proteinRangeG ? `${targets.proteinRangeG[0]}–${targets.proteinRangeG[1]}g` : null
   const dietLabel = activeDiets.map(d => DIET_OPTIONS.find(o => o.val === d)?.label).filter(Boolean).join(' + ')
+  const foodPlan = buildTodayFoodPlan(phaseKey, activeDiets, foodPlanSeed)
 
   return (
     <div style={{ paddingBottom:120 }}>
@@ -752,11 +802,11 @@ export default function Nutrition() {
         <div style={{ margin:'0 16px 16px', background:'#fff', border:'1px solid #ede8e0', borderRadius:12, padding:16 }}>
           <div style={{ textAlign:'center' }}>
             <div style={{ fontSize:34, fontWeight:700, color:'#2c2820' }}>{displayProtein || `${targets.proteinRangePerKg?.[0] || 1.2}–${targets.proteinRangePerKg?.[1] || 1.6}g/kg`}</div>
-            <div style={{ fontSize:11, color:'#9a9590', textTransform:'uppercase', letterSpacing:'0.08em' }}>{displayProtein ? 'Research-informed protein range' : 'General range, add weight to calculate grams'}</div>
+            <div style={{ fontSize:11, color:'#9a9590', textTransform:'uppercase', letterSpacing:'0.08em' }}>{displayProtein ? 'Active-person protein range' : 'Active-person range, add weight to calculate grams'}</div>
           </div>
           <div style={{ fontSize:12.5, color:'#5a4a3a', textAlign:'center', marginTop:10, lineHeight:1.55 }}>{PROTEIN_NOTE[isNaturalCyclePhase ? 'observation' : phaseKey] || PROTEIN_NOTE.observation}</div>
           <div style={{ fontSize:11, color:'#9a9590', textAlign:'center', marginTop:6 }}>
-            {profile?.body_weight_kg ? 'Based on your weight, with a range because activity and health matter' : 'Set your weight above to calculate a gram range'} · ISSN 2023
+            {profile?.body_weight_kg ? 'Designed for people exercising regularly; activity, health, and goals still matter' : 'Set your weight above to calculate a gram range'} · ISSN 2023
           </div>
           {personalisedFocus && (
             <div style={{ fontSize:12, color:'#5a4a3a', background:'#f5f0e8', borderRadius:8, padding:'8px 10px', marginTop:10, lineHeight:1.5 }}>
@@ -765,11 +815,54 @@ export default function Nutrition() {
           )}
           {isVegan && (
             <div style={{ fontSize:11, color:'#7a7268', textAlign:'center', marginTop:6, lineHeight:1.5 }}>
-              +15% applied for plant protein bioavailability (Rogerson, 2017)
+              +5% applied for plant protein planning (Rogerson, 2017)
             </div>
           )}
         </div>
       )}
+
+      <div style={{ margin:'0 16px 16px', background:'#fff', border:'1px solid #ede8e0', borderRadius:16, padding:12 }}>
+        <div style={{ background:'#f5f0e8', borderRadius:12, padding:'12px 12px 11px', marginBottom:10 }}>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:10, marginBottom:4 }}>
+            <div className="section-label" style={{ marginBottom:0, color:'#7a6a52' }}>Today’s food plan</div>
+            <div style={{ fontSize:10, color:'#7a7268', background:'#fff', border:'1px solid #e8dfd0', borderRadius:20, padding:'3px 7px', whiteSpace:'nowrap' }}>Ideas, not rules</div>
+          </div>
+          <div style={{ fontSize:12, color:'#5a5048', lineHeight:1.55 }}>Simple meal ideas built around {foodPlan.focus}. Choose what sounds good, then swap any card for another option.</div>
+        </div>
+
+        <div style={{ display:'grid', gap:8 }}>
+          {foodPlan.meals.map(meal => {
+            const swap = mealSwaps[meal.id]
+            const title = swap === undefined ? meal.title : meal.swaps[swap]
+            const detail = swap === undefined ? meal.detail : 'An easy alternative for the same meal.'
+            const presentation = MEAL_PRESENTATION[meal.label] || MEAL_PRESENTATION.Snack
+            return <div key={meal.id} style={{ background:presentation.bg, border:`1px solid ${presentation.border}`, borderRadius:12, padding:'11px 12px 12px' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8 }}>
+                <div style={{ width:28, height:28, borderRadius:9, display:'flex', alignItems:'center', justifyContent:'center', background:'#fff', color:presentation.accent, border:`1px solid ${presentation.border}`, flexShrink:0 }}>
+                  <i className={presentation.icon} aria-hidden="true" style={{ fontSize:16 }} />
+                </div>
+                <div style={{ flex:1, fontSize:10, color:presentation.accent, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase' }}>{meal.label}</div>
+                <button type="button" aria-label={`Swap ${meal.label.toLowerCase()} idea`} onClick={() => setMealSwaps(current => ({ ...current, [meal.id]: ((current[meal.id] ?? -1) + 1) % meal.swaps.length }))}
+                  style={{ display:'flex', alignItems:'center', gap:4, padding:'5px 7px', border:`1px solid ${presentation.border}`, borderRadius:8, background:'#fff', color:presentation.accent, fontSize:11, fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>
+                  <i className="ti ti-refresh" aria-hidden="true" style={{ fontSize:13 }} />
+                  Swap
+                </button>
+              </div>
+              <div style={{ fontSize:15, fontWeight:650, color:'#2c2820', lineHeight:1.35 }}>{title}</div>
+              <div style={{ fontSize:12, color:'#6f6961', lineHeight:1.5, marginTop:4 }}>{detail}</div>
+            </div>
+          })}
+        </div>
+
+        <div style={{ marginTop:10, padding:12, background:'#fbf8f1', border:'1px solid #eee3d2', borderRadius:12 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:7, marginBottom:6 }}>
+            <i className="ti ti-shopping-bag" aria-hidden="true" style={{ color:'#a07848', fontSize:15 }} />
+            <div style={{ fontSize:10, color:'#7a6a52', fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase' }}>3-day grocery base</div>
+          </div>
+          <div style={{ fontSize:12, color:'#6f6961', lineHeight:1.6 }}>{foodPlan.groceries.join(' · ')}</div>
+        </div>
+
+      </div>
 
       {/* Tabs */}
       <div role="tablist" style={{ display:'flex', margin:'0 16px 16px', background:'#f5f0e8', borderRadius:10, padding:3 }}>
@@ -799,7 +892,7 @@ export default function Nutrition() {
               <div key={f.name} style={{ background:'#fff', border:'1px solid #ede8e0', borderRadius:12, padding:12 }}>
                 <div style={{ fontSize:24, marginBottom:6 }}>{f.icon}</div>
                 <div style={{ fontSize:13, fontWeight:600, marginBottom:4, color:'#2c2820' }}>{f.name}</div>
-                <div style={{ fontSize:11, color:'#7a7268', lineHeight:1.6 }}>{f.why}</div>
+                <div style={{ fontSize:11, color:'#7a7268', lineHeight:1.6 }}>{foodCardDescription(f.name)}</div>
               </div>
             ))}
           </div>
@@ -864,7 +957,7 @@ export default function Nutrition() {
       ) : (
         <div style={{ padding:'0 16px' }}>
           <div style={{ fontSize:12.5, color:'#7a7268', lineHeight:1.6, marginBottom:12 }}>
-            Tap a symptom for food-based relief, each backed by research. These help alongside, never instead of, your usual care.
+            Food ideas to try alongside your usual care. Responses vary, and food alone cannot diagnose or treat symptoms.
           </div>
           {SYMPTOMS.map(s => (
             <div key={s.id} style={{ background:'#fff', border:'1px solid #ede8e0', borderRadius:12, marginBottom:10, overflow:'hidden' }}>
@@ -884,7 +977,7 @@ export default function Nutrition() {
                     return (
                       <div key={r.name} style={{ marginBottom:last?0:12, paddingBottom:last?0:12, borderBottom:last?'none':'1px solid #f5f0e8' }}>
                         <div style={{ fontSize:13, fontWeight:600, color:'#2c2820', marginBottom:3 }}>{r.name}</div>
-                        <div style={{ fontSize:12, color:'#7a7268', lineHeight:1.6 }}>{r.why}</div>
+                        <div style={{ fontSize:12, color:'#7a7268', lineHeight:1.6 }}>{symptomFoodCopy(s.id, r.name)}</div>
                       </div>
                     )
                   })}

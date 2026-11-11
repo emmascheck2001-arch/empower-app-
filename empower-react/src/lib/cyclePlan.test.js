@@ -40,6 +40,14 @@ describe('assignSessions', () => {
   it('is null-safe', () => {
     expect(assignSessions(null, 'strength')).toBe(null)
   })
+  it('includes recovery and at least two full-body strength sessions in every week', () => {
+    const result = assignSessions(buildCyclePlan(1, 28, 28, 5), 'strength')
+    for (let i = 0; i < result.length; i += 7) {
+      const week = result.slice(i, i + 7)
+      expect(week.filter(d => d.title === 'Rest day')).toHaveLength(2)
+      expect(week.filter(d => d.title === 'Strength, full body').length).toBeGreaterThanOrEqual(2)
+    }
+  })
 })
 
 describe('weekBlocks', () => {

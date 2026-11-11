@@ -1,21 +1,26 @@
 // route /workout, activity picker, muscle group selector, guided workout player with timers and phase-adapted weights
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getTodayStatus, parsePeriodStarts } from '../lib/hormoneSync'
 import { buildCycleDayHistory } from '../lib/cycleHistory'
-import { getProgressionTarget } from '../lib/progression'
+import { getProgressionTarget, exerciseHistoryEntry } from '../lib/progression'
 import { getMovementToday } from '../lib/movementToday'
 import { ex, EXERCISES } from '../lib/exerciseData'
+import { getSvgType, phaseGuidanceNote, supportsLoggedWeight, exerciseLoadGuide, exerciseReps, isTimedExercise } from '../lib/workoutPresentation'
+import { buildPresetWorkout, nextVariedSeed } from '../lib/workoutVariety'
+import { buildCustomWorkout, buildIntervalCircuit } from '../lib/workoutProgramming'
 import { syncPlanToWatch, syncWorkoutToWatch } from '../lib/watchBridge'
 import { buildCyclePlan, weekBlocks, assignSessions, lighterSession } from '../lib/cyclePlan'
-import GoalPicker, { getFitnessGoal } from '../components/GoalPicker'
+import GoalPicker from '../components/GoalPicker'
 import { track } from '../lib/analytics'
 import { runSave } from '../lib/dbSave'
 import BottomNav from '../components/BottomNav'
 import WearableWorkouts from '../components/WearableWorkouts'
 import TopBar from '../components/TopBar'
 import Spinner from '../components/Spinner'
+import Disclaimer from '../components/Disclaimer'
+import { getFitnessGoal } from '../lib/workoutGoals'
 
 const ACTIVITIES = [
   { id:'walk', label:'Walk', icon:'ti-walk' },
@@ -92,9 +97,9 @@ const CARDIO_GUIDES = {
 // A calendar phase never changes these targets; the user's warm-up and recovery do.
 const GENERIC_CARDIO_GUIDES = {
   walk:  { duration:'20 to 45 min', pace:'Comfortable to brisk', note:'Aim for a brisk pace you can sustain, and add a few gentle hills to build strength. Slow down for pain, illness, or unusual fatigue.', science:'Regular brisk walking supports cardiovascular and metabolic health at any phase.' },
-  run:   { duration:'20 to 45 min', pace:'Easy to hard, by plan', note:'Follow the run you planned and let your warm-up set the effort. Aim for one harder session and keep the rest easy this week.', science:'A mostly-easy running week with occasional harder efforts builds capacity most effectively.' },
-  cycle: { duration:'25 to 50 min', pace:'Comfortable to hard, by plan', note:'Ride your planned session and add short climbs or intervals when you feel strong. Ease resistance if heat or effort feels unusual today.', science:'Mixing steady rides with short intervals builds aerobic base and power.' },
-  swim:  { duration:'20 to 45 min', pace:'Comfortable to hard, by plan', note:'Follow your planned sets and build in a few faster lengths. Aim for smooth technique first, then add speed.', science:'Interval-style sets build both endurance and speed with low joint load.' },
+  run:   { duration:'10 to 40 min', pace:'Easy, conversational', note:'Start and finish with an easy walk. Use walk-jog intervals if you are new to running, and build duration gradually.', science:'Regular aerobic activity supports cardiovascular health.' },
+  cycle: { duration:'10 to 45 min', pace:'Comfortable, steady', note:'Start and finish at an easy pace. Choose resistance you can sustain and build duration gradually.', science:'Regular aerobic activity supports cardiovascular health.' },
+  swim:  { duration:'10 to 40 min', pace:'Comfortable, steady', note:'Start easily, take breaks as needed, and swim within your ability in a supervised setting.', science:'Swimming provides aerobic activity with low joint impact.' },
 }
 
 function getCardioGuide(activityId) {
@@ -135,7 +140,7 @@ const PILATES_SEQUENCES = {
   'Late luteal':  ['Pelvic tilts, 12 reps, slow', 'Cat stretch, 10 cycles', 'Knee folds, 10 each side', 'Side lying leg lift, 12 each side', 'Mermaid stretch, 2 minutes each side', 'Shell stretch, 2 minutes'],
   Luteal:         ['Hundred, 80 breaths', 'Roll-up, 6 reps', 'Single leg circles, 8 each direction', 'Spine stretch, 8 reps', 'Side kick, 10 each side', 'Mermaid, 90 seconds each side', 'Shell stretch, 90 seconds'],
   Perimenopause:  ['Hundred, 80 breaths', 'Roll-up, 6 reps', 'Spine stretch, 8 reps', 'Side kick series, 10 each side', 'Plank, 30 seconds', 'Swimming, 20 seconds', 'Mermaid stretch, 90 seconds each side'],
-  observation:    ['Hundred, 80 breaths', 'Roll-up, 8 reps', 'Single leg stretch, 10 alternating', 'Criss-cross, 10 alternating', 'Spine stretch, 8 reps', 'Mermaid stretch, 60 seconds each side', 'Shell stretch, 60 seconds'],
+  observation:    ['Hundred, 5 to 10 breath cycles (5 counts in, 5 out)', 'Roll-up, 8 reps', 'Single leg stretch, 10 alternating', 'Criss-cross, 10 alternating', 'Spine stretch, 8 reps', 'Mermaid stretch, 60 seconds each side', 'Shell stretch, 60 seconds'],
 }
 
 // Simple how-to descriptions for warmup exercises, matched by move name prefix
@@ -227,6 +232,8 @@ const PILATES_DESCRIPTIONS = {
   'Modified push-up on knees':  'Hands shoulder-width, knees on the mat, body in a straight line from knees to head. Lower your chest toward the floor, elbows at 45 degrees from your body. Press back up.',
 }
 
+// Legacy phase-specific material is retained for reference; active programming is phase-neutral.
+// eslint-disable-next-line no-unused-vars
 const HIIT_ROUNDS = {
   Menstrual:      { rounds:3, work:25, rest:35, exercises:['Low-impact march in place','Step touch side to side','Gentle squat, no jump','Standing knee lift','Standing side crunch'] },
   Follicular:     { rounds:5, work:40, rest:20, exercises:['Jump squat','High knees sprint','Push-up','Lateral shuffle','Plank hold'] },
@@ -242,6 +249,7 @@ const HIIT_ROUNDS = {
 
 // Extra HIIT moves rotated in for day-to-day variety. The observation pool is used for
 // generated sessions so a calendar phase never changes work/rest structure.
+// eslint-disable-next-line no-unused-vars
 const HIIT_POOL = {
   Menstrual:        ['Heel taps','Standing oblique crunch','Slow reverse lunge','Bird-dog','Toe-touch march'],
   Follicular:       ['Skater hops','Reverse lunge to knee drive','Plank shoulder taps','Speed squat','Tuck jump, low'],
@@ -257,32 +265,7 @@ const HIIT_POOL = {
 
 // `ex` and EXERCISES now live in ../lib/exerciseData (shared with the Apple Watch payload builder).
 
-function getSvgType(name) {
-  const n = name.toLowerCase()
-  // Order matters: more specific matches first (e.g. "split squat" before "squat").
-  if (n.includes('bulgarian') || n.includes('split squat')) return 'splitsquat'
-  if (n.includes('squat') || n.includes('goblet')) return 'squat'
-  if (n.includes('leg press')) return 'legpress'
-  if (n.includes('deadlift')) return 'hinge'
-  if (n.includes('lateral raise') || n.includes('rear delt') || (n.includes('fly') && !n.includes('chest')) || n.includes('front raise')) return 'lateralraise'
-  if (n.includes('pulldown')) return 'pullup'
-  if (n.includes('bench press') || n.includes('push-up') || (n.includes('incline') && !n.includes('curl')) || n.includes('chest press') || n.includes('chest fly')) return 'push'
-  if (n.includes('face pull') || n.includes('pull-apart')) return 'facepull'
-  if (n.includes('row') && !n.includes('pull')) return 'row'
-  if (n.includes('overhead press') || n.includes('shoulder press')) return 'press'
-  if (n.includes('lunge')) return 'lunge'
-  if (n.includes('hip thrust') || n.includes('glute bridge')) return 'thrust'
-  if (n.includes('pull-up') || n.includes('pull up') || n.includes('chin')) return 'pullup'
-  if (n.includes('leg curl') || n.includes('nordic') || n.includes('hamstring curl')) return 'legcurl'
-  if (n.includes('pushdown') || n.includes('tricep extension')) return 'pushdown'
-  if (n.includes('dip')) return 'dip'
-  if (n.includes('curl') && !n.includes('calf')) return 'curl'
-  if (n.includes('leg raise') || n.includes('hanging')) return 'legraise'
-  if (n.includes('plank') || n.includes('crunch') || n.includes('dead bug') || n.includes('twist') || n.includes('bicycle') || n.includes('mountain climber')) return 'plank'
-  if (n.includes('calf')) return 'calf'
-  return 'stand'
-}
-
+// eslint-disable-next-line no-unused-vars
 function getMuscles(name) {
   const n = name.toLowerCase()
   if (n.includes('goblet squat') || n.includes('barbell squat')) return 'Quads, glutes, core'
@@ -325,6 +308,7 @@ function getMuscles(name) {
   return 'Multiple muscle groups'
 }
 
+// eslint-disable-next-line no-unused-vars
 function getEquipment(name) {
   const n = name.toLowerCase()
   if (n.includes('barbell') || n.includes('bar')) return 'Barbell'
@@ -338,6 +322,7 @@ function getEquipment(name) {
   if (n.includes('hip thrust') || n.includes('glute bridge')) return 'Barbell or dumbbell'
   if (n.includes('walking lunge') || n.includes('split squat')) return 'Dumbbells or bodyweight'
   if (n.includes('calf')) return 'Bodyweight or dumbbell'
+  if (n.includes('lying leg raise')) return 'Bodyweight'
   if (n.includes('leg raise') || n.includes('hanging')) return 'Bodyweight (pull-up bar)'
   if (n.includes('pushdown')) return 'Cable machine'
   if (n.includes('face pull') || n.includes('pull-apart')) return 'Cable or band'
@@ -346,6 +331,7 @@ function getEquipment(name) {
   return 'Barbell or dumbbells'
 }
 
+// eslint-disable-next-line no-unused-vars
 function getPhases(svgType) {
   const P = {
     squat:   [{ label:'Start position', desc:'Feet shoulder-width, bar across upper traps. Brace your core hard before descending.' },
@@ -372,6 +358,9 @@ function getPhases(svgType) {
     thrust:  [{ label:'Start position', desc:'Upper back on bench, bar padded across hip crease. Feet flat, shoulder-width.' },
                { label:'Lower / working phase', desc:'Lower hips slowly toward floor. Maintain control, do not drop.' },
                { label:'Finish position', desc:'Drive hips up until body is a straight line from knees to shoulders. Hard glute squeeze.' }],
+    bridge:  [{ label:'Start position', desc:'Lie on your back, knees bent, feet flat and close to your glutes. Upper back stays on the floor.' },
+               { label:'Lower / working phase', desc:'Lower your hips with control until they lightly touch down. Keep ribs and core braced.' },
+               { label:'Finish position', desc:'Drive through your heels to lift the hips. Finish in a straight line from knees to shoulders.' }],
     pullup:  [{ label:'Start position', desc:'Full dead hang from bar. Hands shoulder-width or slightly wider. Core engaged.' },
                { label:'Lower / working phase', desc:'Lower slowly to full hang after each rep. No kipping or swinging.' },
                { label:'Finish position', desc:'Drive elbows down and back. Pull until chin clears the bar.' }],
@@ -402,6 +391,15 @@ function getPhases(svgType) {
     legraise: [{ label:'Start position', desc:'Hang from the bar, core engaged, legs straight down.' },
                { label:'Lower / working phase', desc:'Lower your legs slowly with control. No swinging.' },
                { label:'Finish position', desc:'Raise your legs to hip height, leading with control.' }],
+    supinelegraise: [{ label:'Start position', desc:'Lie on your back with legs straight and hands by your sides or under your hips.' },
+               { label:'Lower / working phase', desc:'Lower your legs slowly while keeping your lower back pressed into the floor.' },
+               { label:'Finish position', desc:'Raise both legs back up with control. Stop before your back arches.' }],
+    deadbug: [{ label:'Start position', desc:'Lie on your back with arms up and knees bent in tabletop. Lower back stays pressed down.' },
+               { label:'Lower / working phase', desc:'Lower the opposite arm and leg slowly without letting your ribs flare or back lift.' },
+               { label:'Finish position', desc:'Return to tabletop and switch sides. Move slowly and keep the core braced.' }],
+    bicycle: [{ label:'Start position', desc:'Lie on your back with hands light at your temples and knees lifted. Brace your abs first.' },
+               { label:'Lower / working phase', desc:'Extend one leg fully while rotating your torso so the opposite shoulder moves toward the bent knee.' },
+               { label:'Finish position', desc:'Switch sides smoothly. Keep the movement controlled instead of rushing for speed.' }],
     stand:   [{ label:'Start position', desc:'Controlled starting position. Brace your core before initiating the movement.' },
                { label:'Lower / working phase', desc:'Move through the full range of motion with control.' },
                { label:'Finish position', desc:'Return to start with control. Do not rush the descent.' }],
@@ -458,6 +456,10 @@ const POSES = {
   thrust: { floor: true, bench:[34,96,66], period: 2200,
     top:    { head:[58,92], neck:[78,98], hip:[152,100], k1:[166,126], f1:[162,160], k2:[178,126], f2:[182,160], e1:[70,104], h1:[60,118], e2:[86,104], h2:[78,120], bar:[[122,98],[182,100]] },
     bottom: { head:[58,92], neck:[78,98], hip:[150,140], k1:[166,128], f1:[162,160], k2:[178,128], f2:[182,160], e1:[70,108], h1:[60,124], e2:[86,108], h2:[78,128], bar:[[120,138],[180,140]] } },
+  // Glute bridge, shoulders stay on the floor while the hips move from low to a straight bridge.
+  bridge: { floor: true, period: 2200,
+    top:    { head:[58,132], neck:[80,136], hip:[148,138], k1:[170,126], f1:[164,160], k2:[182,126], f2:[186,160], e1:[90,140], h1:[70,144], e2:[102,140], h2:[82,144] },
+    bottom: { head:[58,132], neck:[80,136], hip:[148,156], k1:[170,142], f1:[164,160], k2:[182,142], f2:[186,160], e1:[90,142], h1:[70,146], e2:[102,142], h2:[82,146] } },
   // Pull-up, dead hang to chin over the bar, hands fixed on the bar.
   pullup: { period: 2400,
     top:    { head:[120,58], neck:[120,74], hip:[120,122], k1:[112,148], f1:[110,170], k2:[128,148], f2:[130,170], e1:[112,42], h1:[100,24], e2:[128,42], h2:[140,24], bar:[[55,22],[185,22]] },
@@ -470,6 +472,33 @@ const POSES = {
   plank: { floor: true, period: 4200,
     top:    { head:[52,98], neck:[70,102], hip:[148,116], k1:[176,128], f1:[190,150], k2:[182,130], f2:[196,150], e1:[68,118], h1:[58,150], e2:[74,118], h2:[64,150] },
     bottom: { head:[52,100], neck:[70,104], hip:[148,120], k1:[176,130], f1:[190,150], k2:[182,132], f2:[196,150], e1:[68,118], h1:[58,150], e2:[74,118], h2:[64,150] } },
+  // Russian twist, mountain climber, and side plank need their own cues rather than
+  // sharing the generic front-plank illustration.
+  russiantwist: { floor: true, period: 1800,
+    top:    { head:[104,104], neck:[114,118], hip:[132,146], k1:[158,140], f1:[182,150], k2:[162,146], f2:[186,156], e1:[120,126], h1:[92,132], e2:[124,132], h2:[96,140] },
+    bottom: { head:[116,104], neck:[126,118], hip:[132,146], k1:[158,140], f1:[182,150], k2:[162,146], f2:[186,156], e1:[130,126], h1:[158,132], e2:[134,132], h2:[162,140] } },
+  mountainclimber: { floor: true, period: 900,
+    top:    { head:[52,98], neck:[70,102], hip:[148,116], k1:[120,132], f1:[98,148], k2:[182,130], f2:[196,150], e1:[68,118], h1:[58,150], e2:[74,118], h2:[64,150] },
+    bottom: { head:[52,98], neck:[70,102], hip:[148,116], k1:[176,128], f1:[190,150], k2:[120,134], f2:[98,150], e1:[68,118], h1:[58,150], e2:[74,118], h2:[64,150] } },
+  sideplank: { floor: true, period: 4200,
+    top:    { head:[82,96], neck:[96,108], hip:[142,128], k1:[174,140], f1:[198,154], k2:[178,146], f2:[202,160], e1:[106,118], h1:[92,152], e2:[104,112], h2:[96,78] },
+    bottom: { head:[82,98], neck:[96,110], hip:[142,132], k1:[174,142], f1:[198,154], k2:[178,148], f2:[202,160], e1:[106,120], h1:[92,152], e2:[104,114], h2:[96,80] } },
+  // Core variants stay visually distinct from a static front plank.
+  plankshouldertap: { floor: true, period: 1200,
+    top:    { head:[52,98], neck:[70,102], hip:[148,116], k1:[176,128], f1:[190,150], k2:[182,130], f2:[196,150], e1:[68,118], h1:[58,150], e2:[74,118], h2:[68,104] },
+    bottom: { head:[52,98], neck:[70,102], hip:[148,116], k1:[176,128], f1:[190,150], k2:[182,130], f2:[196,150], e1:[68,118], h1:[74,104], e2:[74,118], h2:[64,150] } },
+  plankjack: { floor: true, period: 900,
+    top:    { head:[52,98], neck:[70,102], hip:[148,116], k1:[176,128], f1:[190,150], k2:[182,130], f2:[196,150], e1:[68,118], h1:[58,150], e2:[74,118], h2:[64,150] },
+    bottom: { head:[52,98], neck:[70,102], hip:[148,116], k1:[180,128], f1:[210,150], k2:[174,130], f2:[170,150], e1:[68,118], h1:[58,150], e2:[74,118], h2:[64,150] } },
+  plankpike: { floor: true, period: 1800,
+    top:    { head:[52,98], neck:[70,102], hip:[148,116], k1:[176,128], f1:[190,150], k2:[182,130], f2:[196,150], e1:[68,118], h1:[58,150], e2:[74,118], h2:[64,150] },
+    bottom: { head:[70,118], neck:[84,124], hip:[132,72], k1:[158,116], f1:[178,150], k2:[164,116], f2:[184,150], e1:[82,130], h1:[58,150], e2:[88,130], h2:[64,150] } },
+  plankpushup: { floor: true, period: 1600,
+    top:    { head:[52,104], neck:[70,108], hip:[148,120], k1:[176,130], f1:[190,150], k2:[182,132], f2:[196,150], e1:[70,122], h1:[60,150], e2:[76,122], h2:[66,150] },
+    bottom: { head:[52,98], neck:[70,102], hip:[148,116], k1:[176,128], f1:[190,150], k2:[182,130], f2:[196,150], e1:[68,118], h1:[58,150], e2:[74,118], h2:[64,150] } },
+  standingtwist: { floor: true, period: 1600,
+    top:    { head:[112,40], neck:[112,58], hip:[120,112], k1:[112,136], f1:[110,160], k2:[128,136], f2:[130,160], e1:[104,76], h1:[78,88], e2:[120,76], h2:[94,88] },
+    bottom: { head:[128,40], neck:[128,58], hip:[120,112], k1:[112,136], f1:[110,160], k2:[128,136], f2:[130,160], e1:[120,76], h1:[146,88], e2:[136,76], h2:[162,88] } },
   // Calf raise, whole body rises onto the toes and lowers the heels.
   calf: { floor: true, period: 1700,
     top:    { head:[120,32], neck:[120,48], hip:[120,102], k1:[112,140], f1:[106,158], k2:[128,140], f2:[134,158], e1:[112,68], h1:[108,104], e2:[128,68], h2:[132,104] },
@@ -498,6 +527,18 @@ const POSES = {
   legraise: { period: 2400,
     top:    { head:[120,42], neck:[120,58], hip:[120,116], k1:[116,142], f1:[114,168], k2:[126,142], f2:[128,168], e1:[112,52], h1:[100,24], e2:[128,52], h2:[140,24], bar:[[55,22],[185,22]] },
     bottom: { head:[120,42], neck:[120,58], hip:[120,116], k1:[138,118], f1:[164,114], k2:[138,124], f2:[164,120], e1:[112,52], h1:[100,24], e2:[128,52], h2:[140,24], bar:[[55,22],[185,22]] } },
+  // Lying leg raise, on the floor with both legs moving together from low hover to vertical.
+  supinelegraise: { floor: true, period: 2400,
+    top:    { head:[58,150], neck:[82,150], hip:[126,150], k1:[126,122], f1:[126,92], k2:[132,122], f2:[132,92], e1:[90,150], h1:[72,148], e2:[100,150], h2:[82,148] },
+    bottom: { head:[58,150], neck:[82,150], hip:[126,150], k1:[150,146], f1:[176,144], k2:[150,152], f2:[176,150], e1:[90,150], h1:[72,148], e2:[100,150], h2:[82,148] } },
+  // Dead bug, alternating opposite arm and leg while the lower back stays pinned to the floor.
+  deadbug: { floor: true, period: 2600,
+    top:    { head:[74,136], neck:[94,142], hip:[150,150], k1:[150,124], f1:[150,98], k2:[176,144], f2:[200,140], e1:[110,122], h1:[124,98], e2:[118,144], h2:[100,152] },
+    bottom: { head:[74,136], neck:[94,142], hip:[150,150], k1:[176,144], f1:[200,140], k2:[150,124], f2:[150,98], e1:[118,144], h1:[100,152], e2:[110,122], h2:[124,98] } },
+  // Bicycle crunch, rotating shoulder toward opposite knee while the other leg extends.
+  bicycle: { floor: true, period: 1900,
+    top:    { head:[80,134], neck:[98,142], hip:[150,150], k1:[146,122], f1:[124,116], k2:[178,144], f2:[204,136], e1:[104,126], h1:[86,118], e2:[114,146], h2:[132,132] },
+    bottom: { head:[80,134], neck:[98,142], hip:[150,150], k1:[178,144], f1:[204,136], k2:[146,122], f2:[124,116], e1:[114,146], h1:[132,132], e2:[104,126], h2:[86,118] } },
   // Idle stand, gentle sway so the default state isn't a frozen figure.
   stand: { floor: true, period: 4000,
     top:    { head:[120,40], neck:[120,58], hip:[120,112], k1:[112,136], f1:[110,160], k2:[128,136], f2:[130,160], e1:[112,70], h1:[106,108], e2:[128,70], h2:[134,108] },
@@ -567,8 +608,7 @@ function StickFigure({ type }) {
 
 // EXERCISES (full/upper/lower presets) now live in ../lib/exerciseData, shared with the watch.
 
-// Accessory pools rotated into the last 2 slots of a gym session for variety. The
-// main compound lifts (first 4 of each EXERCISES list) stay fixed for progression.
+// Accessory pools rotated into the last 2 slots of a gym session for variety.
 // Only exercises the demo-metadata helpers already recognise are used here.
 const GYM_ACCESSORIES = {
   upper: [
@@ -614,7 +654,7 @@ const MUSCLE_EXERCISES = {
                ex('Seated cable row', 3, 10, '25 to 45kg', 'Tall chest, pull to your belly. Squeeze the shoulder blades, control the return.'),
                ex('Single-arm dumbbell row', 3, 10, '8 to 16kg each', 'Hand and knee on a bench. Row the dumbbell to your hip, no twisting.'),
                ex('Straight-arm pulldown', 3, 14, '10 to 20kg', 'Arms straight, sweep the bar down to your thighs using your lats.'),
-               ex('Pull-up', 3, 8, 'Bodyweight or assisted', 'Full hang to chin over the bar. Control the way down.')],
+               ex('Pull-up', 3, 8, 'Bodyweight', 'Full hang to chin over the bar. Use assistance if needed, and control the way down.')],
   Shoulders:  [ex('Overhead press', 3, 10, '15 to 25kg', 'Brace your core hard. Press the bar straight overhead.'),
                ex('Dumbbell shoulder press', 3, 10, '8 to 14kg each', 'Press the dumbbells up and slightly together, lower to ear height.'),
                ex('Dumbbell lateral raise', 3, 12, '6 to 12kg each', 'Slight lean forward. Lead with the elbows, not the wrists.'),
@@ -650,7 +690,10 @@ const MUSCLE_EXERCISES = {
                ex('Bulgarian split squat', 3, 10, 'Dumbbells or bodyweight', 'Back foot on a bench behind you. Lower straight down, drive through the front heel.'),
                ex('Reverse lunge', 3, 12, 'Dumbbells or bodyweight', 'Step back and down, drive through the front heel. A long step hits the glutes more.'),
                ex('Curtsy lunge', 3, 12, 'Dumbbells or bodyweight', 'Step one leg behind and across. Targets the side glutes, control the whole way.'),
-               ex('Sumo deadlift', 4, 8, '40 to 70kg', 'Wide stance, toes out. Push the floor away and squeeze your glutes at the top.')],
+               ex('Sumo deadlift', 4, 8, '40 to 70kg', 'Wide stance, toes out. Push the floor away and squeeze your glutes at the top.'),
+               ex('Romanian deadlift', 4, 10, '40 to 65kg', 'Push the hips back and keep the bar close. Feel the glutes and hamstrings load together.'),
+               ex('Single-leg Romanian deadlift', 3, 10, 'Dumbbells or bodyweight', 'Hinge on one leg, keep the hips square, and drive back up through the standing glute.'),
+               ex('Walking lunge', 3, 12, 'Dumbbells or bodyweight', 'Take a long stride and stay controlled. Each step should load the front glute, not bounce through it.')],
   Calves:     [ex('Calf raise', 4, 15, 'Bodyweight or dumbbells', 'Rise onto your toes as high as possible, pause, lower with a full stretch.'),
                ex('Standing calf raise', 4, 15, '30 to 60kg', 'On a machine or with a bar. Full range, pause at the top and the bottom.'),
                ex('Seated calf raise', 3, 15, '20 to 40kg', 'Knees bent, drive through the balls of your feet. Full range.'),
@@ -667,19 +710,8 @@ const MUSCLE_EXERCISES = {
                ex('Mountain climbers', 3, 30, 'Bodyweight', 'Plank position, drive your knees toward your chest one at a time. Keep hips low.')],
 }
 function buildCustomExercises(muscles, level, seed = 0, preferLoad = false) {
-  const list = (muscles || []).filter(m => MUSCLE_EXERCISES[m])
-  if (!list.length) return EXERCISES.full[level] || EXERCISES.full.intermediate
-  // Fewer muscles selected -> more exercises each, so a single-muscle pick is still a full session.
-  const perMuscle = list.length === 1 ? 5 : list.length === 2 ? 3 : list.length === 3 ? 2 : 1
-  const out = [], seen = new Set()
-  list.forEach((m, i) => {
-    // rotatePick varies which exercises come up by day (seed), so the same muscle is a fresh
-    // workout each time while staying specific to that group. preferLoad keeps strong days loaded.
-    for (const e of pickPreferLoad(MUSCLE_EXERCISES[m], perMuscle, seed + i * 2, preferLoad)) {
-      if (!seen.has(e.name)) { seen.add(e.name); out.push(e) }
-    }
-  })
-  return out
+  const list = buildCustomWorkout(muscles, MUSCLE_EXERCISES, level, seed, preferLoad)
+  return list.length ? list : EXERCISES.full[level] || EXERCISES.full.intermediate
 }
 
 const FEEL_OPTIONS = ['Felt strong','Felt average','Felt hard','Rest day','Skipped']
@@ -695,17 +727,14 @@ const CLASS_TYPES = [
   { id:'other', label:'Other', icon:'ti-activity' },
 ]
 
-const PHASE_BANNER = {
-  Menstrual:      { bg:'#3d2830', text:'#f5e8e8', note:'Hormones are at their lowest and energy often dips early on. Many women find gentle to moderate movement eases cramps. Keep your planned session if you feel good, and take it easier if you need to.' },
-  Follicular:     { bg:'#2c3828', text:'#e8f5e8', note:'Rising estrogen often brings your best energy and recovery, and muscle responds well to load now. Focus on progressive strength and longer efforts, guided by your warm-up.' },
-  Ovulatory:      { bg:'#2c3035', text:'#e8f0f8', note:'Estrogen peaks and strength often runs high, so this is a strong window to push if you feel good. Warm up thoroughly, since higher estrogen may loosen ligaments.' },
-  'Early luteal': { bg:'#352c20', text:'#f5ede0', note:'Progesterone is rising and your temperature edges up, but energy often stays good. Keep training as planned and focus on steady strength and endurance work.' },
-  'Mid luteal':   { bg:'#352c20', text:'#f5ede0', note:'Temperature and resting heart rate run higher now, so the same effort may feel harder. Keep moving, ease intensity if you need to, and prioritise hydration and recovery.' },
-  'Late luteal':  { bg:'#352c20', text:'#f5ede0', note:'Hormones drop and PMS symptoms are common for many women. Keep your plan when you feel well, and choose a lighter, lower-pressure session on tougher days.' },
-  Luteal:         { bg:'#352c20', text:'#f5ede0', note:'Progesterone is elevated and the same workout may feel harder. Train from how you feel, hydrate well, and lean on steady strength and moderate cardio.' },
-  Perimenopause:  { bg:'#2c2035', text:'#f0e8f8', note:'Resistance and impact training protect muscle and bone as estrogen declines, and support mood and sleep. Prioritise strength work and progress loads to match your experience and recovery.' },
-  observation:    { bg:'#2c2820', text:'#f5f0e8', note:'We are building your personal baseline. Log how every session feels. For now, aim for a balanced mix of strength, cardio, and recovery, and move to how you feel.' },
-}
+const TRAINING_NOTE = 'Use your warm-up, symptoms and recent training to choose today’s effort. Your estimated cycle phase cannot predict how strong or recovered you will feel.'
+const PHASE_BANNER = Object.fromEntries([
+  ['Menstrual', '#3d2830', '#f5e8e8'], ['Follicular', '#2c3828', '#e8f5e8'],
+  ['Ovulatory', '#2c3035', '#e8f0f8'], ['Early luteal', '#352c20', '#f5ede0'],
+  ['Mid luteal', '#352c20', '#f5ede0'], ['Late luteal', '#352c20', '#f5ede0'],
+  ['Luteal', '#352c20', '#f5ede0'], ['Perimenopause', '#2c2035', '#f0e8f8'],
+  ['observation', '#2c2820', '#f5f0e8'],
+].map(([phase, bg, text]) => [phase, { bg, text, note: TRAINING_NOTE }]))
 
 // Phase content lookup: use the exact sub-phase if the dictionary has it, otherwise
 // fall back to the base phase (Follicular/Luteal) before observation. This stops real
@@ -735,38 +764,34 @@ function daySeed() {
   const d = new Date()
   return Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000)
 }
-function rotatePick(pool, n, seed) {
-  if (!pool || pool.length <= n) return pool || []
-  const start = ((seed % pool.length) + pool.length) % pool.length
-  const out = []
-  for (let i = 0; i < n; i++) out.push(pool[(start + i) % pool.length])
-  return out
+function selectionSignature(muscleGroup, customMuscles, fitnessLevel) {
+  const custom = (customMuscles || []).slice().sort().join('|')
+  return `${muscleGroup || 'full'}::${fitnessLevel || 'intermediate'}::${custom}`
 }
 
-// A pure-bodyweight move has no kg number in its weight string (e.g. "Bodyweight").
-const isLoadable = (e) => /\d/.test(e?.weight || '')
-function pickPreferLoad(pool, n, seed, preferLoad) {
-  if (!preferLoad || !pool) return rotatePick(pool, n, seed)
-  const loaded = pool.filter(isLoadable)
-  const rest = pool.filter(e => !isLoadable(e))
-  const picks = rotatePick(loaded, Math.min(n, loaded.length), seed)
-  if (picks.length < n) picks.push(...rotatePick(rest, n - picks.length, seed + 1))
-  return picks
+function workoutPlanKey(userId, signature) {
+  return `empower:last-workout-plan:${userId}:${signature}`
 }
-// HIIT variation is day-based, not phase-based.
-function hiitFor(ph) {
-  const base = pc(HIIT_ROUNDS, ph)
-  if (!base) return base
-  const poolKey = HIIT_POOL[ph] ? ph
-    : ph && ph.includes('follicular') ? 'Follicular'
-    : ph && ph.includes('luteal') ? 'Luteal'
-    : 'observation'
-  const seen = new Set()
-  const pool = [...base.exercises, ...(HIIT_POOL[poolKey] || [])].filter(x => {
-    if (seen.has(x)) return false; seen.add(x); return true
-  })
-  return { ...base, exercises: rotatePick(pool, base.exercises.length, daySeed()) }
+
+function readLastWorkoutPlan(userId, signature) {
+  if (typeof window === 'undefined' || !userId) return null
+  try {
+    const raw = window.localStorage.getItem(workoutPlanKey(userId, signature))
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
 }
+
+function writeLastWorkoutPlan(userId, record) {
+  if (typeof window === 'undefined' || !userId) return
+  try {
+    window.localStorage.setItem(workoutPlanKey(userId, record.signature), JSON.stringify(record))
+  } catch {
+    // localStorage is best-effort only
+  }
+}
+
 
 export default function Workout() {
   const navigate = useNavigate()
@@ -774,6 +799,7 @@ export default function Workout() {
   const [loadError, setLoadError] = useState(null)
   const [status, setStatus] = useState(null)
   const [userId, setUserId] = useState(null)
+  const [reloadKey, setReloadKey] = useState(0)
   const [fitnessGoal, setFitnessGoal] = useState(null)
   const [showGoalPicker, setShowGoalPicker] = useState(false)
   const [screen, setScreen] = useState('pick') // pick | muscles | warmup | plan | checklist | feel | done | logClass
@@ -792,6 +818,8 @@ export default function Workout() {
   const [saveError, setSaveError] = useState(null)
   const [classType, setClassType] = useState(null)
   const [classDuration, setClassDuration] = useState('')
+  const [savedClass, setSavedClass] = useState(null)
+  const [recentClasses, setRecentClasses] = useState([])
   const [playerIdx, setPlayerIdx] = useState(0)
   const [setWeights, setSetWeights] = useState({}) // { exIdx: { setIdx: weight } }
   const [playerDone, setPlayerDone] = useState({}) // { exIdx: { setIdx: true } }
@@ -801,7 +829,9 @@ export default function Workout() {
   const [expandedChecklistMove, setExpandedChecklistMove] = useState(null)
   const [cardioSeconds, setCardioSeconds] = useState(0)
   const [cardioRunning, setCardioRunning] = useState(false)
+  const cardioStart = useRef(null)
   const [restSecondsLeft, setRestSecondsLeft] = useState(0)
+  const [restDeadline, setRestDeadline] = useState(null)
   const [hiitRound, setHiitRound] = useState(1)
   const [hiitExIdx, setHiitExIdx] = useState(0)
   const [hiitPhase, setHiitPhase] = useState('work')
@@ -810,6 +840,7 @@ export default function Workout() {
   // Capture the day-seed once per mount so a session that crosses midnight can't
   // reshuffle the accessory exercises out from under already-entered set data.
   const [daySeedVal] = useState(() => daySeed())
+  const [workoutSeedVal, setWorkoutSeedVal] = useState(() => daySeed())
 
   // Declared before useEffects so it is in scope for the HIIT dependency array.
   // Resolve the phase used for workout content: perimenopause/postmenopause users
@@ -820,96 +851,118 @@ export default function Workout() {
   const phase = rawPhase === 'Perimenopause' ? 'Perimenopause'
     : (rawPhase === 'bc-combined' || rawPhase === 'bc-progestin') ? 'observation'
     : status?.subPhase || rawPhase || 'observation'
+  const workoutDisclaimer = <Disclaimer>Workout guidance in Em~power is general wellness guidance, not medical advice. Adjust or stop for pain, dizziness, bleeding changes, illness, or anything that feels wrong, and seek clinical care when symptoms are concerning.</Disclaimer>
 
-  useEffect(() => { init() }, [])
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      setLoadError(null)
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { navigate('/login', { replace: true }); return }
+      if (!cancelled) {
+        setUserId(user.id)
+        setFitnessGoal(getFitnessGoal(user.id))
+      }
+      try {
+        const s = await getTodayStatus(supabase, user.id)
+        if (cancelled) return
+        setStatus(s)
+        syncPlanToWatch(s)
+        if (s?.profile?.fitness_level) setFitnessLevel(s.profile.fitness_level === 'beginner' ? 'beginner' : s.profile.fitness_level === 'advanced' || s.profile.fitness_level === 'athlete' ? 'advanced' : 'intermediate')
+        const { data: hist } = await supabase.from('exercise_history').select('*').eq('user_id', user.id)
+        if (hist) { const m = {}; hist.forEach(h => { m[h.exercise] = h }); setExHistory(m) }
+        const since = new Date(); since.setDate(since.getDate() - 70)
+        const sinceStr = `${since.getFullYear()}-${String(since.getMonth()+1).padStart(2,'0')}-${String(since.getDate()).padStart(2,'0')}`
+        const [{ data: pastLogs }, { data: cyc }, { data: classes }] = await Promise.all([
+          supabase.from('daily_logs').select('log_date,energy,hormonal_context').eq('user_id', user.id).gte('log_date', sinceStr),
+          supabase.from('cycle_data').select('notes,last_period_date').eq('user_id', user.id).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+          supabase.from('workout_class_sessions').select('id,session_date,activity,duration_minutes').eq('user_id', user.id).order('created_at', { ascending: false }).limit(5),
+        ])
+        if (!cancelled && classes) setRecentClasses(classes)
+        const context = s?.contextKey || 'natural-cycle'
+        const contextLogs = (pastLogs || []).filter(log => log.hormonal_context ? log.hormonal_context === context : true)
+        setCycleHistory(buildCycleDayHistory(contextLogs, parsePeriodStarts(cyc), s?.cycleLen || 28))
+      } catch(e) {
+        console.error(e)
+        if (!cancelled) setLoadError('We could not load your health data, so no personalised workout has been generated.')
+      }
+      if (!cancelled) setLoading(false)
+    })()
+    return () => { cancelled = true }
+  }, [navigate, reloadKey])
 
   useEffect(() => {
     if (!cardioRunning) return
-    const id = setInterval(() => setCardioSeconds(s => s + 1), 1000)
-    return () => clearInterval(id)
+    cardioStart.current = Date.now() - cardioSeconds * 1000
+    const update = () => setCardioSeconds(Math.max(0, Math.floor((Date.now() - cardioStart.current) / 1000)))
+    const id = setInterval(update, 250)
+    document.addEventListener('visibilitychange', update)
+    return () => { clearInterval(id); document.removeEventListener('visibilitychange', update) }
+    // Capture elapsed time on resume; ticking itself must not restart the timer.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cardioRunning])
 
   useEffect(() => {
-    if (restSecondsLeft <= 0) return
-    const id = setInterval(() => setRestSecondsLeft(s => Math.max(0, s - 1)), 1000)
-    return () => clearInterval(id)
-  }, [restSecondsLeft])
+    if (!restDeadline) return
+    const update = () => {
+      const remaining = Math.max(0, Math.ceil((restDeadline - Date.now()) / 1000))
+      setRestSecondsLeft(remaining)
+      if (!remaining) setRestDeadline(null)
+    }
+    update()
+    const id = setInterval(update, 250)
+    document.addEventListener('visibilitychange', update)
+    return () => { clearInterval(id); document.removeEventListener('visibilitychange', update) }
+  }, [restDeadline])
+
+  function startRest(seconds) {
+    setRestSecondsLeft(seconds)
+    // Called only from user event handlers, so the deadline starts at the click time.
+    // eslint-disable-next-line react-hooks/purity
+    setRestDeadline(seconds > 0 ? Date.now() + seconds * 1000 : null)
+  }
+
+  useEffect(() => {
+    const pauseHiddenInterval = () => { if (document.hidden) setHiitRunning(false) }
+    document.addEventListener('visibilitychange', pauseHiddenInterval)
+    return () => document.removeEventListener('visibilitychange', pauseHiddenInterval)
+  }, [])
+
+  const advanceHiitTimer = useCallback(() => {
+    const data = buildIntervalCircuit(daySeedVal, fitnessLevel)
+    if (hiitPhase === 'work') {
+      setHiitPhase('rest')
+      setHiitSecondsLeft(data.rest)
+      return
+    }
+    const nextEx = hiitExIdx + 1
+    if (nextEx < data.exercises.length) {
+      setHiitExIdx(nextEx)
+      setHiitPhase('work')
+      setHiitSecondsLeft(data.work)
+      return
+    }
+    const nextRound = hiitRound + 1
+    if (nextRound <= data.rounds) {
+      setHiitRound(nextRound)
+      setHiitExIdx(0)
+      setHiitPhase('work')
+      setHiitSecondsLeft(data.work)
+      return
+    }
+    setHiitRunning(false)
+    setScreen('feel')
+  }, [hiitExIdx, hiitPhase, hiitRound, daySeedVal, fitnessLevel])
 
   useEffect(() => {
     if (!hiitRunning) return
-    if (hiitSecondsLeft <= 0) {
-      const data = hiitFor('observation')
-      if (hiitPhase === 'work') {
-        setHiitPhase('rest')
-        setHiitSecondsLeft(data.rest)
-      } else {
-        const nextEx = hiitExIdx + 1
-        if (nextEx < data.exercises.length) {
-          setHiitExIdx(nextEx)
-          setHiitPhase('work')
-          setHiitSecondsLeft(data.work)
-        } else {
-          const nextRound = hiitRound + 1
-          if (nextRound <= data.rounds) {
-            setHiitRound(nextRound)
-            setHiitExIdx(0)
-            setHiitPhase('work')
-            setHiitSecondsLeft(data.work)
-          } else {
-            setHiitRunning(false)
-            setScreen('feel')
-          }
-        }
-      }
-      return
-    }
-    const id = setTimeout(() => setHiitSecondsLeft(s => s - 1), 1000)
+    const id = setTimeout(() => {
+      if (hiitSecondsLeft <= 1) advanceHiitTimer()
+      else setHiitSecondsLeft(s => s - 1)
+    }, 1000)
     return () => clearTimeout(id)
-  }, [hiitRunning, hiitSecondsLeft, hiitPhase, hiitExIdx, hiitRound])
+  }, [advanceHiitTimer, hiitRunning, hiitSecondsLeft, hiitPhase, hiitExIdx, hiitRound])
 
-  async function init() {
-    setLoadError(null)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { navigate('/login', { replace: true }); return }
-    setUserId(user.id)
-    setFitnessGoal(getFitnessGoal(user.id))
-    try {
-      const s = await getTodayStatus(supabase, user.id)
-      setStatus(s)
-      // Push today's readiness-led options to the paired Apple Watch (iOS only; no-ops elsewhere).
-      syncPlanToWatch(s)
-      if (s?.profile?.fitness_level) setFitnessLevel(s.profile.fitness_level === 'beginner' ? 'beginner' : s.profile.fitness_level === 'advanced' || s.profile.fitness_level === 'athlete' ? 'advanced' : 'intermediate')
-      // Progression memory: what weight/reps the user hit last time, per exercise.
-      const { data: hist } = await supabase.from('exercise_history').select('*').eq('user_id', user.id)
-      if (hist) { const m = {}; hist.forEach(h => { m[h.exercise] = h }); setExHistory(m) }
-      // Personal plan history: look back at what she logged on each cycle day in past cycles,
-      // so the weekly plan can surface a note ("you logged lower energy around here") she can
-      // choose to act on. Needs ~2 cycles of logs + her period-start history.
-      const since = new Date(); since.setDate(since.getDate() - 70)
-      const sinceStr = `${since.getFullYear()}-${String(since.getMonth()+1).padStart(2,'0')}-${String(since.getDate()).padStart(2,'0')}`
-      const [{ data: pastLogs }, { data: cyc }] = await Promise.all([
-        supabase.from('daily_logs').select('log_date,energy,hormonal_context').eq('user_id', user.id).gte('log_date', sinceStr),
-        supabase.from('cycle_data').select('notes,last_period_date').eq('user_id', user.id).order('created_at', { ascending: false }).limit(1).maybeSingle(),
-      ])
-      const context = s?.contextKey || 'natural-cycle'
-      const contextLogs = (pastLogs || []).filter(log => log.hormonal_context ? log.hormonal_context === context : true)
-      setCycleHistory(buildCycleDayHistory(contextLogs, parsePeriodStarts(cyc), s?.cycleLen || 28))
-    } catch(e) { console.error(e); setLoadError('We could not load your health data, so no personalised workout has been generated.') }
-    setLoading(false)
-  }
-
-  function getPhaseWeightNote(exWeight, intensityModifier, phaseVal) {
-    void intensityModifier
-    if (!exWeight) return null
-    const lower = exWeight.toLowerCase()
-    if (lower === 'bodyweight' || lower.startsWith('bodyweight or') || lower === 'light band') return null
-    const m = exWeight.match(/(\d+)\s*to\s*(\d+)/)
-    if (!m) return { weight: exWeight, note: 'Choose a load that leaves about 2 to 4 good repetitions in reserve. Your warm-up and form decide the starting point.', source: 'ACSM progressive resistance training principles' }
-    if (phaseVal === 'Perimenopause') {
-      return { weight: exWeight, note: 'Resistance training supports muscle and bone. Begin within this range only if it matches your experience, and choose the load your warm-up confirms today.', source: 'Watson et al. LIFTMOR trial, JBMR 2018; Kohrt et al. MSSE 2004' }
-    }
-    return { weight: exWeight, note: 'This is a general starting range, not a prescription. Choose a load that leaves 2 to 4 good repetitions in reserve. Cycle effects vary, so your symptoms, warm-up and recent performance come first.', source: 'McNulty et al. 2020 Sports Medicine; Niering et al. 2024 Sports' }
-  }
 
   function selectActivity(id) {
     setActivity(id)
@@ -918,23 +971,25 @@ export default function Workout() {
     else setScreen('plan')
   }
 
-  function getExercises() {
-    const preferLoad = false
+  function buildExercisesForSeed(seed) {
+    const preferLoad = fitnessGoal === 'strength'
     // Custom builds directly from the muscles the user picked (Core -> core work, etc.).
-    if (muscleGroup === 'custom') return buildCustomExercises(customMuscles, fitnessLevel, daySeedVal, preferLoad)
+    if (muscleGroup === 'custom') return buildCustomExercises(customMuscles, fitnessLevel, seed, preferLoad)
     const key = muscleGroup || 'full'
     const base = EXERCISES[key]?.[fitnessLevel] || EXERCISES.full.intermediate
-    // Keep the main compound lifts (first 4) fixed for progression; rotate the
-    // remaining accessory slots day to day from an expanded pool. Deterministic by
-    // date, so the list stays stable within a session.
-    const core = base.slice(0, 4)
-    const coreNames = new Set(core.map(e => e.name))
-    const seen = new Set()
-    const accPool = [...base.slice(4), ...(GYM_ACCESSORIES[key] || [])].filter(e => {
-      if (coreNames.has(e.name) || seen.has(e.name)) return false
-      seen.add(e.name); return true
-    })
-    return core.concat(pickPreferLoad(accPool, base.length - core.length, daySeedVal, preferLoad))
+    // Keep two familiar movements for progression while varying the other main lifts
+    // and accessories. The seed stays fixed throughout the session.
+    return buildPresetWorkout(base, key, fitnessLevel, seed, GYM_ACCESSORIES[key], preferLoad)
+  }
+
+  function nextWorkoutSeed(baseSeed = daySeedVal, currentNames = null) {
+    const signature = selectionSignature(muscleGroup, customMuscles, fitnessLevel)
+    const last = currentNames ? { names: currentNames, seed: workoutSeedVal } : readLastWorkoutPlan(userId, signature)
+    return nextVariedSeed(buildExercisesForSeed, baseSeed, last)
+  }
+
+  function getExercises() {
+    return buildExercisesForSeed(workoutSeedVal)
   }
 
   // When a gym plan is on screen, push that REAL workout (actual exercises + weights) to the
@@ -945,7 +1000,18 @@ export default function Workout() {
       : muscleGroup === 'lower' ? 'Lower body' : 'Custom') + ' session'
     syncWorkoutToWatch(status, { title, activity: 'Gym', exercises: getExercises() })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [screen, activity, muscleGroup, fitnessLevel, customMuscles, status])
+  }, [screen, activity, muscleGroup, fitnessLevel, customMuscles, status, workoutSeedVal])
+
+  useEffect(() => {
+    if (activity !== 'gym' || (screen !== 'plan' && screen !== 'player')) return
+    writeLastWorkoutPlan(userId, {
+      signature: selectionSignature(muscleGroup, customMuscles, fitnessLevel),
+      names: getExercises().map(e => e.name),
+      seed: workoutSeedVal,
+      savedAt: new Date().toISOString(),
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [screen, activity, muscleGroup, customMuscles, fitnessLevel, workoutSeedVal, userId])
 
   async function save() {
     if (!feel) return
@@ -965,18 +1031,18 @@ export default function Workout() {
           Object.entries(setWeights).forEach(([exIdx, sets]) => {
             const ex = exs[parseInt(exIdx)]
             if (!ex) return
-            const weights = Object.values(sets).map(parseFloat).filter(n => !isNaN(n) && n > 0 && n <= 500)
-            if (!weights.length) return
-            const completedSets = Object.values(playerDone[exIdx] || {}).filter(Boolean).length
-            const completed = completedSets >= Number(ex.sets || 1)
-            const previousSuccesses = Number(exHistory[ex.name]?.successful_sessions || 0)
-            const successfulSessions = completed && ['Felt strong', 'Felt average'].includes(feel) ? previousSuccesses + 1 : 0
-            rows.push({ user_id: user.id, exercise: ex.name, last_weight: Math.max(...weights), last_reps: String(ex.reps), last_date: localDateStr(), last_completed: completed, last_session_feel: feel, successful_sessions: successfulSessions, updated_at: new Date().toISOString() })
+            const entry = exerciseHistoryEntry(ex, sets, playerDone[exIdx], exHistory[ex.name], feel)
+            if (entry) rows.push({ user_id: user.id, exercise: ex.name, ...entry, last_date: localDateStr(), updated_at: new Date().toISOString() })
           })
-          if (rows.length) await supabase.from('exercise_history').upsert(rows, { onConflict: 'user_id,exercise' })
-        } catch(e) { console.error(e) }
+          if (rows.length) {
+            const historyResult = await runSave(supabase.from('exercise_history').upsert(rows, { onConflict: 'user_id,exercise' }))
+            if (!historyResult.ok) { setSaveError(`Your workout was saved, but your exercise weights were not. ${historyResult.message}`); setSaving(false); return }
+          }
+        } catch(e) { console.error(e); setSaveError('Your workout was saved, but your exercise weights were not. Please try again.'); setSaving(false); return }
       }
       track('workout_completed', { activity, feel })
+      setSetWeights({})
+      setPlayerDone({})
       setScreen('done')
     } catch(e) { console.error(e); setSaveError('Something went wrong saving your workout. Please try again.') }
     setSaving(false)
@@ -984,19 +1050,30 @@ export default function Workout() {
 
   async function saveClass() {
     if (!classType) return
+    const duration = classDuration === '' ? null : Number(classDuration)
+    if (duration !== null && (!Number.isInteger(duration) || duration < 1 || duration > 1440)) {
+      setSaveError('Enter a duration between 1 and 1440 minutes, or leave it blank.')
+      return
+    }
     setSaving(true); setSaveError(null)
-    const { data: { user } } = await supabase.auth.getUser()
-    const res = await runSave(supabase.from('daily_logs').upsert({
-      user_id: user.id, log_date: localDateStr(), hormonal_context: status?.contextKey || 'natural-cycle', workout_feel: null, workout_feel_reported: false, workout_imported: true
-    }, { onConflict: 'user_id,log_date' }))
-    if (!res.ok) { setSaveError(res.message); setSaving(false); return }
-    track('workout_completed', { activity: classType, duration: classDuration || null })
-    setScreen('done')
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      const res = await runSave(supabase.from('workout_class_sessions').insert({
+        user_id: user.id, session_date: localDateStr(), activity: classType, duration_minutes: duration,
+      }))
+      if (!res.ok) { setSaveError(res.message); setSaving(false); return }
+      track('workout_completed', { activity: classType, duration })
+      setSavedClass({ activity: classType, duration })
+      setScreen('done')
+    } catch (e) {
+      console.error(e)
+      setSaveError('Something went wrong saving your class. Please try again.')
+    }
     setSaving(false)
   }
 
   if (loading) return <div style={{ paddingTop:60 }}><Spinner /></div>
-  if (loadError || !status) return <div style={{ padding:'80px 24px', textAlign:'center' }}><div style={{ fontSize:14, color:'#7a7268', lineHeight:1.6, marginBottom:16 }}>{loadError || 'We could not load your health data.'}</div><button className="btn-primary" onClick={() => { setLoading(true); init() }}>Try again</button><BottomNav /></div>
+  if (loadError || !status) return <div style={{ padding:'80px 24px', textAlign:'center' }}><div style={{ fontSize:14, color:'#7a7268', lineHeight:1.6, marginBottom:16 }}>{loadError || 'We could not load your health data.'}</div><button className="btn-primary" onClick={() => { setLoading(true); setReloadKey(k => k + 1) }}>Try again</button>{workoutDisclaimer}<BottomNav /></div>
 
   // Pregnancy mode, never auto-prescribe a workout. Show evidence-based movement guidance
   // (SOGC 2019 / ACOG 804), the stop-and-call-your-provider signs, and defer to her provider.
@@ -1021,7 +1098,7 @@ export default function Workout() {
 
           <span className="section-label" style={{ display:'block', marginBottom:10 }}>Modify or avoid</span>
           <div style={{ background:'#fff', border:'1px solid #ede8e0', borderRadius:14, padding:16, marginBottom:12, fontSize:14, color:'#3a3530', lineHeight:1.7 }}>
-            From about <strong>16 weeks, stop exercises lying flat on your back</strong> (use incline, side-lying, seated, or standing). Skip deep ab "crunch" work and deep twists, heavy breath-holding, and end-range stretching. Avoid anything with a fall or impact risk (contact sports, off-road cycling, skiing, horse riding), <strong>scuba diving, hot yoga or hot pilates, and exercising in the heat.</strong> Keep well hydrated and cool.
+            Avoid lying flat on your back for long periods, especially later in pregnancy; use an incline, side-lying, seated, or standing position if needed. Avoid heavy breath-holding, activities with a fall or collision risk, <strong>scuba diving, hot yoga or hot pilates, and overheating.</strong> Keep well hydrated and ask your provider about appropriate modifications.
             <div style={{ fontSize:11, color:'#9a9590', marginTop:8, fontStyle:'italic' }}>ACOG Committee Opinion 804.</div>
           </div>
 
@@ -1033,12 +1110,12 @@ export default function Workout() {
 
           <button onClick={() => navigate('/learn')} style={{ width:'100%', padding:'13px 16px', borderRadius:12, border:'1px solid #ede8e0', background:'#f5f0e8', color:'#5a5248', fontSize:14, fontWeight:500, cursor:'pointer', fontFamily:'inherit' }}>Read the full pregnancy guide</button>
         </div>
+        {workoutDisclaimer}
         <BottomNav />
       </>
     )
   }
 
-  const intensity = status?.intensityModifier ?? 1.0
   const banner = pc(PHASE_BANNER, phase)
   // Do not generate injury-risk or HIIT warnings from a calendar estimate alone.
   const isAcl = false
@@ -1051,7 +1128,8 @@ export default function Workout() {
       <div style={{ fontSize:40, marginBottom:16 }}>🌿</div>
       <div style={{ fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:22, marginBottom:8 }}>Workout complete.</div>
       <div style={{ fontSize:14, color:'#7a7268', marginBottom:32, lineHeight:1.6 }}>
-        {feel === 'Felt strong' ? 'You showed up and felt strong. That is what consistency looks like.' :
+        {savedClass ? `${CLASS_TYPES.find(c => c.id === savedClass.activity)?.label || 'Class'} saved${savedClass.duration ? ` · ${savedClass.duration} minutes` : ''}.` :
+         feel === 'Felt strong' ? 'You showed up and felt strong. That is what consistency looks like.' :
          feel === 'Felt average' ? 'Solid session. Consistent average beats inconsistent great every time.' :
          feel === 'Felt hard' ? 'You did it even when it was hard. That is the real win.' :
          'Rest is part of training. Your body rebuilds during recovery.'}
@@ -1210,6 +1288,12 @@ export default function Workout() {
               <i className="ti ti-plus" style={{ fontSize:13, marginRight:5 }} />Log a class
             </button>
           </div>
+          {recentClasses.length > 0 && <div style={{ background:'#fff', border:'1px solid #ede8e0', borderRadius:12, padding:14, marginBottom:16 }}>
+            <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590', marginBottom:8 }}>Recent classes</div>
+            {recentClasses.map(c => <div key={c.id} style={{ fontSize:13, color:'#3a3530', padding:'5px 0' }}>
+              {CLASS_TYPES.find(t => t.id === c.activity)?.label || c.activity} · {c.session_date}{c.duration_minutes ? ` · ${c.duration_minutes} min` : ''}
+            </div>)}
+          </div>}
         </div>
       )}
 
@@ -1219,7 +1303,7 @@ export default function Workout() {
         <div role="dialog" aria-modal="true" aria-label="Build your plan" style={{ position:'fixed', bottom:0, left:'50%', transform:'translateX(-50%)', width:'100%', maxWidth:420, background:'#faf8f5', borderRadius:'20px 20px 0 0', zIndex:201, padding:'16px 20px 40px' }}>
           <div style={{ width:36, height:4, background:'#c8b89a', borderRadius:2, margin:'0 auto 16px' }} />
           <div style={{ fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:20, marginBottom:6 }}>Build your plan</div>
-          <div style={{ fontSize:13, color:'#7a7268', lineHeight:1.6, marginBottom:16 }}>Build a balanced plan from your goal, fitness level and recent training, with your cycle phase to guide when to push and when to recover.</div>
+          <div style={{ fontSize:13, color:'#7a7268', lineHeight:1.6, marginBottom:16 }}>Use this flexible weekly template as a starting point. Move or adjust sessions to suit your schedule, experience and recovery.</div>
           {[
             { val:'daily',  icon:'ti-calendar',      title:'Just today', sub:"Today's recommended session" },
             { val:'weekly', icon:'ti-calendar-week', title:'This week',  sub:'A workout for every day this week' },
@@ -1239,6 +1323,7 @@ export default function Workout() {
         </div>
       </>)}
 
+      {workoutDisclaimer}
       <BottomNav />
     </div>
   )
@@ -1249,7 +1334,7 @@ export default function Workout() {
       <TopBar title="WORKOUT" backTo={() => setScreen('pick')} />
       <div style={{ padding:'16px 16px 0' }}>
         <div style={{ fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:18, marginBottom:4 }}>Choose your focus</div>
-        <div style={{ fontSize:13, color:'#7a7268', marginBottom:20 }}>Your exercises are chosen from your fitness level and selected focus, tuned to where you are in your cycle.</div>
+        <div style={{ fontSize:13, color:'#7a7268', marginBottom:20 }}>Exercises are chosen from your fitness level and selected focus. Adjust the session to how you feel.</div>
 
         {MUSCLE_GROUPS.map(g => (
           <button type="button" key={g.id} aria-pressed={muscleGroup===g.id} onClick={() => { setMuscleGroup(g.id); setCustomMuscles([]) }} style={{
@@ -1274,12 +1359,12 @@ export default function Workout() {
 
         {muscleGroup === 'custom' && (
           <div style={{ marginBottom:16 }}>
-            <span style={{ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590', marginBottom:10, display:'block' }}>Select muscle groups</span>
+            <span style={{ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590', marginBottom:10, display:'block' }}>Select up to 6 muscle groups</span>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
               {CUSTOM_MUSCLES.map(m => {
                 const on = customMuscles.includes(m)
                 return (
-                  <button type="button" key={m} role="checkbox" aria-checked={on} onClick={() => setCustomMuscles(p => on ? p.filter(x=>x!==m) : [...p,m])} style={{
+                  <button type="button" key={m} role="checkbox" aria-checked={on} disabled={!on && customMuscles.length >= 6} onClick={() => setCustomMuscles(p => on ? p.filter(x=>x!==m) : [...p,m])} style={{
                     textAlign:'left', font:'inherit',
                     padding:'10px 12px', borderRadius:10, border:`1px solid ${on?'#c8b89a':'#ede8e0'}`,
                     background:on?'#e8dfd0':'#fff', cursor:'pointer', fontSize:13, fontWeight:on?600:400,
@@ -1305,10 +1390,11 @@ export default function Workout() {
 
         <button className="btn-primary"
           disabled={!muscleGroup || (muscleGroup==='custom' && customMuscles.length===0)}
-          onClick={() => { setCheckedMoves({}); setScreen('plan') }}>
-          Show my workout
+          onClick={() => { setWorkoutSeedVal(nextWorkoutSeed()); setCheckedMoves({}); setSetWeights({}); setPlayerDone({}); startRest(0); setScreen('plan') }}>
+          {Object.keys(setWeights).length || Object.keys(playerDone).length ? 'Start a new workout (clears current sets)' : 'Show my workout'}
         </button>
       </div>
+      {workoutDisclaimer}
       <BottomNav />
     </div>
   )
@@ -1373,6 +1459,7 @@ export default function Workout() {
             {totalDone >= moves.length ? 'Warmup complete, start workout' : 'Skip warmup, start workout'}
           </button>
         </div>
+        {workoutDisclaimer}
         <BottomNav />
       </div>
     )
@@ -1382,6 +1469,7 @@ export default function Workout() {
   if (screen === 'plan') {
     const exercises = activity === 'gym' ? getExercises() : null
     const isGym = activity === 'gym'
+    const hasLoadableWork = isGym && exercises?.some(ex => supportsLoggedWeight(ex.weight))
     return (
       <div style={{ paddingBottom:100 }}>
         <TopBar title="WORKOUT" backTo={() => setScreen(isGym ? 'muscles' : 'pick')} />
@@ -1403,25 +1491,32 @@ export default function Workout() {
             <div style={{ fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:20, marginBottom:2 }}>
               {muscleGroup==='full'?'Full body':muscleGroup==='upper'?'Upper body':muscleGroup==='lower'?'Lower body':'Custom'} session
             </div>
-            <div style={{ fontSize:12, color:'#7a7268', marginBottom:8 }}>{fitnessLevel.charAt(0).toUpperCase()+fitnessLevel.slice(1)}, readiness-guided intensity</div>
-            <div style={{ fontSize:12, color:'#7a7268', marginBottom:16, lineHeight:1.5 }}>Aim for a weight where the last 2 to 3 reps are genuinely hard. If a set feels easy, go heavier.</div>
+            <div style={{ fontSize:12, color:'#7a7268', marginBottom:8 }}>{fitnessLevel.charAt(0).toUpperCase()+fitnessLevel.slice(1)} · adjust to your experience</div>
+            <div style={{ fontSize:12, color:'#7a7268', marginBottom:16, lineHeight:1.5 }}>
+              {hasLoadableWork
+                ? 'Choose a load you can control throughout each set, leaving a few good reps in reserve. Adjust based on your warm-up.'
+                : 'Choose a comfortable variation and focus on controlled movement. Adjust repetitions or rest as needed.'}
+            </div>
             <div style={{ background:'#fff', border:'1px solid #ede8e0', borderRadius:12, marginBottom:16, overflow:'hidden' }}>
               {exercises.map((exObj, i) => (
                 <div key={i} style={{ padding:'12px 16px', borderBottom:i<exercises.length-1?'1px solid #f5f0e8':'none', display:'flex', alignItems:'center', gap:12 }}>
                   <div style={{ width:24, height:24, borderRadius:12, background:'#f5f0e8', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:600, color:'#9a9590', flexShrink:0 }}>{i+1}</div>
                   <div style={{ flex:1 }}>
                     <div style={{ fontSize:14, fontWeight:500 }}>{exObj.name}</div>
-                    <div style={{ fontSize:12, color:'#9a9590' }}>{exObj.sets} sets of {exObj.reps} reps at {exObj.weight}</div>
+                    <div style={{ fontSize:12, color:'#9a9590' }}>{exObj.sets} sets of {exerciseReps(exObj)} · {exerciseLoadGuide(exObj.weight)}</div>
                   </div>
                 </div>
               ))}
             </div>
             <button className="btn-primary" onClick={() => { setPlayerIdx(0); setPhaseOpen(false); setScreen('player') }}>Start workout</button>
+            {Object.keys(setWeights).length === 0 && Object.keys(playerDone).length === 0 && (
+              <button type="button" onClick={() => { setWorkoutSeedVal(nextWorkoutSeed(daySeedVal, exercises.map(ex => ex.name))); setCheckedMoves({}) }} style={{ display:'block', width:'100%', marginTop:10, background:'none', border:'none', fontSize:13, color:'#7a7268', cursor:'pointer', textDecoration:'underline', fontFamily:'inherit' }}>Show another workout</button>
+            )}
             <button onClick={() => setScreen('feel')} style={{ display:'block', width:'100%', marginTop:10, background:'none', border:'none', fontSize:13, color:'#9a9590', cursor:'pointer', textDecoration:'underline', fontFamily:'inherit' }}>Already done, just log it</button>
           </> : (() => {
             const cardioKey = ['walk','run','cycle','swim'].includes(activity) ? activity : null
             const cardioGuide = cardioKey ? getCardioGuide(cardioKey) : null
-            const hiitData = activity === 'hiit' ? hiitFor('observation') : null
+            const hiitData = activity === 'hiit' ? buildIntervalCircuit(daySeedVal, fitnessLevel) : null
             const yogaSeq = activity === 'yoga' ? pc(YOGA_SEQUENCES, 'observation') : null
             const pilatesSeq = activity === 'pilates' ? pc(PILATES_SEQUENCES, 'observation') : null
 
@@ -1487,8 +1582,8 @@ export default function Workout() {
 
                 <div style={{ background:'#fdf3f0', border:'1px solid #e8c0a8', borderRadius:12, padding:14, marginBottom:12 }}>
                   <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a6040', marginBottom:6 }}>How hard to push</div>
-                  <div style={{ fontSize:13, color:'#3a3530', lineHeight:1.6, marginBottom:6 }}>Go 9 to 10 out of 10 on every work bout. If you can hold a conversation, push harder, that is just cardio. Women recover faster between bouts, so you have to genuinely push to get the benefit.</div>
-                  <div style={{ fontSize:11, color:'#9a9590', fontStyle:'italic', lineHeight:1.5 }}>Sims ST. ROAR 2024; sex differences in HIIT, Frontiers in Physiology 2020; Hunter SK, sex differences in fatigability, Acta Physiologica 2014.</div>
+                <div style={{ fontSize:13, color:'#3a3530', lineHeight:1.6, marginBottom:6 }}>Warm up for 3 to 5 minutes first. Work at a challenging but controlled pace, keep good form, and use easier variations or extra rest whenever needed. Cool down afterward.</div>
+                  <div style={{ fontSize:11, color:'#9a9590', fontStyle:'italic', lineHeight:1.5 }}>Start gradually if intervals are new to you. You can stop early or take longer breaks. The interval timer pauses when you leave the app.</div>
                 </div>
 
                 <div style={{ background:'#fff', border:'1px solid #ede8e0', borderRadius:12, marginBottom:12, overflow:'hidden' }}>
@@ -1504,7 +1599,7 @@ export default function Workout() {
                 </div>
 
                 <button className="btn-primary" onClick={() => {
-                  const data = hiitFor('observation')
+                  const data = buildIntervalCircuit(daySeedVal, fitnessLevel)
                   setHiitRound(1); setHiitExIdx(0); setHiitPhase('work')
                   setHiitSecondsLeft(data.work); setHiitRunning(true)
                   setScreen('hiitTimer')
@@ -1578,6 +1673,7 @@ export default function Workout() {
             )
           })()}
         </div>
+        {workoutDisclaimer}
         <BottomNav />
       </div>
     )
@@ -1588,18 +1684,16 @@ export default function Workout() {
     const exercises = getExercises()
     const exObj = exercises[playerIdx]
     const isLast = playerIdx === exercises.length - 1
-    const isBodyweight = !/^\d/.test(exObj.weight) // weight string starts with a number for loaded moves; "Bodyweight" otherwise
+    const canLogWeight = supportsLoggedWeight(exObj.weight)
+    const isBodyweightOnly = !canLogWeight
     // Personalised target from her own last lift + today's phase (null = first time → use the range).
-    const prog = isBodyweight ? null : getProgressionTarget({
+    const prog = canLogWeight ? getProgressionTarget({
       lastWeight: exHistory[exObj.name]?.last_weight,
       exerciseName: exObj.name,
       successfulSessions: exHistory[exObj.name]?.successful_sessions,
       lastSessionFeel: exHistory[exObj.name]?.last_session_feel,
-    })
-    const svgType = getSvgType(exObj.name)
-    const muscles = getMuscles(exObj.name)
-    const equipment = getEquipment(exObj.name)
-    const phases = getPhases(svgType)
+    }) : null
+    const phaseNote = phaseGuidanceNote(phase, banner.note, exObj, exercises)
     const exWeights = setWeights[playerIdx] || {}
     const exDone = playerDone[playerIdx] || {}
 
@@ -1613,11 +1707,11 @@ export default function Workout() {
       })
     }
     function toggleSet(setIdx, numSets) {
+      if (!exDone[setIdx] && setIdx < numSets - 1) startRest(60)
       setPlayerDone(prev => {
         const ex = { ...(prev[playerIdx] || {}) }
         const completing = !ex[setIdx]
         ex[setIdx] = completing
-        if (completing && setIdx < numSets - 1) setRestSecondsLeft(60)
         return { ...prev, [playerIdx]: ex }
       })
     }
@@ -1643,66 +1737,45 @@ export default function Workout() {
         <div style={{ padding:'16px' }}>
           {/* Exercise title */}
           <div style={{ fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:24, marginBottom:4 }}>{exObj.name}</div>
-          <div style={{ fontSize:14, color:'#7a7268', marginBottom:16 }}>{exObj.sets} sets x {exObj.reps}</div>
+          <div style={{ fontSize:14, color:'#7a7268', marginBottom:16 }}>{exObj.sets} sets × {exerciseReps(exObj)}</div>
 
-          {/* Demo card */}
-          <div style={{ background:'#fff', border:'1px solid #ede8e0', borderRadius:14, marginBottom:12, overflow:'hidden' }}>
-            <div style={{ padding:'14px 16px 0' }}>
-              <div style={{ fontSize:10, fontWeight:600, letterSpacing:'0.12em', textTransform:'uppercase', color:'#9a9590', marginBottom:8 }}>EXERCISE DEMO</div>
-              <div style={{ fontSize:15, fontWeight:600, marginBottom:12 }}>{exObj.name}</div>
-            </div>
-            {/* Stick figure (gender-neutral demo, app palette) */}
-            <div style={{ background:'#faf8f5', border:'1px solid #ede8e0', margin:'0 16px 12px', borderRadius:12, padding:'14px 0', height:160 }}>
-              <StickFigure type={svgType} />
-            </div>
-            {/* Tags */}
-            <div style={{ padding:'0 16px 8px', display:'flex', gap:8, flexWrap:'wrap' }}>
-              <span style={{ background:'#f5f0e8', border:'1px solid #ede8e0', borderRadius:20, padding:'4px 12px', fontSize:12, color:'#5a4a3a' }}>Main muscles: {muscles}</span>
-            </div>
-            <div style={{ padding:'0 16px 12px', display:'flex', gap:8, flexWrap:'wrap' }}>
-              <span style={{ background:'#f5f0e8', border:'1px solid #ede8e0', borderRadius:20, padding:'4px 12px', fontSize:12, color:'#5a4a3a' }}>Equipment: {equipment}</span>
-            </div>
-            <div style={{ padding:'0 16px 4px', fontSize:12, color:'#7a7268' }}>Movement: {exObj.name}</div>
-            {/* 3 phase cards */}
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8, padding:'12px 16px 16px' }}>
-              {phases.map((ph, pi) => (
-                <div key={pi} style={{ background:'#faf8f5', borderRadius:10, padding:'10px 8px' }}>
-                  <div style={{ fontSize:9, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'#c8b89a', marginBottom:4 }}>
-                    {pi===0?'Start position':pi===1?'Lower / working phase':'Finish position'}
-                  </div>
-                  <div style={{ fontSize:11, color:'#3a3530', lineHeight:1.5 }}>{ph.desc}</div>
-                </div>
-              ))}
+          {/* The illustration is selected from the actual exercise name, never a generic plank fallback. */}
+          <div style={{ background:'#faf8f5', border:'1px solid #ede8e0', borderRadius:14, height:190, marginBottom:12, overflow:'hidden', position:'relative' }}>
+            <div style={{ position:'absolute', top:12, left:16, zIndex:1, fontSize:10, fontWeight:600, letterSpacing:'0.12em', textTransform:'uppercase', color:'#9a9590' }}>MOVEMENT DEMO</div>
+            <div style={{ height:'100%', padding:'18px 20px 8px' }}>
+              <StickFigure type={getSvgType(exObj.name)} />
             </div>
           </div>
 
-          {/* Weight prescription. PERSONALISED to her own last lift + cycle phase when we have
-              history for this exercise, otherwise the level-based phase guide for a first attempt. */}
+          <div style={{ background:'#fff', border:'1px solid #ede8e0', borderRadius:14, marginBottom:12, padding:'14px 16px' }}>
+            <div style={{ fontSize:10, fontWeight:600, letterSpacing:'0.12em', textTransform:'uppercase', color:'#9a9590', marginBottom:8 }}>MOVEMENT CUE</div>
+            <div style={{ fontSize:14, color:'#3a3530', lineHeight:1.6 }}>{exObj.tip || 'Move slowly and use a comfortable range of motion.'}</div>
+            <div style={{ fontSize:12, color:'#7a7268', lineHeight:1.5, marginTop:8 }}>Use a comfortable variation and stop if the movement causes pain.</div>
+          </div>
+
+          {/* Use the user's own history when available; otherwise let them choose a load. */}
           {(() => {
-            if (isBodyweight) return null
+            if (!canLogWeight) return null
             if (prog) {
-              // She has done this lift before → show HER progressed target, decided by her phase.
+              // History and form guide the decision to progress.
               const up = prog.action === 'progress'
               return (
                 <div style={{ background: up ? '#eef4ee' : '#e8dfd0', border:`1px solid ${up ? '#bcd8bc' : '#c8b89a'}`, borderRadius:12, padding:'12px 14px', marginBottom:12 }}>
                   <div style={{ display:'flex', alignItems:'baseline', gap:8, marginBottom:4 }}>
-                    <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color: up ? '#4a7a4a' : '#7a6a50' }}>WEIGHT TODAY</div>
-                    {up && <span style={{ fontSize:10, fontWeight:700, color:'#fff', background:'#4a7a4a', borderRadius:10, padding:'1px 7px', letterSpacing:'0.04em' }}>+{prog.delta}KG</span>}
+                    <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color: up ? '#4a7a4a' : '#7a6a50' }}>LAST LOGGED WEIGHT</div>
+                    {up && <span style={{ fontSize:10, fontWeight:700, color:'#fff', background:'#4a7a4a', borderRadius:10, padding:'1px 7px', letterSpacing:'0.04em' }}>CONSIDER PROGRESS</span>}
                   </div>
                   <div style={{ fontSize:22, fontWeight:700, color:'#2c2820' }}>{prog.weight}kg</div>
                   <div style={{ fontSize:12, color:'#5a5a50', lineHeight:1.5, marginTop:4 }}>{prog.reason}</div>
                 </div>
               )
             }
-            // First time doing this exercise → fall back to the level/phase starting range.
-            const weightNote = getPhaseWeightNote(exObj.weight, intensity, phase)
-            return weightNote ? (
+            return (
               <div style={{ background:'#e8dfd0', border:'1px solid #c8b89a', borderRadius:12, padding:'12px 14px', marginBottom:12 }}>
-                <div style={{ fontSize:10, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#7a6a50', marginBottom:2 }}>STARTING WEIGHT GUIDE</div>
-                <div style={{ fontSize:20, fontWeight:700, color:'#2c2820' }}>~{weightNote.weight}</div>
-                <div style={{ fontSize:12, color:'#7a6a50', lineHeight:1.5, marginTop:4 }}>First time logging this one. Pick a weight you can control for all reps, we will personalise from here next time.</div>
+                <div style={{ fontSize:10, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#7a6a50', marginBottom:2 }}>STARTING WEIGHT</div>
+                <div style={{ fontSize:14, color:'#2c2820', lineHeight:1.5 }}>Choose a manageable load that lets you complete the reps with control and a few reps left in reserve. Start lighter and adjust after warming up.</div>
               </div>
-            ) : null
+            )
           })()}
 
           {/* Phase guidance accordion */}
@@ -1712,7 +1785,7 @@ export default function Workout() {
               <i className={`ti ti-chevron-${phaseOpen?'up':'down'}`} aria-hidden="true" style={{ color:'#9a9590', fontSize:14 }}/>
             </button>
             {phaseOpen && (
-              <div style={{ padding:'0 16px 14px', fontSize:13, color:'#3a3530', lineHeight:1.6 }}>{banner.note}</div>
+              <div style={{ padding:'0 16px 14px', fontSize:13, color:'#3a3530', lineHeight:1.6 }}>{phaseNote}</div>
             )}
           </div>
 
@@ -1720,8 +1793,8 @@ export default function Workout() {
           <div style={{ background:'#fff', border:'1px solid #ede8e0', borderRadius:14, overflow:'hidden', marginBottom:16 }}>
             <div style={{ display:'grid', gridTemplateColumns:'36px 1fr 52px 44px', padding:'10px 14px', borderBottom:'1px solid #f5f0e8' }}>
               <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590' }}>SET</div>
-              <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590' }}>{isBodyweight ? 'WEIGHT' : 'WEIGHT (KG)'}</div>
-              <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590', textAlign:'center' }}>REPS</div>
+              <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590' }}>{isBodyweightOnly ? 'WEIGHT' : 'WEIGHT (KG)'}</div>
+              <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:'#9a9590', textAlign:'center' }}>{isTimedExercise(exObj.name) ? 'SEC' : 'REPS'}</div>
               <div/>
             </div>
             {Array.from({ length: exObj.sets }).map((_, si) => {
@@ -1730,13 +1803,13 @@ export default function Workout() {
               return (
                 <div key={si} style={{ display:'grid', gridTemplateColumns:'36px 1fr 52px 44px', padding:'10px 14px', borderBottom:si<exObj.sets-1?'1px solid #f5f0e8':'none', alignItems:'center', background:done?'#fafaf8':'#fff' }}>
                   <div style={{ fontSize:15, fontWeight:600, color:'#9a9590' }}>{si+1}</div>
-                  {isBodyweight ? (
-                    <div style={{ fontSize:14, color:'#7a7268', fontWeight:500 }}>Bodyweight</div>
+                  {isBodyweightOnly ? (
+                    <div style={{ fontSize:14, color:'#7a7268', fontWeight:500 }}>{exerciseLoadGuide(exObj.weight) || 'Bodyweight'}</div>
                   ) : (
                     <div style={{ display:'flex', alignItems:'center', gap:6 }}>
                       <button type="button" aria-label="Decrease weight" onClick={() => updateWeight(si, -2.5)} style={{ width:30, height:30, borderRadius:8, border:'1px solid #ede8e0', background:'#faf8f5', cursor:'pointer', fontSize:16, color:'#7a7268', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontFamily:'inherit' }}>−</button>
                       <input type="number" min="0" max="500" step="0.5" aria-label={`Weight for set ${si+1} (kg)`} value={w} onChange={e => setSetWeights(prev => { const ex={...(prev[playerIdx]||{})}; const n=Number(e.target.value); ex[si]=e.target.value === '' ? '' : String(Math.min(500, Math.max(0, Number.isFinite(n) ? n : 0))); return {...prev,[playerIdx]:ex} })}
-                        placeholder={prog ? String(prog.weight) : exObj.weight.split(' ')[0]}
+                        placeholder={prog ? String(prog.weight) : 'kg'}
                         style={{ flex:1, minWidth:0, padding:'6px 8px', border:'1px solid #ede8e0', borderRadius:8, fontSize:14, textAlign:'center', background:'#fff', fontFamily:'inherit', color:'#2c2820' }}/>
                       <button type="button" aria-label="Increase weight" onClick={() => updateWeight(si, 2.5)} style={{ width:30, height:30, borderRadius:8, border:'1px solid #ede8e0', background:'#faf8f5', cursor:'pointer', fontSize:16, color:'#7a7268', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontFamily:'inherit' }}>+</button>
                     </div>
@@ -1763,15 +1836,15 @@ export default function Workout() {
               </div>
               <div style={{ display:'flex', gap:6 }}>
                 {[30,60,90].map(s => (
-                  <button type="button" aria-label={`Rest ${s} seconds`} key={s} onClick={() => setRestSecondsLeft(s)} style={{ padding:'6px 10px', borderRadius:8, border:'1px solid rgba(255,255,255,0.15)', background:'rgba(255,255,255,0.08)', color:'#c8b89a', fontSize:12, cursor:'pointer', fontFamily:'inherit' }}>{s}s</button>
+                  <button type="button" aria-label={`Rest ${s} seconds`} key={s} onClick={() => startRest(s)} style={{ padding:'6px 10px', borderRadius:8, border:'1px solid rgba(255,255,255,0.15)', background:'rgba(255,255,255,0.08)', color:'#c8b89a', fontSize:12, cursor:'pointer', fontFamily:'inherit' }}>{s}s</button>
                 ))}
-                <button type="button" onClick={() => setRestSecondsLeft(0)} style={{ padding:'6px 10px', borderRadius:8, border:'none', background:'none', color:'#9a9590', fontSize:12, cursor:'pointer', fontFamily:'inherit' }}>Skip</button>
+                <button type="button" onClick={() => startRest(0)} style={{ padding:'6px 10px', borderRadius:8, border:'none', background:'none', color:'#9a9590', fontSize:12, cursor:'pointer', fontFamily:'inherit' }}>Skip</button>
               </div>
             </div>
           )}
 
           {/* Next / Finish button */}
-          <button className="btn-primary" onClick={() => { if (isLast) setScreen('feel'); else { setPlayerIdx(i => i+1); setPhaseOpen(false); setRestSecondsLeft(0) } }}>
+          <button className="btn-primary" onClick={() => { if (isLast) setScreen('feel'); else { setPlayerIdx(i => i+1); setPhaseOpen(false); startRest(0) } }}>
             {isLast ? 'Finish workout' : `Next: ${exercises[playerIdx+1].name}`}
           </button>
           {isLast && <button onClick={() => setScreen('feel')} style={{ display:'block', width:'100%', marginTop:8, background:'none', border:'none', fontSize:12, color:'#9a9590', cursor:'pointer', fontFamily:'inherit' }}>Skip to log how it went</button>}
@@ -1822,6 +1895,7 @@ export default function Workout() {
             Done, log how it went
           </button>
         </div>
+        {workoutDisclaimer}
         <BottomNav />
       </div>
     )
@@ -1829,7 +1903,7 @@ export default function Workout() {
 
   // HIIT TIMER
   if (screen === 'hiitTimer') {
-    const data = hiitFor('observation')
+    const data = buildIntervalCircuit(daySeedVal, fitnessLevel)
     const isWork = hiitPhase === 'work'
     const currentExercise = data.exercises[hiitExIdx]
     const totalIntervals = data.rounds * data.exercises.length
@@ -1837,23 +1911,8 @@ export default function Workout() {
     const progressPct = Math.round(doneIntervals / totalIntervals * 100)
 
     function skipHiitPhase() {
-      // Advance directly (not via the timer effect) so Skip also works while paused.
-      const data = hiitFor('observation')
-      if (hiitPhase === 'work') {
-        setHiitPhase('rest'); setHiitSecondsLeft(data.rest)
-      } else {
-        const nextEx = hiitExIdx + 1
-        if (nextEx < data.exercises.length) {
-          setHiitExIdx(nextEx); setHiitPhase('work'); setHiitSecondsLeft(data.work)
-        } else {
-          const nextRound = hiitRound + 1
-          if (nextRound <= data.rounds) {
-            setHiitRound(nextRound); setHiitExIdx(0); setHiitPhase('work'); setHiitSecondsLeft(data.work)
-          } else {
-            setHiitRunning(false); setScreen('feel')
-          }
-        }
-      }
+      // Advance directly so Skip still works while paused.
+      advanceHiitTimer()
     }
 
     return (
@@ -1953,6 +2012,7 @@ export default function Workout() {
           {saving ? 'Saving...' : saveError ? 'Try again' : 'Save workout'}
         </button>
       </div>
+      {workoutDisclaimer}
       <BottomNav />
     </div>
   )
@@ -1994,6 +2054,7 @@ export default function Workout() {
           {saving ? 'Saving...' : saveError ? 'Try again' : 'Save class'}
         </button>
       </div>
+      {workoutDisclaimer}
       <BottomNav />
     </div>
   )

@@ -50,6 +50,17 @@ describe('median cycle length', () => {
     expect(h.avgCycleLength).toBe(25)      // round(24.5), was 32
     expect(h.variabilityDays).toBe(15)
   })
+
+  it('uses the latest interval when two sparse cycles include a possible missing-period gap', () => {
+    const cycleData = {
+      last_period_date: '2026-09-02',
+      cycle_length: 28,
+      notes: JSON.stringify({ periodStarts: ['2026-06-18', '2026-08-06', '2026-09-02'] }),
+    }
+    const h = computeCycleHistory(cycleData, 28)
+    expect(h.gaps).toEqual([49, 27])
+    expect(h.avgCycleLength).toBe(27)
+  })
 })
 
 // Population data carries the estimate until two completed cycles exist to compare.

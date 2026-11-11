@@ -22,15 +22,15 @@ function greet(hour) {
 // recovery note that can appear right below them).
 function focusFor(effPhase) {
   switch (effPhase) {
-    case 'Menstrual':      return { label: 'Ease in and refuel', sub: 'Energy is often lowest now, gentle movement and iron-rich food help' }
+    case 'Menstrual':      return { label: 'Check in and refuel', sub: 'Use symptoms, hunger, and your planned activity to guide today’s movement and meals' }
     case 'Early follicular':
     case 'Follicular':
-    case 'Late follicular':return { label: 'Building energy', sub: 'Many women feel stronger now, a good window to progress your lifts' }
-    case 'Ovulatory':      return { label: 'Peak energy window', sub: 'Many women feel strongest now, a good day to push if you feel good' }
+    case 'Late follicular':return { label: 'Build from your baseline', sub: 'Keep your planned session if your warm-up and recovery feel good' }
+    case 'Ovulatory':      return { label: 'Use today’s signals', sub: 'Choose effort based on your warm-up, recovery, and how you feel—not a calendar phase' }
     case 'Early luteal':
     case 'Mid luteal':
     case 'Late luteal':
-    case 'Luteal':         return { label: 'Steady and recover', sub: 'Recovery can feel slower now, aim to maintain and keep protein high' }
+    case 'Luteal':         return { label: 'Steady and recover', sub: 'Keep meals regular and adjust training for symptoms, sleep, and perceived effort' }
     case 'Perimenopause':  return { label: 'Strength and protect', sub: 'Prioritise resistance training for muscle and bone' }
     case 'Pregnancy':      return { label: 'Move gently', sub: 'Stay active as your provider advises' }
     case 'bc-combined':
@@ -52,7 +52,7 @@ function nutritionLines(phase, targets) {
   const lines = []
   const proteinRange = targets?.proteinRangeG
   if (phase === 'Pregnancy') {
-    if (proteinRange) lines.push(`Your general protein range is ${proteinRange[0]} to ${proteinRange[1]}g, spread across the day.`)
+    if (proteinRange) lines.push(`Your active-person protein range is ${proteinRange[0]} to ${proteinRange[1]}g, spread across the day.`)
     lines.push('Keep up your prenatal vitamin and stay well hydrated.')
     return lines
   }

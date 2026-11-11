@@ -1,8 +1,11 @@
 // hormoneSync.js, shared algorithm module
 // All phase logic lives here. Import getTodayStatus into every screen.
 import { interpretMoodSignal, getMoodContextFeedback, checkFlag, getPersonalisedNutritionFocus, getPersonalisedWorkoutReadiness } from './algorithm_v3.js'
+import { analyzePersonalPatterns } from './personalPatterns.js'
+import { analyzeMoodPatterns, analyzeSymptomPatterns } from './symptomPatterns.js'
 import { applyWearableOvulationFromStorage } from './cycleGuardian.js'
-import { diffCalendarDays } from './dateUtils.js'
+import { diffCalendarDays, toDateStr } from './dateUtils.js'
+import { detectOvulationFromTemp } from './wearableCycle.js'
 
 // Thrown by getTodayStatus when a critical Supabase read fails. Callers should catch this and show
 // an explicit "couldn't load your data — try again" state, NEVER fall back to fabricated defaults.
@@ -14,27 +17,147 @@ export class HealthDataError extends Error {
   }
 }
 
-// User-facing "how personalised is your guidance" — deliberately DISTINCT from the internal
-// `confidence` value that gates pattern observations. It is NOT a statistically-calibrated probability, so it
-// must never be shown to the user as "algorithm confidence". This progress number instead starts
-// at 0 with no data and grows ONLY from the user's own logged data (breadth) and completed cycles
-// (the real personalisation signal). It is presented as progress toward personalisation, never as
-// confidence in the prediction being correct.
-export function personalisationProgress(meaningfulLogs = 0, cyclesTracked = 0) {
-  // This is data coverage, not a probability that a prediction is correct. Subjective or
-  // biometric observations and repeated cycles both matter; imported placeholder rows do not.
-  const logs = meaningfulLogs || 0
-  const cycles = cyclesTracked || 0
-  const fromLogs = Math.min(0.35, logs * 0.012)
-  const fromLongitudinalDepth = Math.min(0.15, Math.max(0, logs - 14) * 0.003)
-  const fromCycles = Math.min(0.35, cycles * 0.10)
-  const pct = Math.round(Math.min(0.85, fromLogs + fromLongitudinalDepth + fromCycles) * 100)
-  const label = pct >= 70 ? 'Strong personal data coverage'
-    : pct >= 45 ? 'Your personal pattern is developing'
-    : pct >= 20 ? 'Early personal pattern'
+// User-facing personalisation is deliberately DISTINCT from forecast confidence. It answers
+// "how much of my own data shapes the guidance?", not "how likely is this date prediction to be
+// right?" The old count-only formula saturated every daily-log contribution at 64 entries; a
+// person could log every day and remain at 70% until another period started. That is both
+// discouraging and false to the amount of individual information available for guidance.
+//
+// This score is evidence coverage, not a probability. It rewards five things that materially make
+// advice more individual: repeated daily observations, time observed, signal breadth, period
+// anchors, and a pattern that has actually repeated. It reaches 100 only for broad, sustained
+// data; it never changes the separately calculated cycle-timing estimate.
+const PERSONALISATION_WINDOW_DAYS = 90
+const PERSONALISATION_SIGNAL_DOMAINS = 5
+
+function validLogDates(logs) {
+  return [...new Set((logs || []).map(log => log?.log_date).filter(date => ISO_DATE.test(date || '')))].sort()
+}
+
+function observationSpanDays(dates) {
+  if (!dates.length) return 0
+  return diffCalendarDays(dates[dates.length - 1] + 'T00:00:00', dates[0] + 'T00:00:00') + 1
+}
+
+function signalDomainCount(logs, mucusLogs) {
+  const has = predicate => (logs || []).some(predicate)
+  const nonNone = value => value && value !== 'None' && value !== 'None of these'
+  const domains = [
+    has(log => Boolean(log.energy)),
+    has(log => Boolean(log.sleep_quality || log.sleep_hours || log.workout_feel_reported)),
+    has(log => (log.mood || []).length > 0 || log.stress_level != null),
+    has(log => (log.symptoms || []).some(nonNone) || nonNone(log.flow_volume) || log.pain_rating != null || Boolean(log.libido)),
+    has(log => log.resting_hr != null || log.resting_hr_exact != null || log.wrist_temp != null || Boolean(log.lh_result))
+      || (mucusLogs || []).some(log => nonNone(log.discharge_type)),
+  ]
+  return domains.filter(Boolean).length
+}
+
+export function personalisationProgress({ logs = [], mucusLogs = [], cyclesTracked = 0, hasRepeatedPattern = false } = {}) {
+  const meaningfulLogs = (logs || []).filter(isMeaningfulHealthLog)
+  const dates = validLogDates(meaningfulLogs)
+  const meaningfulLogDays = dates.length
+  const spanDays = observationSpanDays(dates)
+  const domains = signalDomainCount(meaningfulLogs, mucusLogs)
+  const cycles = Math.max(0, cyclesTracked || 0)
+
+  // 40 points for continued daily observation through 90 days, 15 for longitudinal time (so
+  // backfilled entries from one date cannot imitate a real history), 15 for useful breadth, 20
+  // for two independent cycle anchors, and 10 only once a pattern has repeated.
+  const fromDailyCoverage = Math.min(0.40, meaningfulLogDays / PERSONALISATION_WINDOW_DAYS * 0.40)
+  const fromTimeObserved = Math.min(0.15, spanDays / PERSONALISATION_WINDOW_DAYS * 0.15)
+  const fromSignalBreadth = domains / PERSONALISATION_SIGNAL_DOMAINS * 0.15
+  const fromCycleAnchors = Math.min(0.20, cycles * 0.10)
+  const fromRepeatedPattern = hasRepeatedPattern ? 0.10 : 0
+  const pct = Math.round(Math.min(1, fromDailyCoverage + fromTimeObserved + fromSignalBreadth + fromCycleAnchors + fromRepeatedPattern) * 100)
+  const personalisationEvidence = {
+    meaningfulLogDays,
+    spanDays,
+    signalDomains: domains,
+    cyclesTracked: cycles,
+    hasRepeatedPattern,
+  }
+  const label = pct >= 85 ? 'Strongly personalised guidance'
+    : pct >= 65 ? 'Your guidance is becoming personalised'
+    : pct >= 35 ? 'Early personal pattern'
     : pct >= 5 ? 'Starting to learn your baseline'
     : 'Using research-informed general guidance'
-  return { personalisationPct: pct, personalisationLabel: label }
+  return {
+    personalisationPct: pct,
+    personalisationLabel: label,
+    personalisationEvidence,
+    nextMilestone: nextPersonalisationMilestone(personalisationEvidence),
+  }
+}
+
+// The next step describes guidance coverage only. Period-date reliability is intentionally
+// reported separately below, because a long run of symptom logs is not proof of future timing.
+export function nextPersonalisationMilestone({ meaningfulLogDays = 0, spanDays = 0, signalDomains = 0, cyclesTracked = 0, hasRepeatedPattern = false } = {}) {
+  if (meaningfulLogDays < 3) {
+    const remaining = 3 - meaningfulLogDays
+    return { remaining, text: `${remaining} more check-${remaining === 1 ? 'in' : 'ins'} and Em~power can start learning from your own observations.` }
+  }
+  if (signalDomains < 3) {
+    return { remaining: 1, text: 'Adding sleep, mood, symptoms, or body signals gives Em~power a fuller picture of your day-to-day pattern.' }
+  }
+  if (spanDays < PERSONALISATION_WINDOW_DAYS) {
+    const remaining = PERSONALISATION_WINDOW_DAYS - spanDays
+    return { remaining, text: `You have ${meaningfulLogDays} meaningful daily observations. Continued check-ins over the next ${remaining} day${remaining === 1 ? '' : 's'} deepen how personal your guidance becomes.` }
+  }
+  if (cyclesTracked < 2) {
+    return { remaining: 2 - cyclesTracked, text: 'Recording period starts across two cycles helps connect your day-to-day observations to your cycle history.' }
+  }
+  if (!hasRepeatedPattern) {
+    return { remaining: 1, text: 'Your guidance already uses your own data. Repeated observations across cycles will unlock individual pattern insights when the evidence is consistent.' }
+  }
+  return { remaining: 0, text: 'Your guidance is built from broad, repeated observations in your own history.' }
+}
+
+function predictionOutcomes(predictionSnapshots = [], periodStarts = []) {
+  const starts = [...new Set((periodStarts || []).filter(date => ISO_DATE.test(date || '')))].sort()
+  return (predictionSnapshots || []).map(snapshot => {
+    if (!ISO_DATE.test(snapshot?.cycle_start_date || '') || !ISO_DATE.test(snapshot?.predicted_period_date || '') || !ISO_DATE.test(snapshot?.window_start || '') || !ISO_DATE.test(snapshot?.window_end || '')) return null
+    const actualPeriodDate = starts.find(date => date > snapshot.cycle_start_date)
+    if (!actualPeriodDate) return null
+    return {
+      actualPeriodDate,
+      absoluteErrorDays: Math.abs(diffCalendarDays(actualPeriodDate + 'T00:00:00', snapshot.predicted_period_date + 'T00:00:00')),
+      insideWindow: actualPeriodDate >= snapshot.window_start && actualPeriodDate <= snapshot.window_end,
+    }
+  }).filter(Boolean)
+}
+
+// This is a timing-reliability label, not a probability. It cannot be improved merely by more
+// daily check-ins: a new period start is required to test the date estimate against what occurred.
+// Three outcome-checked predictions are the minimum for the app to call its own timing history
+// validated; before then it must say only that the history is developing.
+export function cycleTimingReliability(cyclesTracked = 0, predictionSnapshots = [], periodStarts = []) {
+  const cycles = Math.max(0, cyclesTracked || 0)
+  const outcomes = predictionOutcomes(predictionSnapshots, periodStarts)
+  const scoredPredictions = outcomes.length
+  if (scoredPredictions >= 3) {
+    const inWindowRate = Math.round(outcomes.filter(outcome => outcome.insideWindow).length / scoredPredictions * 100)
+    const medianErrorDays = medianOf(outcomes.map(outcome => outcome.absoluteErrorDays))
+    if (inWindowRate >= 80 && medianErrorDays <= 2) {
+      return {
+        level: 'validated', label: 'Cycle timing: validated history',
+        detail: `${scoredPredictions} previous estimates were checked against recorded starts; ${inWindowRate}% landed inside their prediction windows.`,
+        scoredPredictions, inWindowRate, medianErrorDays,
+      }
+    }
+    return {
+      level: 'variable', label: 'Cycle timing: variable history',
+      detail: `${scoredPredictions} previous estimates were checked against recorded starts. Your timing varies, so Em~power will keep a broader estimate window.`,
+      scoredPredictions, inWindowRate, medianErrorDays,
+    }
+  }
+  if (cycles < 1) return { level: 'initial', label: 'Cycle timing: initial estimate', detail: 'Log the start of your next period to begin building a personal timing history.', scoredPredictions }
+  const stillNeeded = 3 - scoredPredictions
+  return {
+    level: 'developing', label: 'Cycle timing: developing',
+    detail: `Based on ${cycles} completed cycle${cycles === 1 ? '' : 's'}. ${stillNeeded} more checked estimate${stillNeeded === 1 ? '' : 's'} are needed before Em~power can validate timing reliability.`,
+    scoredPredictions,
+  }
 }
 
 export function isMeaningfulHealthLog(log) {
@@ -45,6 +168,8 @@ export function isMeaningfulHealthLog(log) {
   return Boolean(
     log.energy || log.sleep_quality || log.resting_hr || log.resting_hr_exact ||
     log.wrist_temp || log.flow_volume || log.pain_rating || log.lh_result ||
+    log.stress_level || log.libido || log.hot_flash_count || log.night_sweats_severity ||
+    log.joint_pain_rating || log.brain_fog_rating ||
     symptoms.length || moods.length || disruptors.length || log.workout_feel_reported === true
   )
 }
@@ -82,8 +207,14 @@ export function getOvulationDay(cycleLen, lutealLength = POPULATION_LUTEAL_LENGT
 // periodLength (optional) is the user's actual/recorded bleeding length. When they mark a
 // period ended, days past it must move to Follicular instead of staying "Menstrual" through
 // a hardcoded day 5. Defaults to 5 when unknown, so existing 2-arg callers are unchanged.
-export function getPhase(cycleDay, cycleLen, periodLength) {
-  const ovulation = getOvulationDay(cycleLen)
+export function getPhase(cycleDay, cycleLen, periodLength, lutealLength = POPULATION_LUTEAL_LENGTH, ovulationDay = null) {
+  // A current-cycle LH or cervical-fluid signal can refine the ovulation estimate. Keep this
+  // optional so historical cycles and callers without a signal continue to use the learned
+  // luteal-length estimate.
+  const signalledOvulationDay = Number(ovulationDay)
+  const ovulation = Number.isInteger(signalledOvulationDay) && signalledOvulationDay >= 8 && signalledOvulationDay < cycleLen
+    ? signalledOvulationDay
+    : getOvulationDay(cycleLen, lutealLength)
   const menstrualEnd = Math.min(Math.max(periodLength || 5, 1), ovulation - 3)
   if (cycleDay <= menstrualEnd) return 'Menstrual'
   if (cycleDay <= ovulation - 2) return 'Follicular'
@@ -91,8 +222,11 @@ export function getPhase(cycleDay, cycleLen, periodLength) {
   return 'Luteal'
 }
 
-export function getLutealSubPhase(cycleDay, cycleLen) {
-  const ovulation = getOvulationDay(cycleLen)
+export function getLutealSubPhase(cycleDay, cycleLen, lutealLength = POPULATION_LUTEAL_LENGTH, ovulationDay = null) {
+  const signalledOvulationDay = Number(ovulationDay)
+  const ovulation = Number.isInteger(signalledOvulationDay) && signalledOvulationDay >= 8 && signalledOvulationDay < cycleLen
+    ? signalledOvulationDay
+    : getOvulationDay(cycleLen, lutealLength)
   const lutealDay = cycleDay - ovulation - 1
   if (lutealDay <= 4) return 'Early luteal'
   if (lutealDay <= 9) return 'Mid luteal'
@@ -115,24 +249,43 @@ export function medianOf(values) {
   return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2
 }
 
+// With only two completed cycles, a much longer earlier gap can mean a period was not recorded.
+// Do not erase that history: it still widens the forecast window and keeps confidence low. But a
+// recent, substantially shorter cycle is a better point estimate than the midpoint between the
+// two dates. Once three or more cycles are available, the normal median is robust to one outlier.
+function estimateCycleLength(gaps, fallbackCycleLength) {
+  const plausible = (gaps || []).filter(g => g >= 15 && g <= 365)
+  if (plausible.length < MIN_CYCLES_FOR_PERSONAL_ESTIMATE) {
+    return Math.max(15, Math.round(fallbackCycleLength) || 28)
+  }
+
+  const [earlierGap, latestGap] = plausible
+  const sparseHistoryHasLongEarlierGap = plausible.length === 2 &&
+    earlierGap > 45 &&
+    latestGap < earlierGap &&
+    earlierGap - latestGap >= 8
+
+  if (sparseHistoryHasLongEarlierGap) return latestGap
+  return Math.max(15, Math.round(medianOf(plausible)) || 28)
+}
+
 export const predictNextPeriod = (lastPeriodDate, avgCycleLength, cyclesTracked, gaps) => {
   const lastPeriod = new Date(lastPeriodDate + 'T00:00:00')
   const addDays = n => { const d = new Date(lastPeriod); d.setDate(d.getDate() + n); return d }
   // Research-backed prediction (Bull 2019; Li 2020/2023; Munro/FIGO 2018; Symul 2019; Broad 2022):
-  //  - Point estimate = the median recorded gap. Atypical long cycles stay visible rather than
-  //    being deleted; they also force a low-confidence/irregular label.
+  //  - Point estimate = the median recorded gap, except for a sparse two-cycle history where an
+  //    earlier long gap is followed by a substantially shorter recent cycle. The older gap stays
+  //    visible rather than being deleted; it still forces a low-confidence/irregular label.
   //  - Window scales to the user's OWN dispersion, not a fake ±2 days, and widens when the cycle
   //    is irregular or history is thin — honesty over false precision.
   //  - Gaps under 15 days are likely duplicate/intermenstrual starts. Very long gaps up to a year
   //    remain as health history, though missing intermediate entries are also possible.
   const plausible = (gaps || []).filter(g => g >= 15 && g <= 365)
-  const sorted = [...plausible].sort((a, b) => a - b)
   // A single observed cycle is a data point, not a pattern — one atypical cycle would otherwise
   // become the forecast outright. Population/onboarding cycle length carries the estimate until
   // there are at least two completed cycles to compare against each other. The cycle is still
   // used for the window and the irregular flag, so nothing she logged is ignored.
-  const middle = plausible.length >= MIN_CYCLES_FOR_PERSONAL_ESTIMATE ? medianOf(sorted) : null
-  const point = Math.max(15, Math.round(middle || avgCycleLength) || 28)
+  const point = estimateCycleLength(plausible, avgCycleLength)
   const predictedDate = addDays(point)
 
   const irregular = plausible.some(g => g < 21 || g > 45) || (plausible.length >= 2 && (Math.max(...plausible) - Math.min(...plausible)) >= 8)
@@ -369,18 +522,192 @@ export function computeCycleHistory(cycleData, profileCycleLen, logs = []) {
     if (g >= 15 && g <= 365) gaps.push(g)
   }
   const cyclesTracked = gaps.length
-  // Keep atypical cycles visible. A median is resistant to a single mistaken start while still
-  // preserving clinically meaningful short and long cycles instead of deleting them.
+  // Keep atypical cycles visible. A long earlier gap remains part of the history and widens the
+  // prediction window, while the point estimate can favour a clearly newer, shorter interval in
+  // sparse history where the long gap may contain an unrecorded period.
   const sorted = [...gaps].sort((a, b) => a - b)
   // Her own median only once two cycles exist to compare; before that the entered/population
   // length carries it, so a single long or short cycle cannot masquerade as her normal. Prefer
   // the profile/onboarding length here; cycle_data.cycle_length may itself be a stale learned
   // value from before a mistaken start was corrected.
-  const avgCycleLength = sorted.length >= MIN_CYCLES_FOR_PERSONAL_ESTIMATE
-    ? Math.round(medianOf(sorted))
-    : (profileCycleLen || cycleData?.cycle_length || 28)
+  const avgCycleLength = estimateCycleLength(gaps, profileCycleLen || cycleData?.cycle_length || 28)
   const variabilityDays = sorted.length >= 2 ? sorted[sorted.length - 1] - sorted[0] : null
   return { cyclesTracked, avgCycleLength, periodStarts: starts, gaps, variabilityDays, breakthroughStarts, classifiedStarts: classified }
+}
+
+function averageOf(values = []) {
+  if (!values.length) return null
+  return values.reduce((sum, value) => sum + value, 0) / values.length
+}
+
+function medianRounded(values = []) {
+  const mid = medianOf(values)
+  return mid == null ? null : Math.round(mid)
+}
+
+function normalizeStoredBaselines(baselines) {
+  if (!baselines) return {}
+  const num = (value) => {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : null
+  }
+  const int = (value) => {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? Math.round(parsed) : null
+  }
+  return {
+    avgCycleLength: num(baselines.avg_cycle_length),
+    avgLutealLength: num(baselines.avg_luteal_length),
+    avgOvulationDay: int(baselines.avg_ovulation_day),
+    ovulationVariationDays: int(baselines.ovulation_variation_days),
+    avgPeakMucusDay: int(baselines.avg_peak_mucus_day),
+    mucusPeakLeadDays: int(baselines.mucus_peak_lead_days),
+    tempFollicularBaseline: num(baselines.temp_follicular_baseline),
+    rhrFollicularBaseline: num(baselines.rhr_follicular_baseline),
+    pmsDaysBefore: int(baselines.pms_days_before),
+    peakEnergyDay: int(baselines.peak_energy_day),
+    confirmedOvulationCycles: int(baselines.confirmed_ovulation_cycles),
+    cyclesTracked: int(baselines.cycles_tracked),
+    modelConfidence: num(baselines.model_confidence),
+  }
+}
+
+function cycleDayFromTodayDate(today, cycleDayToday, dateStr) {
+  if (!cycleDayToday || !dateStr) return null
+  const age = diffCalendarDays(today, dateStr + 'T00:00:00')
+  if (!Number.isFinite(age)) return null
+  return cycleDayToday - age
+}
+
+function peakMucusForCycle(mucusLogs = []) {
+  const fertile = (mucusLogs || []).filter(m => FERTILE_MUCUS_TYPES.has(m?.discharge_type))
+  if (!fertile.length) return null
+  const byDateDesc = fertile.slice().sort((a, b) => a.log_date < b.log_date ? 1 : -1)
+  return byDateDesc.find(m => m.discharge_type === 'Egg white') || byDateDesc[0]
+}
+
+function detectCycleMucusTransition(cycleMucus = [], cycleStart, cycleLength) {
+  if (!cycleStart || !cycleLength) return null
+  const peak = peakMucusForCycle(cycleMucus)
+  if (!peak?.log_date) return null
+  const peakDay = diffCalendarDays(peak.log_date + 'T00:00:00', cycleStart + 'T00:00:00') + 1
+  if (peakDay < 1 || peakDay > cycleLength) return null
+  const dryingAfterPeak = (cycleMucus || [])
+    .filter(m => m?.log_date && m.log_date > peak.log_date && DRYING_MUCUS_TYPES.has(m.discharge_type))
+    .sort((a, b) => a.log_date > b.log_date ? 1 : -1)[0] || null
+  if (!dryingAfterPeak?.log_date) return { peakDay, dryingDay: null, provisionalOvulationDay: null }
+  const dryingDay = diffCalendarDays(dryingAfterPeak.log_date + 'T00:00:00', cycleStart + 'T00:00:00') + 1
+  if (dryingDay <= peakDay || dryingDay > peakDay + 4) {
+    return { peakDay, dryingDay: null, provisionalOvulationDay: null }
+  }
+  const provisionalOvulationDay = Math.max(peakDay, Math.min(peakDay + 1, dryingDay - 1))
+  if (provisionalOvulationDay < 8 || provisionalOvulationDay > cycleLength - 7) {
+    return { peakDay, dryingDay, provisionalOvulationDay: null }
+  }
+  return { peakDay, dryingDay, provisionalOvulationDay }
+}
+
+function detectCycleOvulationDay(cycleLogs = [], cycleStart) {
+  const temps = (cycleLogs || [])
+    .map(log => ({ date: log?.log_date, value: logTempToNum(log) }))
+    .filter(sample => sample.date && !isNaN(sample.value))
+  const detected = detectOvulationFromTemp(temps)
+  if (!detected?.ovulationDate || !cycleStart) return null
+  return diffCalendarDays(detected.ovulationDate + 'T00:00:00', cycleStart + 'T00:00:00') + 1
+}
+
+export function deriveLearnedBaselines(historyLogs = [], cycleData, historyMucusLogs = []) {
+  if (!historyLogs.length || !cycleData) return {}
+  const starts = parsePeriodStarts(cycleData)
+  if (!starts.length) return {}
+  const { periodLengths } = resolvePeriodLengths(cycleData, historyLogs)
+  const latestStart = starts[starts.length - 1] || null
+  const entries = []
+  const confirmedOvulationDays = []
+  const confirmedLutealLengths = []
+  const mucusInferredOvulationDays = []
+  const mucusInferredLutealLengths = []
+  const mucusPeakDays = []
+  const mucusPeakLeadDays = []
+
+  for (let i = 0; i < starts.length; i++) {
+    const start = starts[i]
+    const nextStart = starts[i + 1] || null
+    const cycleLength = nextStart
+      ? diffCalendarDays(nextStart + 'T00:00:00', start + 'T00:00:00')
+      : (cycleData?.cycle_length || 28)
+    const cycleLogs = historyLogs.filter(log => log?.log_date && log.log_date >= start && (!nextStart || log.log_date < nextStart))
+    const cycleMucus = (historyMucusLogs || []).filter(log => log?.log_date && log.log_date >= start && (!nextStart || log.log_date < nextStart))
+    const ovulationDay = nextStart ? detectCycleOvulationDay(cycleLogs, start) : null
+    const mucusTransition = nextStart ? detectCycleMucusTransition(cycleMucus, start, cycleLength) : null
+    if (mucusTransition?.peakDay != null) mucusPeakDays.push(mucusTransition.peakDay)
+    if (ovulationDay != null && ovulationDay >= 8 && ovulationDay <= cycleLength - 7) {
+      confirmedOvulationDays.push(ovulationDay)
+      confirmedLutealLengths.push(cycleLength - ovulationDay)
+      if (mucusTransition?.peakDay != null) {
+        const lead = ovulationDay - mucusTransition.peakDay
+        if (lead >= 0 && lead <= 5) mucusPeakLeadDays.push(lead)
+      }
+    } else if (mucusTransition?.provisionalOvulationDay != null) {
+      mucusInferredOvulationDays.push(mucusTransition.provisionalOvulationDay)
+      mucusInferredLutealLengths.push(cycleLength - mucusTransition.provisionalOvulationDay)
+    }
+
+    const learnedLutealLengthsForCycle = confirmedLutealLengths.length >= 2
+      ? confirmedLutealLengths
+      : [...confirmedLutealLengths, ...mucusInferredLutealLengths]
+    for (const log of historyLogs) {
+      if (!log?.log_date || log.log_date < start || (nextStart && log.log_date >= nextStart)) continue
+      const cycleDay = diffCalendarDays(log.log_date + 'T00:00:00', start + 'T00:00:00') + 1
+      if (cycleDay < 1 || cycleDay > cycleLength + 7) continue
+      const learnedLutealLength = medianOf(learnedLutealLengthsForCycle) || POPULATION_LUTEAL_LENGTH
+      const phase = getPhase(cycleDay, cycleLength, periodLengthForStart(start, periodLengths, latestStart, cycleData?.period_length || null), learnedLutealLength)
+      entries.push({
+        cycleDay,
+        cycleLength,
+        phase,
+        energy: log.energy || null,
+        mood: log.mood || [],
+        symptoms: log.symptoms || [],
+        rhr: logRhrToNum(log),
+        temp: logTempToNum(log),
+        daysBeforeNext: nextStart ? diffCalendarDays(nextStart + 'T00:00:00', log.log_date + 'T00:00:00') : null,
+      })
+    }
+  }
+
+  const follicularRhrs = entries.filter(e => e.phase === 'Follicular' && !isNaN(e.rhr)).map(e => e.rhr)
+  const follicularTemps = entries.filter(e => e.phase === 'Follicular' && !isNaN(e.temp)).map(e => e.temp)
+  const peakEnergyDays = entries.filter(e => e.energy === 'High').map(e => e.cycleDay)
+  const premenstrualOffsets = entries
+    .filter(e => e.daysBeforeNext != null && e.daysBeforeNext >= 1 && e.daysBeforeNext <= 10)
+    .filter(e =>
+      e.energy === 'Very low' ||
+      e.mood.some(m => ['Irritable', 'Anxious', 'Sad', 'Low mood', 'Overwhelmed'].includes(m)) ||
+      e.symptoms.some(s => ['Cramping', 'Bloating', 'Cravings', 'Mood swings', 'Breast tenderness'].includes(s))
+    )
+    .map(e => e.daysBeforeNext)
+
+  const ovulationDays = confirmedOvulationDays.length >= 2
+    ? confirmedOvulationDays
+    : [...confirmedOvulationDays, ...mucusInferredOvulationDays]
+  const lutealLengths = confirmedLutealLengths.length >= 2
+    ? confirmedLutealLengths
+    : [...confirmedLutealLengths, ...mucusInferredLutealLengths]
+
+  return {
+    rhrFollicularBaseline: follicularRhrs.length >= 3 ? Math.round(averageOf(follicularRhrs) * 10) / 10 : null,
+    tempFollicularBaseline: follicularTemps.length >= 3 ? Math.round(averageOf(follicularTemps) * 100) / 100 : null,
+    peakEnergyDay: peakEnergyDays.length >= 2 ? medianRounded(peakEnergyDays) : null,
+    pmsDaysBefore: premenstrualOffsets.length >= 3 ? medianRounded(premenstrualOffsets) : null,
+    avgLutealLength: lutealLengths.length >= 2 ? Math.round(medianOf(lutealLengths)) : null,
+    avgOvulationDay: ovulationDays.length >= 2 ? Math.round(medianOf(ovulationDays)) : null,
+    ovulationVariationDays: ovulationDays.length >= 2 ? Math.max(...ovulationDays) - Math.min(...ovulationDays) : null,
+    avgPeakMucusDay: mucusPeakDays.length >= 2 ? Math.round(medianOf(mucusPeakDays)) : null,
+    mucusPeakLeadDays: mucusPeakLeadDays.length >= 2 ? Math.round(medianOf(mucusPeakLeadDays)) : null,
+    confirmedOvulationCycles: confirmedOvulationDays.length,
+    mucusInferredOvulationCycles: mucusInferredOvulationDays.length,
+  }
 }
 
 // When a period is late, look at the user's OWN recent logs and name the likely
@@ -498,11 +825,11 @@ export function getNutritionTargets(phase, bodyWeight, dietPreference) {
     Menstrual:    { range: [1.4, 1.8], headline: 'Aim to replace iron lost through bleeding and keep protein around 1.4 to 1.8g per kg. (ISSN 2023)', keyFoods: ['Red meat', 'Spinach', 'Lentils', 'Pumpkin seeds', 'Citrus'], avoid: 'If caffeine worsens your cramps or sleep, consider reducing it.', source: 'ISSN 2023; iron-rich foods are useful during bleeding. Individual needs depend on training and health.' },
     Follicular:   { range: [1.4, 1.8], headline: 'Fuel your rising energy well: aim for 1.4 to 1.8g of protein per kg and quality carbohydrates. (ISSN 2023)', keyFoods: ['Eggs', 'Chicken', 'Oats', 'Whole grains', 'Leafy greens'], avoid: null, source: 'ISSN 2023 female-athlete guidance. Phase effects and individual needs vary.' },
     Ovulatory:    { range: [1.4, 1.8], headline: 'Fuel your peak-energy window: aim for 1.4 to 1.8g of protein per kg and enough carbohydrate for hard sessions. (ISSN 2023)', keyFoods: ['Beef', 'Chickpeas', 'Berries', 'Dark leafy greens', 'Salmon'], avoid: null, source: 'ISSN 2023 female-athlete guidance. Phase alone does not set an exact requirement.' },
-    Luteal:       { range: [1.4, 2.0], headline: 'Aim for more protein now, around 1.8 to 2.2g per kg, as your body breaks down protein faster. (ISSN 2023)', keyFoods: ['Sweet potato', 'Oats', 'Dark chocolate', 'Salmon', 'Eggs', 'Pumpkin seeds'], avoid: 'If alcohol or highly processed foods worsen your symptoms or sleep, reduce them.', source: 'ISSN 2023 suggests the upper end for active women in the luteal phase; individual needs still vary.' },
+    Luteal:       { range: [1.4, 2.0], headline: 'Aim for steady protein around 1.4 to 2.0g per kg, adjusting within the range for your activity, recovery, and appetite. (ISSN 2023)', keyFoods: ['Sweet potato', 'Oats', 'Dark chocolate', 'Salmon', 'Eggs', 'Pumpkin seeds'], avoid: 'If alcohol or highly processed foods worsen your symptoms or sleep, reduce them.', source: 'ISSN 2023 suggests the upper end for active women; individual needs still vary.' },
     observation:  { range: [1.2, 1.6], headline: 'Aim for consistent nutrition and 1.2 to 1.6g of protein per kg while Empower builds your baseline. (ISSN 2023)', keyFoods: ['Protein source each meal', 'Complex carbohydrates', 'Healthy fats', 'Leafy greens'], avoid: null, source: 'General adult range. Training, age, goals and health change individual needs.' },
     'bc-combined': { range: [1.4, 1.8], headline: 'Aim for steady protein around 1.4 to 1.8g per kg to fuel training and recovery. (ISSN 2023)', keyFoods: ['Chicken', 'Eggs', 'Greek yogurt', 'Lentils', 'Oats', 'Leafy greens'], avoid: null, source: 'ISSN 2023 female-athlete guidance; needs depend on activity rather than a presumed natural-cycle phase.' },
     'bc-progestin': { range: [1.4, 1.8], headline: 'Aim for 1.4 to 1.8g of protein per kg plus calcium and vitamin D for bone support. (ISSN 2023)', keyFoods: ['Salmon', 'Eggs', 'Chicken', 'Sardines', 'Almonds', 'Dark leafy greens'], avoid: null, source: 'ISSN 2023 female-athlete guidance. Contraceptive methods and individual responses differ.' },
-    Perimenopause: { range: [1.4, 2.0], headline: 'Aim higher on protein now, around 1.8 to 2.0g per kg, to protect muscle and bone as anabolic signalling declines. (ISSN 2023)', keyFoods: ['Salmon', 'Chicken', 'Eggs', 'Sardines', 'Dark leafy greens', 'Almonds'], avoid: 'Notice whether alcohol worsens hot flashes or sleep, and adjust to your own response.', source: 'ISSN 2023 and resistance-training guidance; individual needs vary with activity and health.' }
+    Perimenopause: { range: [1.4, 2.0], headline: 'Use a protein range of about 1.4 to 2.0g per kg as a planning guide, adjusting for activity, appetite, health, and goals. (ISSN 2023)', keyFoods: ['Salmon', 'Chicken', 'Eggs', 'Sardines', 'Dark leafy greens', 'Almonds'], avoid: 'Notice whether alcohol worsens hot flashes or sleep, and adjust to your own response.', source: 'ISSN 2023 and resistance-training guidance; individual needs vary with activity and health.' }
   }
   const t = targets[phase] || targets.observation
   let vegan = false
@@ -522,10 +849,202 @@ export function getNutritionTargets(phase, bodyWeight, dietPreference) {
   }
 }
 
+function recentMucusLogsWithinDays(mucusLogs = [], today = new Date(), maxAgeDays = 2) {
+  const cursor = new Date(today)
+  cursor.setHours(0, 0, 0, 0)
+  return (mucusLogs || []).filter(m => {
+    if (!m?.log_date) return false
+    const age = diffCalendarDays(cursor, m.log_date + 'T00:00:00')
+    return age >= 0 && age <= maxAgeDays
+  })
+}
+
+const FERTILE_MUCUS_TYPES = new Set(['Egg white', 'Watery', 'Creamy or lotion-like'])
+const DRYING_MUCUS_TYPES = new Set(['Sticky or crumbly', 'None or dry'])
+
+function detectRecentTempShift(recentLogs = [], learnedBaselines = {}) {
+  const logs = (recentLogs || []).slice(0, 7)
+  const acuteBiometricConfounders = logs.slice(0, 2).some(l =>
+    l?.sleep_quality === 'Poor' ||
+    Number(l?.stress_level) >= 4 ||
+    (l?.disruptors || []).some(d => ['Alcohol', 'Illness', 'Very poor sleep'].includes(d))
+  )
+  const latestTemps = logs.slice(0, 2).map(logTempToNum).filter(n => !isNaN(n))
+  const priorTemps = logs.slice(2).map(logTempToNum).filter(n => !isNaN(n))
+  const tempBaseline = priorTemps.length >= 3
+    ? priorTemps.reduce((a, b) => a + b, 0) / priorTemps.length
+    : learnedBaselines?.tempFollicularBaseline ?? null
+
+  const sustained = !acuteBiometricConfounders && latestTemps.length >= 2 && tempBaseline != null &&
+    latestTemps.every(t => t >= tempBaseline + 0.2)
+
+  const firstHighDate = sustained
+    ? logs.slice(0, 2).filter(l => !isNaN(logTempToNum(l))).at(-1)?.log_date || null
+    : null
+
+  return { sustained, tempBaseline, firstHighDate }
+}
+
+function effectiveCycleLengthFromPhase(cycleLen, cycleDay, phase, subPhase, lutealLength = POPULATION_LUTEAL_LENGTH) {
+  const base = cycleLen || 28
+  if (!cycleDay) return base
+  const learned = lutealLength || POPULATION_LUTEAL_LENGTH
+  if (phase === 'Ovulatory') return Math.max(base, cycleDay + learned - 1)
+  if (phase === 'Follicular' && subPhase === 'Late follicular') return Math.max(base, cycleDay + learned)
+  if (phase === 'Luteal' && subPhase === 'Early luteal') return Math.max(base, cycleDay + Math.max(learned - 4, 1))
+  return base
+}
+
+export function applyBodySignalPhaseCorrection({
+  phase,
+  subPhase,
+  cycleDay,
+  cycleLen,
+  daysUntilPeriod,
+  confidence,
+  recentLogs = [],
+  mucusLogs = [],
+  learnedBaselines = {},
+  today = new Date(),
+}) {
+  const current = {
+    phase,
+    subPhase,
+    cycleLen: cycleLen || 28,
+    daysUntilPeriod,
+    confidence,
+    corrected: false,
+    source: null,
+    label: null,
+  }
+  if (!cycleDay) return current
+
+  const learnedLutealLength = learnedBaselines?.avgLutealLength || POPULATION_LUTEAL_LENGTH
+  const typicalOvulationDay = learnedBaselines?.avgOvulationDay || getOvulationDay(cycleLen || 28, learnedLutealLength)
+  const ovulationVariationDays = Math.max(1, Math.min(5, learnedBaselines?.ovulationVariationDays ?? 2))
+  const mucusPeakLeadDays = Math.max(0, Math.min(3, learnedBaselines?.mucusPeakLeadDays ?? 1))
+  const recentMucus2 = recentMucusLogsWithinDays(mucusLogs, today, 2)
+  const recentMucus4 = recentMucusLogsWithinDays(mucusLogs, today, 4 + ovulationVariationDays)
+  const eggWhiteRecent = recentMucus2.filter(m => m.discharge_type === 'Egg white')
+  const fertileRecent = recentMucus4.filter(m => FERTILE_MUCUS_TYPES.has(m.discharge_type))
+  const mostRecentByDate = logs => logs
+    .slice()
+    .sort((a, b) => a.log_date < b.log_date ? 1 : -1)[0] || null
+  const recentPositiveLh = mostRecentByDate((recentLogs || []).filter(log => {
+    if ((log?.lh_result || '').toLowerCase() !== 'positive' || !log?.log_date) return false
+    const age = diffCalendarDays(today, log.log_date + 'T00:00:00')
+    return age >= 0 && age <= 2
+  }))
+  const positiveLhCycleDay = recentPositiveLh?.log_date
+    ? cycleDayFromTodayDate(today, cycleDay, recentPositiveLh.log_date)
+    : null
+  const recentPeak = mostRecentByDate(fertileRecent.filter(m => m.discharge_type === 'Egg white')) || mostRecentByDate(fertileRecent)
+  const recentPeakCycleDay = recentPeak?.log_date ? cycleDayFromTodayDate(today, cycleDay, recentPeak.log_date) : null
+  const recentPeakAge = recentPeak?.log_date ? diffCalendarDays(today, recentPeak.log_date + 'T00:00:00') : null
+  const dryingAfterPeak = recentPeak
+    ? recentMucus4.some(m => m.log_date > recentPeak.log_date && DRYING_MUCUS_TYPES.has(m.discharge_type))
+    : false
+  const tempShift = detectRecentTempShift(recentLogs, learnedBaselines)
+  const hasPostPeakConfirmation = tempShift.sustained || dryingAfterPeak
+  const hasRecentTemperature = (recentLogs || []).slice(0, 4).some(l => !isNaN(logTempToNum(l)))
+  const fertileLockWindow = Math.max(2, Math.min(5, mucusPeakLeadDays + ovulationVariationDays))
+  const shouldHoldFertileWindow = recentPeakAge != null && recentPeakAge <= fertileLockWindow && !hasPostPeakConfirmation
+  const estimatedOvulationDay = positiveLhCycleDay != null
+    ? positiveLhCycleDay + 1
+    : recentPeakCycleDay != null
+    ? Math.max(typicalOvulationDay, recentPeakCycleDay + mucusPeakLeadDays)
+    : Math.max(typicalOvulationDay, cycleDay - 1)
+
+  let nextPhase = phase
+  let nextSubPhase = subPhase
+  let nextConfidence = confidence ?? 0.34
+  let source = null
+  let label = null
+
+  if (tempShift.sustained && dryingAfterPeak) {
+    nextPhase = 'Luteal'
+    nextSubPhase = 'Early luteal'
+    nextConfidence = Math.max(confidence ?? 0.12, 0.5)
+    source = 'post_peak_temp_shift'
+    label = 'Adjusted from your recorded period start using a post-peak drying pattern and a sustained temperature rise.'
+  } else if (positiveLhCycleDay != null && !hasPostPeakConfirmation) {
+    nextPhase = 'Ovulatory'
+    nextSubPhase = null
+    nextConfidence = Math.min(confidence ?? 0.4, hasRecentTemperature ? 0.46 : 0.40)
+    source = 'positive_lh_test'
+    label = 'Adjusted from your recorded period start using a recent positive LH test. An LH surge can precede ovulation by 1 to 2 days, but does not confirm it occurred.'
+  } else if ((eggWhiteRecent.length || shouldHoldFertileWindow) && !hasPostPeakConfirmation) {
+    nextPhase = 'Ovulatory'
+    nextSubPhase = null
+    nextConfidence = Math.min(confidence ?? 0.4, hasRecentTemperature ? 0.44 : 0.36)
+    source = 'cervical_fluid_peak'
+    label = shouldHoldFertileWindow
+      ? 'Adjusted from your recorded period start by holding the fertile window open until post-ovulation confirmation appears.'
+      : 'Adjusted from your recorded period start using recent egg white cervical fluid.'
+  } else if (fertileRecent.length && phase === 'Luteal' && !hasPostPeakConfirmation) {
+    nextPhase = 'Follicular'
+    nextSubPhase = 'Late follicular'
+    nextConfidence = Math.min(confidence ?? 0.38, hasRecentTemperature ? 0.40 : 0.33)
+    source = 'fertile_cervical_fluid'
+    label = 'Adjusted from your recorded period start using recent fertile-type cervical fluid.'
+  } else if (!hasPostPeakConfirmation && cycleDay > typicalOvulationDay + ovulationVariationDays) {
+    nextConfidence = Math.min(nextConfidence, hasRecentTemperature ? 0.34 : 0.28)
+  }
+
+  const timingAdjusted = estimatedOvulationDay !== typicalOvulationDay && (positiveLhCycleDay != null || recentPeakCycleDay != null)
+  const corrected = nextPhase !== phase || nextSubPhase !== subPhase || timingAdjusted
+  const nextCycleLen = corrected
+      ? Math.max(
+      effectiveCycleLengthFromPhase(cycleLen, cycleDay, nextPhase, nextSubPhase, learnedLutealLength),
+      estimatedOvulationDay + learnedLutealLength
+    )
+    : (cycleLen || 28)
+  const nextDaysUntilPeriod = corrected
+    ? Math.max(0, nextCycleLen - cycleDay + 1)
+    : daysUntilPeriod
+
+  return {
+    phase: nextPhase,
+    subPhase: nextSubPhase,
+    cycleLen: nextCycleLen,
+    daysUntilPeriod: nextDaysUntilPeriod,
+    confidence: nextConfidence,
+    corrected,
+    source,
+    label,
+    estimatedOvulationDay: corrected ? estimatedOvulationDay : typicalOvulationDay,
+    fertileLockWindow,
+  }
+}
+
+export function detectPhaseTimingConflict({ phase, subPhase, cycleDay, cycleLen, mucusLogs = [], today = new Date(), symptomInference = null }) {
+  if (phase !== 'Luteal' || !cycleDay) return null
+  const daysPastExpectedOvulation = cycleDay - getOvulationDay(cycleLen || 28)
+  const lateEnoughForConflict = ['Mid luteal', 'Late luteal'].includes(subPhase) || daysPastExpectedOvulation >= 5
+  if (!lateEnoughForConflict) return null
+
+  const recentEggWhite = recentMucusLogsWithinDays(mucusLogs, today).filter(m => m.discharge_type === 'Egg white')
+  if (!recentEggWhite.length) return null
+
+  const label = (subPhase || 'luteal').toLowerCase()
+  const lead = recentEggWhite.length >= 2
+    ? 'Recent egg white cervical fluid logged on multiple days'
+    : 'Recent egg white cervical fluid'
+  const ovulatoryLean = symptomInference?.inferredPhase === 'Ovulatory'
+
+  return {
+    type: 'phase_timing_conflict',
+    severity: 'informational',
+    text: ovulatoryLean
+      ? `${lead} and your other recent body observations lean more toward an ovulatory window than a ${label} timing label. Empower is still showing your calendar phase because your recorded period start anchors this cycle, but that timing may be off this month.`
+      : `${lead} does not line up neatly with a ${label} timing label. Empower is still showing your calendar phase because your recorded period start anchors this cycle, but that timing may be off this month.`,
+  }
+}
+
 // ── Confidence calculation ───────────────────────────────────────────────────
 // totalLogs is meaningful data coverage in the current hormonal context. It contributes
 // modestly; repeated cycle starts, variability and contradictory objective observations matter too.
-function calcConfidence(phase, subPhase, recentLogs, mucusLogs, meaningfulLogs = 0, cyclesTracked = 0, variabilityDays = null) {
+function calcConfidence(phase, subPhase, recentLogs, mucusLogs, meaningfulLogs = 0, cyclesTracked = 0, variabilityDays = null, cycleLen = 28, learnedBaselines = {}, today = new Date()) {
   void subPhase
   // Forecast confidence is intentionally separate from data coverage. Calendar anchoring starts
   // modestly, repeat cycles improve it, and conflicting/stale signals can lower it again.
@@ -533,8 +1052,10 @@ function calcConfidence(phase, subPhase, recentLogs, mucusLogs, meaningfulLogs =
   if (variabilityDays != null) confidence -= Math.min(0.18, variabilityDays * 0.01)
 
   const latest = recentLogs?.[0]
+  const cursor = new Date(today)
+  cursor.setHours(0, 0, 0, 0)
   if (latest) {
-    const age = latest.log_date ? diffCalendarDays(new Date(), latest.log_date + 'T00:00:00') : 99
+    const age = latest.log_date ? diffCalendarDays(cursor, latest.log_date + 'T00:00:00') : 99
     if (age > 7) confidence -= 0.08
     if (latest.flow_volume && latest.flow_volume !== 'None') {
       confidence += phase === 'Menstrual' ? 0.18 : -0.18
@@ -546,13 +1067,19 @@ function calcConfidence(phase, subPhase, recentLogs, mucusLogs, meaningfulLogs =
     if (activeDisruptors.length >= 2) confidence -= 0.05
   }
 
-  const today = new Date(); today.setHours(0, 0, 0, 0)
-  const recentMucus = (mucusLogs || []).filter(m => {
-    const age = diffCalendarDays(today, m.log_date + 'T00:00:00')
-    return age >= 0 && age <= 2
-  })
+  const recentMucus = recentMucusLogsWithinDays(mucusLogs, cursor)
   if (recentMucus.some(m => m.discharge_type === 'Egg white')) {
     confidence += phase === 'Ovulatory' ? 0.08 : -0.04
+  }
+  const fertileRecent = recentMucusLogsWithinDays(mucusLogs, cursor, 4).filter(m => FERTILE_MUCUS_TYPES.has(m.discharge_type))
+  const hasTempData = (recentLogs || []).slice(0, 4).some(l => !isNaN(logTempToNum(l)))
+  const learnedLutealLength = learnedBaselines?.avgLutealLength || POPULATION_LUTEAL_LENGTH
+  const learnedOvulationDay = learnedBaselines?.avgOvulationDay || getOvulationDay(cycleLen || 28, learnedLutealLength)
+  const variation = Math.max(1, Math.min(5, learnedBaselines?.ovulationVariationDays ?? 2))
+  if (fertileRecent.length && phase === 'Luteal') confidence -= 0.08
+  if (!hasTempData && recentLogs?.[0]?.log_date) {
+    const cycleDayToday = recentLogs[0].cycleDayForConfidence
+    if (cycleDayToday != null && cycleDayToday > learnedOvulationDay + variation) confidence -= 0.08
   }
 
   return Math.min(0.82, Math.max(0.12, confidence))
@@ -614,7 +1141,7 @@ function recurringCycleObservations(historyLogs, periodStarts, profile) {
   return observations
 }
 
-function detectAnomalies(recentLogs, phase, cycleLen, flagStats, historyLogs = []) {
+function detectAnomalies(recentLogs, phase, cycleLen, flagStats, historyLogs = [], learnedBaselines = {}) {
   void cycleLen
   const anomalies = []
   if (!recentLogs?.length) {
@@ -687,7 +1214,9 @@ function detectAnomalies(recentLogs, phase, cycleLen, flagStats, historyLogs = [
 
   const rhr = logRhrToNum(latest)
   const priorRhr = recentLogs.slice(1).map(logRhrToNum).filter(n => !isNaN(n))
-  const rhrBaseline = priorRhr.length >= 3 ? priorRhr.reduce((a, b) => a + b, 0) / priorRhr.length : null
+  const rhrBaseline = priorRhr.length >= 3
+    ? priorRhr.reduce((a, b) => a + b, 0) / priorRhr.length
+    : learnedBaselines?.rhrFollicularBaseline ?? null
   if (canObserve && !isNaN(rhr) && rhrBaseline != null && rhr >= rhrBaseline + 8) {
     anomalies.push({ type: 'rhr_elevated', text: `Your resting heart rate is about ${Math.round(rhr - rhrBaseline)} bpm above your recent baseline. Illness, stress, heat, alcohol and incomplete recovery can all contribute. Consider a lighter option if your warm-up also feels unusually hard.` })
   }
@@ -740,10 +1269,10 @@ function getImmediateFeedback(latestLog, phase, subPhase) {
 }
 
 // ── Predictions ──────────────────────────────────────────────────────────────
-function getPredictions(phase, cycleDay, cycleLen) {
+function getPredictions(phase, cycleDay, cycleLen, learnedLutealLength = POPULATION_LUTEAL_LENGTH) {
   if (!cycleDay || !cycleLen) return []
   const predictions = []
-  const ovulation = getOvulationDay(cycleLen)
+  const ovulation = getOvulationDay(cycleLen, learnedLutealLength)
 
   if (phase === 'Follicular') {
     const daysToOvulation = ovulation - cycleDay
@@ -772,7 +1301,7 @@ function getPredictions(phase, cycleDay, cycleLen) {
 // Source: Janse de Jonge 2003 Sports Medicine, personal tracking improves prediction accuracy.
 // Source: Bigelow et al. 2004 Human Reproduction, egg white fluid 80% sensitivity for fertile window.
 // Source: De Martin Topranin et al. 2023 IJSPP. RHR 1.7 bpm higher mid-luteal vs early follicular.
-export function inferPhaseFromSymptoms(recentLogs, mucusLogs = []) {
+export function inferPhaseFromSymptoms(recentLogs, mucusLogs = [], learnedBaselines = {}) {
   if (!recentLogs?.length) {
     return { inferredPhase: null, confidence: 'insufficient', source: 'symptom_inference' }
   }
@@ -829,7 +1358,9 @@ export function inferPhaseFromSymptoms(recentLogs, mucusLogs = []) {
   )
   const latestTemps = logs.slice(0, 2).map(logTempToNum).filter(n => !isNaN(n))
   const priorTemps = logs.slice(2).map(logTempToNum).filter(n => !isNaN(n))
-  const tempBaseline = priorTemps.length >= 3 ? priorTemps.reduce((a, b) => a + b, 0) / priorTemps.length : null
+  const tempBaseline = priorTemps.length >= 3
+    ? priorTemps.reduce((a, b) => a + b, 0) / priorTemps.length
+    : learnedBaselines?.tempFollicularBaseline ?? null
   if (!acuteBiometricConfounders && latestTemps.length >= 2 && tempBaseline != null &&
       latestTemps.every(t => t >= tempBaseline + 0.2)) {
     scores.Luteal += 3; signals.push('sustained temperature rise')
@@ -837,7 +1368,9 @@ export function inferPhaseFromSymptoms(recentLogs, mucusLogs = []) {
 
   const latestRhrs = logs.slice(0, 2).map(logRhrToNum).filter(n => !isNaN(n))
   const priorRhrs = logs.slice(2).map(logRhrToNum).filter(n => !isNaN(n))
-  const rhrBaseline = priorRhrs.length >= 3 ? priorRhrs.reduce((a, b) => a + b, 0) / priorRhrs.length : null
+  const rhrBaseline = priorRhrs.length >= 3
+    ? priorRhrs.reduce((a, b) => a + b, 0) / priorRhrs.length
+    : learnedBaselines?.rhrFollicularBaseline ?? null
   if (!acuteBiometricConfounders && latestRhrs.length && rhrBaseline != null &&
       latestRhrs[0] >= rhrBaseline + 3) {
     scores.Luteal += 1; signals.push('resting heart rate above recent baseline')
@@ -872,7 +1405,7 @@ export function inferPhaseFromSymptoms(recentLogs, mucusLogs = []) {
 // Hormonal environment depends on method, do not treat all BC the same.
 // Combined pill/patch/ring: stable synthetic estrogen, no cycle-based targets.
 // Progestin-only (mini pill, implant, Depo, hormonal IUD): lower estrogen influence.
-function buildPath5Status(profile, recentLogs, totalLogs = 0) {
+function buildPath5Status(profile, recentLogs, historyLogs = [], historyMucusLogs = []) {
   const bcType = profile?.bc_type
   const isCombined = ['pill', 'patch', 'ring'].includes(bcType)
   const bcPhase = isCombined ? 'bc-combined' : 'bc-progestin'
@@ -897,7 +1430,7 @@ function buildPath5Status(profile, recentLogs, totalLogs = 0) {
     cycleLen: null,
     daysUntilPeriod: null,
     confidence: null,
-    ...personalisationProgress(totalLogs, 0),
+    ...personalisationProgress({ logs: historyLogs, mucusLogs: historyMucusLogs }),
     confidenceLabel: 'Method-aware symptom and training tracking',
     confidencePct: null,
     intensityModifier: intensity,
@@ -910,6 +1443,7 @@ function buildPath5Status(profile, recentLogs, totalLogs = 0) {
     ovulationStatus,
     phaseEvidence: { status: 'not_applicable', source: 'contraceptive_method', label: 'Natural cycle phase is not assigned while using this method.' },
     moodInsight: null,
+    personalPatterns: { status: 'not_applicable', insights: [], featured: null },
     bodyWeight,
     profile: profile || {},
     recentLogs,
@@ -920,7 +1454,7 @@ function buildPath5Status(profile, recentLogs, totalLogs = 0) {
 
 // Path 4: perimenopause/menopause, skip all cycle phase calculations.
 // Cycle data may exist from before they chose Path 4 but must not drive phase logic.
-function buildPath4Status(profile, recentLogs, totalLogs = 0) {
+function buildPath4Status(profile, recentLogs, historyLogs = [], historyMucusLogs = []) {
   // Setup saves bc_type as the display string the user picked
   // ('Early perimenopause' / 'Late perimenopause' / 'Menopause 12+ months').
   // Map those to the subPhase label. Missing stage remains unknown rather than inventing one.
@@ -945,7 +1479,7 @@ function buildPath4Status(profile, recentLogs, totalLogs = 0) {
     cycleLen: null,
     daysUntilPeriod: null,
     confidence,
-    ...personalisationProgress(totalLogs, 0),
+    ...personalisationProgress({ logs: historyLogs, mucusLogs: historyMucusLogs }),
     confidenceLabel: 'Symptom tracking for your selected life stage',
     confidencePct: null,
     intensityModifier: getIntensityModifier('Perimenopause', null),
@@ -957,6 +1491,7 @@ function buildPath4Status(profile, recentLogs, totalLogs = 0) {
     symptomInference: null,
     phaseEvidence: { status: 'not_applicable', source: 'life_stage', label: 'Cycle-phase training is not assigned in this mode.' },
     moodInsight: interpretMoodSignal(recentLogs[0], recentLogs, 'Perimenopause', subPhase).insight,
+    personalPatterns: { status: 'not_applicable', insights: [], featured: null },
     bodyWeight,
     profile: profile || {},
     recentLogs,
@@ -985,7 +1520,7 @@ export function getTrimester(week) {
 // educational, never prescriptive prenatal exercise/medical advice. Nutrition targets follow
 // Health Canada / ACOG (protein ~1.1 g/kg; +0/+340/+450 kcal by trimester). Sources for content:
 // SOGC 2019 prenatal activity guideline; ACOG Committee Opinion 804; Health Canada prenatal nutrition.
-function buildPregnancyStatus(profile, recentLogs, totalLogs = 0) {
+function buildPregnancyStatus(profile, recentLogs, historyLogs = [], historyMucusLogs = []) {
   const bodyWeight = profile?.body_weight_kg || null
   const week = getPregnancyWeek(profile?.pregnancy_due_date)
   const tri = getTrimester(week) || 'Pregnancy'
@@ -998,7 +1533,7 @@ function buildPregnancyStatus(profile, recentLogs, totalLogs = 0) {
     cycleLen: null,
     daysUntilPeriod: null,
     confidence: null,
-    ...personalisationProgress(totalLogs, 0),
+    ...personalisationProgress({ logs: historyLogs, mucusLogs: historyMucusLogs }),
     confidenceLabel: 'Pregnancy mode',
     confidencePct: null,
     intensityModifier: 1,
@@ -1010,7 +1545,7 @@ function buildPregnancyStatus(profile, recentLogs, totalLogs = 0) {
       extraCalories: null,
       headline: 'Pregnancy nutrition is individual. Focus on regular meals, prenatal nutrients and advice from your care team.',
       keyFoods: ['Prenatal vitamin (folate + iron)', 'Iron-rich foods with vitamin C', 'Calcium sources', 'Low-mercury fish or a DHA source', 'Plenty of water'],
-      avoid: 'Alcohol (none), high-mercury fish, unpasteurised dairy and soft cheeses, deli meats unless steaming hot, raw or undercooked meat/eggs/fish, and caffeine over about 200mg a day.',
+      avoid: 'Alcohol (none), high-mercury fish, unpasteurised dairy or cheese, deli meats unless steaming hot, raw or undercooked meat/eggs/fish, and caffeine over about 200mg a day.',
       source: 'Health Canada Prenatal Nutrition Guidelines; ACOG. Confirm all amounts with your doctor, midwife, or dietitian.'
     },
     immediateFeedback: [],
@@ -1019,6 +1554,7 @@ function buildPregnancyStatus(profile, recentLogs, totalLogs = 0) {
     symptomInference: null,
     phaseEvidence: { status: 'not_applicable', source: 'pregnancy', label: 'Cycle predictions are paused during pregnancy.' },
     moodInsight: null,
+    personalPatterns: { status: 'not_applicable', insights: [], featured: null },
     bodyWeight,
     profile: profile || {},
     recentLogs,
@@ -1029,7 +1565,7 @@ function buildPregnancyStatus(profile, recentLogs, totalLogs = 0) {
 
 // All other paths: calculate phase from period date, or infer from symptoms.
 // Copper IUD users (path 5, isCopper) also route here, no hormones, natural cycle intact.
-function buildCycleStatus(profile, cycleData, recentLogs, mucusLogs, today, totalLogs = 0, historyLogs = []) {
+function buildCycleStatus(profile, cycleData, recentLogs, mucusLogs, today, totalLogs = 0, historyLogs = [], storedBaselines = {}, historyMucusLogs = []) {
   let phase = 'observation'
   let subPhase = null
   let cycleDay = null
@@ -1042,6 +1578,13 @@ function buildCycleStatus(profile, cycleData, recentLogs, mucusLogs, today, tota
 
   const cycleHistory = computeCycleHistory(cycleData, profile?.cycle_length, historyLogs)
   const { cyclesTracked, avgCycleLength } = cycleHistory
+  const learnedBaselines = {
+    ...storedBaselines,
+    ...deriveLearnedBaselines(historyLogs, cycleData, historyMucusLogs),
+    avgCycleLength: avgCycleLength || storedBaselines?.avgCycleLength || null,
+  }
+  let phaseCorrection = null
+  const learnedLutealLength = learnedBaselines?.avgLutealLength || storedBaselines?.avgLutealLength || POPULATION_LUTEAL_LENGTH
 
   if (cycleData?.last_period_date) {
     const diffDays = diffCalendarDays(today, cycleData.last_period_date + 'T00:00:00')
@@ -1050,16 +1593,57 @@ function buildCycleStatus(profile, cycleData, recentLogs, mucusLogs, today, tota
     // beats the value they set at onboarding (Bull 2019; Li 2020/2023). avgCycleLength already
     // falls back to their set cycle_length (then 28) when there aren't enough tracked cycles, so
     // this only ever makes the phase, day counter, and prediction more accurate and consistent.
-    cycleLen = avgCycleLength || cycleData.cycle_length || 28
+    cycleLen = avgCycleLength || storedBaselines?.avgCycleLength || cycleData.cycle_length || 28
     daysUntilPeriod = Math.max(0, cycleLen - cycleDay + 1)
 
     if (cycleDay > 0 && cycleDay <= cycleLen + 7) {
-      phase = getPhase(cycleDay, cycleLen, currentPeriodLength)
-      if (phase === 'Luteal') subPhase = getLutealSubPhase(cycleDay, cycleLen)
+      phase = getPhase(cycleDay, cycleLen, currentPeriodLength, learnedLutealLength)
+      if (phase === 'Luteal') subPhase = getLutealSubPhase(cycleDay, cycleLen, learnedLutealLength)
       if (phase === 'Follicular') subPhase = getFollicularSubPhase(cycleDay)
-      confidence = calcConfidence(phase, subPhase, recentLogs, mucusLogs, totalLogs, cyclesTracked, cycleHistory.variabilityDays)
+      const recentLogsForConfidence = (recentLogs || []).map(log => ({ ...log, cycleDayForConfidence: cycleDayFromTodayDate(today, cycleDay, log.log_date) }))
+      confidence = calcConfidence(phase, subPhase, recentLogsForConfidence, mucusLogs, totalLogs, cyclesTracked, cycleHistory.variabilityDays, cycleLen, learnedBaselines, today)
       // Run inference alongside as supporting context even when a calendar phase is available.
-      symptomInference = inferPhaseFromSymptoms(recentLogs, mucusLogs)
+      symptomInference = inferPhaseFromSymptoms(recentLogs, mucusLogs, learnedBaselines)
+      phaseCorrection = applyBodySignalPhaseCorrection({
+        phase,
+        subPhase,
+        cycleDay,
+        cycleLen,
+        daysUntilPeriod,
+        confidence,
+        recentLogs,
+        mucusLogs,
+        learnedBaselines,
+        today,
+      })
+      if (phaseCorrection.corrected) {
+        // A current LH/mucus signal can usefully refine the *current phase*, but it must not
+        // turn a well-established personal period pattern into a much longer cycle. Once we
+        // have the minimum number of completed cycles needed for a personal estimate, recorded
+        // period starts remain the source of truth for the next-period forecast. This prevents a
+        // late fertile-fluid observation from, for example, converting a 27-day history into a
+        // 42-day predicted cycle.
+        const hasPersonalPeriodTiming = cyclesTracked >= MIN_CYCLES_FOR_PERSONAL_ESTIMATE
+        const wouldMovePeriodForecast = phaseCorrection.cycleLen !== cycleLen
+        if (hasPersonalPeriodTiming && wouldMovePeriodForecast) {
+          phase = phaseCorrection.phase
+          subPhase = phaseCorrection.subPhase
+          confidence = phaseCorrection.confidence
+          phaseCorrection = {
+            ...phaseCorrection,
+            cycleLen,
+            daysUntilPeriod,
+            timingOverride: false,
+            label: `${phaseCorrection.label} Your next-period estimate continues to use your recorded cycle-start history.`,
+          }
+        } else {
+          phase = phaseCorrection.phase
+          subPhase = phaseCorrection.subPhase
+          cycleLen = phaseCorrection.cycleLen
+          daysUntilPeriod = phaseCorrection.daysUntilPeriod
+          confidence = phaseCorrection.confidence
+        }
+      }
     }
   } else {
     // No period date logged. Reading the body's signals when there's no anchor is the
@@ -1068,7 +1652,7 @@ function buildCycleStatus(profile, cycleData, recentLogs, mucusLogs, today, tota
     // stay consistent (an earlier version inferred per-screen and they disagreed).
     // When there aren't enough signals (<3) to call it, we stay in honest observation.
     // NOTE: estimated confidence stays below a logged-cycle's, see confidencePct.
-    symptomInference = inferPhaseFromSymptoms(recentLogs, mucusLogs)
+    symptomInference = inferPhaseFromSymptoms(recentLogs, mucusLogs, learnedBaselines)
     if (symptomInference?.inferredPhase) {
       phase = symptomInference.inferredPhase
       estimated = true
@@ -1080,25 +1664,57 @@ function buildCycleStatus(profile, cycleData, recentLogs, mucusLogs, today, tota
     }
   }
 
-  // Late / missed period: past the expected start (day cycleLen+1) the app must not keep
-  // showing "PMS, period in 0 days", it should acknowledge the period is late and, because
-  // this is a fertility-aware app, prompt a pregnancy test if relevant. Surfaced on the dashboard.
-  const latePeriod = cycleDay != null && cycleDay > cycleLen + 1
-  const daysLate = latePeriod ? cycleDay - cycleLen - 1 : 0
-  const latePeriodInsights = latePeriod ? getLatePeriodInsights(recentLogs, profile, cycleHistory) : []
-
   // Concrete next-period prediction from the user's own logged history (most-likely date + a
   // window that reflects her real cycle variability). Null until a period has been logged.
   const nextPeriodPrediction = cycleData?.last_period_date
-    ? predictNextPeriod(cycleData.last_period_date, avgCycleLength, cyclesTracked, cycleHistory.gaps)
+    ? predictNextPeriod(cycleData.last_period_date, avgCycleLength || storedBaselines?.avgCycleLength, cyclesTracked, cycleHistory.gaps)
     : null
+
+  // A prediction is a *window*, not a single deadline. Treating the day after its centre point
+  // as late hid every future calendar estimate while the user's own forecast still said the
+  // period could arrive normally. Once the full window has passed, pause projections rather
+  // than fabricating the next cycle; that keeps the late-period guidance and calendar honest.
+  const predictionWindowEnd = nextPeriodPrediction?.windowEnd
+  const latePeriod = predictionWindowEnd
+    ? diffCalendarDays(today, predictionWindowEnd) > 0
+    : cycleDay != null && cycleDay > cycleLen + 1
+  const daysLate = latePeriod
+    ? predictionWindowEnd
+      ? diffCalendarDays(today, predictionWindowEnd)
+      : cycleDay - cycleLen - 1
+    : 0
+  const latePeriodInsights = latePeriod ? getLatePeriodInsights(recentLogs, profile, cycleHistory) : []
 
   const intensityModifier = getIntensityModifier(phase, subPhase)
   const bodyWeight = profile?.body_weight_kg || null
   // Lab values are stored and displayed with context, but never change the phase or plan.
   const hormoneSignals = interpretHormones(recentLogs[0])
+  const personalPatterns = analyzePersonalPatterns({ logs: historyLogs, cycleData, phase, subPhase })
+  const symptomPatterns = analyzeSymptomPatterns({ logs: historyLogs, cycleData })
+  const moodPatterns = analyzeMoodPatterns({ logs: historyLogs, cycleData })
+  const guidanceProgress = personalisationProgress({
+    logs: historyLogs,
+    mucusLogs: historyMucusLogs,
+    cyclesTracked,
+    hasRepeatedPattern: (personalPatterns?.insights?.length || 0) > 0,
+  })
+  const timingReliability = cycleTimingReliability(cyclesTracked)
+  const phaseConflict = detectPhaseTimingConflict({ phase, subPhase, cycleDay, cycleLen, mucusLogs, today, symptomInference })
+  const anomalies = detectAnomalies(recentLogs, phase, cycleLen, {
+    daysLogged: recentLogs.length,
+    confidence,
+    cycleDay,
+    cyclesTracked,
+    userPath: profile?.user_path,
+    bcType: profile?.bc_type,
+    periodStarts: cycleHistory.periodStarts,
+    profile
+  }, historyLogs, learnedBaselines)
+  if (phaseConflict) anomalies.unshift(phaseConflict)
   const phaseEvidence = estimated
     ? { status: 'estimated', source: 'body_observations', label: 'Estimated from cycle-specific body observations; no period anchor is available.' }
+    : phaseCorrection?.corrected
+      ? { status: 'estimated', source: phaseCorrection.source || 'recorded_period_plus_body_signals', label: phaseCorrection.label || 'Adjusted from your recorded period start using recent body signals.' }
     : cycleDay
       ? { status: 'predicted', source: cyclesTracked ? 'recorded_periods_and_cycle_history' : 'recorded_period_and_population_fallback', label: cyclesTracked ? 'Estimated from your recorded period starts.' : 'Estimated from your period start and the cycle length you entered.' }
       : { status: 'insufficient', source: 'insufficient_data', label: 'Not enough cycle-specific information to estimate a phase.' }
@@ -1114,6 +1730,7 @@ function buildCycleStatus(profile, cycleData, recentLogs, mucusLogs, today, tota
     periodLengths,
     cyclesTracked,
     avgCycleLength,
+    learnedLutealLength,
     daysUntilPeriod,
     latePeriod,
     daysLate,
@@ -1124,7 +1741,8 @@ function buildCycleStatus(profile, cycleData, recentLogs, mucusLogs, today, tota
     hormoneSignals,
     phaseEvidence,
     confidence,
-    ...personalisationProgress(totalLogs, cyclesTracked),
+    ...guidanceProgress,
+    cycleTimingReliability: timingReliability,
     confidenceLabel: confidence > 0.70 ? 'Moderate estimate confidence'
       : confidence > 0.45 ? 'Developing estimate confidence'
       : 'Low estimate confidence',
@@ -1133,19 +1751,16 @@ function buildCycleStatus(profile, cycleData, recentLogs, mucusLogs, today, tota
     intensityLabel: getIntensityLabel(intensityModifier),
     nutritionTargets: getNutritionTargets(phase, bodyWeight, profile?.diet_preference),
     immediateFeedback: getImmediateFeedback(recentLogs[0], phase, subPhase),
-    anomalies: detectAnomalies(recentLogs, phase, cycleLen, {
-      daysLogged: recentLogs.length,
-      confidence,
-      cycleDay,
-      cyclesTracked,
-      userPath: profile?.user_path,
-      bcType: profile?.bc_type,
-      periodStarts: cycleHistory.periodStarts,
-      profile
-    }, historyLogs),
-    predictions: getPredictions(phase, cycleDay, cycleLen),
+    anomalies,
+    predictions: getPredictions(phase, cycleDay, cycleLen, learnedLutealLength),
+    phaseCorrection,
+    phaseConflict,
     symptomInference,
     moodInsight: interpretMoodSignal(recentLogs[0], recentLogs, phase, subPhase).insight,
+    personalPatterns,
+    symptomPatterns,
+    moodPatterns,
+    learnedBaselines,
     bodyWeight,
     profile: profile || {},
     recentLogs,
@@ -1162,14 +1777,19 @@ export async function getTodayStatus(supabase, userId) {
   cutoff.setHours(0, 0, 0, 0)
   cutoff.setDate(cutoff.getDate() - 6)
   const cutoffStr = `${cutoff.getFullYear()}-${String(cutoff.getMonth() + 1).padStart(2, '0')}-${String(cutoff.getDate()).padStart(2, '0')}`
-  const [cycleResult, profileResult, logsResult, mucusResult, historyLogsResult] = await Promise.all([
+  const [cycleResult, profileResult, logsResult, mucusResult, historyLogsResult, historyMucusResult, baselinesResult, predictionSnapshotsResult] = await Promise.all([
     supabase.from('cycle_data').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
     supabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
     supabase.from('daily_logs').select('*').eq('user_id', userId).gte('log_date', cutoffStr).order('log_date', { ascending: false }),
     supabase.from('mucus_logs').select('*').eq('user_id', userId).gte('log_date', cutoffStr).order('log_date', { ascending: false }),
     // A bounded history lets us count actual health observations rather than database rows.
     // Auto-imported workout shells therefore do not inflate personalisation.
-    supabase.from('daily_logs').select('*').eq('user_id', userId).order('log_date', { ascending: false }).limit(365)
+    supabase.from('daily_logs').select('*').eq('user_id', userId).order('log_date', { ascending: false }).limit(365),
+    supabase.from('mucus_logs').select('*').eq('user_id', userId).order('log_date', { ascending: false }).limit(365),
+    supabase.from('user_baselines').select('*').eq('id', userId).maybeSingle(),
+    // This is deliberately non-critical: accounts created before the migration still receive
+    // their normal guidance while their first prediction snapshots begin accumulating.
+    supabase.from('cycle_prediction_snapshots').select('cycle_start_date,predicted_period_date,window_start,window_end').eq('user_id', userId).order('cycle_start_date', { ascending: false }).limit(12)
   ])
 
   // NEVER turn a data-loading failure into fabricated advice. Supabase returns { data, error }
@@ -1190,6 +1810,8 @@ export async function getTodayStatus(supabase, userId) {
   // Mucus is supplementary (enriches inference); a mucus-only read failure degrades gracefully.
   const mucusLogs = mucusResult.data || []
   const historyLogs = (historyLogsResult.data || recentLogs).filter(log => belongsToCurrentContext(log, contextKey))
+  const historyMucusLogs = historyMucusResult.data || mucusLogs
+  const storedBaselines = normalizeStoredBaselines(baselinesResult?.data)
   const meaningfulLogs = historyLogs.filter(isMeaningfulHealthLog).length
   const today = new Date(); today.setHours(0, 0, 0, 0)
 
@@ -1199,21 +1821,21 @@ export async function getTodayStatus(supabase, userId) {
   // a withdrawal-bleed date exists. They get the steady BC baseline instead. Copper IUD is
   // non-hormonal and keeps a natural cycle, so it always uses the normal cycle path.
   if (profile?.user_path === '5' && profile?.bc_type !== 'copper-iud') {
-    return { ...buildPath5Status(profile, recentLogs, meaningfulLogs), contextKey }
+    return { ...buildPath5Status(profile, recentLogs, historyLogs, historyMucusLogs), contextKey }
   }
 
   // Path 6: pregnancy, cycle tracking pauses; provider-led supportive/educational mode.
   if (profile?.user_path === '6') {
-    return { ...buildPregnancyStatus(profile, recentLogs, meaningfulLogs), contextKey }
+    return { ...buildPregnancyStatus(profile, recentLogs, historyLogs, historyMucusLogs), contextKey }
   }
 
   // Path 4: perimenopause/menopause, skip all cycle phase calculations
   if (profile?.user_path === '4') {
-    return { ...buildPath4Status(profile, recentLogs, meaningfulLogs), contextKey }
+    return { ...buildPath4Status(profile, recentLogs, historyLogs, historyMucusLogs), contextKey }
   }
 
   // All other paths (1, 2, 3) + copper IUD users: phase from cycle data or symptom inference
-  let status = buildCycleStatus(profile, cycleData, recentLogs, mucusLogs, today, meaningfulLogs, historyLogs)
+  let status = buildCycleStatus(profile, cycleData, recentLogs, mucusLogs, today, meaningfulLogs, historyLogs, storedBaselines, historyMucusLogs)
 
   // A connected wearable can provide a retrospective temperature-based ovulation estimate.
   // Use it as a stronger timing anchor than a calendar-only estimate, while keeping it labelled
@@ -1221,6 +1843,23 @@ export async function getTodayStatus(supabase, userId) {
   // users (no stored signal), and it never touches BC/pregnancy/perimenopause states.
   status = applyWearableOvulationFromStorage(status, cycleData?.last_period_date, userId)
   status.contextKey = contextKey
+  const predictionSnapshots = predictionSnapshotsResult?.data || []
+  const periodStarts = parsePeriodStarts(cycleData)
+  status.cycleTimingReliability = cycleTimingReliability(status.cyclesTracked, predictionSnapshots, periodStarts)
+
+  // Keep the first estimate made for each cycle. We never overwrite it with a later, more informed
+  // estimate, otherwise the app would be grading rewritten history instead of its original call.
+  if (!predictionSnapshotsResult?.error && status.nextPeriodPrediction && ISO_DATE.test(cycleData?.last_period_date || '')) {
+    try {
+      await supabase.from('cycle_prediction_snapshots').upsert({
+        user_id: userId,
+        cycle_start_date: cycleData.last_period_date,
+        predicted_period_date: toDateStr(status.nextPeriodPrediction.predictedDate),
+        window_start: toDateStr(status.nextPeriodPrediction.windowStart),
+        window_end: toDateStr(status.nextPeriodPrediction.windowEnd),
+      }, { onConflict: 'user_id,cycle_start_date', ignoreDuplicates: true })
+    } catch { /* prediction tracking must never block health guidance */ }
+  }
 
   // Persist the accumulated learning so it survives across sessions and feeds VisitPrep and
   // the personal-baseline card (these tables were previously read but NEVER written, the
@@ -1229,9 +1868,18 @@ export async function getTodayStatus(supabase, userId) {
   try {
     await supabase.from('user_baselines').upsert({
       id: userId,
-      cycles_tracked: status.cyclesTracked || 0,
-      avg_cycle_length: status.avgCycleLength || null,
-      avg_luteal_length: status.learnedLutealLength || null,
+      cycles_tracked: status.cyclesTracked ?? storedBaselines.cyclesTracked ?? 0,
+      avg_cycle_length: status.avgCycleLength ?? status.learnedBaselines?.avgCycleLength ?? storedBaselines.avgCycleLength ?? null,
+      avg_luteal_length: status.learnedLutealLength ?? storedBaselines.avgLutealLength ?? null,
+      avg_ovulation_day: status.learnedBaselines?.avgOvulationDay ?? storedBaselines.avgOvulationDay ?? null,
+      ovulation_variation_days: status.learnedBaselines?.ovulationVariationDays ?? storedBaselines.ovulationVariationDays ?? null,
+      avg_peak_mucus_day: status.learnedBaselines?.avgPeakMucusDay ?? storedBaselines.avgPeakMucusDay ?? null,
+      mucus_peak_lead_days: status.learnedBaselines?.mucusPeakLeadDays ?? storedBaselines.mucusPeakLeadDays ?? null,
+      temp_follicular_baseline: status.learnedBaselines?.tempFollicularBaseline ?? storedBaselines.tempFollicularBaseline ?? null,
+      rhr_follicular_baseline: status.learnedBaselines?.rhrFollicularBaseline ?? storedBaselines.rhrFollicularBaseline ?? null,
+      pms_days_before: status.learnedBaselines?.pmsDaysBefore ?? storedBaselines.pmsDaysBefore ?? null,
+      peak_energy_day: status.learnedBaselines?.peakEnergyDay ?? storedBaselines.peakEnergyDay ?? null,
+      confirmed_ovulation_cycles: status.learnedBaselines?.confirmedOvulationCycles ?? storedBaselines.confirmedOvulationCycles ?? null,
       model_confidence: status.confidence != null ? Math.round(status.confidence * 100) / 100 : null,
     }, { onConflict: 'id' })
   } catch { /* non-fatal, confidence is computed live regardless of this write */ }

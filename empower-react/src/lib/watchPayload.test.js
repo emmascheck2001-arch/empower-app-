@@ -70,8 +70,13 @@ describe('buildWorkoutPayload (real generated gym workout → watch)', () => {
     expect(p.workouts[0].title).toBe('Lower body session')
     expect(p.workouts[0].detail).toBe('2 exercises')
     // per-set reps + an explicit set count the watch steps through with rest timers
-    expect(p.workouts[0].exercises[0]).toEqual({ name: 'Goblet squat', guide: '12 to 16 kg', reps: '10 reps', sets: 3 })
+    expect(p.workouts[0].exercises[0]).toEqual({ name: 'Goblet squat', guide: 'Choose a manageable load', reps: '10 reps', sets: 3 })
     expect(p.workouts[0].exercises[1]).toEqual({ name: 'Glute bridge', guide: 'Bodyweight', reps: '12 reps', sets: 3 })
+  })
+
+  it('sends timed holds to the watch as seconds', () => {
+    const p = buildWorkoutPayload(status, { exercises: [{ name:'Side plank', sets:2, reps:30, weight:'Bodyweight' }] })
+    expect(p.workouts[0].exercises[0].reps).toBe('30 seconds each side')
   })
 
   it('returns null without status', () => {

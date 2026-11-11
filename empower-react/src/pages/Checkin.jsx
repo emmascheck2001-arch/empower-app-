@@ -31,24 +31,30 @@ export default function Checkin() {
   const [saved, setSaved] = useState(false)
   const [feedbackMsg, setFeedbackMsg] = useState('')
   const [saveError, setSaveError] = useState('')
+  const [reloadKey, setReloadKey] = useState(0)
 
   const [log, setLog] = useState({
     energy: null, mucus: null, sleep_quality: null, resting_hr: null,
     mood: [], symptoms: [], flow_volume:null, pain_rating:null
   })
 
-  useEffect(() => { init() }, [])
-
-  async function init() {
-    setLoadError(null)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { navigate('/login', { replace: true }); return }
-    try {
-      const s = await getTodayStatus(supabase, user.id)
-      setStatus(s)
-    } catch(e) { console.error(e); setLoadError('We could not load your health data. Check-in guidance is paused until it reloads.') }
-    setLoading(false)
-  }
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      setLoadError(null)
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { navigate('/login', { replace: true }); return }
+      try {
+        const s = await getTodayStatus(supabase, user.id)
+        if (!cancelled) setStatus(s)
+      } catch(e) {
+        console.error(e)
+        if (!cancelled) setLoadError('We could not load your health data. Check-in guidance is paused until it reloads.')
+      }
+      if (!cancelled) setLoading(false)
+    })()
+    return () => { cancelled = true }
+  }, [navigate, reloadKey])
 
   const set = (f, v) => setLog(p => ({ ...p, [f]: v }))
   const toggleMood = (v) => setLog(p => ({ ...p, mood: p.mood.includes(v) ? p.mood.filter(x => x !== v) : [...p.mood, v] }))
@@ -80,8 +86,7 @@ export default function Checkin() {
         if (mucusDeleteError) throw mucusDeleteError
       }
       const newStatus = await getTodayStatus(supabase, user.id)
-      const pct = newStatus.personalisationPct ?? 0
-      setFeedbackMsg(`Check-in saved. Your personal data coverage is now ${pct}%.`)
+      setFeedbackMsg(newStatus.nextMilestone?.text || 'Check-in saved. Your data is helping Em~power look for a pattern over time.')
       setSaved(true)
       setTimeout(() => navigate('/dashboard'), 2500)
     } catch(e) {
@@ -92,7 +97,7 @@ export default function Checkin() {
   }
 
   if (loading) return <div style={{ paddingTop: 60 }}><Spinner /></div>
-  if (loadError || !status) return <div style={{ padding:'80px 24px', textAlign:'center' }}><div style={{ fontSize:14, color:'#7a7268', lineHeight:1.6, marginBottom:16 }}>{loadError || 'We could not load your check-in.'}</div><button className="btn-primary" onClick={() => { setLoading(true); init() }}>Try again</button></div>
+  if (loadError || !status) return <div style={{ padding:'80px 24px', textAlign:'center' }}><div style={{ fontSize:14, color:'#7a7268', lineHeight:1.6, marginBottom:16 }}>{loadError || 'We could not load your check-in.'}</div><button className="btn-primary" onClick={() => { setLoading(true); setReloadKey(k => k + 1) }}>Try again</button></div>
 
   if (saved) {
     return (

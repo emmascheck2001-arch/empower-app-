@@ -7,6 +7,7 @@
 // temperature, resting heart rate, and HRV. Native only; every function no-ops safely on web.
 import { Capacitor } from '@capacitor/core'
 import { Health } from '@capgo/capacitor-health'
+import { diffCalendarDays } from './dateUtils'
 
 // Temperature comes first because a sustained, consistently measured shift can add retrospective ovulation context. We read all three temperature
 // streams and use whichever the user's device actually fills: Apple Watch writes overnight
@@ -103,7 +104,7 @@ export async function readRecentWorkouts(days = 21) {
 // states (asleep/rem/deep/light) so overlapping "in bed" segments never double-count; samples
 // with no state (some Android sources) are counted as a best effort. Groups by the night the
 // sleep ended on and returns the latest night's hours, or null if there is no usable data.
-export function sleepHoursLastNight(samples) {
+export function sleepSummaryLastNight(samples) {
   const ASLEEP = new Set(['asleep', 'rem', 'deep', 'light'])
   const byNight = {}
   for (const s of samples || []) {
@@ -131,7 +132,58 @@ export function sleepHoursLastNight(samples) {
   })
   // Multiple apps can mirror the same sleep into the health store. Use the most complete
   // source for the night instead of adding sources together.
-  return Math.max(...totals) / 3600000
+  return { date: nights[nights.length - 1], hours: Math.max(...totals) / 3600000 }
+}
+
+export function sleepHoursLastNight(samples) {
+  return sleepSummaryLastNight(samples)?.hours ?? null
+}
+
+export function isFreshHealthDate(dateStr, maxAgeDays = 1, now = new Date()) {
+  if (!dateStr) return false
+  const age = diffCalendarDays(now, dateStr)
+  return age >= 0 && age <= maxAgeDays
+}
+
+function round1(value) {
+  return Math.round(value * 10) / 10
+}
+
+export function getFreshWearableSnapshot(data, now = new Date()) {
+  const latestTemp = data?.temps?.length ? data.temps[data.temps.length - 1] : null
+  const latestRhr = data?.restingHRDaily?.length ? data.restingHRDaily[data.restingHRDaily.length - 1] : null
+  const latestSleep = data?.sleep || null
+
+  const tempFresh = isFreshHealthDate(latestTemp?.date, 1, now)
+  // A resting-HR value is presented in Today's Focus as *today's* signal, not
+  // as a historical trend. In particular, keeping yesterday's value visible
+  // makes it look as if the watch is still measuring after it has been taken
+  // off. Overnight temperature and sleep are allowed to arrive a day late,
+  // but heart rate must have a sample dated today to be shown.
+  const rhrFresh = isFreshHealthDate(latestRhr?.date, 0, now)
+  const sleepFresh = isFreshHealthDate(latestSleep?.date, 1, now)
+
+  const allDates = [latestTemp?.date, latestRhr?.date, latestSleep?.date].filter(Boolean).sort()
+  const freshDates = [
+    tempFresh && latestTemp?.date,
+    rhrFresh && latestRhr?.date,
+    sleepFresh && latestSleep?.date,
+  ].filter(Boolean).sort()
+
+  return {
+    tempC: tempFresh && latestTemp ? round1(latestTemp.value) : null,
+    tempDate: latestTemp?.date || null,
+    tempFresh,
+    rhr: rhrFresh && latestRhr ? Math.round(latestRhr.value) : null,
+    rhrDate: latestRhr?.date || null,
+    rhrFresh,
+    sleepHours: sleepFresh && latestSleep?.hours != null ? round1(latestSleep.hours) : null,
+    sleepDate: latestSleep?.date || null,
+    sleepFresh,
+    hasFreshData: tempFresh || rhrFresh || sleepFresh,
+    freshestDate: freshDates.length ? freshDates[freshDates.length - 1] : null,
+    latestDate: allDates.length ? allDates[allDates.length - 1] : null,
+  }
 }
 
 // Read the last `days` of wearable data, shaped for wearableCycleSignals():
@@ -153,13 +205,16 @@ export async function readWearableData(days = 45) {
     const tempDaily = tempCandidates.reduce((best, cur) => (cur.length > best.length ? cur : best), [])
     const rhrDaily = toDailySeries(rhr)
     const hrvDaily = toDailySeries(hrv)
-    const sleepHours = sleepHoursLastNight(sleep)
+    const sleepSummary = sleepSummaryLastNight(sleep)
     return {
       temps: tempDaily,                                              // ascending {date,value}
+      restingHRDaily: rhrDaily,                                      // ascending {date,value}
       restingHR: rhrDaily.map(x => x.value).reverse(),               // newest-first
+      hrvDaily,                                                      // ascending {date,value}
       hrv: hrvDaily.map(x => x.value).reverse(),                     // newest-first
-      sleepHours,                                                    // hours asleep last night, or null
-      hasAnyData: tempDaily.length + rhrDaily.length + hrvDaily.length > 0 || sleepHours != null,
+      sleep: sleepSummary,                                           // { date, hours } or null
+      sleepHours: sleepSummary?.hours ?? null,                       // hours asleep last night, or null
+      hasAnyData: tempDaily.length + rhrDaily.length + hrvDaily.length > 0 || sleepSummary?.hours != null,
     }
   } catch (e) { console.error('readWearableData failed', e); return null }
 }

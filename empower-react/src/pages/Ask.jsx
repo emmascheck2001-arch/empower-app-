@@ -11,6 +11,7 @@ import { diffCalendarDays } from '../lib/dateUtils'
 import TopBar from '../components/TopBar'
 import BottomNav from '../components/BottomNav'
 import Spinner from '../components/Spinner'
+import Disclaimer from '../components/Disclaimer'
 
 export default function Ask() {
   const navigate = useNavigate()
@@ -23,38 +24,43 @@ export default function Ask() {
   const [input, setInput] = useState('')
   const scroller = useRef(null)
 
-  useEffect(() => { init() }, [])
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { navigate('/login', { replace: true }); return }
+      try {
+        const since = new Date(); since.setDate(since.getDate() - 120)
+        const [status, { data: cycle }, { data: logs }] = await Promise.all([
+          getTodayStatus(supabase, user.id).catch(() => null),
+          supabase.from('cycle_data').select('last_period_date,cycle_length,notes').eq('user_id', user.id).order('created_at',{ascending:false}).limit(1).maybeSingle(),
+          supabase.from('daily_logs').select('log_date,energy,mood,symptoms,sleep_quality,stress_level,libido,flow_volume,pain_rating,workout_feel,hot_flash_count,night_sweats_severity,joint_pain_rating,brain_fog_rating,hormonal_context').eq('user_id', user.id).gte('log_date', localDateStr(since)).order('log_date',{ascending:false}),
+        ])
+        let streak = 0
+        const context = status?.contextKey || 'natural-cycle'
+        const ll = (logs || []).filter(log => log.hormonal_context ? log.hormonal_context === context : true)
+        const check = new Date(); check.setHours(0,0,0,0)
+        for (const l of ll) {
+          const diff = diffCalendarDays(check, l.log_date+'T00:00:00')
+          if (diff === streak) { streak++; check.setDate(check.getDate()-1) } else break
+        }
+        const ctxObj = { status, cycle: cycle || null, logs: ll, streak, userEmail: user.email, userId: user.id }
+        if (cancelled) return
+        setCtx(ctxObj)
+        if (initialQ) {
+          const res = answerQuestion(initialQ, ctxObj, topics)
+          track('ask_question', { kind: res.kind, from: 'chip' })
+          setMessages([{ role:'user', text:initialQ }, { role:'bot', ...res, submitted:false }])
+        }
+      } catch(e) {
+        console.error(e)
+        if (!cancelled) setCtx({ status:null, cycle:null, logs:[], streak:0, userEmail: user.email, userId: user.id })
+      }
+      if (!cancelled) setLoading(false)
+    })()
+    return () => { cancelled = true }
+  }, [initialQ, navigate, topics])
   useEffect(() => { if (scroller.current) scroller.current.scrollTop = scroller.current.scrollHeight }, [messages])
-
-  async function init() {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { navigate('/login', { replace: true }); return }
-    try {
-      const since = new Date(); since.setDate(since.getDate() - 120)
-      const [status, { data: cycle }, { data: logs }] = await Promise.all([
-        getTodayStatus(supabase, user.id).catch(() => null),
-        supabase.from('cycle_data').select('last_period_date,cycle_length,notes').eq('user_id', user.id).order('created_at',{ascending:false}).limit(1).maybeSingle(),
-        supabase.from('daily_logs').select('log_date,energy,mood,symptoms,sleep_quality,flow_volume,pain_rating,workout_feel,hormonal_context').eq('user_id', user.id).gte('log_date', localDateStr(since)).order('log_date',{ascending:false}),
-      ])
-      let streak = 0
-      const context = status?.contextKey || 'natural-cycle'
-      const ll = (logs || []).filter(log => log.hormonal_context ? log.hormonal_context === context : true)
-      const check = new Date(); check.setHours(0,0,0,0)
-      for (const l of ll) {
-        const diff = diffCalendarDays(check, l.log_date+'T00:00:00')
-        if (diff === streak) { streak++; check.setDate(check.getDate()-1) } else break
-      }
-      const ctxObj = { status, cycle: cycle || null, logs: ll, streak, userEmail: user.email, userId: user.id }
-      setCtx(ctxObj)
-      // Auto-answer a question passed from a dashboard chip (?q=...)
-      if (initialQ) {
-        const res = answerQuestion(initialQ, ctxObj, topics)
-        track('ask_question', { kind: res.kind, from: 'chip' })
-        setMessages([{ role:'user', text:initialQ }, { role:'bot', ...res, submitted:false }])
-      }
-    } catch(e) { console.error(e); setCtx({ status:null, cycle:null, logs:[], streak:0, userEmail: user.email, userId: user.id }) }
-    setLoading(false)
-  }
 
   function send(text) {
     const q = (text ?? input).trim()
@@ -86,7 +92,7 @@ export default function Ask() {
         <div style={{fontSize:12,color:'#7a7268'}}>Your body, your data, instant answers</div>
       </TopBar>
 
-      <div ref={scroller} style={{ padding:'16px 16px 8px', minHeight:'calc(100svh - 250px)' }}>
+      <div ref={scroller} style={{ padding:'20px 16px 12px', minHeight:'calc(100svh - 250px)' }}>
         {messages.length === 0 && (
           <div>
             <div style={{ background:'#f5f0e8', borderRadius:14, padding:16, marginBottom:16 }}>
@@ -104,14 +110,14 @@ export default function Ask() {
 
         {messages.map((m, i) => m.role === 'user' ? (
           <div key={i} style={{ display:'flex', justifyContent:'flex-end', margin:'14px 0 6px' }}>
-            <div style={{ background:'#2c2820', color:'#f5f0e8', borderRadius:'14px 14px 4px 14px', padding:'10px 14px', fontSize:14, maxWidth:'85%', lineHeight:1.5 }}>{m.text}</div>
+            <div style={{ background:'#2c2820', color:'#f5f0e8', borderRadius:'14px 14px 4px 14px', padding:'10px 14px', fontSize:14, maxWidth:'86%', lineHeight:1.5 }}>{m.text}</div>
           </div>
         ) : (
           <div key={i} style={{ display:'flex', justifyContent:'flex-start', marginBottom:8 }}>
             <div style={{
               background: m.kind==='redflag' ? (m.tone==='crisis' ? '#f0f0f8' : '#fdeeee') : '#fff',
               border: `1px solid ${m.kind==='redflag' ? (m.tone==='crisis' ? '#d6d6ea' : '#e8b0a0') : '#ede8e0'}`,
-              borderRadius:'14px 14px 14px 4px', padding:'12px 15px', fontSize:14, maxWidth:'90%', lineHeight:1.6, color:'#2c2820'
+              borderRadius:'14px 14px 14px 4px', padding:'12px 15px', fontSize:14, maxWidth:'100%', lineHeight:1.6, color:'#2c2820'
             }}>
               {m.kind==='redflag' && <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color: m.tone==='crisis' ? '#5a5a8a' : '#a83a20', marginBottom:6 }}>{m.tone==='crisis' ? 'You are not alone' : 'Please read this'}</div>}
               <div>{m.text}</div>
@@ -145,6 +151,7 @@ export default function Ask() {
           <i className="ti ti-arrow-up" aria-hidden="true"/>
         </button>
       </div>
+      <Disclaimer>Ask Em~power offers reviewed wellness information and uses your logs when a matching answer exists. It is not a medical device, not medical advice, and not a method of contraception. For symptoms that feel urgent, contact a qualified clinician or emergency service.</Disclaimer>
       <BottomNav/>
     </>
   )

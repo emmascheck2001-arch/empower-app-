@@ -8,6 +8,9 @@ import { sessionFlags } from '../lib/session'
 import { isValid, sanitize } from '../lib/validate'
 import { diffCalendarDays } from '../lib/dateUtils.js'
 import Spinner from '../components/Spinner'
+import HealthConnect from '../components/HealthConnect'
+import ReminderSettings from '../components/ReminderSettings'
+import { isNative } from '../lib/healthkit'
 
 function localDateStr(d = new Date()) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
@@ -76,6 +79,8 @@ export default function Setup() {
   const [stage, setStage] = useState(null)
   const [dueDate, setDueDate] = useState('')
   const [showStats, setShowStats] = useState(false)
+  const [showConnect, setShowConnect] = useState(false)   // final onboarding step, native only
+  const [connectUserId, setConnectUserId] = useState(null)
   const [name, setName] = useState('')
   const [weight, setWeight] = useState('')
   const [weightUnit, setWeightUnit] = useState('kg')
@@ -84,7 +89,6 @@ export default function Setup() {
   const [agreed, setAgreed] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saveErr, setSaveErr] = useState(null)
-  const [preview, setPreview] = useState(null)
   const [birthYear, setBirthYear] = useState('')
   const [menarcheYear, setMenarcheYear] = useState('')
   const [originalProfile, setOriginalProfile] = useState(null)
@@ -142,15 +146,13 @@ export default function Setup() {
     return () => { cancelled = true }
   }, [editing, navigate])
 
-  useEffect(() => {
-    if (path === 1 && lastPeriod) {
-      const now = new Date(); now.setHours(0,0,0,0)
-      const cd = diffCalendarDays(now, lastPeriod + 'T00:00:00') + 1
-      if (cd >= 1 && cd <= cycleLen + 7) {
-        setPreview({ cd, phase: getPhase(cd, cycleLen), daysLeft: Math.max(0, cycleLen - cd + 1) })
-      } else setPreview(null)
-    } else setPreview(null)
-  }, [path, lastPeriod, cycleLen])
+  const preview = (() => {
+    if (path !== 1 || !lastPeriod) return null
+    const now = new Date(); now.setHours(0,0,0,0)
+    const cd = diffCalendarDays(now, lastPeriod + 'T00:00:00') + 1
+    if (cd < 1 || cd > cycleLen + 7) return null
+    return { cd, phase: getPhase(cd, cycleLen), daysLeft: Math.max(0, cycleLen - cd + 1) }
+  })()
 
   function toggleEthnicity(val) {
     setEthnicity(prev => {
@@ -232,10 +234,37 @@ export default function Setup() {
 
     track('onboarding_complete', { path: String(path), skipped: skip })
     sessionFlags.justOnboardedUid = user.id   // only THIS user skips the post-setup bounce, never a different account on the same tab
+
+    // Ask for the wearable connection and reminders HERE, at the moment intent is highest, rather
+    // than leaving them buried on the dashboard where only already-engaged users ever find them.
+    // Both asks are native-only, so the web flow is unchanged and goes straight through.
+    if (isNative()) {
+      setConnectUserId(user.id)
+      setShowConnect(true)
+      setSaving(false)
+      return
+    }
     navigate('/dashboard', { replace: true })
   }
 
   if (checking) return <div style={{ paddingTop:60 }}><Spinner /></div>
+
+  if (showConnect) return (
+    <div style={{ padding:'calc(24px + var(--sat)) 16px 40px', minHeight:'100svh', maxWidth:420, margin:'0 auto' }}>
+      <div style={{ fontSize:13, fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase', textAlign:'center', marginBottom:8 }}>Em~power</div>
+      <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase', color:'#b0a89a', textAlign:'center', marginBottom:20 }}>Last step</div>
+      <div style={{ fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:20, textAlign:'center', marginBottom:8 }}>You are set up.</div>
+      <div style={{ fontSize:13, color:'#7a7268', textAlign:'center', lineHeight:1.7, marginBottom:24 }}>
+        Two optional things that make Em~power work when you are not thinking about it.
+      </div>
+      <HealthConnect userId={connectUserId} />
+      <ReminderSettings userId={connectUserId} variant="onboarding" />
+      <button type="button" onClick={() => navigate('/dashboard', { replace: true })}
+        style={{ width:'100%', padding:'16px', borderRadius:12, border:'none', background:'#2c2820', color:'#f5f0e8', fontSize:15, fontWeight:500, cursor:'pointer', fontFamily:'inherit' }}>
+        Go to my dashboard
+      </button>
+    </div>
+  )
   if (!showStats) return (
     <div style={{ padding:'calc(24px + var(--sat)) 16px 120px', minHeight:'100svh' }}>
       <div style={{ fontSize:13, fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase', textAlign:'center', marginBottom:8 }}>Em~power</div>
@@ -298,7 +327,7 @@ export default function Setup() {
             </div>
           )}
           <div style={{ textAlign:'center', marginTop:12 }}>
-            <button onClick={()=>{ setPath(3); setLastPeriod(''); setPreview(null) }} style={{ background:'none', border:'none', color:'#9a8a6a', fontSize:12, textDecoration:'underline', cursor:'pointer', fontFamily:'inherit' }}>
+            <button onClick={()=>{ setPath(3); setLastPeriod('') }} style={{ background:'none', border:'none', color:'#9a8a6a', fontSize:12, textDecoration:'underline', cursor:'pointer', fontFamily:'inherit' }}>
               Not sure of your exact date? Track as irregular instead
             </button>
           </div>

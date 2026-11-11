@@ -15,6 +15,17 @@ describe('predictNextPeriod (research-backed: Bull 2019, Li 2020/2023, FIGO 2018
     expect(p.confidence).toBe('low')   // irregular + only 2 cycles → low, not moderate
   })
 
+  it('favours a recent shorter cycle when sparse history contains a possible missing-period gap', () => {
+    // June 18 → August 6 was 49 days, then August 6 → September 2 was 27 days.
+    // The 49-day gap remains in the window, but should not pull the point estimate to 38 days.
+    const p = predictNextPeriod('2026-09-02', 38, 2, [49, 27])
+    expect(off('2026-09-02', p.predictedDate)).toBe(27)
+    expect(off('2026-09-02', p.windowStart)).toBe(27)
+    expect(off('2026-09-02', p.windowEnd)).toBe(49)
+    expect(p.irregular).toBe(true)
+    expect(p.confidence).toBe('low')
+  })
+
   it('does not predict a window before the physiological floor', () => {
     // NOTE: the current physiological floor is 15 days (lowered from 21 by a concurrent edit —
     // flagged for review, as a day-15 period prediction is clinically borderline).

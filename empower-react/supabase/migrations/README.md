@@ -34,10 +34,17 @@ truth for the database's **intended** schema, RLS, and function security.
 | `0003_functions.sql` | Core `SECURITY DEFINER` functions with pinned search paths, internal authorization guards, and restricted execute grants. |
 | `0004_check_constraints.sql` | Numeric and enum checks that reject implausible health values at the database boundary. |
 | `0005_algorithm_provenance.sql` | Observation/import provenance, hormonal-context separation, performance-led progression fields, optional menarche year, and opt-in friend-card privacy. Adds guarded `respond_friend_request`. |
+| `0006_profile_settings_sync.sql` | Persists workout goals and health-connection settings across devices. |
+| `0007_learned_cycle_baselines.sql` | Persists learned ovulation and mucus timing baselines. |
+| `0008_notification_settings.sql` | Persists local-notification preferences. |
+| `0009_prediction_outcomes.sql` | Stores immutable next-period estimates so the app can grade timing reliability against later recorded starts. |
+| `0010_workout_class_sessions.sql` | Stores manually logged class activity and duration separately, with owner-only RLS and account-deletion cascade. Apply before releasing the updated class logger. |
+| `0011_workout_class_sessions_index.sql` | Indexes recent class lookups by owner and supports account deletion. |
 
 Tables covered: `profiles`, `cycle_data`, `daily_logs`, `mucus_logs`,
 `cycle_summaries`, `user_baselines`, `user_feedback`, `friendships`,
-`friend_visibility`, `exercise_history`, `analytics_events`.
+`friend_visibility`, `exercise_history`, `analytics_events`,
+`cycle_prediction_snapshots`, and `workout_class_sessions`.
 
 ## How to apply
 
@@ -57,6 +64,12 @@ psql "$DATABASE_URL" -f supabase/migrations/0002_rls_policies.sql
 psql "$DATABASE_URL" -f supabase/migrations/0003_functions.sql
 psql "$DATABASE_URL" -f supabase/migrations/0004_check_constraints.sql
 psql "$DATABASE_URL" -f supabase/migrations/0005_algorithm_provenance.sql
+psql "$DATABASE_URL" -f supabase/migrations/0006_profile_settings_sync.sql
+psql "$DATABASE_URL" -f supabase/migrations/0007_learned_cycle_baselines.sql
+psql "$DATABASE_URL" -f supabase/migrations/0008_notification_settings.sql
+psql "$DATABASE_URL" -f supabase/migrations/0009_prediction_outcomes.sql
+psql "$DATABASE_URL" -f supabase/migrations/0010_workout_class_sessions.sql
+psql "$DATABASE_URL" -f supabase/migrations/0011_workout_class_sessions_index.sql
 ```
 
 ## CRITICAL security rules (from CLAUDE.md — never weaken)

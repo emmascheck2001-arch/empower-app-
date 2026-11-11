@@ -56,39 +56,46 @@ export default function Friends() {
   const [addStatus, setAddStatus] = useState('') // '' | sending | sent | not_found | already | error
   const [savingVis, setSavingVis] = useState(false)
   const [visError, setVisError] = useState(null)
+  const [reloadKey, setReloadKey] = useState(0)
 
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const { data: { user: u } } = await supabase.auth.getUser()
+        if (!u) { navigate('/login', { replace:true }); return }
+        if (!cancelled) setUser(u)
 
-  async function load() {
-    try {
-      const { data: { user: u } } = await supabase.auth.getUser()
-      if (!u) { navigate('/login', { replace:true }); return }
-      setUser(u)
+        const [{ data: visData }, { data: fships }] = await Promise.all([
+          supabase.from('friend_visibility').select('*').eq('user_id', u.id).maybeSingle(),
+          supabase.from('friendships').select('*').or(`requester_id.eq.${u.id},addressee_id.eq.${u.id}`),
+        ])
 
-      const [{ data: visData }, { data: fships }] = await Promise.all([
-        supabase.from('friend_visibility').select('*').eq('user_id', u.id).maybeSingle(),
-        supabase.from('friendships').select('*').or(`requester_id.eq.${u.id},addressee_id.eq.${u.id}`),
-      ])
+        if (cancelled) return
+        if (visData) setVis({ show_phase: visData.show_phase, show_streak: visData.show_streak, show_sleep: visData.show_sleep, show_workout: visData.show_workout })
 
-      if (visData) setVis({ show_phase: visData.show_phase, show_streak: visData.show_streak, show_sleep: visData.show_sleep, show_workout: visData.show_workout })
+        const incoming = (fships || []).filter(f => f.status === 'pending' && f.addressee_id === u.id)
+        const outgoing = (fships || []).filter(f => f.status === 'pending' && f.requester_id === u.id)
+        const accepted = (fships || []).filter(f => f.status === 'accepted')
 
-      const incoming = (fships || []).filter(f => f.status === 'pending' && f.addressee_id === u.id)
-      const outgoing = (fships || []).filter(f => f.status === 'pending' && f.requester_id === u.id)
-      const accepted = (fships || []).filter(f => f.status === 'accepted')
+        setPendingIn(incoming)
+        setPendingOut(outgoing)
 
-      setPendingIn(incoming)
-      setPendingOut(outgoing)
-
-      const friendCards = await Promise.all(accepted.map(async f => {
-        const friendId = f.requester_id === u.id ? f.addressee_id : f.requester_id
-        const { data: card } = await supabase.rpc('get_friend_card', { target_user_id: friendId })
-        const visibleCard = Array.isArray(card) ? card[0] : card
-        return { friendship_id: f.id, friend_id: friendId, card: visibleCard || { name: f.requester_id === u.id ? f.addressee_name : f.requester_name } }
-      }))
-      setFriends(friendCards)
-    } catch(e) { console.error(e) }
-    finally { setLoading(false) }
-  }
+        const friendCards = await Promise.all(accepted.map(async f => {
+          const friendId = f.requester_id === u.id ? f.addressee_id : f.requester_id
+          const { data: card } = await supabase.rpc('get_friend_card', { target_user_id: friendId })
+          const visibleCard = Array.isArray(card) ? card[0] : card
+          return { friendship_id: f.id, friend_id: friendId, card: visibleCard || { name: f.requester_id === u.id ? f.addressee_name : f.requester_name } }
+        }))
+        if (!cancelled) setFriends(friendCards)
+      } catch(e) {
+        console.error(e)
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+    return () => { cancelled = true }
+  }, [navigate, reloadKey])
 
   async function saveVis(newVis) {
     const prevVis = vis
@@ -118,19 +125,19 @@ export default function Friends() {
       if (error || !inserted?.length) { setAddStatus('error'); return }
       setAddStatus('sent')
       setEmail('')
-      load()
+      setReloadKey(k => k + 1)
     } catch { setAddStatus('error') }
   }
 
   async function respond(friendshipId, accept) {
     const { error } = await supabase.rpc('respond_friend_request', { friendship_id:friendshipId, accept_request:accept })
     if (error) { console.error(error); return }
-    load()
+    setReloadKey(k => k + 1)
   }
 
   async function removeFriend(friendshipId) {
     await supabase.from('friendships').delete().eq('id', friendshipId)
-    load()
+    setReloadKey(k => k + 1)
   }
 
   if (loading) return <><TopBar title="FRIENDS" backTo="/dashboard" /><div style={{ paddingTop:60 }}><Spinner /></div></>

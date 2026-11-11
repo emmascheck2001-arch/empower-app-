@@ -5,23 +5,21 @@ import { useState, useEffect } from 'react'
 // never asked. iOS Safari does not fire `beforeinstallprompt`, so we show manual
 // "Add to Home Screen" instructions there instead of an install button.
 export default function InstallPrompt() {
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true
+  const dismissed = localStorage.getItem('installDismissed')
+  const ua = window.navigator.userAgent || ''
+  const isIos = /iphone|ipad|ipod/i.test(ua)
   const [deferred, setDeferred] = useState(null)
-  const [show, setShow] = useState(false)
-  const [iosHint, setIosHint] = useState(false)
+  const [show, setShow] = useState(() => !isStandalone && !dismissed && isIos)
+  const [iosHint] = useState(() => !isStandalone && !dismissed && isIos)
 
   useEffect(() => {
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true
-    if (isStandalone) return                       // already installed, nothing to do
-    if (localStorage.getItem('installDismissed')) return
-
-    const ua = window.navigator.userAgent || ''
-    const isIos = /iphone|ipad|ipod/i.test(ua)
-    if (isIos) { setIosHint(true); setShow(true); return }
+    if (isStandalone || dismissed || isIos) return
 
     const handler = (e) => { e.preventDefault(); setDeferred(e); setShow(true) }
     window.addEventListener('beforeinstallprompt', handler)
     return () => window.removeEventListener('beforeinstallprompt', handler)
-  }, [])
+  }, [dismissed, isIos, isStandalone])
 
   if (!show) return null
 

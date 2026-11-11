@@ -1,4 +1,5 @@
-// route /log, full daily log: energy, mood, cervical fluid, LH, RHR, wrist temp, symptoms, sleep, workout feel, disruptors, flow, pain, hormones
+// route /log, full daily log: energy, mood, cervical fluid, RHR, symptoms, sleep, workout feel, disruptors, flow, pain.
+// LH strips, manual temperature, and hormone labs live under Optional details (zero uptake as quick-log fields).
 import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
@@ -6,8 +7,11 @@ import { getPhase, interpretHormones, getTodayStatus, mergePeriodStartsNotes, me
 import { diffCalendarDays } from '../lib/dateUtils.js'
 import { track } from '../lib/analytics'
 import { sanitize } from '../lib/validate'
-import { isNative, readWearableData, healthStoreName } from '../lib/healthkit'
-import { getUserLocal } from '../lib/userLocalState'
+import { isNative, readWearableData, healthStoreName, getFreshWearableSnapshot } from '../lib/healthkit'
+import { getUserSetting } from '../lib/userSettings'
+import { runSave } from '../lib/dbSave'
+import { listPendingWrites, queuePendingWrite, replayPendingWrites } from '../lib/pendingWrites'
+import { DEFAULT_HORMONE_UNITS, HORMONE_FIELDS, convertHormoneUnit, normalizeHormoneInputs } from '../lib/hormoneUnits'
 import TopBar from '../components/TopBar'
 import BottomNav from '../components/BottomNav'
 import Spinner from '../components/Spinner'
@@ -42,14 +46,6 @@ const MOOD_OPTS    = [...MOOD_POS, ...MOOD_NEG]
 const SYMPTOMS     = ['Bloating','Cramping','Breast tenderness','Headache','Migraine','Back pain','Nausea','Diarrhea','Constipation','Ovulation pain','Fatigue','Cravings','Mood swings','Acne','None']
 const DISRUPTORS   = ['Alcohol','Illness','Travel','Very poor sleep','High stress','None of these']
 const FLUID_OPTS   = ['None or dry','Sticky or crumbly','Creamy or lotion-like','Watery','Egg white','Spotting','Not sure']
-// Plain, relatable descriptions so it is easy to report honestly (mucus is the most
-// mis-logged signal). Shown as a small legend under the options.
-const FLUID_HINTS = {
-  'None or dry':'nothing noticeable', 'Sticky or crumbly':'tacky, like paste',
-  'Creamy or lotion-like':'smooth, like lotion', 'Watery':'wet and slippery',
-  'Egg white':'clear and stretchy, like raw egg white', 'Spotting':'a little blood',
-  'Not sure':"didn't check, or hard to tell",
-}
 const LH_OPTS      = ['No test','Negative','Positive']
 const FLOW_OPTS    = ['Spotting only','Light','Moderate','Heavy','Very heavy']
 const PAIN_OPTS    = [{v:1,label:'1 None'},{v:2,label:'2 Mild'},{v:3,label:'3 Moderate'},{v:4,label:'4 Severe'},{v:5,label:'5 Debilitating'}]
@@ -58,6 +54,12 @@ const WORKOUT_TO_STORAGE = { 'Weaker than usual':'Felt hard', Average:'Felt aver
 const WORKOUT_FROM_STORAGE = { 'Felt hard':'Weaker than usual', 'Felt average':'Average', 'Felt strong':'Stronger than usual' }
 const STRESS_OPTS  = [{v:1,label:'1 Calm'},{v:2,label:'2 Low'},{v:3,label:'3 Medium'},{v:4,label:'4 High'},{v:5,label:'5 Overwhelmed'}]
 const LIBIDO_OPTS  = ['Low','Normal','High']
+const HORMONE_INPUTS = [
+  { field:'hormone_estradiol', placeholder:'e.g. 450' },
+  { field:'hormone_progesterone', placeholder:'e.g. 28.5' },
+  { field:'hormone_lh', placeholder:'e.g. 12.0' },
+  { field:'hormone_cortisol', placeholder:'e.g. 430' },
+]
 
 const pill = (active) => ({
   padding:'7px 14px', borderRadius:20, border:`1px solid ${active?'#c8b89a':'#ede8e0'}`,
@@ -125,7 +127,10 @@ export default function Log({ previewMode = false }) {
   const [periodOpen, setPeriodOpen] = useState(false)
   const [saved, setSaved] = useState(false)
   const [savedPct, setSavedPct] = useState(null)
+  const [savedMilestone, setSavedMilestone] = useState('')
+  const [savedTimingDetail, setSavedTimingDetail] = useState('')
   const [saveError, setSaveError] = useState('')
+  const [pendingNotice, setPendingNotice] = useState('')
   const [lastPeriodDate, setLastPeriodDate] = useState(null)
   const [cycleDay, setCycleDay] = useState(null)
   const [periodLen, setPeriodLen] = useState(null)
@@ -133,6 +138,8 @@ export default function Log({ previewMode = false }) {
   const [periodStarts, setPeriodStarts] = useState([])
   const [cycleNotes, setCycleNotes] = useState(null)
   const [log, setLog] = useState(BLANK_LOG)
+  const [hormoneUnits, setHormoneUnits] = useState(DEFAULT_HORMONE_UNITS)
+  const [hormoneErrors, setHormoneErrors] = useState({})
   const [contextKey, setContextKey] = useState('natural-cycle')
   const [wearableInfo, setWearableInfo] = useState({ store:'', rhr:false, temp:false, sleepHours:null })
 
@@ -191,118 +198,151 @@ export default function Log({ previewMode = false }) {
     setLogDate(previewDate)
   }
 
-  // Reload whenever the selected day changes, so the form shows that day's saved data.
-  useEffect(()=>{ init() },[logDate])
-
-  async function init() {
-    if (previewMode) {
-      loadPreview(searchParams.get('state') || 'cycle')
-      return
-    }
-    const { data:{ user } } = await supabase.auth.getUser()
-    if (!user) { navigate('/login',{replace:true}); return }
-    setLoading(true)
-    setLog(BLANK_LOG)  // clear any previously loaded day before loading the selected one
-    try {
-    const [{ data:profile },{ data:cycleData }] = await Promise.all([
-      supabase.from('profiles').select('user_path,cycle_length').eq('id',user.id).maybeSingle(),
-      supabase.from('cycle_data').select('*').eq('user_id',user.id).order('created_at',{ascending:false}).limit(1).maybeSingle(),
-    ])
-    const path4 = profile?.user_path==='4'
-    const pregnant = profile?.user_path==='6'
-    setContextKey(getHormonalContext(profile))
-    setIsPath4(path4)
-    setIsPregnant(pregnant)
-    if (pregnant) setPhase('Pregnancy')
-    setCycleLen(cycleData?.cycle_length || profile?.cycle_length || 28)
-    setCycleNotes(cycleData?.notes || null)
-    setPeriodStarts(parsePeriodStarts(cycleData))
-    if (!path4 && !pregnant && cycleData?.last_period_date) {
-      const last = new Date(cycleData.last_period_date+'T00:00:00')
-      // Phase reflects the day being logged (so backfilling a past period day shows Flow/Pain).
-      const ref = new Date(logDate+'T00:00:00')
-      const cd = diffCalendarDays(ref, last)+1
-      setLastPeriodDate(cycleData.last_period_date); setCycleDay(cd); setPeriodLen(cycleData.period_length || null)
-      if (cd >= 1) {
-        const p = getPhase(cd, cycleData.cycle_length||28)
-        setPhase(p); setIsMenstrual(p==='Menstrual')
-      } else { setPhase('observation'); setIsMenstrual(false) }
-    }
-    const today = logDate
-    const [{ data:existing },{ data:mucus }] = await Promise.all([
-      supabase.from('daily_logs').select('*').eq('user_id',user.id).eq('log_date',today).maybeSingle(),
-      supabase.from('mucus_logs').select('discharge_type').eq('user_id',user.id).eq('log_date',today).maybeSingle(),
-    ])
-    setWearableInfo({ store:healthStoreName(), rhr:false, temp:false, sleepHours:existing?.sleep_hours ?? null })
-    if (existing) {
-      setLog(prev=>({...prev,
-        energy:existing.energy||null, sleep_quality:existing.sleep_quality||null, stress_level:existing.stress_level||null,
-        resting_hr:existing.resting_hr||null, resting_hr_exact:existing.resting_hr_exact?String(existing.resting_hr_exact):'',
-        wrist_temp:existing.wrist_temp?String(existing.wrist_temp):'', temperature_source:existing.temperature_source||'other',
-        lh_result:existing.lh_result||null, libido:existing.libido||null, mood:existing.mood||[], symptoms:existing.symptoms||[], disruptors:existing.disruptors||[],
-        workout_feel:WORKOUT_FROM_STORAGE[existing.workout_feel] || existing.workout_feel || null, notes:existing.notes||'',
-        flow_volume:existing.flow_volume||null, pain_rating:existing.pain_rating||null,
-        hot_flash_count:existing.hot_flash_count?String(existing.hot_flash_count):'',
-        night_sweats_severity:existing.night_sweats_severity||null,
-        joint_pain_rating:existing.joint_pain_rating||null, brain_fog_rating:existing.brain_fog_rating||null,
-        hormone_estradiol:existing.hormone_estradiol?String(existing.hormone_estradiol):'',
-        hormone_progesterone:existing.hormone_progesterone?String(existing.hormone_progesterone):'',
-        hormone_lh:existing.hormone_lh?String(existing.hormone_lh):'',
-        hormone_cortisol:existing.hormone_cortisol?String(existing.hormone_cortisol):'',
-      }))
-    }
-    if (mucus?.discharge_type) setLog(prev=>({...prev,cervical_fluid:mucus.discharge_type}))
-    if (isNative() && getUserLocal(user.id, 'healthConnected')) {
-      try {
-        const wearable = await readWearableData()
-        const rhr = wearable?.restingHR?.[0] != null ? Math.round(wearable.restingHR[0]) : null
-        const tempC = wearable?.temps?.length ? round1(wearable.temps[wearable.temps.length - 1].value) : null
-        const sleepHours = wearable?.sleepHours != null ? round1(wearable.sleepHours) : null
-        const nextWearable = { store:healthStoreName(), rhr:false, temp:false, sleepHours:sleepHours ?? existing?.sleep_hours ?? null }
-        const existingRhr = existing?.resting_hr_exact != null ? Number(existing.resting_hr_exact) : null
-        const existingTemp = existing?.wrist_temp != null ? Number(existing.wrist_temp) : null
-        const wearablePatch = {}
-        if (rhr != null) {
-          if (!Number.isFinite(existingRhr)) {
-            wearablePatch.resting_hr_exact = String(rhr)
-            if (!existing?.resting_hr) wearablePatch.resting_hr = rhrBucket(rhr)
-            nextWearable.rhr = true
-          } else if (Math.round(existingRhr) === rhr) nextWearable.rhr = true
-        }
-        if (tempC != null) {
-          if (!Number.isFinite(existingTemp)) {
-            wearablePatch.wrist_temp = String(tempC)
-            wearablePatch.temperature_source = 'wearable-wrist'
-            nextWearable.temp = true
-          } else if (round1(existingTemp) === tempC && existing?.temperature_source === 'wearable-wrist') nextWearable.temp = true
-        }
-        if (Object.keys(wearablePatch).length) setLog(prev => ({ ...prev, ...wearablePatch }))
-        setWearableInfo(nextWearable)
-
-        // If the user opened Log directly, persist the wearable readings here too so the app can
-        // use them without requiring a Dashboard visit first. Manual values always win: we only
-        // fill fields that are still empty for today.
-        const payload = { user_id:user.id, log_date:today, hormonal_context:getHormonalContext(profile) }
-        if (!Number.isFinite(existingRhr) && rhr != null) payload.resting_hr_exact = rhr
-        if (!Number.isFinite(existingTemp) && tempC != null) {
-          payload.wrist_temp = tempC
-          payload.temperature_source = 'wearable-wrist'
-        }
-        if (existing?.sleep_hours == null && sleepHours != null) payload.sleep_hours = sleepHours
-        if (Object.keys(payload).length > 3) {
-          await supabase.from('daily_logs').upsert(payload, { onConflict:'user_id,log_date' })
-        }
-      } catch (e) { console.error('Wearable prefill failed', e) }
-    }
-    } catch(e) { console.error(e) }
-    finally { setLoading(false) }
+  function setHormoneValue(field, value) {
+    setHormoneErrors(prev => {
+      if (!prev[field]) return prev
+      const next = { ...prev }
+      delete next[field]
+      return next
+    })
+    setLog(prev => ({ ...prev, [field]: value }))
   }
+
+  function changeHormoneUnit(field, nextUnit) {
+    setHormoneErrors(prev => {
+      if (!prev[field]) return prev
+      const next = { ...prev }
+      delete next[field]
+      return next
+    })
+    setLog(prev => ({ ...prev, [field]: convertHormoneUnit(field, prev[field], hormoneUnits[field], nextUnit) }))
+    setHormoneUnits(prev => ({ ...prev, [field]: nextUnit }))
+  }
+
+  // Reload whenever the selected day changes, so the form shows that day's saved data.
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      if (previewMode) {
+        loadPreview(searchParams.get('state') || 'cycle')
+        return
+      }
+      const { data:{ user } } = await supabase.auth.getUser()
+      if (!user) { navigate('/login',{replace:true}); return }
+      if (!cancelled) {
+        setLoading(true)
+        setPendingNotice('')
+      }
+      try {
+        const replay = await replayPendingWrites(supabase, user.id)
+        if (cancelled) return
+        if (replay.synced > 0) setPendingNotice(`Recovered ${replay.synced} unsent ${replay.synced === 1 ? 'entry' : 'entries'} from this device.`)
+        else if (listPendingWrites(user.id).length) setPendingNotice('There are unsent changes on this device. They will retry automatically when the connection is back.')
+      } catch { /* non-fatal */ }
+      if (!cancelled) setLog(BLANK_LOG)
+      try {
+        const [{ data:profile },{ data:cycleData }] = await Promise.all([
+          supabase.from('profiles').select('user_path,cycle_length').eq('id',user.id).maybeSingle(),
+          supabase.from('cycle_data').select('*').eq('user_id',user.id).order('created_at',{ascending:false}).limit(1).maybeSingle(),
+        ])
+        if (cancelled) return
+        const path4 = profile?.user_path==='4'
+        const pregnant = profile?.user_path==='6'
+        setContextKey(getHormonalContext(profile))
+        setIsPath4(path4)
+        setIsPregnant(pregnant)
+        if (pregnant) setPhase('Pregnancy')
+        setCycleLen(cycleData?.cycle_length || profile?.cycle_length || 28)
+        setCycleNotes(cycleData?.notes || null)
+        setPeriodStarts(parsePeriodStarts(cycleData))
+        if (!path4 && !pregnant && cycleData?.last_period_date) {
+          const last = new Date(cycleData.last_period_date+'T00:00:00')
+          const ref = new Date(logDate+'T00:00:00')
+          const cd = diffCalendarDays(ref, last)+1
+          setLastPeriodDate(cycleData.last_period_date); setCycleDay(cd); setPeriodLen(cycleData.period_length || null)
+          if (cd >= 1) {
+            const p = getPhase(cd, cycleData.cycle_length||28)
+            setPhase(p); setIsMenstrual(p==='Menstrual')
+          } else { setPhase('observation'); setIsMenstrual(false) }
+        }
+        const today = logDate
+        const [{ data:existing },{ data:mucus }] = await Promise.all([
+          supabase.from('daily_logs').select('*').eq('user_id',user.id).eq('log_date',today).maybeSingle(),
+          supabase.from('mucus_logs').select('discharge_type').eq('user_id',user.id).eq('log_date',today).maybeSingle(),
+        ])
+        if (cancelled) return
+        setWearableInfo({ store:healthStoreName(), rhr:false, temp:false, sleepHours:existing?.sleep_hours ?? null })
+        if (existing) {
+          setLog(prev=>({...prev,
+            energy:existing.energy||null, sleep_quality:existing.sleep_quality||null, stress_level:existing.stress_level||null,
+            resting_hr:existing.resting_hr||null, resting_hr_exact:existing.resting_hr_exact?String(existing.resting_hr_exact):'',
+            wrist_temp:existing.wrist_temp?String(existing.wrist_temp):'', temperature_source:existing.temperature_source||'other',
+            lh_result:existing.lh_result||null, libido:existing.libido||null, mood:existing.mood||[], symptoms:existing.symptoms||[], disruptors:existing.disruptors||[],
+            workout_feel:WORKOUT_FROM_STORAGE[existing.workout_feel] || existing.workout_feel || null, notes:existing.notes||'',
+            flow_volume:existing.flow_volume||null, pain_rating:existing.pain_rating||null,
+            hot_flash_count:existing.hot_flash_count?String(existing.hot_flash_count):'',
+            night_sweats_severity:existing.night_sweats_severity||null,
+            joint_pain_rating:existing.joint_pain_rating||null, brain_fog_rating:existing.brain_fog_rating||null,
+            hormone_estradiol:existing.hormone_estradiol?String(existing.hormone_estradiol):'',
+            hormone_progesterone:existing.hormone_progesterone?String(existing.hormone_progesterone):'',
+            hormone_lh:existing.hormone_lh?String(existing.hormone_lh):'',
+            hormone_cortisol:existing.hormone_cortisol?String(existing.hormone_cortisol):'',
+          }))
+        }
+        if (mucus?.discharge_type) setLog(prev=>({...prev,cervical_fluid:mucus.discharge_type}))
+        if (isNative() && getUserSetting(user.id, 'healthConnected')) {
+          try {
+            const wearable = await readWearableData()
+            const snapshot = getFreshWearableSnapshot(wearable)
+            const { rhr, tempC, sleepHours } = snapshot
+            const nextWearable = { store:healthStoreName(), rhr:false, temp:false, sleepHours:sleepHours ?? existing?.sleep_hours ?? null }
+            const existingRhr = existing?.resting_hr_exact != null ? Number(existing.resting_hr_exact) : null
+            const existingTemp = existing?.wrist_temp != null ? Number(existing.wrist_temp) : null
+            const wearablePatch = {}
+            if (rhr != null) {
+              if (!Number.isFinite(existingRhr)) {
+                wearablePatch.resting_hr_exact = String(rhr)
+                if (!existing?.resting_hr) wearablePatch.resting_hr = rhrBucket(rhr)
+                nextWearable.rhr = true
+              } else if (Math.round(existingRhr) === rhr) nextWearable.rhr = true
+            }
+            if (tempC != null) {
+              if (!Number.isFinite(existingTemp)) {
+                wearablePatch.wrist_temp = String(tempC)
+                wearablePatch.temperature_source = 'wearable-wrist'
+                nextWearable.temp = true
+              } else if (round1(existingTemp) === tempC && existing?.temperature_source === 'wearable-wrist') nextWearable.temp = true
+            }
+            if (Object.keys(wearablePatch).length && !cancelled) setLog(prev => ({ ...prev, ...wearablePatch }))
+            if (!cancelled) setWearableInfo(nextWearable)
+
+            const payload = { user_id:user.id, log_date:today, hormonal_context:getHormonalContext(profile) }
+            if (!Number.isFinite(existingRhr) && rhr != null) payload.resting_hr_exact = rhr
+            if (!Number.isFinite(existingTemp) && tempC != null) {
+              payload.wrist_temp = tempC
+              payload.temperature_source = 'wearable-wrist'
+            }
+            if (existing?.sleep_hours == null && sleepHours != null) payload.sleep_hours = sleepHours
+            if (Object.keys(payload).length > 3) {
+              await runSave(supabase.from('daily_logs').upsert(payload, { onConflict:'user_id,log_date' }))
+            }
+          } catch (e) { console.error('Wearable prefill failed', e) }
+        }
+      } catch(e) {
+        console.error(e)
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+    return () => { cancelled = true }
+  }, [logDate, navigate, previewMode, searchParams])
 
   // Log the first day of a period, writes cycle_data so the cycle starts tracking.
   // This is the only place (besides Setup) a user can record a period; essential for
   // observation/Depo-recovery users whose cycle returns and who have no cycle data yet.
   async function logPeriodStart() {
     setSavingPeriod(true)
+    setSaveError('')
     try {
       const { data:{ user } } = await supabase.auth.getUser()
       if (!user) { navigate('/login',{replace:true}); return }
@@ -316,11 +356,18 @@ export default function Log({ previewMode = false }) {
       const notes = mergePeriodStartsNotes(existingCycle?.notes, existingCycle?.last_period_date, periodDate)
       // Keep last_period_date = the most recent start, in case an older date is backfilled.
       const latestStart = [existingCycle?.last_period_date, periodDate].filter(Boolean).sort().slice(-1)[0]
-      const { error } = await supabase.from('cycle_data').upsert(
-        { user_id:user.id, last_period_date:latestStart, cycle_length:cycleLen, notes },
-        { onConflict:'user_id' }
-      )
-      if (error) { console.error(error); setSaveError('Your period start could not be saved. Please try again.'); setSavingPeriod(false); return }
+      const row = { user_id:user.id, last_period_date:latestStart, cycle_length:cycleLen, notes }
+      const res = await runSave(supabase.from('cycle_data').upsert(row, { onConflict:'user_id' }))
+      if (!res.ok) {
+        queuePendingWrite(user.id, {
+          kind: 'period_start',
+          dedupeKey: `period-start:${periodDate}`,
+          payload: { row },
+        })
+        setSaveError('Your period start was kept on this device but could not reach the server. It will retry automatically when you are back online.')
+        setSavingPeriod(false)
+        return
+      }
       const now = new Date(); now.setHours(0,0,0,0)
       const cd = diffCalendarDays(now, latestStart+'T00:00:00')+1
       const p = getPhase(cd, cycleLen)
@@ -328,7 +375,10 @@ export default function Log({ previewMode = false }) {
       setLastPeriodDate(latestStart); setCycleDay(cd); setPeriodEnded(false)
       setCycleNotes(notes)
       setPeriodStarts(parsePeriodStarts({ notes, last_period_date:latestStart }))
-    } catch(e) { console.error(e) }
+    } catch(e) {
+      console.error(e)
+      setSaveError('Your period start could not be saved. Please try again.')
+    }
     setSavingPeriod(false)
   }
 
@@ -420,10 +470,19 @@ export default function Log({ previewMode = false }) {
     }
     setSaving(true)
     setSaveError('')
+    setPendingNotice('')
+    setHormoneErrors({})
     let user
     try { user = (await supabase.auth.getUser()).data.user } catch { setSaving(false); return }
     if (!user) { navigate('/login',{replace:true}); return }
     const today = logDate
+    const { values: normalizedHormones, errors: hormoneInputErrors } = normalizeHormoneInputs(log, hormoneUnits)
+    if (Object.keys(hormoneInputErrors).length) {
+      setHormoneErrors(hormoneInputErrors)
+      setSaveError('Check the hormone results above. The entered values do not match the selected units.')
+      setSaving(false)
+      return
+    }
     const payload = {
       user_id:user.id, log_date:today,
       hormonal_context:contextKey,
@@ -436,10 +495,10 @@ export default function Log({ previewMode = false }) {
       disruptors:log.disruptors,
       wrist_temp:sanitize('wrist_temp', log.wrist_temp),
       temperature_source:log.wrist_temp ? log.temperature_source : null,
-      hormone_estradiol:sanitize('hormone_estradiol', log.hormone_estradiol),
-      hormone_progesterone:sanitize('hormone_progesterone', log.hormone_progesterone),
-      hormone_lh:sanitize('hormone_lh', log.hormone_lh),
-      hormone_cortisol:sanitize('hormone_cortisol', log.hormone_cortisol),
+      hormone_estradiol:normalizedHormones.hormone_estradiol,
+      hormone_progesterone:normalizedHormones.hormone_progesterone,
+      hormone_lh:normalizedHormones.hormone_lh,
+      hormone_cortisol:normalizedHormones.hormone_cortisol,
       workout_feel:WORKOUT_TO_STORAGE[log.workout_feel] || log.workout_feel,
       workout_feel_reported:Boolean(log.workout_feel),
       flow_volume:log.flow_volume, pain_rating:log.pain_rating, notes:log.notes?.trim()||null,
@@ -447,26 +506,63 @@ export default function Log({ previewMode = false }) {
       night_sweats_severity:log.night_sweats_severity, joint_pain_rating:log.joint_pain_rating,
       brain_fog_rating:log.brain_fog_rating,
     }
+    const mucusPayload = log.cervical_fluid
+      ? { action:'upsert', row:{ user_id:user.id, log_date:today, discharge_type:log.cervical_fluid } }
+      : { action:'delete', userId:user.id, logDate:today }
     try {
-      const { error } = await supabase.from('daily_logs').upsert(payload,{onConflict:'user_id,log_date'})
-      if (error) throw error
-      if (log.cervical_fluid) {
-        const { error:mucusError } = await supabase.from('mucus_logs').upsert({user_id:user.id,log_date:today,discharge_type:log.cervical_fluid},{onConflict:'user_id,log_date'})
-        if (mucusError) throw mucusError
-      } else {
-        const { error:mucusDeleteError } = await supabase.from('mucus_logs').delete().eq('user_id',user.id).eq('log_date',today)
-        if (mucusDeleteError) throw mucusDeleteError
-      }
+      const dailyRes = await runSave(supabase.from('daily_logs').upsert(payload,{onConflict:'user_id,log_date'}))
+      if (!dailyRes.ok) throw dailyRes.error || new Error(dailyRes.message)
+      const mucusRes = mucusPayload.action === 'upsert'
+        ? await runSave(supabase.from('mucus_logs').upsert(mucusPayload.row,{onConflict:'user_id,log_date'}))
+        : await runSave(supabase.from('mucus_logs').delete().eq('user_id',user.id).eq('log_date',today))
+      if (!mucusRes.ok) throw mucusRes.error || new Error(mucusRes.message)
       track('log_saved', { isToday, symptoms: (log.symptoms||[]).length, hasMood: (log.mood||[]).length > 0 })
       if (isToday) {
-        try { const ns = await getTodayStatus(supabase, user.id); setSavedPct(ns?.personalisationPct ?? 0) } catch { /* ignore */ }
+        try {
+          const ns = await getTodayStatus(supabase, user.id)
+          setSavedPct(ns?.personalisationPct ?? 0)
+          setSavedMilestone(ns?.nextMilestone?.text || '')
+          setSavedTimingDetail(ns?.cycleTimingReliability?.detail || '')
+        } catch { /* ignore */ }
       }
       setSaved(true)
       setTimeout(() => navigate('/dashboard'), 1900)
-    } catch(e) { console.error(e); setSaveError('Your log could not be saved. Please check your connection and try again.'); setSaving(false) }
+    } catch(e) {
+      console.error(e)
+      queuePendingWrite(user.id, {
+        kind: 'daily_log',
+        dedupeKey: `daily-log:${today}`,
+        payload: { dailyLog: payload, mucus: mucusPayload },
+      })
+      setSaveError('Your log was kept on this device but could not reach the server. It will retry automatically when you are back online.')
+      setSaving(false)
+    }
   }
 
   if (loading) return <><TopBar title="Daily log" backTo="/dashboard"/><div style={{paddingTop:60}}><Spinner/></div><BottomNav/></>
+
+  // Temperature and LH strips had zero uptake as manual quick-log fields (0 of 184 logs),
+  // so they now live under Optional details. Temperature still shows inline when the
+  // wearable filled it, because then the job is correcting a value, not entering one.
+  const tempFields = (
+    <>
+      <span style={sLabel}>Temperature</span>
+      {wearableInfo.temp && <div style={{fontSize:11,color:'#7a7268',marginTop:-4,marginBottom:8}}>{wearableInfo.store} filled this in. Change it if needed.</div>}
+      <select aria-label="Temperature source" value={log.temperature_source} onChange={e=>set('temperature_source',e.target.value)} style={{width:'100%',padding:'10px 12px',borderRadius:10,border:'1px solid #ede8e0',fontSize:14,fontFamily:'inherit',marginBottom:8,background:'#fff'}}>
+        <option value="wearable-wrist">Wearable / wrist sensor</option>
+        <option value="oral-bbt">Oral basal thermometer</option>
+        <option value="other">Other or unknown method</option>
+      </select>
+      <input type="number" step="0.1" min="34" max="40" aria-label="Temperature in Celsius (optional)" placeholder="°C, optional" value={log.wrist_temp} onChange={e=>set('wrist_temp',e.target.value)}
+        style={{width:'100%',padding:'12px 14px',borderRadius:10,border:'1px solid #ede8e0',fontSize:15,fontFamily:'inherit',marginBottom:16}}/>
+    </>
+  )
+  const hormonePreview = (() => {
+    const { values, errors } = normalizeHormoneInputs(log, hormoneUnits)
+    if (Object.keys(errors).length) return null
+    return interpretHormones({ ...log, ...values })
+  })()
+
 
   return (
     <>
@@ -477,6 +573,7 @@ export default function Log({ previewMode = false }) {
       <div style={{padding:'16px 16px 120px'}}>
 
         {/* Day selector, log today or backfill a missed day. Never the future. */}
+        {pendingNotice && <div style={{fontSize:12,color:'#4a6a48',background:'#eef6ea',border:'1px solid #cddfc7',borderRadius:10,padding:'10px 12px',marginBottom:12,lineHeight:1.5}}>{pendingNotice}</div>}
         <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8,flexWrap:'wrap'}}>
           <span style={{fontSize:12,color:'#7a7268'}}>Logging for</span>
           <input type="date" aria-label="Date to log for" value={logDate} max={localDateStr()}
@@ -577,24 +674,10 @@ export default function Log({ previewMode = false }) {
               <>
                 <span style={sLabel}>Cervical fluid</span>
                 <PillRow opts={FLUID_OPTS} selected={log.cervical_fluid} single onToggle={v=>set('cervical_fluid',v)}/>
-                {log.cervical_fluid && FLUID_HINTS[log.cervical_fluid] && (
-                  <div style={{fontSize:12,color:'#7a7268',marginTop:-8,marginBottom:16,lineHeight:1.5}}>{FLUID_HINTS[log.cervical_fluid]}</div>
-                )}
-
-                <span style={sLabel}>LH test</span>
-                <PillRow opts={LH_OPTS} selected={log.lh_result} single onToggle={v=>set('lh_result',v)}/>
               </>
             )}
 
-            <span style={sLabel}>Temperature</span>
-            {wearableInfo.temp && <div style={{fontSize:11,color:'#7a7268',marginTop:-4,marginBottom:8}}>{wearableInfo.store} filled this in. Change it if needed.</div>}
-            <select aria-label="Temperature source" value={log.temperature_source} onChange={e=>set('temperature_source',e.target.value)} style={{width:'100%',padding:'10px 12px',borderRadius:10,border:'1px solid #ede8e0',fontSize:14,fontFamily:'inherit',marginBottom:8,background:'#fff'}}>
-              <option value="wearable-wrist">Wearable / wrist sensor</option>
-              <option value="oral-bbt">Oral basal thermometer</option>
-              <option value="other">Other or unknown method</option>
-            </select>
-            <input type="number" step="0.1" min="34" max="40" aria-label="Temperature in Celsius (optional)" placeholder="°C, optional" value={log.wrist_temp} onChange={e=>set('wrist_temp',e.target.value)}
-              style={{width:'100%',padding:'12px 14px',borderRadius:10,border:'1px solid #ede8e0',fontSize:15,fontFamily:'inherit',marginBottom:16}}/>
+            {wearableInfo.temp && tempFields}
 
             <span style={sLabel}>Resting heart rate</span>
             {wearableInfo.rhr && <div style={{fontSize:11,color:'#7a7268',marginTop:-4,marginBottom:8}}>{wearableInfo.store} filled this in. Change it if needed.</div>}
@@ -626,6 +709,9 @@ export default function Log({ previewMode = false }) {
 
             <span style={sLabel}>Stress</span>
             <PillRow opts={STRESS_OPTS} selected={log.stress_level} single onToggle={v=>set('stress_level',v)}/>
+
+            <span style={sLabel}>Sex drive</span>
+            <PillRow opts={LIBIDO_OPTS} selected={log.libido} single onToggle={v=>set('libido',v)}/>
           </>
         )}
 
@@ -669,29 +755,39 @@ export default function Log({ previewMode = false }) {
           <textarea aria-label="Notes" value={log.notes} onChange={e=>set('notes',e.target.value)} placeholder="Anything else worth noting today?" rows={3}
             style={{width:'100%',padding:'10px 14px',borderRadius:10,border:'1px solid #ede8e0',fontSize:14,fontFamily:'inherit',marginBottom:16,resize:'vertical',color:'#2c2820'}}/>
 
+          {!isPath4 && !isPregnant && !wearableInfo.temp && tempFields}
+
           <div style={{marginBottom:20}}>
             <button type="button" aria-expanded={showHormones} onClick={()=>setShowHormones(v=>!v)} style={{background:'none',border:'none',fontSize:13,color:'#9a9590',cursor:'pointer',fontFamily:'inherit',padding:0,display:'flex',alignItems:'center',gap:6}}>
-              <i className={`ti ti-chevron-${showHormones?'up':'down'}`} aria-hidden="true"/> Hormone test results (optional)
+              <i className={`ti ti-chevron-${showHormones?'up':'down'}`} aria-hidden="true"/> Ovulation test and hormone results (optional)
             </button>
+            {showHormones && !isPath4 && !isPregnant && <div style={{marginTop:12,marginBottom:14}}>
+              <div style={{fontSize:11,color:'#9a9590',marginBottom:8}}>LH ovulation test strip</div>
+              <PillRow opts={LH_OPTS} selected={log.lh_result} single onToggle={v=>set('lh_result',v)}/>
+              <div style={{fontSize:11,color:'#9a9590',marginTop:-8,lineHeight:1.5}}>Only if you use ovulation strips. Skip this if you do not.</div>
+            </div>}
             {showHormones&&<div style={{marginTop:12,display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-              {[{label:'Estradiol pmol/L',field:'hormone_estradiol',ph:'e.g. 450'},
-                {label:'Progesterone nmol/L',field:'hormone_progesterone',ph:'e.g. 28.5'},
-                {label:'LH IU/L',field:'hormone_lh',ph:'e.g. 12.0'},
-                {label:'Cortisol nmol/L',field:'hormone_cortisol',ph:'e.g. 18.0'}].map(h=>(
+              {HORMONE_INPUTS.map(h=>(
                 <div key={h.field}>
-                  <div style={{fontSize:11,color:'#9a9590',marginBottom:4}}>{h.label}</div>
-                  <input type="number" step="0.1" aria-label={h.label} placeholder={h.ph} value={log[h.field]} onChange={e=>set(h.field,e.target.value)}
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8,marginBottom:4}}>
+                    <div style={{fontSize:11,color:'#9a9590'}}>{HORMONE_FIELDS[h.field].label}</div>
+                    <select value={hormoneUnits[h.field]} onChange={e=>changeHormoneUnit(h.field, e.target.value)} aria-label={`${HORMONE_FIELDS[h.field].label} units`}
+                      style={{padding:'4px 8px',borderRadius:8,border:'1px solid #ede8e0',fontSize:11,fontFamily:'inherit',background:'#fff',color:'#5a5248'}}>
+                      {Object.keys(HORMONE_FIELDS[h.field].units).map(unit => <option key={unit} value={unit}>{unit}</option>)}
+                    </select>
+                  </div>
+                  <input type="number" step="0.1" aria-label={`${HORMONE_FIELDS[h.field].label} ${hormoneUnits[h.field]}`} placeholder={h.placeholder} value={log[h.field]} onChange={e=>setHormoneValue(h.field,e.target.value)}
                     style={{width:'100%',padding:'10px 12px',borderRadius:8,border:'1px solid #ede8e0',fontSize:14,fontFamily:'inherit'}}/>
+                  {hormoneErrors[h.field] && <div style={{fontSize:11,color:'#9a3f2c',lineHeight:1.5,marginTop:6}}>{hormoneErrors[h.field]}</div>}
                 </div>
               ))}
             </div>}
             {showHormones && (() => {
-              const h = interpretHormones(log)
-              if (!h) return null
+              if (!hormonePreview) return null
               return (
                 <div style={{marginTop:12,padding:'10px 12px',background:'#f5f0e8',borderRadius:10,fontSize:11,color:'#5a5248',lineHeight:1.55}}>
-                  {h.notes.map((n,i)=><div key={i} style={{marginBottom:4}}>{n}</div>)}
-                  <div style={{color:'#9a9590',marginTop:4,fontStyle:'italic'}}>{h.caveat}</div>
+                  {hormonePreview.notes.map((n,i)=><div key={i} style={{marginBottom:4}}>{n}</div>)}
+                  <div style={{color:'#9a9590',marginTop:4,fontStyle:'italic'}}>{hormonePreview.caveat}</div>
                 </div>
               )
             })()}
@@ -713,9 +809,11 @@ export default function Log({ previewMode = false }) {
             <div style={{fontFamily:'Georgia,serif',fontStyle:'italic',fontSize:20,color:'#2c2820',marginBottom:8}}>{isToday ? 'Logged' : 'Saved'}</div>
             <div style={{fontSize:14,color:'#5a5248',lineHeight:1.6,marginBottom:6}}>
               {isToday
-                ? (savedPct!=null ? `Your personal data coverage is now ${savedPct}%. Guidance remains an estimate.` : 'Your data is helping Empower look for a pattern over time.')
+                ? (savedMilestone || 'Your data is helping Em~power look for a pattern over time.')
                 : `Updated ${new Date(logDate+'T00:00:00').toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'})}.`}
             </div>
+            {isToday && savedPct!=null && <div style={{fontSize:11,color:'#9a9590',marginBottom:6}}>Guidance personalisation {savedPct}%. Cycle-date estimates use separate timing evidence.</div>}
+            {isToday && savedTimingDetail && <div style={{fontSize:11,color:'#9a9590',marginBottom:6}}>{savedTimingDetail}</div>}
             <div style={{fontSize:12,color:'#9a9590'}}>Heading to your dashboard...</div>
           </div>
         </div>

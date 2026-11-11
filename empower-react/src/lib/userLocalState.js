@@ -31,7 +31,7 @@ export function clearUserLocalState(userId) {
       if (k?.startsWith(prefix)) localStorage.removeItem(k)
     }
     // Remove legacy unscoped health keys so an older build can never leak them forward.
-    ;['healthConnected', 'healthPromptDismissed', 'wearableSignals', 'fitnessGoal'].forEach(k => localStorage.removeItem(k))
+    ;['healthConnected', 'healthPromptDismissed', 'wearableSignals', 'fitnessGoal', 'notifyEnabled', 'notifyHour', 'notifyMinute', 'notifyPromptDismissed'].forEach(k => localStorage.removeItem(k))
     for (let i = localStorage.length - 1; i >= 0; i--) {
       const k = localStorage.key(i)
       if (k?.startsWith('weekly-')) localStorage.removeItem(k)
