@@ -737,6 +737,27 @@ export default function Dashboard() {
                 </div>
               ))}
             </div>
+            {patternInsights.length > 0 && (
+              <div style={{ background:'#f3f1fa', border:'1px solid #e4e0f2', borderRadius:14, padding:'15px 16px', marginBottom:12 }}>
+                <div style={{ display:'flex', alignItems:'center', gap:7, marginBottom:10 }}>
+                  <i className="ti ti-chart-line" style={{ fontSize:16, color:'#67608d' }} />
+                  <div style={{ fontSize:11, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:'#67608d' }}>Patterns from your logs</div>
+                </div>
+                <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+                  {patternInsights.slice(0, 2).map(pattern => (
+                    <div key={pattern.id}>
+                      <div style={{ fontSize:13, fontWeight:650, color:'#302d42', lineHeight:1.4 }}>{pattern.title}</div>
+                      <div style={{ fontSize:12, color:'#625d76', lineHeight:1.5, marginTop:2 }}>{pattern.body}</div>
+                    </div>
+                  ))}
+                </div>
+                {patternInsights.length > 2 && (
+                  <button onClick={() => setCoachOpen(true)} style={{ marginTop:11, padding:0, border:'none', background:'none', color:'#5d5684', fontSize:12.5, fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>
+                    See {patternInsights.length - 2} more pattern{patternInsights.length === 3 ? '' : 's'} →
+                  </button>
+                )}
+              </div>
+            )}
             {coachOpen && d.coach && (
               <div style={{ background:'#fff', border:'1px solid #ede8e0', borderRadius:14, padding:16, marginBottom:12, display:'flex', flexDirection:'column', gap:14 }}>
                 {patternInsights.length ? patternInsights.map(pattern => (
