@@ -6,6 +6,7 @@ import { getTodayStatus } from '../lib/hormoneSync'
 import { runSave } from '../lib/dbSave'
 import { sanitize } from '../lib/validate'
 import { buildTodayFoodPlan } from '../lib/nutritionPlan'
+import { getLoggedSymptomRelief } from '../lib/loggedSymptomRelief'
 import BottomNav from '../components/BottomNav'
 import TopBar from '../components/TopBar'
 import Spinner from '../components/Spinner'
@@ -638,6 +639,7 @@ export default function Nutrition() {
   const [mealSwaps, setMealSwaps] = useState({})
   const [foodPlanSeed] = useState(() => Math.floor(Date.now() / 86400000))
   const [personalisedFocus, setPersonalisedFocus] = useState(null)
+  const [status, setStatus] = useState(null)
   const [showUpdateSheet, setShowUpdateSheet] = useState(false)
   const [editWeight, setEditWeight] = useState('')
   const [editFitness, setEditFitness] = useState('')
@@ -655,6 +657,7 @@ export default function Nutrition() {
       try {
         const status = await getTodayStatus(supabase, user.id)
         if (cancelled) return
+        setStatus(status)
         const prof = status?.profile || null
         setProfile(prof)
         setEditDiets(parseDiets(prof?.diet_preference))
@@ -663,6 +666,8 @@ export default function Nutrition() {
         if (status?.personalisedFocus) {
           setPersonalisedFocus(status.personalisedFocus)
           setOpenSymptom(status.personalisedFocus.focus)
+        } else {
+          setPersonalisedFocus(null)
         }
       } catch(e) {
         console.error(e)
@@ -763,6 +768,8 @@ export default function Nutrition() {
   const displayProtein = targets?.proteinRangeG ? `${targets.proteinRangeG[0]}–${targets.proteinRangeG[1]}g` : null
   const dietLabel = activeDiets.map(d => DIET_OPTIONS.find(o => o.val === d)?.label).filter(Boolean).join(' + ')
   const foodPlan = buildTodayFoodPlan(phaseKey, activeDiets, foodPlanSeed)
+  const symptomRelief = getLoggedSymptomRelief(status)
+  const reliefFoods = symptomRelief ? SYMPTOMS.find(symptom => symptom.id === symptomRelief.focus) : null
 
   return (
     <div style={{ paddingBottom:120 }}>
@@ -819,6 +826,22 @@ export default function Nutrition() {
             </div>
           )}
         </div>
+      )}
+
+      {reliefFoods && (
+        <section aria-label="Foods based on your symptom logs" style={{ margin:'0 16px 16px', background:'#edf5f0', border:'1px solid #c9dfd1', borderRadius:14, padding:'14px 15px' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:7, marginBottom:5 }}>
+            <span aria-hidden="true" style={{ fontSize:18 }}>{reliefFoods.emoji}</span>
+            <div style={{ fontSize:11, color:'#37634e', fontWeight:700, letterSpacing:'0.09em', textTransform:'uppercase' }}>Based on your logs</div>
+          </div>
+          <div style={{ fontSize:15, fontWeight:650, color:'#264838', lineHeight:1.35 }}>Foods that may help with {reliefFoods.title.toLowerCase()}</div>
+          <div style={{ fontSize:12, color:'#47715d', lineHeight:1.5, marginTop:4 }}>{symptomRelief.reason}</div>
+          <div style={{ display:'flex', flexDirection:'column', gap:5, marginTop:10 }}>
+            {reliefFoods.remedies.slice(0, 3).map(remedy => (
+              <div key={remedy.name} style={{ fontSize:12.5, color:'#2d5843', lineHeight:1.45 }}>• {remedy.name}</div>
+            ))}
+          </div>
+        </section>
       )}
 
       <div style={{ margin:'0 16px 16px', background:'#fff', border:'1px solid #ede8e0', borderRadius:16, padding:12 }}>

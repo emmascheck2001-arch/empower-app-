@@ -6,6 +6,7 @@ import { getTodayStatus, getPhase, getLutealSubPhase, parsePeriodStarts, deriveP
 import { diffCalendarDays } from '../lib/dateUtils.js'
 import { calendarFocusFor } from '../lib/calendarFocus.js'
 import { estimatedOvulationDayForPhase, isEstimatedFertilePhaseDay } from '../lib/calendarCycle.js'
+import { buildPatternInsights } from '../lib/patternInsights.js'
 import BottomNav from '../components/BottomNav'
 import Spinner from '../components/Spinner'
 
@@ -214,6 +215,7 @@ export default function Calendar() {
   if (loading) return <div style={{ paddingTop:60 }}><Spinner /></div>
 
   const profile = status?.profile
+  const patternInsights = buildPatternInsights(status)
   const isPath4 = profile?.user_path === '4'
   // Hormonal BC (path 5, not copper IUD) suppresses ovulation, there is no natural
   // cycle phase, so never colour the calendar by phase even if a bleed date exists.
@@ -472,6 +474,24 @@ export default function Calendar() {
             })}
           </div>
         </div>
+
+        {patternInsights.length > 0 && (
+          <section aria-label="Patterns from your logs" style={{ background:'#f3f1fa', border:'1px solid #e4e0f2', borderRadius:14, padding:'15px 16px', marginBottom:16 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:7, marginBottom:10 }}>
+              <i className="ti ti-chart-line" aria-hidden="true" style={{ fontSize:16, color:'#67608d' }} />
+              <div style={{ fontSize:11, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:'#67608d' }}>Patterns from your logs</div>
+            </div>
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {patternInsights.map(pattern => (
+                <div key={pattern.id}>
+                  <div style={{ fontSize:13, fontWeight:650, color:'#302d42', lineHeight:1.4 }}>{pattern.title}</div>
+                  <div style={{ fontSize:12, color:'#625d76', lineHeight:1.5, marginTop:2 }}>{pattern.body}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ fontSize:11, color:'#706a85', lineHeight:1.45, marginTop:12 }}>This refreshes from your history each time you log and return to Calendar.</div>
+          </section>
+        )}
 
         {/* Legend */}
         <div style={{ display:'flex', flexWrap:'wrap', gap:10, marginBottom:16 }}>
