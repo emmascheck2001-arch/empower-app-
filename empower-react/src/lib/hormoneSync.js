@@ -860,6 +860,9 @@ function recentMucusLogsWithinDays(mucusLogs = [], today = new Date(), maxAgeDay
 }
 
 const FERTILE_MUCUS_TYPES = new Set(['Egg white', 'Watery', 'Creamy or lotion-like'])
+// Creamy fluid can occur on several non-ovulatory days. It is useful context for the broader
+// fertile window, but it is not a peak signal strong enough to replace a period-anchored phase.
+const PEAK_CERVICAL_MUCUS_TYPES = new Set(['Egg white'])
 const DRYING_MUCUS_TYPES = new Set(['Sticky or crumbly', 'None or dry'])
 
 function detectRecentTempShift(recentLogs = [], learnedBaselines = {}) {
@@ -927,6 +930,7 @@ export function applyBodySignalPhaseCorrection({
   const recentMucus4 = recentMucusLogsWithinDays(mucusLogs, today, 4 + ovulationVariationDays)
   const eggWhiteRecent = recentMucus2.filter(m => m.discharge_type === 'Egg white')
   const fertileRecent = recentMucus4.filter(m => FERTILE_MUCUS_TYPES.has(m.discharge_type))
+  const peakMucusRecent = recentMucus4.filter(m => PEAK_CERVICAL_MUCUS_TYPES.has(m.discharge_type))
   const mostRecentByDate = logs => logs
     .slice()
     .sort((a, b) => a.log_date < b.log_date ? 1 : -1)[0] || null
@@ -938,7 +942,7 @@ export function applyBodySignalPhaseCorrection({
   const positiveLhCycleDay = recentPositiveLh?.log_date
     ? cycleDayFromTodayDate(today, cycleDay, recentPositiveLh.log_date)
     : null
-  const recentPeak = mostRecentByDate(fertileRecent.filter(m => m.discharge_type === 'Egg white')) || mostRecentByDate(fertileRecent)
+  const recentPeak = mostRecentByDate(peakMucusRecent)
   const recentPeakCycleDay = recentPeak?.log_date ? cycleDayFromTodayDate(today, cycleDay, recentPeak.log_date) : null
   const recentPeakAge = recentPeak?.log_date ? diffCalendarDays(today, recentPeak.log_date + 'T00:00:00') : null
   const dryingAfterPeak = recentPeak
@@ -981,7 +985,7 @@ export function applyBodySignalPhaseCorrection({
     label = shouldHoldFertileWindow
       ? 'Adjusted from your recorded period start by holding the fertile window open until post-ovulation confirmation appears.'
       : 'Adjusted from your recorded period start using recent egg white cervical fluid.'
-  } else if (fertileRecent.length && phase === 'Luteal' && !hasPostPeakConfirmation) {
+  } else if (peakMucusRecent.length && phase === 'Luteal' && !hasPostPeakConfirmation) {
     nextPhase = 'Follicular'
     nextSubPhase = 'Late follicular'
     nextConfidence = Math.min(confidence ?? 0.38, hasRecentTemperature ? 0.40 : 0.33)

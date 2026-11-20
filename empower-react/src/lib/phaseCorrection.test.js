@@ -116,6 +116,26 @@ describe('body-signal phase correction', () => {
     expect(result.daysUntilPeriod).toBe(15)
   })
 
+  it('does not replace a period-anchored luteal phase for creamy fluid alone', () => {
+    const result = applyBodySignalPhaseCorrection({
+      phase: 'Luteal',
+      subPhase: 'Mid luteal',
+      cycleDay: 24,
+      cycleLen: 28,
+      daysUntilPeriod: 5,
+      confidence: 0.52,
+      mucusLogs: [
+        { log_date: '2026-11-17', discharge_type: 'Creamy or lotion-like' },
+      ],
+      recentLogs: [],
+      today: new Date('2026-11-19T00:00:00'),
+    })
+
+    expect(result.corrected).toBe(false)
+    expect(result.phase).toBe('Luteal')
+    expect(result.subPhase).toBe('Mid luteal')
+  })
+
   it('uses a recent positive LH test to refine the current fertile-window estimate', () => {
     const result = applyBodySignalPhaseCorrection({
       phase: 'Follicular',
